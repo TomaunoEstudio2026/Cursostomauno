@@ -1,0 +1,2724 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1.0,viewport-fit=cover"/>
+<meta name="theme-color" content="#000"/>
+<title>Tomauno — Cursos & Capacitaciones</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"/>
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Outfit:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet"/>
+<style>
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent;}
+:root{
+  --red:#e8000a;--red2:#b5000a;--black:#000;--gray:#111;--gray2:#181818;--gray3:#242424;--gray4:#333;
+  --text:#fff;--text2:#aaa;--text3:#555;--border:#222;
+  --radius:16px;--radius-sm:10px;--font:'Outfit',sans-serif;--display:'Bebas Neue',sans-serif;
+}
+html,body{background:var(--black);color:var(--text);font-family:var(--font);min-height:100%;overflow-x:hidden;scroll-behavior:smooth;}
+
+/* FONDO */
+#bg-canvas{position:fixed;inset:0;z-index:0;pointer-events:none;}
+.grain-overlay{position:fixed;inset:0;pointer-events:none;z-index:1;opacity:.4;
+  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.75' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='.06'/%3E%3C/svg%3E");}
+
+/* NAV */
+.nav{position:fixed;top:0;left:0;right:0;z-index:300;height:64px;background:rgba(0,0,0,.92);backdrop-filter:blur(20px);border-bottom:1px solid rgba(255,255,255,.05);display:flex;align-items:center;justify-content:space-between;padding:0 20px;}
+.nav-logo{display:flex;align-items:center;gap:10px;cursor:pointer;user-select:none;text-decoration:none;}
+.logo-mark{width:40px;height:40px;border-radius:50%;overflow:hidden;border:1.5px solid rgba(255,255,255,.15);flex-shrink:0;background:#111;display:flex;align-items:center;justify-content:center;}
+.logo-mark img{width:100%;height:100%;object-fit:cover;border-radius:50%;}
+.logo-txt{font-family:var(--display);font-size:30px;letter-spacing:1px;line-height:1;color:#fff;}
+.logo-txt em{color:var(--red);font-style:normal;}
+.logo-sub{font-size:9px;color:var(--text3);letter-spacing:.18em;text-transform:uppercase;}
+#notif-dot{display:none;width:9px;height:9px;background:var(--red);border-radius:50%;margin-left:4px;animation:blink 1.2s infinite;}
+.nav-links{display:flex;align-items:center;gap:2px;}
+.nav-link{color:var(--text3);text-decoration:none;font-size:12px;font-weight:600;padding:7px 13px;border-radius:20px;transition:all .2s;letter-spacing:.04em;white-space:nowrap;}
+.nav-link:hover{color:#fff;background:rgba(255,255,255,.07);}
+.nav-link.nav-cta{background:var(--red);color:#fff;font-weight:800;margin-left:4px;}
+.nav-link.nav-cta:hover{background:var(--red2);}
+/* Instagram dropdown */
+.ig-drop{position:relative;display:inline-flex;}
+.ig-drop-btn{color:var(--text3);text-decoration:none;font-size:12px;font-weight:600;padding:7px 13px;border-radius:20px;transition:all .2s;letter-spacing:.04em;white-space:nowrap;background:none;border:none;font-family:var(--font);cursor:pointer;display:flex;align-items:center;gap:5px;}
+.ig-drop-btn:hover{color:#fff;background:rgba(255,255,255,.07);}
+.ig-drop-btn .arr{font-size:8px;opacity:.5;transition:transform .2s;}
+.ig-drop.open .ig-drop-btn .arr{transform:rotate(180deg);}
+.ig-drop-menu{display:none;position:absolute;top:calc(100% + 6px);right:0;background:#111;border:1px solid var(--border);border-radius:var(--radius-sm);min-width:190px;z-index:400;overflow:hidden;box-shadow:0 12px 40px rgba(0,0,0,.6);}
+.ig-drop.open .ig-drop-menu{display:block;}
+.ig-drop-item{display:flex;align-items:center;gap:10px;padding:12px 16px;color:var(--text2);text-decoration:none;font-size:13px;font-weight:600;border-bottom:1px solid rgba(255,255,255,.05);transition:all .2s;}
+.ig-drop-item:last-child{border-bottom:none;}
+.ig-drop-item:hover{background:rgba(225,48,108,.1);color:#e1306c;}
+.ig-drop-item .ig-handle{font-size:11px;color:var(--text3);margin-top:1px;}
+/* Hamburger mobile */
+.nav-ham{display:none;flex-direction:column;gap:5px;cursor:pointer;padding:8px;background:none;border:none;}
+.nav-ham span{display:block;width:22px;height:2px;background:#fff;border-radius:2px;transition:all .25s;}
+.mob-menu{display:none;position:fixed;top:64px;left:0;right:0;background:rgba(0,0,0,.97);border-bottom:1px solid var(--border);z-index:299;padding:12px 0;}
+.mob-menu.open{display:block;}
+.mob-link{display:block;padding:13px 24px;color:var(--text2);text-decoration:none;font-size:14px;font-weight:600;border-bottom:1px solid rgba(255,255,255,.04);transition:color .2s;}
+.mob-link:hover{color:#fff;background:rgba(255,255,255,.04);}
+@media(max-width:860px){.nav-links .nav-link:not(.nav-cta){display:none;}.nav-ham{display:flex;}}
+@media(max-width:480px){.nav-links .nav-cta{display:none;}.nav-ham{display:flex;}}
+@keyframes blink{0%,100%{opacity:1}50%{opacity:.2}}
+
+/* HERO */
+.hero{min-height:100vh;padding-top:64px;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;position:relative;overflow:hidden;z-index:2;}
+.hero-glow{position:absolute;width:600px;height:600px;background:radial-gradient(ellipse,rgba(232,0,10,.18) 0%,transparent 70%);top:50%;left:50%;transform:translate(-50%,-50%);pointer-events:none;}
+.hero-grid{position:absolute;inset:0;background-image:linear-gradient(rgba(255,255,255,.03) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,.03) 1px,transparent 1px);background-size:60px 60px;pointer-events:none;}
+.hero-content{position:relative;z-index:2;padding:20px;max-width:700px;}
+.hero-tag{display:inline-flex;align-items:center;gap:6px;background:rgba(232,0,10,.1);border:1px solid rgba(232,0,10,.25);color:var(--red);font-size:11px;font-weight:700;letter-spacing:.15em;text-transform:uppercase;padding:6px 16px;border-radius:20px;margin-bottom:24px;opacity:0;animation:up .6s .2s forwards;}
+.hero-h1{font-family:var(--display);font-size:clamp(80px,18vw,160px);line-height:.88;letter-spacing:4px;margin-bottom:10px;opacity:0;animation:heroIn .9s .2s cubic-bezier(.16,1,.3,1) forwards;}
+.hero-h1 em{color:var(--red);font-style:normal;}
+.hero-p{font-size:clamp(14px,2vw,17px);color:var(--text2);max-width:380px;margin:0 auto 36px;line-height:1.65;opacity:0;animation:up .7s .5s forwards;}
+.hero-tagline{font-size:clamp(11px,1.4vw,13px);letter-spacing:.35em;text-transform:uppercase;color:rgba(255,255,255,.28);font-weight:700;margin-bottom:12px;opacity:0;animation:up .6s .45s forwards;}
+.hero-stats{display:flex;align-items:center;justify-content:center;gap:0;margin-top:36px;opacity:0;animation:up .7s .8s forwards;}
+.hero-stat{text-align:center;padding:0 32px;}
+.hero-stat-n{font-family:var(--display);font-size:52px;letter-spacing:2px;color:var(--red);line-height:1;}
+.hero-stat-l{font-size:11px;color:var(--text3);text-transform:uppercase;letter-spacing:.15em;margin-top:4px;font-weight:700;}
+.hero-stat-sep{width:1px;height:40px;background:rgba(255,255,255,.1);}
+.hero-scroll{position:absolute;bottom:28px;left:50%;transform:translateX(-50%);font-size:10px;letter-spacing:.2em;text-transform:uppercase;color:var(--text3);display:flex;flex-direction:column;align-items:center;gap:6px;animation:bounce 2.5s infinite;}
+@media(max-width:480px){.hero-stat{padding:0 16px;}.hero-stat-n{font-size:36px;}}
+@keyframes bounce{0%,100%{transform:translateX(-50%) translateY(0)}50%{transform:translateX(-50%) translateY(7px)}}
+@keyframes up{from{opacity:0;transform:translateY(28px)}to{opacity:1;transform:translateY(0)}}
+@keyframes heroIn{from{opacity:0;transform:scale(.85);filter:blur(12px)}to{opacity:1;transform:scale(1);filter:blur(0)}}
+
+/* SECCIONES GENERALES */
+.section-wrap{max-width:1140px;margin:0 auto;padding:0 20px;}
+section{position:relative;z-index:2;}
+.sec-head{display:flex;align-items:flex-end;justify-content:space-between;margin-bottom:36px;gap:16px;}
+.sec-title{font-family:var(--display);font-size:clamp(40px,7vw,64px);letter-spacing:2px;line-height:1;}
+.sec-sub{font-size:13px;color:var(--text3);}
+
+/* BUSQUEDA */
+.search-wrap{position:relative;margin-bottom:20px;}
+.search-input{width:100%;background:var(--gray2);border:1.5px solid var(--border);color:var(--text);padding:12px 16px 12px 44px;border-radius:50px;font-family:var(--font);font-size:14px;outline:none;transition:border-color .25s,box-shadow .25s;}
+.search-input:focus{border-color:var(--red);box-shadow:0 0 0 3px rgba(232,0,10,.1);}
+.search-input::placeholder{color:var(--text3);}
+.search-icon{position:absolute;left:16px;top:50%;transform:translateY(-50%);width:18px;height:18px;stroke:var(--text3);fill:none;pointer-events:none;}
+.search-clear{position:absolute;right:14px;top:50%;transform:translateY(-50%);background:none;border:none;color:var(--text3);cursor:pointer;font-size:15px;padding:4px 6px;transition:color .2s;display:none;line-height:1;}
+.search-clear:hover{color:#fff;}
+.search-info{font-size:12px;color:var(--text3);margin-bottom:16px;min-height:1.2em;}
+
+/* CURSOS GRID */
+#sec-cursos{padding:80px 20px 60px;}
+.cursos-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:20px;overflow:visible;}
+
+/* CARD */
+.ccard{background:var(--gray2);border:1px solid var(--border);border-radius:var(--radius);overflow:visible;cursor:pointer;will-change:transform;transform:translateY(0) scale(1);transition:transform .4s cubic-bezier(.25,.8,.25,1),border-color .3s,box-shadow .3s;position:relative;isolation:isolate;}
+.ccard:hover{transform:translateY(-8px) scale(1.03) !important;border-color:rgba(232,0,10,.7) !important;box-shadow:0 30px 70px rgba(0,0,0,.7),0 0 0 1px rgba(232,0,10,.25),0 0 80px rgba(232,0,10,.12) !important;z-index:10;}
+.ccard::after{content:'';position:absolute;inset:0;border-radius:var(--radius);background:radial-gradient(ellipse at 50% 0%,rgba(232,0,10,.1),transparent 70%);opacity:0;transition:opacity .4s;pointer-events:none;}
+.ccard:hover::after{opacity:1;}
+.ccard.fin{opacity:.35;pointer-events:none;filter:grayscale(1);}
+.ccard.fin::before{content:'FINALIZADO';position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-family:var(--display);font-size:36px;letter-spacing:4px;color:rgba(255,255,255,.5);background:rgba(0,0,0,.6);z-index:3;pointer-events:none;}
+.cimg{position:relative;overflow:hidden;background:#0a0a0a;width:100%;padding-bottom:133%;}
+.cimg img{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:100%;height:100%;object-fit:contain;object-position:center;background:#0a0a0a;transition:opacity .3s;}
+.ccard:hover .cimg img{opacity:.9;}
+.cimg-placeholder{position:absolute;inset:0;width:100%;height:100%;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;background:linear-gradient(135deg,#0a0a0a 0%,#150505 100%);}
+.cimg-placeholder .icon{font-size:44px;opacity:.2;}
+.cimg-placeholder .brand{font-family:var(--display);font-size:32px;letter-spacing:3px;opacity:.15;}
+.cimg-placeholder .brand em{color:var(--red);font-style:normal;}
+/* Badge estado (izq) */
+.cbadge{position:absolute;top:12px;left:12px;font-size:10px;font-weight:800;padding:5px 12px;border-radius:20px;text-transform:uppercase;letter-spacing:.07em;z-index:2;}
+.cbadge.open{background:var(--red);color:#fff;border:1px solid var(--red2);}
+.cbadge.full{background:rgba(232,0,10,.12);color:#ff4444;border:1px solid rgba(232,0,10,.25);}
+.cbadge.end{background:rgba(80,80,80,.2);color:#555;border:1px solid rgba(80,80,80,.2);}
+.cbadge.ses{background:rgba(90,60,220,.12);color:#a78bfa;border:1px solid rgba(90,60,220,.2);}
+/* Badge cupos (der) */
+.ccupos-badge{position:absolute;top:12px;right:12px;background:rgba(0,0,0,.75);border:1px solid rgba(255,255,255,.12);color:#fff;padding:4px 9px;border-radius:20px;font-size:10px;font-weight:700;backdrop-filter:blur(8px);z-index:2;}
+.cbody{padding:18px 18px 20px;border-radius:0 0 var(--radius) var(--radius);background:var(--gray2);}
+.ctitle{font-size:18px;font-weight:800;margin-bottom:6px;line-height:1.3;}
+.cdesc{font-size:13px;color:var(--text2);line-height:1.55;margin-bottom:14px;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;}
+.cmeta{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:16px;}
+.chip{display:inline-flex;align-items:center;gap:5px;font-size:12px;color:var(--text2);background:rgba(255,255,255,.04);padding:5px 11px;border-radius:20px;border:1px solid rgba(255,255,255,.07);}
+.chip.accent{color:var(--red);background:rgba(232,0,10,.07);border-color:rgba(232,0,10,.18);}
+.cfoot{display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:nowrap;}
+.cprice{font-family:var(--display);font-size:30px;letter-spacing:1px;color:var(--red);}
+.cprice.free{color:#00d25a;}
+/* Dos botones en el footer de la card */
+.cfoot-btns{display:flex;gap:6px;align-items:center;flex-shrink:0;}
+.cbtn{padding:9px 14px;background:var(--red);color:#fff;border:none;border-radius:50px;font-size:12px;font-weight:800;font-family:var(--font);cursor:pointer;transition:all .2s;letter-spacing:.02em;white-space:nowrap;}
+.cbtn:hover{background:var(--red2);}
+.cbtn:disabled{background:var(--gray4);color:var(--text3);cursor:default;}
+.cbtn-info{padding:9px 14px;background:rgba(255,255,255,.06);color:var(--text2);border:1px solid rgba(255,255,255,.1);border-radius:50px;font-size:12px;font-weight:700;font-family:var(--font);cursor:pointer;transition:all .2s;white-space:nowrap;}
+.cbtn-info:hover{background:rgba(255,255,255,.12);color:#fff;}
+
+/* MODAL */
+.moverlay{position:fixed;inset:0;background:rgba(0,0,0,.85);z-index:500;display:flex;align-items:center;justify-content:center;padding:20px;backdrop-filter:blur(10px);}
+.mbox{background:var(--gray);border:1px solid var(--border);border-radius:var(--radius);width:100%;max-width:600px;max-height:90vh;overflow-y:auto;padding:32px 32px 40px;position:relative;animation:minIn .22s cubic-bezier(.4,0,.2,1);overscroll-behavior:contain;}
+@keyframes minIn{from{opacity:0;transform:scale(.94) translateY(18px)}to{opacity:1;transform:scale(1) translateY(0)}}
+.mclose{position:absolute;top:16px;right:16px;background:var(--gray3);border:none;color:var(--text2);width:32px;height:32px;border-radius:50%;font-size:15px;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:all .2s;}
+.mclose:hover{background:var(--red);color:#fff;}
+.mtitle{font-family:var(--display);font-size:34px;letter-spacing:1px;margin-bottom:4px;}
+.msub{font-size:13px;color:var(--text3);margin-bottom:20px;line-height:1.5;}
+.mlbl{font-size:10px;color:var(--red);text-transform:uppercase;letter-spacing:.14em;font-weight:800;margin:16px 0 8px;}
+
+/* FORMS */
+.finput{width:100%;padding:12px 14px;background:#0d0d0d;border:1.5px solid var(--border);border-radius:var(--radius-sm);color:var(--text);font-family:var(--font);font-size:14px;outline:none;margin-bottom:8px;transition:border-color .2s;}
+.finput:focus{border-color:var(--red);}
+.finput::placeholder{color:var(--text3);}
+textarea.finput{resize:vertical;min-height:90px;}
+.frow2{display:grid;grid-template-columns:1fr 1fr;gap:8px;}
+.fgroup{margin-bottom:8px;}
+.flbl{font-size:11px;color:var(--text3);margin-bottom:4px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;display:block;}
+.btn-main{width:100%;padding:14px;background:var(--red);color:#fff;border:none;border-radius:50px;font-size:15px;font-weight:800;font-family:var(--font);cursor:pointer;letter-spacing:.04em;transition:all .2s;margin-top:10px;text-align:center;display:flex;align-items:center;justify-content:center;gap:8px;text-decoration:none;}
+.btn-main:hover{background:var(--red2);}
+.btn-out{width:100%;padding:12px;background:transparent;color:var(--text2);border:1.5px solid var(--border);border-radius:50px;font-size:14px;font-family:var(--font);cursor:pointer;margin-top:8px;transition:all .2s;}
+.btn-out:hover{border-color:var(--text2);color:#fff;}
+.tutor-box{background:#1a1500;border:1px solid #3a2f00;border-radius:var(--radius-sm);padding:14px;margin-bottom:8px;}
+
+/* SESIONES / SLOTS */
+.slots-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(100px,1fr));gap:8px;margin-top:12px;}
+.slot{padding:10px 6px;border-radius:var(--radius-sm);border:1.5px solid var(--border);text-align:center;cursor:pointer;transition:all .2s;font-size:12px;font-weight:700;}
+.slot.libre{border-color:var(--red2);background:rgba(232,0,10,.08);color:#ff6666;}
+.slot.libre:hover{background:rgba(232,0,10,.18);transform:scale(1.04);color:#fff;}
+.slot.ocupado{border-color:#2a1010;background:rgba(200,0,0,.07);color:#ff5555;cursor:not-allowed;}
+.slot-t{font-size:11px;margin-bottom:2px;}
+.slot-n{font-size:10px;color:var(--text3);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+
+/* LINKS */
+.ig-link{color:#e1306c;text-decoration:none;font-size:13px;transition:opacity .2s;}
+.ig-link:hover{opacity:.7;}
+.wp-link{color:#25d366;text-decoration:none;}
+.det-links{display:flex;flex-wrap:wrap;gap:10px;margin-top:14px;}
+.det-link{display:inline-flex;align-items:center;gap:6px;padding:10px 18px;border-radius:50px;font-size:13px;font-weight:700;text-decoration:none;transition:all .2s;}
+.det-link.ig{background:rgba(131,58,180,.12);color:#e1306c;border:1px solid rgba(131,58,180,.2);}
+.det-link.ig:hover{background:rgba(131,58,180,.25);}
+.det-link.wp{background:rgba(37,211,102,.08);color:#25d366;border:1px solid rgba(37,211,102,.2);}
+.det-link.wp:hover{background:rgba(37,211,102,.18);}
+
+/* SERVICIOS */
+#sec-servicios{padding:60px 0;}
+.srv-card{background:var(--gray2);border:1px solid var(--border);border-radius:var(--radius);padding:32px 24px;text-align:center;cursor:pointer;transition:transform .25s cubic-bezier(.4,0,.2,1),border-color .25s,box-shadow .25s;position:relative;overflow:hidden;}
+.srv-card::before{content:'';position:absolute;inset:0;background:radial-gradient(ellipse at 50% 0%,rgba(232,0,10,.12),transparent 70%);opacity:0;transition:opacity .3s;}
+.srv-card:hover{transform:translateY(-6px) scale(1.02);border-color:rgba(232,0,10,.5);box-shadow:0 20px 50px rgba(0,0,0,.5),0 0 0 1px rgba(232,0,10,.15),0 0 40px rgba(232,0,10,.08);}
+.srv-card:hover::before{opacity:1;}
+.srv-icon{font-size:44px;margin-bottom:14px;display:block;transition:transform .3s;}
+.srv-card:hover .srv-icon{transform:scale(1.15) rotate(-4deg);}
+.srv-title{font-family:var(--display);font-size:22px;letter-spacing:1px;margin-bottom:10px;}
+.srv-desc{font-size:13px;color:var(--text2);line-height:1.65;margin-bottom:16px;}
+.srv-price{font-family:var(--display);font-size:22px;color:var(--red);margin-bottom:8px;}
+.srv-cta{display:inline-flex;align-items:center;gap:6px;font-size:13px;font-weight:700;color:var(--red);opacity:.7;transition:opacity .2s,gap .2s;}
+.srv-card:hover .srv-cta{opacity:1;gap:10px;}
+
+/* TESTIMONIOS */
+#sec-testimonios{padding:60px 0;border-top:1px solid var(--border);}
+.test-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:20px;}
+.test-card{background:var(--gray2);border:1px solid var(--border);border-radius:var(--radius);padding:24px 24px 20px;transition:transform .25s cubic-bezier(.4,0,.2,1),border-color .25s,box-shadow .25s;position:relative;overflow:hidden;}
+.test-card:hover{transform:translateY(-6px) scale(1.02);border-color:rgba(232,0,10,.5);box-shadow:0 20px 50px rgba(0,0,0,.5);}
+.test-card:hover{border-color:rgba(232,0,10,.3);}
+.test-stars{color:#f5c842;font-size:16px;margin-bottom:12px;letter-spacing:2px;}
+.test-text{font-size:14px;color:var(--text2);line-height:1.7;font-style:italic;margin-bottom:16px;}
+.test-author{display:flex;align-items:center;gap:12px;}
+.test-avatar{width:40px;height:40px;border-radius:50%;background:var(--gray3);border:1.5px solid rgba(255,255,255,.1);overflow:hidden;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:18px;}
+.test-avatar img{width:100%;height:100%;object-fit:cover;}
+.test-name{font-size:14px;font-weight:700;}
+.test-course{font-size:12px;color:var(--text3);}
+
+/* FAQ */
+#sec-faq{padding:60px 0;}
+.faq-item{border:1px solid var(--border);border-radius:var(--radius-sm);margin-bottom:8px;overflow:hidden;cursor:pointer;transition:border-color .2s;}
+.faq-item:hover{border-color:rgba(232,0,10,.3);}
+.faq-q{padding:16px 18px;font-size:15px;font-weight:600;display:flex;justify-content:space-between;align-items:center;gap:12px;user-select:none;}
+.faq-arrow{font-size:11px;color:var(--text3);transition:transform .25s;flex-shrink:0;}
+.faq-a{padding:0 18px;font-size:14px;color:var(--text2);line-height:1.7;max-height:0;overflow:hidden;transition:max-height .3s ease,padding .3s;}
+.faq-item.open .faq-a{max-height:200px;padding:0 18px 16px;}
+.faq-item.open .faq-arrow{transform:rotate(180deg);}
+.faq-item.open{border-color:rgba(232,0,10,.4);background:rgba(232,0,10,.03);}
+
+/* UBICACION */
+#sec-ubicacion{padding:60px 0;background:rgba(0,0,0,.45);border-top:1px solid var(--border);border-bottom:1px solid var(--border);}
+.grid-2{display:grid;grid-template-columns:1fr 1fr;gap:24px;align-items:start;}
+@media(max-width:700px){.grid-2{grid-template-columns:1fr !important;}}
+
+/* ADMIN */
+.admin-wrap{max-width:1140px;margin:0 auto;padding:80px 20px 80px;position:relative;z-index:2;min-height:100vh;overscroll-behavior:contain;}
+.admin-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:24px;}
+.admin-title{font-family:var(--display);font-size:42px;letter-spacing:2px;}
+.admin-title em{color:var(--red);font-style:normal;}
+.admin-dash{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;margin-bottom:28px;}
+.dash-card{background:var(--gray2);border:1px solid var(--border);border-radius:var(--radius-sm);padding:16px 20px;}
+.dash-n{font-family:var(--display);font-size:36px;letter-spacing:1px;color:var(--red);line-height:1;}
+.dash-l{font-size:11px;color:var(--text3);text-transform:uppercase;letter-spacing:.1em;margin-top:4px;font-weight:700;}
+.atabs{display:flex;gap:0;background:var(--gray2);border-radius:var(--radius);overflow:hidden;width:fit-content;margin-bottom:24px;border:1px solid var(--border);overflow-x:auto;}
+.atab{padding:10px 18px;font-size:12px;font-weight:700;cursor:pointer;border:none;background:none;color:var(--text3);font-family:var(--font);transition:all .2s;white-space:nowrap;border-right:1px solid var(--border);display:flex;align-items:center;gap:6px;}
+.atab:last-child{border-right:none;}
+.atab:hover{color:var(--text2);background:rgba(255,255,255,.03);}
+.atab.on{background:var(--red);color:#fff;}
+.tab-badge{background:rgba(255,255,255,.2);color:#fff;border-radius:10px;padding:1px 7px;font-size:10px;font-weight:800;}
+.atab.on .tab-badge{background:rgba(0,0,0,.25);}
+.acard{background:var(--gray2);border:1px solid var(--border);border-radius:var(--radius);padding:22px;margin-bottom:16px;}
+.acard-title{font-size:10px;font-weight:800;color:var(--text3);text-transform:uppercase;letter-spacing:.12em;margin-bottom:16px;}
+.tbl-wrap{overflow-x:auto;}
+table{width:100%;border-collapse:collapse;font-size:13px;min-width:680px;}
+th{text-align:left;padding:10px 12px;font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:.08em;border-bottom:1px solid var(--border);font-weight:800;background:#0d0d0d;}
+td{padding:10px 12px;border-bottom:1px solid #181818;vertical-align:top;}
+tr:hover td{background:rgba(255,255,255,.015);}
+.tdn{font-weight:700;font-size:14px;}
+.tds{font-size:11px;color:var(--text3);margin-top:2px;}
+a.wabtn{display:inline-flex;align-items:center;gap:4px;background:#1a3320;color:#25d366;border:none;border-radius:20px;padding:5px 10px;font-size:11px;font-weight:700;font-family:var(--font);cursor:pointer;text-decoration:none;transition:all .2s;}
+a.wabtn:hover{background:#25d366;color:#000;}
+.bsm{display:inline-flex;align-items:center;gap:3px;padding:5px 10px;border-radius:20px;font-size:11px;font-weight:700;font-family:var(--font);cursor:pointer;border:none;transition:all .2s;}
+.bsm.bl{background:#1a2a3a;color:#5bc4f5;}
+.bsm.bl:hover{background:#5bc4f5;color:#000;}
+.bsm.gr{background:#1a3a2a;color:#4caf7d;}
+.bsm.gr:hover{background:#4caf7d;color:#000;}
+.bsm.re{background:#3a1010;color:#ff5555;}
+.bsm.re:hover{background:#ff5555;color:#fff;}
+.bsm.wa{background:#1a3320;color:#25d366;}
+.bsm.wa:hover{background:#25d366;color:#000;}
+.ppill{font-size:10px;font-weight:800;padding:3px 9px;border-radius:20px;display:inline-block;}
+.pp-ok{background:#1a3a2a;color:#4caf7d;}
+.pp-pe{background:#3a1010;color:#e05252;}
+.pp-pa{background:#3a2800;color:#f5c842;}
+.admin-ci{display:flex;align-items:center;gap:12px;padding:12px 0;border-bottom:1px solid var(--border);}
+.admin-ci:last-child{border-bottom:none;}
+.admin-ci-info{flex:1;}
+.admin-ci-tit{font-size:14px;font-weight:700;}
+.admin-ci-sub{font-size:11px;color:var(--text3);margin-top:2px;}
+
+/* TOAST */
+#back-top{position:fixed;bottom:24px;right:24px;width:44px;height:44px;background:var(--red);color:#fff;border:none;border-radius:50%;font-size:20px;cursor:pointer;z-index:400;display:none;align-items:center;justify-content:center;box-shadow:0 4px 20px rgba(232,0,10,.4);transition:all .2s;}
+#back-top:hover{background:var(--red2);transform:scale(1.1);}
+#back-top.show{display:flex;}
+#toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%) translateY(20px);background:#fff;color:#000;padding:14px 28px;border-radius:30px;font-size:14px;font-weight:700;z-index:900;opacity:0;transition:all .3s;pointer-events:none;white-space:nowrap;box-shadow:0 4px 30px rgba(0,0,0,.5);cursor:pointer;}
+#toast.show{pointer-events:auto;opacity:1;transform:translateX(-50%) translateY(0);}
+
+/* FOOTER */
+footer{border-top:1px solid var(--border);padding:48px 20px;text-align:center;position:relative;z-index:2;}
+.flogo{font-family:var(--display);font-size:52px;letter-spacing:4px;margin-bottom:8px;}
+.flogo em{color:var(--red);font-style:normal;}
+.fsub{font-size:12px;color:var(--text3);margin-bottom:22px;}
+.fwa{display:inline-flex;align-items:center;gap:8px;background:#1a3320;color:#25d366;padding:13px 28px;border-radius:50px;font-size:14px;font-weight:700;text-decoration:none;transition:all .2s;margin-bottom:18px;}
+.fwa:hover{background:#25d366;color:#000;}
+.fcred{font-size:11px;color:var(--text3);}
+.fcred a{display:inline-flex;align-items:center;gap:5px;color:var(--text3);text-decoration:none;border:1px solid var(--border);padding:5px 13px;border-radius:20px;margin-top:8px;transition:all .2s;}
+.fcred a:hover{border-color:#444;color:#fff;}
+
+/* APPS PANEL */
+.app-row{display:flex;align-items:center;gap:14px;padding:14px 16px;border-radius:var(--radius-sm);border:1px solid var(--border);margin-bottom:8px;text-decoration:none;background:var(--gray2);transition:border-color .2s,background .2s;}
+.app-row:hover{border-color:rgba(232,0,10,.4);background:#1e1414;}
+.app-ico{font-size:26px;flex-shrink:0;width:40px;text-align:center;}
+.app-info{flex:1;}
+.app-name{font-size:14px;font-weight:700;color:#fff;}
+.app-url{font-size:11px;color:var(--text3);margin-top:2px;}
+.app-arr{color:var(--red);font-size:18px;font-weight:700;}
+
+.main-tab{background:none;border:none;color:var(--text3);font-family:var(--font);font-size:11px;font-weight:800;letter-spacing:.12em;text-transform:uppercase;padding:14px 20px;cursor:pointer;border-bottom:2px solid transparent;transition:all .2s;white-space:nowrap;flex-shrink:0;}
+.main-tab:hover{color:var(--text2);}
+.main-tab.on{color:#fff;border-bottom-color:var(--red);}
+#db-status{display:inline-flex;align-items:center;gap:5px;font-size:10px;color:var(--text3);padding:4px 10px;border-radius:20px;border:1px solid var(--border);background:rgba(0,0,0,.4);margin-left:8px;}
+#db-dot{width:7px;height:7px;border-radius:50%;background:#555;flex-shrink:0;transition:background .4s;}
+#db-status.connecting #db-dot{background:#f5c842;animation:blink 1s infinite;}
+#db-status.online #db-dot{background:#4caf7d;}
+#db-status.offline #db-dot{background:#e05252;}
+#sec-eventos{padding:60px 0;border-top:1px solid var(--border);}
+.ev-hero{background:linear-gradient(135deg,rgba(232,0,10,.08),transparent);border:1px solid rgba(232,0,10,.15);border-radius:var(--radius);padding:36px 32px;text-align:center;margin-bottom:28px;}
+.ev-hero-icon{font-size:44px;margin-bottom:12px;}
+.ev-hero-title{font-family:var(--display);font-size:clamp(28px,5vw,48px);letter-spacing:2px;margin-bottom:10px;}
+.ev-hero-sub{font-size:14px;color:var(--text2);line-height:1.6;margin-bottom:16px;}
+.ev-hero-link{color:var(--red);text-decoration:none;font-weight:700;}
+.ev-org-bar{background:var(--gray2);border:1px solid var(--border);border-radius:var(--radius);padding:18px 24px;display:flex;align-items:center;justify-content:space-between;gap:16px;margin-bottom:28px;flex-wrap:wrap;}
+.ev-org-input{background:#0d0d0d;border:1.5px solid var(--border);color:var(--text);padding:10px 14px;border-radius:50px;font-family:var(--font);font-size:13px;outline:none;width:190px;}
+.ev-org-input:focus{border-color:var(--red);}
+.ev-org-input::placeholder{color:var(--text3);}
+.ev-card{background:var(--gray2);border:1px solid var(--border);border-radius:var(--radius);overflow:visible;cursor:pointer;transition:transform .25s cubic-bezier(.4,0,.2,1),border-color .25s,box-shadow .25s;position:relative;}
+.ev-card:hover{transform:translateY(-6px) scale(1.02);border-color:rgba(232,0,10,.5);box-shadow:0 20px 50px rgba(0,0,0,.5);}
+.ev-badge-ext{position:absolute;top:10px;left:10px;background:rgba(90,60,220,.15);color:#a78bfa;border:1px solid rgba(90,60,220,.3);font-size:9px;font-weight:800;padding:3px 10px;border-radius:20px;text-transform:uppercase;z-index:2;}
+.ev-badge-tomauno{position:absolute;top:10px;right:10px;background:rgba(232,0,10,.1);color:var(--red);border:1px solid rgba(232,0,10,.2);font-size:9px;font-weight:800;padding:3px 10px;border-radius:20px;z-index:2;}
+.org-panel{background:var(--gray);border:1px solid var(--border);border-radius:var(--radius);padding:28px;margin-bottom:28px;}
+.org-panel-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:20px;flex-wrap:wrap;gap:10px;}
+.org-panel-title{font-family:var(--display);font-size:28px;letter-spacing:1px;}
+.test-card{background:var(--gray2);border:1px solid var(--border);border-radius:var(--radius);padding:24px 24px 20px;transition:transform .25s cubic-bezier(.4,0,.2,1),border-color .25s,box-shadow .25s;position:relative;overflow:hidden;}
+.test-card:hover{transform:translateY(-6px) scale(1.02);border-color:rgba(232,0,10,.5);box-shadow:0 20px 50px rgba(0,0,0,.5);}
+.gal-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:12px;}
+.gal-item{position:relative;border-radius:var(--radius-sm);overflow:hidden;aspect-ratio:4/3;cursor:pointer;border:1px solid var(--border);background:#0a0a0a;transition:border-color .25s,transform .25s;}
+.gal-item:hover{border-color:rgba(232,0,10,.5);transform:scale(1.02);}
+.gal-item img{width:100%;height:100%;object-fit:cover;transition:opacity .3s;}
+.gal-item:hover img{opacity:.85;}
+.gal-caption{position:absolute;bottom:0;left:0;right:0;padding:10px 12px;background:linear-gradient(transparent,rgba(0,0,0,.8));font-size:12px;color:#fff;font-weight:600;}
+@media(max-width:600px){
+  .frow2{grid-template-columns:1fr;}
+  .atabs{flex-wrap:nowrap;}
+  .admin-ci{flex-wrap:wrap;}
+  .cfoot-btns{flex-direction:column;width:100%;gap:6px;}
+  .cbtn,.cbtn-info{width:100%;justify-content:center;}
+}
+</style>
+</head>
+<body>
+
+<canvas id="bg-canvas"></canvas>
+<div class="grain-overlay"></div>
+
+<!-- NAV -->
+<nav class="nav">
+  <a class="nav-logo" id="logo-btn" onclick="handleLogoClick(event)" href="#">
+    <div class="logo-mark">
+      <img src="https://i.imgur.com/oZnkCPD.png" alt="Tomauno"/>
+    </div>
+    <div>
+      <div class="logo-txt">TOMA<em>UNO</em></div>
+      <div class="logo-sub">Estudio Fotográfico</div>
+    </div>
+  </a>
+  <div style="display:flex;align-items:center;gap:6px;">
+    <div class="nav-links" id="nav-links">
+      <a href="#" class="nav-link" onclick="navScroll('sec-cursos');return false;">Cursos</a>
+      <a href="#" class="nav-link" onclick="navScroll('sec-eventos');return false;">Eventos</a>
+      <a href="#" class="nav-link" onclick="navScroll('sec-servicios');return false;">Servicios</a>
+      <a href="#" class="nav-link" onclick="navScroll('sec-testimonios');return false;">Testimonios</a>
+      <a href="#" class="nav-link" onclick="navScroll('sec-galeria');return false;">El Estudio</a>
+      <div class="ig-drop" id="ig-drop">
+        <button class="ig-drop-btn" onclick="toggleIgDrop()">📸 Instagram <span class="arr">▼</span></button>
+        <div class="ig-drop-menu">
+          <a href="https://instagram.com/tomaunoestudio" target="_blank" class="ig-drop-item">
+            <span>📷</span><div><div>@tomaunoestudio</div><div class="ig-handle">Estudio Fotográfico</div></div>
+          </a>
+          <a href="https://instagram.com/tomaunomodels" target="_blank" class="ig-drop-item">
+            <span>👗</span><div><div>@tomaunomodels</div><div class="ig-handle">Modelaje</div></div>
+          </a>
+          <a href="https://instagram.com/tomaunocapacitaciones" target="_blank" class="ig-drop-item">
+            <span>🎓</span><div><div>@tomaunocapacitaciones</div><div class="ig-handle">Capacitaciones</div></div>
+          </a>
+        </div>
+      </div>
+      <a href="https://wa.me/5493764354522?text=Buenos%20d%C3%ADas%2C%20vengo%20de%20la%20web%20de%20Tomauno%2C%20quisiera%20consultar..." target="_blank" class="nav-link nav-cta">Contacto</a>
+    </div>
+    <span id="notif-dot"></span>
+    <div id="db-status" class="connecting"><span id="db-dot"></span><span id="db-label">Conectando</span></div>
+    <button class="nav-ham" id="nav-ham" onclick="toggleMob()">
+      <span></span><span></span><span></span>
+    </button>
+  </div>
+</nav>
+
+<!-- MOBILE MENU -->
+<div class="mob-menu" id="mob-menu">
+  <a href="#" class="mob-link" onclick="navScroll('sec-cursos');toggleMob();return false;">📚 Cursos</a>
+  <a href="#" class="mob-link" onclick="navScroll('sec-servicios');toggleMob();return false;">🛠️ Servicios</a>
+  <a href="#" class="mob-link" onclick="navScroll('sec-testimonios');toggleMob();return false;">⭐ Testimonios</a>
+  <a href="#" class="mob-link" onclick="navScroll('sec-galeria');toggleMob();return false;">📍 El Estudio</a>
+  <a href="https://instagram.com/tomaunoestudio" target="_blank" class="mob-link">📷 @tomaunoestudio</a>
+  <a href="https://instagram.com/tomaunomodels" target="_blank" class="mob-link">👗 @tomaunomodels</a>
+  <a href="https://instagram.com/tomaunocapacitaciones" target="_blank" class="mob-link">🎓 @tomaunocapacitaciones</a>
+  <a href="https://wa.me/5493764354522" target="_blank" class="mob-link" style="color:#25d366;">💬 WhatsApp</a>
+</div>
+
+<!-- HERO -->
+<section class="hero" id="hero">
+  <div class="hero-glow"></div>
+  <div class="hero-grid"></div>
+  <div class="hero-content">
+    <div class="hero-tag">✦ Capacitaciones Tomauno</div>
+    <h1 class="hero-h1">TOMA<em>UNO</em></h1>
+    <div class="hero-tagline">Tomauno está con vos</div>
+    <p class="hero-p">Porque cada día es una oportunidad de <strong>crecer</strong>.<br/>Invertir en vos es la decisión más poderosa que podés tomar.</p>
+    <div class="hero-stats">
+      <div class="hero-stat"><div class="hero-stat-n" id="stat-cursos">—</div><div class="hero-stat-l">Cursos activos</div></div>
+      <div class="hero-stat-sep"></div>
+      <div class="hero-stat"><div class="hero-stat-n" id="stat-insc">—</div><div class="hero-stat-l">Inscriptos</div></div>
+      <div class="hero-stat-sep"></div>
+      <div class="hero-stat"><div class="hero-stat-n">📍</div><div class="hero-stat-l">Posadas, Misiones</div></div>
+    </div>
+  </div>
+  <div class="hero-scroll">↓<span>Ver cursos</span></div>
+</section>
+
+<section id="sec-cursos">
+  <div class="section-wrap">
+    <div class="sec-head">
+      <div class="sec-title">CURSOS</div>
+      <div class="sec-sub" id="cursos-count"></div>
+    </div>
+    <div class="search-wrap">
+      <svg class="search-icon" viewBox="0 0 24 24" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+      <input class="search-input" type="text" id="course-search" placeholder="Buscar por título, fecha, lugar..." oninput="filterCursos()" autocomplete="off"/>
+      <button class="search-clear" id="search-clear" onclick="clearSearch()">✕</button>
+    </div>
+    <div class="search-info" id="search-info"></div>
+    <div class="cursos-grid" id="cursos-grid" ondragover="event.preventDefault()" ondrop="window.dropCard(event)">
+      <div style="color:var(--text3);padding:60px 0;font-size:14px;text-align:center;">Cargando...</div>
+    </div>
+  </div>
+</section>
+
+<section id="sec-eventos">
+  <div class="section-wrap">
+    <div class="ev-hero">
+      <div class="ev-hero-icon">🎪</div>
+      <div class="ev-hero-title">EVENTOS &amp; CURSOS DE LA CIUDAD</div>
+      <div class="ev-hero-sub">Organizadores de la ciudad pueden gestionar sus inscripciones acá.<br/>&iquest;Ten&eacute;s un evento? <a href="https://wa.me/5493764354522" target="_blank" class="ev-hero-link">Contact&aacute;nos &rarr;</a></div>
+      <button class="btn-main" style="display:inline-flex;width:auto;padding:11px 28px;font-size:13px;" onclick="window.abrirFormEvento()">+ Registrar mi evento</button>
+    </div>
+    <div class="ev-org-bar">
+      <div style="display:flex;align-items:center;gap:12px;">
+        <div style="font-size:22px;">&#x1F464;</div>
+        <div><div style="font-size:14px;font-weight:800;">ACCESO PARA ORGANIZADORES</div>
+        <div style="font-size:12px;color:var(--text3);margin-top:2px;">Ingres&aacute; tu DNI para ver los inscriptos de tus eventos.</div></div>
+      </div>
+      <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
+        <input class="ev-org-input" id="org-dni-input" placeholder="Tu DNI (sin puntos)" onkeydown="if(event.key==='Enter')window.accederOrganizador()"/>
+        <button class="cbtn" onclick="window.accederOrganizador()">INGRESAR</button>
+      </div>
+    </div>
+    <div id="org-panel-wrap"></div>
+    <div id="eventos-grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:20px;">
+      <div style="color:var(--text3);font-size:14px;padding:40px 0;text-align:center;grid-column:1/-1;">Cargando eventos...</div>
+    </div>
+  </div>
+</section>
+
+<section id="sec-servicios">
+  <div class="section-wrap">
+    <div class="sec-head">
+      <div class="sec-title">SERVICIOS</div>
+    </div>
+    <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:16px;" id="servicios-grid">
+      <div class="srv-card" onclick="window.abrirServicio(0)">
+        <div class="srv-icon">📷</div>
+        <div class="srv-title">SESIONES FOTOGRÁFICAS</div>
+        <div class="srv-desc">Retratos, moda, book de modelos y más. En estudio o locación.</div>
+        <div class="srv-cta">Ver más →</div>
+      </div>
+      <div class="srv-card" onclick="window.abrirServicio(1)">
+        <div class="srv-icon">🎭</div>
+        <div class="srv-title">MODELAJE</div>
+        <div class="srv-desc">Formación y desarrollo para modelos. Book profesional incluido.</div>
+        <div class="srv-cta">Ver más →</div>
+      </div>
+      <div class="srv-card" onclick="window.abrirServicio(2)">
+        <div class="srv-icon">🎓</div>
+        <div class="srv-title">CAPACITACIONES</div>
+        <div class="srv-desc">Workshops y cursos para fotógrafos y modelos de todos los niveles.</div>
+        <div class="srv-cta">Ver más →</div>
+      </div>
+      <div class="srv-card" onclick="window.abrirServicio(3)">
+        <div class="srv-icon">🎬</div>
+        <div class="srv-title">PRODUCCIÓN</div>
+        <div class="srv-desc">Producción audiovisual, video y contenido para redes sociales.</div>
+        <div class="srv-cta">Ver más →</div>
+      </div>
+    </div>
+    <div id="servicios-db-grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:16px;margin-top:16px;"></div>
+  </div>
+</section>
+
+<section id="sec-galeria">
+  <div class="section-wrap">
+    <div class="sec-head">
+      <div class="sec-title">EL ESTUDIO</div>
+      <div class="sec-sub">Nuestro espacio, fondos y equipos</div>
+    </div>
+    <div class="gal-grid" id="galeria-grid">
+      <div style="color:var(--text3);font-size:14px;padding:20px 0;">Cargando...</div>
+    </div>
+  </div>
+</section>
+
+<section id="sec-testimonios">
+  <div class="section-wrap">
+    <div class="sec-head">
+      <div>
+        <div style="font-size:11px;color:var(--red);font-weight:800;letter-spacing:.2em;text-transform:uppercase;margin-bottom:6px;">Lo que dicen nuestros alumnos</div>
+        <div class="sec-title">TESTIMONIOS</div>
+        <div style="font-size:13px;color:var(--text3);margin-top:6px;">Experiencias reales de quienes ya pasaron por Tomauno.</div>
+      </div>
+    </div>
+    <div class="test-grid" id="test-grid">
+      <div style="color:var(--text3);font-size:14px;padding:20px 0;">Cargando...</div>
+    </div>
+    <div class="test-banner" style="margin-top:40px;background:rgba(232,0,10,.06);border:1px solid rgba(232,0,10,.2);border-radius:var(--radius);padding:28px 32px;text-align:center;">
+      <div style="font-family:var(--display);font-size:26px;letter-spacing:1px;margin-bottom:8px;">&#11088; &iquest;YA FUISTE PARTE DE TOMAUNO?</div>
+      <div style="font-size:13px;color:var(--text2);margin-bottom:18px;line-height:1.6;">Alumnos, modelos, clientes de sesiones, cumplea&ntilde;os, casamientos, fotógrafos &mdash; cont&aacute;nos tu experiencia.<br/>Ayud&aacute;s a otros a conocernos.</div>
+      <button onclick="window.abrirFormTestimonio()" style="display:inline-flex;align-items:center;gap:8px;background:var(--red);color:#fff;border:none;border-radius:50px;padding:12px 28px;font-size:14px;font-weight:800;font-family:var(--font);cursor:pointer;">&#x270D;&#xFE0F; Dejar mi rese&ntilde;a</button>
+    </div>
+  </div>
+</section>
+
+<section id="sec-faq">
+  <div style="max-width:860px;margin:0 auto;padding:0 20px;">
+    <div class="sec-head" style="margin-bottom:32px;">
+      <div class="sec-title">PREGUNTAS FRECUENTES</div>
+    </div>
+    <div id="faq-list">
+      <div class="faq-item" onclick="toggleFaq(this)">
+        <div class="faq-q">¿Necesito experiencia previa para inscribirme? <span class="faq-arrow">▼</span></div>
+        <div class="faq-a">No, nuestros cursos están diseñados para todos los niveles. Cada workshop indica su nivel recomendado en la descripción.</div>
+      </div>
+      <div class="faq-item" onclick="toggleFaq(this)">
+        <div class="faq-q">¿Cómo confirmo mi lugar? <span class="faq-arrow">▼</span></div>
+        <div class="faq-a">Al completar el formulario de inscripción se envía automáticamente un mensaje a nuestro WhatsApp. Nos contactamos para confirmar disponibilidad y coordinar el pago.</div>
+      </div>
+      <div class="faq-item" onclick="toggleFaq(this)">
+        <div class="faq-q">¿Cuáles son los medios de pago? <span class="faq-arrow">▼</span></div>
+        <div class="faq-a">Aceptamos transferencia bancaria, Mercado Pago y efectivo. El detalle de pago se coordina por WhatsApp luego de la pre-inscripción.</div>
+      </div>
+      <div class="faq-item" onclick="toggleFaq(this)">
+        <div class="faq-q">¿Qué pasa si no puedo asistir? <span class="faq-arrow">▼</span></div>
+        <div class="faq-a">Avisanos con 48 hs de anticipación y buscamos la mejor solución. Los pagos pueden acreditarse para futuras actividades según disponibilidad.</div>
+      </div>
+      <div class="faq-item" onclick="toggleFaq(this)">
+        <div class="faq-q">¿Emiten certificado? <span class="faq-arrow">▼</span></div>
+        <div class="faq-a">Sí, todos nuestros cursos y workshops incluyen certificado digital de participación emitido por Tomauno Estudio.</div>
+      </div>
+      <div class="faq-item" onclick="toggleFaq(this)">
+        <div class="faq-q">¿Puedo inscribir a un menor de edad? <span class="faq-arrow">▼</span></div>
+        <div class="faq-a">Sí, en el formulario hay un campo especial para menores de 18 años donde se solicita el contacto del tutor o responsable.</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section id="sec-ubicacion">
+  <div class="section-wrap">
+    <div class="sec-head" style="margin-bottom:32px;">
+      <div class="sec-title">EL ESTUDIO</div>
+      <div class="sec-sub">Pedro Méndez 2069 · Posadas, Misiones</div>
+    </div>
+    <div class="grid-2">
+      <div>
+        <div style="background:var(--gray2);border:1px solid var(--border);border-radius:var(--radius);padding:28px;transition:border-color .25s,box-shadow .25s;" onmouseover="this.style.borderColor='rgba(232,0,10,.4)';this.style.boxShadow='0 8px 30px rgba(0,0,0,.4)'" onmouseout="this.style.borderColor='';this.style.boxShadow=''">
+          <div style="font-family:var(--display);font-size:28px;letter-spacing:1px;margin-bottom:16px;">TOMA<span style="color:var(--red);">UNO</span></div>
+          <div style="font-size:14px;color:var(--text2);line-height:1.8;">
+            <div style="margin-bottom:8px;">📍 Pedro Méndez 2069, Posadas, Misiones</div>
+            <div style="margin-bottom:8px;">📱 <a href="https://wa.me/5493764354522" target="_blank" class="wp-link">+54 9 3764 354522</a></div>
+            <div style="margin-bottom:8px;">📸 <a href="https://instagram.com/tomaunoestudio" target="_blank" class="ig-link">@tomaunoestudio</a></div>
+            <div style="margin-bottom:20px;">📸 <a href="https://instagram.com/tomaunomodels" target="_blank" class="ig-link">@tomaunomodels</a></div>
+          </div>
+          <a href="https://wa.me/5493764354522" target="_blank" class="fwa" style="display:inline-flex;font-size:13px;padding:11px 22px;">💬 Escribinos</a>
+        </div>
+      </div>
+      <div>
+        <div style="border-radius:var(--radius);overflow:hidden;border:1px solid var(--border);height:320px;">
+          <iframe src="https://maps.google.com/maps?q=Pedro+Mendez+2069+Posadas+Misiones+Argentina&z=16&output=embed" width="100%" height="100%" style="border:none;display:block;" loading="lazy" allowfullscreen referrerpolicy="no-referrer-when-downgrade"></iframe>
+        </div>
+        <a href="https://maps.app.goo.gl/3KNXZ3oeknREZwM8" target="_blank" style="display:inline-flex;align-items:center;gap:6px;margin-top:10px;font-size:12px;color:var(--text3);text-decoration:none;border:1px solid var(--border);padding:7px 14px;border-radius:20px;transition:all .2s;" onmouseover="this.style.color='#fff'" onmouseout="this.style.color='var(--text3)'">📍 Abrir en Google Maps</a>
+      </div>
+    </div>
+  </div>
+</section>
+
+<button id="back-top" onclick="window.scrollTo({top:0,behavior:'smooth'})" title="Volver arriba">↑</button>
+
+<footer>
+  <div class="flogo">TOMA<em>UNO</em></div>
+  <div class="fsub">Estudio Fotográfico & Modelaje · Pedro Méndez 2069, Posadas</div>
+  <a href="https://wa.me/5493764354522?text=Hola%2C%20me%20contacto%20desde%20la%20web%20de%20Tomauno%2C%20quisiera%20consultar" target="_blank" class="fwa">💬 Escribinos por WhatsApp</a>
+  <div class="fcred"><a href="https://wa.me/5493764354522" target="_blank">⚡ Realizado por Javier Móttola</a></div>
+  <div style="margin-top:16px;display:flex;align-items:center;justify-content:center;gap:16px;flex-wrap:wrap;">
+    <div style="display:inline-flex;align-items:center;gap:6px;font-size:11px;color:var(--text3);border:1px solid var(--border);padding:5px 13px;border-radius:20px;">
+      👁️ <span id="visit-count">—</span> visitas
+    </div>
+    <div style="font-size:11px;color:var(--text3);border:1px solid var(--border);padding:5px 13px;border-radius:20px;">
+      v2.0
+    </div>
+  </div>
+</footer>
+
+<!-- ADMIN (oculto) -->
+<div id="admin-section" style="display:none;">
+  <div class="admin-wrap">
+    <div class="admin-header">
+      <div class="admin-title">PANEL <em>ADMIN</em></div>
+      <button onclick="cerrarAdmin()" style="background:var(--gray3);border:none;color:var(--text2);padding:9px 18px;border-radius:20px;cursor:pointer;font-family:var(--font);font-size:13px;font-weight:600;">← Salir</button>
+    </div>
+    <!-- Dashboard stats -->
+    <div class="admin-dash">
+      <div class="dash-card"><div class="dash-n" id="adm-stat-cursos">0</div><div class="dash-l">Cursos activos</div></div>
+      <div class="dash-card"><div class="dash-n" id="adm-stat-insc">0</div><div class="dash-l">Inscriptos total</div></div>
+      <div class="dash-card"><div class="dash-n" id="adm-stat-servicios">0</div><div class="dash-l">Servicios</div></div>
+      <div class="dash-card"><div class="dash-n" id="adm-stat-test">0</div><div class="dash-l">Testimonios</div></div>
+    </div>
+    <div class="atabs" id="admin-tabs">
+      <button class="atab on" onclick="setAtab('alumnos')">👥 Alumnos <span class="tab-badge" id="badge-alumnos">0</span></button>
+      <button class="atab" onclick="setAtab('cursos')">📚 Cursos</button>
+      <button class="atab" onclick="setAtab('nuevo')">➕ Nuevo curso</button>
+      <button class="atab" onclick="setAtab('servicios-adm')">🛠️ Servicios</button>
+      <button class="atab" onclick="setAtab('testimonios-adm')">⭐ Testimonios</button>
+      <button class="atab" onclick="setAtab('eventos-adm')">🎪 Eventos</button>
+      <button class="atab" onclick="setAtab('galeria-adm')">🖼️ Galeria</button>
+      <button class="atab" onclick="setAtab('apps-adm')">🚀 Apps</button>
+    </div>
+
+    <!-- ALUMNOS -->
+    <div id="atab-alumnos">
+      <div class="acard">
+        <div class="acard-title">Inscripciones</div>
+        <div style="display:flex;gap:8px;margin-bottom:14px;flex-wrap:wrap;align-items:center;">
+          <select class="finput" id="filtro-curso" style="margin:0;flex:1;max-width:320px;" onchange="renderAlumnos()"><option value="">Todos los cursos</option></select>
+          <button class="bsm bl" onclick="exportarExcel()">📊 Excel</button>
+          <button class="bsm bl" onclick="exportarPDF()">📄 PDF</button>
+          <button class="bsm wa" onclick="abrirGrupoWA()">💬 Grupo WA</button>
+        </div>
+        <div class="tbl-wrap">
+          <table>
+            <thead><tr><th>Alumno</th><th>Curso</th><th>Contacto</th><th>Pagos</th><th>$ Estimado</th><th></th></tr></thead>
+            <tbody id="alumnos-tbody"><tr><td colspan="6" style="text-align:center;padding:40px;color:var(--text3);">Sin inscripciones aún</td></tr></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- CURSOS ADMIN -->
+    <div id="atab-cursos" style="display:none;">
+      <div class="acard">
+        <div class="acard-title">Cursos publicados</div>
+        <div id="admin-cursos-list"></div>
+      </div>
+    </div>
+
+    <!-- NUEVO CURSO -->
+    <div id="atab-nuevo" style="display:none;">
+      <div class="acard">
+        <div class="acard-title">Publicar nuevo curso</div>
+        <div class="fgroup">
+          <label class="flbl">Tipo</label>
+          <select class="finput" id="nc-tipo" onchange="toggleTipoConfig()">
+            <option value="curso">Curso / Workshop / Charla</option>
+            <option value="sesiones">Sesiones con turnos (ej: Fotos Polaroid)</option>
+          </select>
+        </div>
+        <div class="fgroup"><label class="flbl">Título *</label><input class="finput" id="nc-titulo" placeholder="Ej: Workshop de Retrato Fotográfico"/></div>
+        <div class="fgroup"><label class="flbl">Descripción</label><textarea class="finput" id="nc-desc" placeholder="Descripción del curso..."></textarea></div>
+        <div class="frow2">
+          <div class="fgroup"><label class="flbl">Costo ($)</label><input class="finput" id="nc-costo" type="number" placeholder="5000"/></div>
+          <div class="fgroup"><label class="flbl">Cupos (0=ilimitado)</label><input class="finput" id="nc-cupos" type="number" placeholder="0"/></div>
+        </div>
+        <div class="fgroup">
+          <label class="flbl">Campos del formulario de inscripción</label>
+          <div style="background:#0d0d0d;border:1px solid var(--border);border-radius:var(--radius-sm);padding:12px;display:flex;flex-wrap:wrap;gap:10px;">
+            <label style="display:flex;align-items:center;gap:6px;font-size:13px;cursor:pointer;"><input type="checkbox" id="nc-req-dni" checked style="accent-color:var(--red);"> DNI</label>
+            <label style="display:flex;align-items:center;gap:6px;font-size:13px;cursor:pointer;"><input type="checkbox" id="nc-req-edad" checked style="accent-color:var(--red);"> Edad</label>
+            <label style="display:flex;align-items:center;gap:6px;font-size:13px;cursor:pointer;"><input type="checkbox" id="nc-req-ig" checked style="accent-color:var(--red);"> Instagram</label>
+            <label style="display:flex;align-items:center;gap:6px;font-size:13px;cursor:pointer;"><input type="checkbox" id="nc-req-email" style="accent-color:var(--red);"> Email</label>
+            <label style="display:flex;align-items:center;gap:6px;font-size:13px;cursor:pointer;"><input type="checkbox" id="nc-req-altura" style="accent-color:var(--red);"> Altura</label>
+            <label style="display:flex;align-items:center;gap:6px;font-size:13px;cursor:pointer;"><input type="checkbox" id="nc-req-medidas" style="accent-color:var(--red);"> Medidas</label>
+          </div>
+          <div style="font-size:10px;color:var(--text3);margin-top:4px;">Nombre y WhatsApp son siempre obligatorios</div>
+        </div>
+        <div class="frow2">
+          <div class="fgroup"><label class="flbl">Fecha</label><input class="finput" id="nc-fecha" type="date" style="color-scheme:dark"/></div>
+          <div class="fgroup"><label class="flbl">Hora</label><input class="finput" id="nc-hora" placeholder="18:00 a 21:00"/></div>
+        </div>
+        <div class="fgroup"><label class="flbl">Lugar</label>
+          <div style="display:flex;gap:6px;">
+            <input class="finput" id="nc-lugar" placeholder="Tomauno - Pedro Méndez 2069" style="margin:0;"/>
+            <button type="button" onclick="document.getElementById('nc-lugar').value='Tomauno - Pedro Méndez 2069, Posadas'" style="background:var(--gray3);border:none;color:var(--text2);border-radius:var(--radius-sm);padding:0 10px;font-size:10px;cursor:pointer;font-family:var(--font);white-space:nowrap;">📍 Estudio</button>
+          </div>
+        </div>
+        <div class="frow2">
+          <div class="fgroup"><label class="flbl">Instagram (sin @)</label>
+            <div style="display:flex;gap:6px;margin-bottom:8px;">
+              <input class="finput" id="nc-ig" placeholder="tomaunoestudio" style="margin:0;"/>
+              <button type="button" onclick="document.getElementById('nc-ig').value='tomaunoestudio'" style="background:var(--gray3);border:none;color:var(--text2);border-radius:var(--radius-sm);padding:0 10px;font-size:10px;cursor:pointer;white-space:nowrap;font-family:var(--font);">Estudio</button>
+              <button type="button" onclick="document.getElementById('nc-ig').value='tomaunomodels'" style="background:var(--gray3);border:none;color:var(--text2);border-radius:var(--radius-sm);padding:0 10px;font-size:10px;cursor:pointer;white-space:nowrap;font-family:var(--font);">Models</button>
+            </div>
+          </div>
+          <div class="fgroup"><label class="flbl">WhatsApp consultas</label>
+            <div style="display:flex;gap:6px;">
+              <input class="finput" id="nc-wp" placeholder="3764354522" style="margin:0;"/>
+              <button type="button" onclick="document.getElementById('nc-wp').value='3764354522'" style="background:var(--gray3);border:none;color:var(--text2);border-radius:var(--radius-sm);padding:0 10px;font-size:10px;cursor:pointer;font-family:var(--font);">Mi WA</button>
+            </div>
+          </div>
+        </div>
+        <div class="fgroup"><label class="flbl">URL imagen del flyer (Imgur)</label><input class="finput" id="nc-img" placeholder="https://i.imgur.com/..."/></div>
+        <div class="fgroup"><label class="flbl">Ícono emoji (si no hay imagen)</label>
+          <div style="display:flex;gap:4px;flex-wrap:wrap;margin-bottom:6px;">
+            <button type="button" onclick="document.getElementById('nc-icon').value='📷'" style="background:var(--gray3);border:none;font-size:20px;padding:5px 7px;border-radius:8px;cursor:pointer;">📷</button>
+            <button type="button" onclick="document.getElementById('nc-icon').value='📸'" style="background:var(--gray3);border:none;font-size:20px;padding:5px 7px;border-radius:8px;cursor:pointer;">📸</button>
+            <button type="button" onclick="document.getElementById('nc-icon').value='🎭'" style="background:var(--gray3);border:none;font-size:20px;padding:5px 7px;border-radius:8px;cursor:pointer;">🎭</button>
+            <button type="button" onclick="document.getElementById('nc-icon').value='🎓'" style="background:var(--gray3);border:none;font-size:20px;padding:5px 7px;border-radius:8px;cursor:pointer;">🎓</button>
+            <button type="button" onclick="document.getElementById('nc-icon').value='🎬'" style="background:var(--gray3);border:none;font-size:20px;padding:5px 7px;border-radius:8px;cursor:pointer;">🎬</button>
+            <button type="button" onclick="document.getElementById('nc-icon').value='✨'" style="background:var(--gray3);border:none;font-size:20px;padding:5px 7px;border-radius:8px;cursor:pointer;">✨</button>
+            <button type="button" onclick="document.getElementById('nc-icon').value='🔥'" style="background:var(--gray3);border:none;font-size:20px;padding:5px 7px;border-radius:8px;cursor:pointer;">🔥</button>
+            <button type="button" onclick="document.getElementById('nc-icon').value='💄'" style="background:var(--gray3);border:none;font-size:20px;padding:5px 7px;border-radius:8px;cursor:pointer;">💄</button>
+            <button type="button" onclick="document.getElementById('nc-icon').value='🌟'" style="background:var(--gray3);border:none;font-size:20px;padding:5px 7px;border-radius:8px;cursor:pointer;">🌟</button>
+            <button type="button" onclick="document.getElementById('nc-icon').value='🎯'" style="background:var(--gray3);border:none;font-size:20px;padding:5px 7px;border-radius:8px;cursor:pointer;">🎯</button>
+          </div>
+          <input class="finput" id="nc-icon" placeholder="📷" maxlength="4" value="📷"/>
+        </div>
+        <div class="fgroup"><label class="flbl">Link grupo WhatsApp (opcional)</label><input class="finput" id="nc-grupo-wa" placeholder="https://chat.whatsapp.com/..."/></div>
+        <div class="fgroup"><label class="flbl">Tipo de pago</label>
+          <select class="finput" id="nc-pago-tipo" onchange="toggleMeses()">
+            <option value="unico">Pago único</option>
+            <option value="cuotas">Inscripción + cuotas mensuales</option>
+          </select>
+        </div>
+        <div class="fgroup" id="nc-meses-wrap" style="display:none;">
+          <label class="flbl">Duración en meses</label>
+          <input class="finput" id="nc-meses" type="number" placeholder="3" min="1" max="12"/>
+        </div>
+        <div id="sesiones-config" style="display:none;">
+          <div style="background:#1a0000;border:1px solid #3a0000;border-radius:var(--radius-sm);padding:14px;margin-bottom:8px;">
+            <div style="font-size:12px;color:var(--red);font-weight:800;margin-bottom:10px;">📅 Configuración de turnos</div>
+            <div class="frow2">
+              <div class="fgroup"><label class="flbl">Hora inicio</label><input class="finput" id="nc-h-ini" type="time" value="09:00" style="color-scheme:dark"/></div>
+              <div class="fgroup"><label class="flbl">Hora fin</label><input class="finput" id="nc-h-fin" type="time" value="22:00" style="color-scheme:dark"/></div>
+            </div>
+            <div class="fgroup"><label class="flbl">Duración por sesión (minutos)</label><input class="finput" id="nc-dur" type="number" value="30"/></div>
+            <div class="fgroup">
+              <label class="flbl">Descansos / horarios bloqueados</label>
+              <div style="font-size:10px;color:var(--text3);margin-bottom:6px;">Ej: 13:00-14:00 para almuerzo. Separados por coma.</div>
+              <input class="finput" id="nc-descansos" placeholder="13:00-14:00, 17:30-18:00"/>
+            </div>
+          </div>
+        </div>
+        <button class="btn-main" onclick="agregarCurso()">📢 Publicar curso</button>
+      </div>
+    </div>
+
+    <!-- SERVICIOS ADMIN -->
+    <div id="atab-servicios-adm" style="display:none;">
+      <div class="acard">
+        <div class="acard-title">Servicios publicados en Firebase</div>
+        <div id="admin-servicios-list"><div style="color:var(--text3);font-size:13px;">Cargando...</div></div>
+      </div>
+      <div class="acard">
+        <div class="acard-title">+ Nuevo servicio</div>
+        <div class="fgroup"><label class="flbl">Título *</label><input class="finput" id="ns-titulo" placeholder="Ej: Sesión de Book Profesional"/></div>
+        <div class="fgroup"><label class="flbl">Descripción</label><textarea class="finput" id="ns-desc" placeholder="Detallá el servicio..."></textarea></div>
+        <div class="frow2">
+          <div class="fgroup"><label class="flbl">Precio desde ($)</label><input class="finput" id="ns-precio" type="number" placeholder="5000"/></div>
+          <div class="fgroup"><label class="flbl">Ícono emoji</label>
+            <input class="finput" id="ns-icon" placeholder="📷" maxlength="4" value="📷"/>
+          </div>
+        </div>
+        <div class="fgroup"><label class="flbl">URL imagen</label><input class="finput" id="ns-img" placeholder="https://i.imgur.com/..."/></div>
+        <div class="fgroup"><label class="flbl">Dirección</label><input class="finput" id="ns-dir" placeholder="Pedro Méndez 2069, Posadas"/></div>
+        <div class="frow2">
+          <div class="fgroup"><label class="flbl">Instagram (sin @)</label><input class="finput" id="ns-ig" placeholder="tomaunomodels"/></div>
+          <div class="fgroup"><label class="flbl">WhatsApp</label>
+            <div style="display:flex;gap:6px;">
+              <input class="finput" id="ns-wp" placeholder="3764354522" style="margin:0;"/>
+              <button type="button" onclick="document.getElementById('ns-wp').value='3764354522'" style="background:var(--gray3);border:none;color:var(--text2);border-radius:var(--radius-sm);padding:0 12px;font-size:11px;cursor:pointer;font-family:var(--font);">Mi WA</button>
+            </div>
+          </div>
+        </div>
+        <button class="btn-main" onclick="window.agregarServicio()">📢 Publicar servicio</button>
+      </div>
+    </div>
+
+    <!-- TESTIMONIOS ADMIN -->
+    <div id="atab-testimonios-adm" style="display:none;">
+      <div class="acard">
+        <div class="acard-title">Testimonios publicados</div>
+        <div id="admin-test-list"><div style="color:var(--text3);font-size:13px;">Cargando...</div></div>
+      </div>
+      <div class="acard">
+        <div class="acard-title">+ Nuevo testimonio</div>
+        <div class="frow2">
+          <div class="fgroup"><label class="flbl">Nombre</label><input class="finput" id="nt-nombre" placeholder="María González"/></div>
+          <div class="fgroup"><label class="flbl">Curso</label>
+            <select class="finput" id="nt-curso"><option value="">Sin curso específico</option></select>
+          </div>
+        </div>
+        <div class="fgroup"><label class="flbl">Texto del testimonio *</label><textarea class="finput" id="nt-texto" placeholder="¡Excelente curso! Aprendí muchísimo..."></textarea></div>
+        <div class="frow2">
+          <div class="fgroup"><label class="flbl">Estrellas</label>
+            <select class="finput" id="nt-stars">
+              <option value="5">⭐⭐⭐⭐⭐ 5 estrellas</option>
+              <option value="4">⭐⭐⭐⭐ 4 estrellas</option>
+              <option value="3">⭐⭐⭐ 3 estrellas</option>
+            </select>
+          </div>
+          <div class="fgroup"><label class="flbl">URL foto (opcional)</label><input class="finput" id="nt-avatar" placeholder="https://..."/></div>
+        </div>
+        <button class="btn-main" onclick="window.agregarTestimonio()">⭐ Publicar testimonio</button>
+      </div>
+    </div>
+
+    <!-- EVENTOS ADMIN -->
+    <div id="atab-eventos-adm" style="display:none;">
+      <div class="acard">
+        <div class="acard-title">Eventos registrados</div>
+        <div style="margin-bottom:14px;"><select class="finput" id="ev-filtro-estado" style="margin:0;width:auto;" onchange="renderAdminEventos()"><option value="">Todos</option><option value="pendiente">Pendientes</option><option value="activo">Activos</option><option value="finalizado">Finalizados</option></select></div>
+        <div id="admin-eventos-list"><div style="color:var(--text3);font-size:13px;">Cargando...</div></div>
+      </div>
+    </div>
+    <!-- GALERIA ADMIN -->
+    <div id="atab-galeria-adm" style="display:none;">
+      <div class="acard">
+        <div class="acard-title">Fotos del estudio publicadas</div>
+        <div id="admin-galeria-list"><div style="color:var(--text3);font-size:13px;">Cargando...</div></div>
+      </div>
+      <div class="acard">
+        <div class="acard-title">+ Agregar foto</div>
+        <div class="fgroup"><label class="flbl">URL de la imagen (Imgur) *</label><input class="finput" id="ng-url" placeholder="https://i.imgur.com/..."/></div>
+        <div class="fgroup"><label class="flbl">Descripcion (opcional)</label><input class="finput" id="ng-caption" placeholder="Fondo blanco, Estudio principal..."/></div>
+        <button class="btn-main" onclick="window.agregarFotoGaleria()">Publicar foto</button>
+      </div>
+    </div>
+    <!-- APPS ADMIN -->
+    <div id="atab-apps-adm" style="display:none;">
+      <div class="acard">
+        <div class="acard-title">Acceso rápido a Apps</div>
+        <div id="apps-list">
+          <a href="https://cronometro-two.vercel.app/" target="_blank" class="app-row">
+            <span class="app-ico">⏱️</span><div class="app-info"><div class="app-name">Cronómetro</div><div class="app-url">cronometro-two.vercel.app</div></div><span class="app-arr">→</span>
+          </a>
+          <a href="https://reproductortomauno.lovable.app/" target="_blank" class="app-row">
+            <span class="app-ico">🎵</span><div class="app-info"><div class="app-name">Reproductor de Música</div><div class="app-url">reproductortomauno.lovable.app</div></div><span class="app-arr">→</span>
+          </a>
+          <a href="https://tomaunomodels1.vercel.app/" target="_blank" class="app-row">
+            <span class="app-ico">👗</span><div class="app-info"><div class="app-name">Gestor Modelos 1</div><div class="app-url">tomaunomodels1.vercel.app</div></div><span class="app-arr">→</span>
+          </a>
+          <a href="https://script.google.com/macros/s/AKfycbxrrrbLE22rwEw-eh6tVwEbsPZ_MDqDTA7sOnX21qhkaOED77kkIEFrKnGB2cf1Zeq8/exec" target="_blank" class="app-row">
+            <span class="app-ico">👗</span><div class="app-info"><div class="app-name">Gestor Modelos 2</div><div class="app-url">Google Script</div></div><span class="app-arr">→</span>
+          </a>
+          <a href="https://script.google.com/macros/s/AKfycbwgOK2_WSsKgVxCPwlyekANJgLrIyPWaYvU6QfuqSdxQkHJdvWoKH2FIKvzLJiF2wgd/exec" target="_blank" class="app-row">
+            <span class="app-ico">👗</span><div class="app-info"><div class="app-name">Gestor Modelos 3</div><div class="app-url">Google Script</div></div><span class="app-arr">→</span>
+          </a>
+          <a href="https://secretaria-bice.vercel.app/" target="_blank" class="app-row">
+            <span class="app-ico">🏫</span><div class="app-info"><div class="app-name">Secretaría San Jorge</div><div class="app-url">secretaria-bice.vercel.app</div></div><span class="app-arr">→</span>
+          </a>
+          <a href="https://remedios-umber.vercel.app/" target="_blank" class="app-row">
+            <span class="app-ico">💊</span><div class="app-info"><div class="app-name">Remedios</div><div class="app-url">remedios-umber.vercel.app</div></div><span class="app-arr">→</span>
+          </a>
+          <a href="https://claude.ai/public/artifacts/a0ae2a0e-4f45-4262-926b-7f8caa51191f" target="_blank" class="app-row">
+            <span class="app-ico">🎲</span><div class="app-info"><div class="app-name">Sorteo</div><div class="app-url">claude.ai/artifacts</div></div><span class="app-arr">→</span>
+          </a>
+          <a href="https://presupuestos-blush.vercel.app/" target="_blank" class="app-row">
+            <span class="app-ico">💰</span><div class="app-info"><div class="app-name">Presupuesto</div><div class="app-url">presupuestos-blush.vercel.app</div></div><span class="app-arr">→</span>
+          </a>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<!-- MODAL -->
+<div id="moverlay" class="moverlay" style="display:none;" onclick="if(event.target===this)window.closeModal()">
+  <div class="mbox">
+    <button class="mclose" onclick="window.closeModal()">✕</button>
+    <div id="mcontent"></div>
+  </div>
+</div>
+
+<div id="toast"></div>
+
+<script>
+// ── FUNCIONES GLOBALES (fuera del module) ─────────────────────────────────────
+
+function navScroll(id) {
+  const el = document.getElementById(id);
+  if (!el) return;
+  setTimeout(function() { el.scrollIntoView({behavior:'smooth', block:'start'}); }, 50);
+}
+
+function toggleMob() {
+  var m = document.getElementById('mob-menu');
+  if (m) m.classList.toggle('open');
+}
+
+function toggleIgDrop() {
+  var d = document.getElementById('ig-drop');
+  if (d) d.classList.toggle('open');
+}
+// Cerrar dropdown de IG al hacer clic afuera
+document.addEventListener('click', function(e) {
+  var d = document.getElementById('ig-drop');
+  if (d && !d.contains(e.target)) d.classList.remove('open');
+});
+
+function toggleFaq(el) {
+  var wasOpen = el.classList.contains('open');
+  document.querySelectorAll('.faq-item').forEach(function(i) { i.classList.remove('open'); });
+  if (!wasOpen) el.classList.add('open');
+}
+
+function filterCursos() {
+  var q = (document.getElementById('course-search').value || '').toLowerCase().trim();
+  var cl = document.getElementById('search-clear');
+  var info = document.getElementById('search-info');
+  if (cl) cl.style.display = q ? 'block' : 'none';
+  var cards = document.querySelectorAll('.ccard');
+  var vis = 0;
+  cards.forEach(function(card) {
+    var txt = (card.dataset.search || '').toLowerCase();
+    var match = !q || txt.indexOf(q) >= 0;
+    card.style.display = match ? '' : 'none';
+    if (match) vis++;
+  });
+  if (info) info.textContent = q ? (vis + ' resultado' + (vis !== 1 ? 's' : '') + ' para "' + q + '"') : '';
+}
+
+function clearSearch() {
+  var inp = document.getElementById('course-search');
+  if (inp) inp.value = '';
+  filterCursos();
+}
+
+// Deep link
+function checkDeepLink() {
+  var hash = window.location.hash;
+  if (hash && hash.indexOf('#curso-') === 0) {
+    var id = hash.replace('#curso-', '');
+    setTimeout(function() {
+      if (window.abrirDetalle) window.abrirDetalle(id);
+      else window._pendingDeepLink = id;
+    }, 1200);
+  }
+  if (hash === '#review') {
+    setTimeout(function() {
+      if (window.abrirFormTestimonio) window.abrirFormTestimonio();
+    }, 1200);
+  }
+}
+window.addEventListener('load', checkDeepLink);
+
+// Teclado: flechas entre secciones
+// Botón volver arriba
+window.addEventListener('scroll', function() {
+  var btn = document.getElementById('back-top');
+  if (btn) btn.classList.toggle('show', window.scrollY > 400);
+});
+
+var SECTIONS = ['hero','sec-cursos','sec-eventos','sec-servicios','sec-galeria','sec-testimonios','sec-faq','sec-ubicacion'];
+var currentSection = 0;
+document.addEventListener('keydown', function(e) {
+  if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA' || e.target.tagName === 'SELECT') return;
+  if (e.key === 'ArrowDown' || e.key === 'PageDown') {
+    e.preventDefault();
+    currentSection = Math.min(currentSection + 1, SECTIONS.length - 1);
+    var el = document.getElementById(SECTIONS[currentSection]);
+    if (el) el.scrollIntoView({behavior:'smooth'});
+  } else if (e.key === 'ArrowUp' || e.key === 'PageUp') {
+    e.preventDefault();
+    currentSection = Math.max(currentSection - 1, 0);
+    var el = document.getElementById(SECTIONS[currentSection]);
+    if (el) el.scrollIntoView({behavior:'smooth'});
+  }
+});
+</script>
+
+<script>
+var SERVICIOS = [
+  {icon:'📷',title:'SESIONES FOTOGRAFICAS',desc:'Capturamos tu esencia con luz profesional.\n\nSesiones de:\n- Retratos artísticos\n- Book de modelos\n- Moda y lookbook\n- Fotos para redes\n- En estudio o exterior\n\nImágenes editadas en alta resolución.',wp:'3764354522'},
+  {icon:'🎭',title:'MODELAJE',desc:'Formación integral para modelos.\n\nIncluye:\n- Asesoramiento de imagen\n- Técnicas de pasarela\n- Book fotográfico profesional\n- Vinculación con agencias\n\nPara iniciar o potenciar tu carrera.',wp:'3764354522'},
+  {icon:'🎓',title:'CAPACITACIONES',desc:'Workshops y cursos presenciales.\n\nFormatos:\n- Workshops intensivos\n- Cursos regulares\n- Charlas temáticas\n\nFotografía, iluminación, edición, branding y más.',wp:'3764354522'},
+  {icon:'🎬',title:'PRODUCCION',desc:'Contenido audiovisual profesional.\n\nRealizamos:\n- Videos para redes sociales\n- Producción de eventos\n- Fotografía corporativa\n- Dirección creativa\n\nContactanos para cotización.',wp:'3764354522'}
+];
+function abrirServicio(idx){
+  var s=SERVICIOS[idx]; if(!s) return;
+  var modal=document.getElementById('moverlay');
+  var mc=document.getElementById('mcontent');
+  if(!modal||!mc) return;
+  mc.innerHTML='<div style="font-size:52px;text-align:center;margin-bottom:12px;">'+s.icon+'</div>'+
+    '<div style="font-family:var(--display);font-size:34px;letter-spacing:1px;margin-bottom:4px;text-align:center;">'+s.title+'</div>'+
+    '<div style="font-size:14px;color:var(--text2);line-height:1.75;white-space:pre-line;margin:16px 0 20px;">'+s.desc+'</div>'+
+    '<a href="https://wa.me/549'+s.wp+'?text='+encodeURIComponent('Hola! Me interesa: '+s.title)+'" target="_blank" class="btn-main" style="text-decoration:none;">Consultar por WhatsApp</a>'+
+    '<button class="btn-out" onclick="document.getElementById('moverlay').style.display='none'">Cerrar</button>';
+  modal.style.display='flex';
+}
+window.abrirServicio=abrirServicio;
+function switchMainTab(tab){
+  document.querySelectorAll('.main-tab').forEach(function(b){b.classList.remove('on');});
+  var btn=document.getElementById('mtab-'+tab);
+  if(btn) btn.classList.add('on');
+  var ids={cursos:'sec-cursos',servicios:'sec-servicios',eventos:'sec-eventos'};
+  var el=document.getElementById(ids[tab]);
+  if(el) el.scrollIntoView({behavior:'smooth',block:'start'});
+}
+</script>
+
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+import { getDatabase, ref, onValue, update, push, remove } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js";
+
+function setDbStatus(s){
+  const el=document.getElementById('db-status'),lb=document.getElementById('db-label');
+  if(!el||!lb) return; el.className=s;
+  lb.textContent={connecting:'Conectando',online:'Online',offline:'Sin conexion'}[s]||s;
+}
+setTimeout(()=>{const el=document.getElementById('db-status');if(el&&el.classList.contains('connecting'))setDbStatus('offline');},8000);
+
+const app = initializeApp({
+  apiKey: "AIzaSyBtTGAJ1X3yrvj-Dx-fsNmfe_Zw09yfrZo",
+  authDomain: "medicamentos-8352a.firebaseapp.com",
+  databaseURL: "https://medicamentos-8352a-default-rtdb.firebaseio.com",
+  projectId: "medicamentos-8352a",
+  storageBucket: "medicamentos-8352a.firebasestorage.app",
+  messagingSenderId: "828746191058",
+  appId: "1:828746191058:web:00f74a7502f7ce2121dd0b"
+});
+const db = getDatabase(app);
+
+// ── ADMIN ACCESS ──────────────────────────────────────────────────────────────
+const PIN = '3233';
+let adminOk = false;
+let clicks = 0, clickTimer = null;
+
+window.handleLogoClick = (e) => {
+  e.preventDefault();
+  clicks++;
+  clearTimeout(clickTimer);
+  clickTimer = setTimeout(() => clicks = 0, 2000);
+  if (clicks >= 5) { clicks = 0; adminOk ? toggleAdmin(true) : showPin(); }
+};
+
+function showPin() {
+  document.getElementById('mcontent').innerHTML =
+    '<div class="mtitle" style="margin-bottom:20px;">🔐 ACCESO</div>' +
+    '<label class="flbl">PIN de administrador</label>' +
+    '<input class="finput" id="pin-inp" type="password" placeholder="••••" maxlength="8" onkeydown="if(event.key===\'Enter\')window.submitPin()"/>' +
+    '<button class="btn-main" onclick="window.submitPin()">Entrar</button>';
+  document.getElementById('moverlay').style.display = 'flex';
+  setTimeout(() => document.getElementById('pin-inp')?.focus(), 80);
+}
+
+window.submitPin = () => {
+  const v = document.getElementById('pin-inp')?.value;
+  if (v === PIN) { adminOk = true; closeModal(); toggleAdmin(true); toast('✅ Bienvenido', true); }
+  else toast('❌ PIN incorrecto');
+};
+
+function toggleAdmin(show) {
+  if(show) window._adminWasActive=true;
+  document.getElementById('admin-section').style.display = show ? 'block' : 'none';
+  ['hero','sec-cursos','sec-eventos','sec-servicios','sec-galeria','sec-testimonios','sec-faq','sec-ubicacion'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.style.display = show ? 'none' : '';
+  });
+  const footer = document.querySelector('footer');
+  if (footer) footer.style.display = show ? 'none' : '';
+  window.scrollTo(0, 0);
+  if (show) history.pushState({admin:true}, '', '#admin');
+  else history.replaceState({}, '', ' ');
+}
+window.addEventListener('popstate', () => {
+  if (document.getElementById('admin-section').style.display !== 'none') toggleAdmin(false);
+  if (document.getElementById('moverlay').style.display === 'flex') closeModal();
+});
+window.cerrarAdmin = () => toggleAdmin(false);
+
+// ── STATE ─────────────────────────────────────────────────────────────────────
+let cursos = {}, inscripciones = {}, serviciosDB = {}, testimoniosDB = {}, prevCount = 0, eventosDB = {}, evInscDB = {};
+
+onValue(ref(db, 'tomauno/cursos'), s => {
+  setDbStatus('online');
+  cursos = s.exists() ? s.val() : {};
+  renderCursos(); renderAdminCursos(); renderFiltros(); updateStats(); renderFiltroTestimonios();
+});
+
+onValue(ref(db, 'tomauno/inscripciones'), s => {
+  inscripciones = s.exists() ? s.val() : {};
+  const c = Object.keys(inscripciones).length;
+  if (c > prevCount && prevCount > 0) {
+    const entries = Object.values(inscripciones);
+    const newest = entries[entries.length - 1];
+    const nombre = newest ? (newest.nombre || 'Alguien') : 'Alguien';
+    const curso = newest ? (newest.cursoTitulo || '') : '';
+    if(adminOk||window._adminWasActive){beep();showNotifBanner(nombre,curso);showNotif();}
+  }
+  prevCount = c;
+  renderCursos(); renderAlumnos(); renderFiltros(); updateStats();
+});
+
+onValue(ref(db, 'tomauno/servicios'), s => {
+  serviciosDB = s.exists() ? s.val() : {};
+  renderServiciosAdmin();
+  renderServiciosPublicos();
+  updateStats();
+});
+
+onValue(ref(db, 'tomauno/testimonios'), s => {
+  testimoniosDB = s.exists() ? s.val() : {};
+  renderTestimonios();
+  renderTestimoniosAdmin();
+  updateStats();
+});
+
+// ── STATS ─────────────────────────────────────────────────────────────────────
+function updateStats() {
+  const activeCursos = Object.values(cursos).filter(c => !c.finalizado && !c.oculto).length;
+  const totalInsc = Object.keys(inscripciones).length;
+  const el = (id, v) => { const e = document.getElementById(id); if (e) e.textContent = v; };
+  el('stat-cursos', activeCursos);
+  el('stat-insc', totalInsc);
+  el('adm-stat-cursos', activeCursos);
+  el('adm-stat-insc', totalInsc);
+  el('adm-stat-servicios', Object.keys(serviciosDB).length);
+  el('adm-stat-test', Object.keys(testimoniosDB).length);
+  const badge = document.getElementById('badge-alumnos');
+  if (badge) badge.textContent = totalInsc;
+}
+
+// ── RENDER CURSOS ─────────────────────────────────────────────────────────────
+function renderCursos() {
+  const g = document.getElementById('cursos-grid');
+  if (!g) return;
+  const lista = Object.entries(cursos).filter(([,c]) => !c.oculto).sort((a, b) => {
+    if (a[1].finalizado && !b[1].finalizado) return 1;
+    if (!a[1].finalizado && b[1].finalizado) return -1;
+    return (b[1].creado || 0) - (a[1].creado || 0);
+  });
+  const countEl = document.getElementById('cursos-count');
+  if (countEl) countEl.textContent = lista.length + ' curso' + (lista.length !== 1 ? 's' : '');
+  if (!lista.length) {
+    g.innerHTML = '<div style="color:var(--text3);padding:60px 0;text-align:center;font-size:14px;">No hay cursos publicados aún</div>';
+    return;
+  }
+  // Contar inscriptos por curso de manera correcta
+  const inscPorCurso = {};
+  Object.values(inscripciones).forEach(i => {
+    if (i.cursoId) inscPorCurso[i.cursoId] = (inscPorCurso[i.cursoId] || 0) + 1;
+  });
+
+  g.innerHTML = lista.map(([k, c], i) => {
+    const insc = inscPorCurso[k] || 0;
+    const full = c.cupos > 0 && insc >= c.cupos;
+    const ses = c.tipo === 'sesiones';
+    const badgeClass = c.finalizado ? 'end' : full ? 'full' : ses ? 'ses' : 'open';
+    const badgeTxt = c.finalizado ? '🏁 Finalizado' : full ? '🔴 Sin cupos' : ses ? ('📅 Turnos · ' + insc) : '✦ Activo';
+    const searchData = ((c.titulo || '') + ' ' + (c.desc || '') + ' ' + (c.fecha || '') + ' ' + (c.lugar || '') + ' ' + (c.ig || '')).toLowerCase();
+    return '<div class="ccard' + (c.finalizado ? ' fin' : '') + '" style="animation:up .45s ' + (i * .07) + 's both;cursor:pointer;" draggable="true" data-id="' + k + '" data-search="' + searchData.replace(/"/g, '') + '" ondragstart="window.dragStart(event,\'' + k + '\')" onclick="window.abrirDetalle(\'' + k + '\')">' +
+      '<div class="cimg">' +
+      (c.img
+        ? '<img src="' + c.img + '" alt="' + (c.titulo || '').replace(/"/g, '') + '" onerror="this.style.display=\'none\';this.nextElementSibling.style.display=\'flex\'"/><div class="cimg-placeholder" style="display:none"><span class="icon">📷</span><span class="brand">TOMA<em>UNO</em></span></div>'
+        : '<div class="cimg-placeholder"><span class="icon">' + (c.icon || '📷') + '</span><span class="brand">TOMA<em>UNO</em></span></div>') +
+      '<span class="cbadge ' + badgeClass + '">' + badgeTxt + '</span>' +
+      (c.cupos > 0 ? '<span class="ccupos-badge">👥 ' + insc + '/' + c.cupos + '</span>' : '') +
+      '</div>' +
+      '<div class="cbody">' +
+      '<div class="ctitle">' + (c.titulo || 'Sin título') + '</div>' +
+      '<div class="cdesc">' + (c.desc || '').replace(/\n/g, ' ') + '</div>' +
+      '<div class="cmeta">' +
+      (c.fecha ? '<span class="chip">📅 ' + fFecha(c.fecha) + '</span>' : '') +
+      (c.hora ? '<span class="chip">⏰ ' + c.hora + '</span>' : '') +
+      (c.lugar ? '<span class="chip">📍 ' + (c.lugar.split('-')[0].trim()) + '</span>' : '') +
+      (!c.cupos ? '<span class="chip">👥 ' + insc + ' inscripto' + (insc !== 1 ? 's' : '') + '</span>' : '') +
+      '</div>' +
+      '<div class="cfoot">' +
+      '<div class="cprice' + (!c.costo ? ' free' : '') + '">' + (c.costo ? '$ ' + Number(c.costo).toLocaleString('es-AR') : 'GRATIS') + '</div>' +
+      '<div class="cfoot-btns">' +
+      '<button class="cbtn-info" onclick="event.stopPropagation();window.abrirDetalle(\'' + k + '\')">Más info</button>' +
+      '<button class="cbtn" ' + (c.finalizado || full ? 'disabled' : '') + ' onclick="event.stopPropagation();' + (ses ? 'window.abrirSesiones(\'' + k + '\')' : 'window.abrirInscripcion(\'' + k + '\')') + '">' +
+      (c.finalizado ? 'Finalizado' : full ? 'Sin cupos' : ses ? '📅 Turnos' : '✍️ Inscribirme') +
+      '</button>' +
+      '</div></div></div></div>';
+  }).join('');
+}
+
+// ── DETALLE ───────────────────────────────────────────────────────────────────
+window.abrirDetalle = (id) => {
+  const c = cursos[id]; if (!c) return;
+  // Contar inscriptos SOLO de este curso
+  const insc = Object.values(inscripciones).filter(x => x.cursoId === id).length;
+  const full = c.cupos > 0 && insc >= c.cupos;
+  const ses = c.tipo === 'sesiones';
+  document.getElementById('mcontent').innerHTML =
+    (c.img ? '<img src="' + c.img + '" style="width:100%;border-radius:var(--radius-sm);margin-bottom:16px;max-height:420px;object-fit:contain;background:#0a0a0a;display:block;cursor:zoom-in;" onclick="window.verFlyerFull(this.src)" onerror="this.style.display=\'none\'"/>' : '') +
+    '<div class="mtitle">' + (c.titulo || 'Sin título') + '</div>' +
+    '<div class="msub">' + insc + ' inscripto' + (insc !== 1 ? 's' : '') + (c.cupos > 0 ? ' · ' + (c.cupos - insc) + ' cupos restantes' : '') + '</div>' +
+    '<div class="cmeta" style="margin-bottom:18px;">' +
+    (c.fecha ? '<span class="chip">📅 ' + fFecha(c.fecha) + '</span>' : '') +
+    (c.hora ? '<span class="chip">⏰ ' + c.hora + '</span>' : '') +
+    (c.lugar ? '<span class="chip">📍 ' + c.lugar + '</span>' : '') +
+    (c.costo ? '<span class="chip accent">💰 $ ' + Number(c.costo).toLocaleString('es-AR') + '</span>' : '<span class="chip" style="color:#00d25a;">✦ GRATIS</span>') +
+    '</div>' +
+    '<div style="font-size:14px;color:var(--text2);line-height:1.7;white-space:pre-line;margin-bottom:18px;">' + (c.desc || '') + '</div>' +
+    '<div class="det-links">' +
+    (c.ig ? '<a href="https://instagram.com/' + c.ig + '" target="_blank" class="det-link ig">📸 @' + c.ig + '</a>' : '') +
+    (c.wp ? '<a href="https://wa.me/549' + c.wp.replace(/\D/g, '') + '" target="_blank" class="det-link wp">💬 Consultar</a>' : '') +
+    '</div>' +
+    (!c.finalizado && !full ?
+      '<button class="btn-main" style="margin-top:16px;" onclick="' + (ses ? 'window.abrirSesiones(\'' + id + '\')' : 'window.abrirInscripcion(\'' + id + '\')') + '">' +
+      (ses ? '📅 Elegir mi turno' : '✍️ Quiero inscribirme') + '</button>' : '') +
+    '<div style="display:flex;gap:10px;margin-top:8px;">' +
+    '<button class="btn-out" style="flex:1;" onclick="window.closeModal()">Cerrar</button>' +
+    '<button class="btn-out" style="flex:1;border-color:rgba(232,0,10,.3);color:var(--red);" onclick="window.compartirCurso(\'' + id + '\')">🔗 Compartir</button>' +
+    '</div>';
+  openModal();
+};
+
+// ── INSCRIPCION ───────────────────────────────────────────────────────────────
+window.abrirInscripcion = (id) => {
+  const c = cursos[id]; if (!c) return;
+  const cr = Object.assign({dni:true, edad:true, ig:true, email:false, altura:false, medidas:false}, c.camposReq || {});
+  const esSes = c.tipo === 'sesiones';
+  const dniField = (!esSes && cr.dni !== false) ? '<input class="finput" id="f-dni" placeholder="DNI *" type="number"/>' : '<input type="hidden" id="f-dni" value="0"/>';
+  const edadField = cr.edad !== false ? '<input class="finput" id="f-edad" placeholder="Edad *" type="number" oninput="window.chkMenor()"/>' : '<input type="hidden" id="f-edad" value="18"/>';
+  const igField = cr.ig !== false ? '<input class="finput" id="f-ig" placeholder="Instagram (sin @)"/>' : '';
+  const emailField = cr.email ? '<input class="finput" id="f-email" placeholder="Email *" type="email"/>' : '';
+  const alturaRow = (cr.altura || cr.medidas)
+    ? '<div class="frow2" style="gap:8px;margin-bottom:8px;">' + (cr.altura ? '<input class="finput" id="f-altura" placeholder="Altura (ej: 1,62)" style="margin:0;"/>' : '') + (cr.medidas ? '<input class="finput" id="f-medidas" placeholder="Medidas (ej: 78/59/79)" style="margin:0;"/>' : '') + '</div>'
+    : '';
+  document.getElementById('mcontent').innerHTML =
+    '<div class="mtitle">INSCRIPCIÓN</div>' +
+    '<div class="msub">' + (c.titulo || '') + (c.fecha ? ' · ' + fFecha(c.fecha) : '') + '</div>' +
+    '<div class="mlbl">Datos personales</div>' +
+    '<input class="finput" id="f-nom" placeholder="Nombre y apellido *"/>' +
+    dniField + edadField + igField + emailField + alturaRow +
+    '<input class="finput" id="f-wp" placeholder="WhatsApp * ej: 3764123456" type="tel"/>' +
+    '<div id="tutor-box" style="display:none;">' +
+    '<div class="mlbl" style="color:#f5c842;">⚠️ Menor de edad — Datos del tutor/a</div>' +
+    '<div class="tutor-box"><input class="finput" id="f-tnombre" placeholder="Nombre del tutor/a"/><input class="finput" id="f-twp" placeholder="WhatsApp del tutor/a *" type="tel"/></div>' +
+    '</div>' +
+    '<div style="font-size:11px;color:var(--text3);margin:6px 0 14px;">* Campos obligatorios</div>' +
+    '<button class="btn-main" onclick="window.confirmarInsc(\'' + id + '\')">✅ Confirmar inscripción</button>' +
+    '<button class="btn-out" onclick="window.closeModal()">Cancelar</button>';
+  openModal();
+};
+
+window.chkMenor = () => {
+  const e = parseInt(document.getElementById('f-edad')?.value) || 0;
+  const b = document.getElementById('tutor-box');
+  if (b) b.style.display = e > 0 && e < 18 ? 'block' : 'none';
+};
+
+window.confirmarInsc = async (id) => {
+  const nom = document.getElementById('f-nom')?.value.trim();
+  const dni = document.getElementById('f-dni')?.value.trim();
+  const edad = parseInt(document.getElementById('f-edad')?.value) || 0;
+  const ig = document.getElementById('f-ig')?.value.trim() || '';
+  const wp = document.getElementById('f-wp')?.value.trim();
+  const tn = document.getElementById('f-tnombre')?.value.trim() || '';
+  const twp = document.getElementById('f-twp')?.value.trim() || '';
+  if (!nom) { toast('⚠️ El nombre es obligatorio'); return; }
+  if (!wp) { toast('⚠️ El número de celular es obligatorio'); return; }
+  const c = cursos[id];
+  const cr = Object.assign({dni:true, edad:true, ig:true}, c.camposReq || {});
+  if (cr.dni !== false && !dni) { toast('⚠️ Completá el DNI'); return; }
+  if (cr.edad !== false && !edad) { toast('⚠️ Completá la edad'); return; }
+  if (edad < 18 && !twp) { toast('⚠️ Ingresá el WP del tutor'); return; }
+  const altura = document.getElementById('f-altura')?.value.trim() || '';
+  const medidas = document.getElementById('f-medidas')?.value.trim() || '';
+  const email = document.getElementById('f-email')?.value.trim() || '';
+  await push(ref(db, 'tomauno/inscripciones'), {
+    cursoId: id, cursoTitulo: c.titulo || '',
+    nombre: nom, dni: dni || '', edad: edad, ig: ig, wp: wp,
+    tutorNombre: tn || null, tutorWp: twp || null,
+    altura: altura, medidas: medidas, email: email,
+    fecha: new Date().toLocaleDateString('es-AR'),
+    hora: new Date().toLocaleTimeString('es-AR', {hour:'2-digit', minute:'2-digit'}),
+    pagos: genPagos(c)
+  });
+  const waText = [
+    '🔴 NUEVA PRE-INSCRIPCIÓN',
+    '📚 Curso: ' + (c.titulo || '') + (c.fecha ? ' - ' + fFecha(c.fecha) : '') + (c.hora ? ' ' + c.hora : ''),
+    '👤 Nombre: ' + nom,
+    '📄 DNI: ' + (dni || '-'),
+    '🎂 Edad: ' + edad,
+  ];
+  if (ig) waText.push('📸 IG: @' + ig);
+  if (altura) waText.push('📏 Altura: ' + altura);
+  if (medidas) waText.push('📐 Medidas: ' + medidas);
+  if (email) waText.push('📧 Email: ' + email);
+  waText.push('📱 WP Alumno: ' + wp);
+  if (twp) waText.push('👨‍👩‍👧 WP Tutor: ' + twp);
+  window._pendingWaUrl = 'https://api.whatsapp.com/send?phone=5493764354522&text=' + waEncode(waText.join('\n'));
+  document.getElementById('mcontent').innerHTML =
+    '<div style="text-align:center;padding:12px 0;">' +
+    '<div style="font-size:52px;margin-bottom:16px;">✅</div>' +
+    '<div class="mtitle" style="margin-bottom:8px;">¡DATOS REGISTRADOS!</div>' +
+    '<div style="font-size:14px;color:var(--text2);line-height:1.6;margin-bottom:20px;">Tu inscripción fue guardada correctamente.<br/>Al presionar Aceptar se enviarán tus datos al WhatsApp de Javier.</div>' +
+    '<button class="btn-main" id="wa-confirm-btn">✅ Aceptar — Enviar a WhatsApp</button>' +
+    '</div>';
+  document.getElementById('wa-confirm-btn').onclick = () => {
+    window.open(window._pendingWaUrl, '_blank');
+    closeModal();
+    toast('🎉 ¡Listo! Te contactamos pronto');
+  };
+};
+
+function genPagos(c) {
+  if (c.pagoTipo === 'cuotas' && c.meses > 0) {
+    const mm = ['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'];
+    const n = new Date();
+    const p = [{label:'Inscripción', estado:'pendiente', monto:'', nota:''}];
+    for (let i = 0; i < c.meses; i++) {
+      const d = new Date(n.getFullYear(), n.getMonth() + i, 1);
+      p.push({label: mm[d.getMonth()] + ' ' + d.getFullYear(), estado:'pendiente', monto:'', nota:''});
+    }
+    return p;
+  }
+  return [{label:'Pago único', estado:'pendiente', monto:'', nota:''}];
+}
+
+// ── SESIONES / TURNOS ─────────────────────────────────────────────────────────
+window.abrirSesiones = (id) => {
+  const c = cursos[id]; if (!c) return;
+  const slots = genSlots(c);
+  const ocup = Object.values(inscripciones).filter(i => i.cursoId === id && i.turno);
+  const libres = slots.filter(s => !ocup.find(i => i.turno === s)).length;
+  let html = '<div class="mtitle">ELEGÍ TU TURNO</div>' +
+    '<div class="msub">' + (c.titulo || '') + (c.fecha ? ' · ' + fFecha(c.fecha) : '') + ' · <span style="color:#4caf7d;">' + libres + ' disponibles</span></div>' +
+    '<div class="slots-grid">';
+  slots.forEach(s => {
+    const q = ocup.find(i => i.turno === s);
+    html += '<div class="slot ' + (q ? 'ocupado' : 'libre') + '" data-id="' + id + '" data-slot="' + s + '" ' + (q ? '' : 'onclick="window.selTurno(this)"') + '>' +
+      '<div class="slot-t">' + s + '</div>' +
+      '<div class="slot-n">' + (q ? (q.nombre || '').split(' ')[0] : '✓ Libre') + '</div>' +
+      '</div>';
+  });
+  html += '</div><button class="btn-out" style="margin-top:16px;" onclick="window.closeModal()">Cancelar</button>';
+  document.getElementById('mcontent').innerHTML = html;
+  openModal();
+};
+
+window.selTurno = (el) => {
+  const id = el.dataset.id;
+  const turno = el.dataset.slot;
+  const c = cursos[id];
+  document.getElementById('mcontent').innerHTML =
+    '<div class="mtitle">RESERVAR TURNO</div>' +
+    '<div class="msub">' + (c ? c.titulo : '') + ' · <strong style="color:var(--red);">' + turno + '</strong></div>' +
+    '<div class="mlbl">Tus datos</div>' +
+    '<input class="finput" id="f-nom" placeholder="Nombre y apellido *"/>' +
+    '<div class="frow2">' +
+    '<input class="finput" id="f-dni" placeholder="DNI *" type="number"/>' +
+    '<input class="finput" id="f-edad" placeholder="Edad *" type="number" oninput="window.chkMenor()"/>' +
+    '</div>' +
+    '<input class="finput" id="f-ig" placeholder="Instagram (sin @) *"/>' +
+    '<input class="finput" id="f-wp" placeholder="WhatsApp * ej: 3764123456" type="tel"/>' +
+    '<div id="tutor-box" style="display:none;">' +
+    '<div class="mlbl" style="color:#f5c842;">⚠️ Menor de edad</div>' +
+    '<div class="tutor-box"><input class="finput" id="f-tnombre" placeholder="Nombre tutor/a"/><input class="finput" id="f-twp" placeholder="WP tutor/a *" type="tel"/></div>' +
+    '</div>' +
+    '<button class="btn-main" onclick="window.confirmarTurno(\'' + id + '\',\'' + turno + '\')">✅ Confirmar turno ' + turno + '</button>' +
+    '<button class="btn-out" onclick="window.abrirSesiones(\'' + id + '\')">← Volver</button>';
+};
+
+window.confirmarTurno = async (id, turno) => {
+  const nom = document.getElementById('f-nom')?.value.trim();
+  const dni = document.getElementById('f-dni')?.value.trim();
+  const edad = parseInt(document.getElementById('f-edad')?.value) || 0;
+  const ig = document.getElementById('f-ig')?.value.trim();
+  const wp = document.getElementById('f-wp')?.value.trim();
+  const twp = document.getElementById('f-twp')?.value.trim() || '';
+  if (!nom) { toast('⚠️ El nombre es obligatorio'); return; }
+  if (!wp) { toast('⚠️ El número de celular es obligatorio'); return; }
+  if (!dni || !edad || !ig) { toast('⚠️ Completá todos los campos'); return; }
+  if (edad < 18 && !twp) { toast('⚠️ Ingresá el WP del tutor'); return; }
+  if (Object.values(inscripciones).find(i => i.cursoId === id && i.turno === turno)) {
+    toast('⚠️ Ese turno ya fue tomado, elegí otro');
+    abrirSesiones(id);
+    return;
+  }
+  const c = cursos[id];
+  await push(ref(db, 'tomauno/inscripciones'), {
+    cursoId: id, cursoTitulo: c ? c.titulo : '', nombre: nom, dni, edad, ig, wp,
+    tutorWp: twp || null, turno,
+    fecha: new Date().toLocaleDateString('es-AR'),
+    hora: new Date().toLocaleTimeString('es-AR', {hour:'2-digit', minute:'2-digit'}),
+    pagos: [{label:'Pago único', estado:'pendiente', monto:'', nota:''}]
+  });
+  const tText = [
+    '📅 NUEVO TURNO RESERVADO',
+    '📸 Sesión: ' + (c ? c.titulo : '') + (c && c.fecha ? ' - ' + fFecha(c.fecha) : ''),
+    '⏰ Turno: ' + turno,
+    '👤 Nombre: ' + nom,
+    '🎂 Edad: ' + edad,
+    '📸 IG: @' + ig,
+    '📱 WP: ' + wp,
+  ];
+  if (twp) tText.push('👨‍👩‍👧 WP Tutor: ' + twp);
+  window._pendingWaUrl = 'https://api.whatsapp.com/send?phone=5493764354522&text=' + waEncode(tText.join('\n'));
+  document.getElementById('mcontent').innerHTML =
+    '<div style="text-align:center;padding:12px 0;">' +
+    '<div style="font-size:52px;margin-bottom:16px;">✅</div>' +
+    '<div class="mtitle" style="margin-bottom:8px;">¡TURNO RESERVADO!</div>' +
+    '<div style="font-size:14px;color:var(--text2);line-height:1.6;margin-bottom:20px;">Tu turno quedó registrado correctamente.<br/>Al presionar Aceptar se enviarán tus datos al WhatsApp de Javier.</div>' +
+    '<button class="btn-main" id="wa-turno-btn">✅ Aceptar — Enviar a WhatsApp</button>' +
+    '</div>';
+  document.getElementById('wa-turno-btn').onclick = () => {
+    window.open(window._pendingWaUrl, '_blank');
+    closeModal();
+    toast('🎉 ¡Turno confirmado!');
+  };
+};
+
+function genSlots(c) {
+  const sl = [];
+  const [hi, mi] = (c.horaInicio || '09:00').split(':').map(Number);
+  const [hf, mf] = (c.horaFin || '22:00').split(':').map(Number);
+  const dur = parseInt(c.duracion) || 30;
+  const descansos = (c.descansos || '').split(',').map(d => {
+    const p = d.trim().split('-');
+    if (p.length !== 2) return null;
+    const [dhi, dmi] = p[0].trim().split(':').map(Number);
+    const [dhf, dmf] = p[1].trim().split(':').map(Number);
+    return {ini: dhi*60+(dmi||0), fin: dhf*60+(dmf||0)};
+  }).filter(Boolean);
+  let cur = hi*60+mi;
+  const fin = hf*60+mf;
+  while (cur + dur <= fin) {
+    const bloqueado = descansos.some(d => cur < d.fin && cur + dur > d.ini);
+    if (!bloqueado) {
+      const h = String(Math.floor(cur/60)).padStart(2,'0');
+      const m = String(cur%60).padStart(2,'0');
+      const h2 = String(Math.floor((cur+dur)/60)).padStart(2,'0');
+      const m2 = String((cur+dur)%60).padStart(2,'0');
+      sl.push(h + ':' + m + '-' + h2 + ':' + m2);
+    }
+    cur += dur;
+  }
+  return sl;
+}
+
+window.verPlanillaTurnos = (id) => {
+  const c = cursos[id]; if (!c) return;
+  const slots = genSlots(c);
+  const ocup = Object.values(inscripciones).filter(i => i.cursoId === id && i.turno);
+  const soloNombres = slots.filter(s => ocup.find(i => i.turno === s)).map(s => {
+    const i = ocup.find(x => x.turno === s);
+    return i ? i.nombre : '';
+  }).filter(Boolean).join('\n');
+  const textoCompleto = slots.map(s => {
+    const i = ocup.find(x => x.turno === s);
+    return i ? (s + ' - ' + i.nombre + (i.wp ? ' (' + i.wp + ')' : '')) : (s + ' - LIBRE');
+  }).join('\n');
+  document.getElementById('mcontent').innerHTML =
+    '<div class="mtitle" style="margin-bottom:4px;">PLANILLA TURNOS</div>' +
+    '<div class="msub" style="margin-bottom:16px;">' + (c.titulo || '') + ' · ' + ocup.length + ' reservados · ' + (slots.length - ocup.length) + ' libres</div>' +
+    '<div style="display:flex;gap:8px;margin-bottom:14px;flex-wrap:wrap;">' +
+    '<button class="bsm bl" id="btn-cp-full">📋 Copiar planilla</button>' +
+    '<button class="bsm bl" id="btn-cp-nom">👤 Solo nombres</button>' +
+    '<a href="https://cronometro-two.vercel.app/" target="_blank" class="bsm gr" style="text-decoration:none;">⏱️ Cronómetro</a>' +
+    '</div>' +
+    '<textarea id="txt-comp" readonly style="width:100%;background:#0d0d0d;border:1px solid var(--border);border-radius:var(--radius-sm);padding:12px;color:var(--text);font-size:12px;font-family:monospace;resize:vertical;min-height:180px;margin-bottom:8px;"></textarea>' +
+    '<textarea id="txt-nom" readonly style="width:100%;background:#0d0d0d;border:1px solid var(--border);border-radius:var(--radius-sm);padding:12px;color:var(--text);font-size:12px;font-family:monospace;resize:vertical;min-height:100px;"></textarea>' +
+    '<button class="btn-out" onclick="window.closeModal()" style="margin-top:10px;">Cerrar</button>';
+  openModal();
+  document.getElementById('txt-comp').value = textoCompleto;
+  document.getElementById('txt-nom').value = soloNombres;
+  document.getElementById('btn-cp-full').onclick = () => navigator.clipboard.writeText(textoCompleto).then(() => toast('📋 Planilla copiada'));
+  document.getElementById('btn-cp-nom').onclick = () => navigator.clipboard.writeText(soloNombres).then(() => toast('👤 Nombres copiados'));
+};
+
+// ── ADMIN TABS ────────────────────────────────────────────────────────────────
+window.setAtab = (tab) => {
+  const tabs = ['alumnos','cursos','nuevo','servicios-adm','testimonios-adm','eventos-adm','galeria-adm','apps-adm'];
+  tabs.forEach(t => {
+    const el = document.getElementById('atab-' + t);
+    if (el) el.style.display = t === tab ? 'block' : 'none';
+  });
+  document.querySelectorAll('.atab').forEach((b, i) => b.classList.toggle('on', tabs[i] === tab));
+};
+
+window.toggleTipoConfig = () => {
+  const el = document.getElementById('sesiones-config');
+  if (el) el.style.display = document.getElementById('nc-tipo')?.value === 'sesiones' ? 'block' : 'none';
+};
+
+window.toggleMeses = () => {
+  const el = document.getElementById('nc-meses-wrap');
+  if (el) el.style.display = document.getElementById('nc-pago-tipo')?.value === 'cuotas' ? 'block' : 'none';
+};
+
+// ── AGREGAR CURSO ─────────────────────────────────────────────────────────────
+window.agregarCurso = async () => {
+  const titulo = document.getElementById('nc-titulo')?.value.trim();
+  if (!titulo) { toast('⚠️ El título es obligatorio'); return; }
+  const tipo = document.getElementById('nc-tipo')?.value || 'curso';
+  const pagoTipo = document.getElementById('nc-pago-tipo')?.value || 'unico';
+  await push(ref(db, 'tomauno/cursos'), {
+    tipo, titulo,
+    desc: document.getElementById('nc-desc')?.value.trim() || '',
+    costo: parseInt(document.getElementById('nc-costo')?.value) || 0,
+    fecha: document.getElementById('nc-fecha')?.value || '',
+    hora: document.getElementById('nc-hora')?.value.trim() || '',
+    lugar: document.getElementById('nc-lugar')?.value.trim() || '',
+    ig: document.getElementById('nc-ig')?.value.trim() || '',
+    wp: document.getElementById('nc-wp')?.value.trim() || '',
+    cupos: parseInt(document.getElementById('nc-cupos')?.value) || 0,
+    pagoTipo,
+    meses: pagoTipo === 'cuotas' ? (parseInt(document.getElementById('nc-meses')?.value) || 0) : 0,
+    icon: document.getElementById('nc-icon')?.value.trim() || '📷',
+    img: document.getElementById('nc-img')?.value.trim() || '',
+    horaInicio: document.getElementById('nc-h-ini')?.value || '09:00',
+    horaFin: document.getElementById('nc-h-fin')?.value || '22:00',
+    descansos: document.getElementById('nc-descansos')?.value.trim() || '',
+    duracion: parseInt(document.getElementById('nc-dur')?.value) || 30,
+    grupoWA: document.getElementById('nc-grupo-wa')?.value.trim() || '',
+    camposReq: {
+      dni: document.getElementById('nc-req-dni')?.checked ?? true,
+      edad: document.getElementById('nc-req-edad')?.checked ?? true,
+      ig: document.getElementById('nc-req-ig')?.checked ?? true,
+      email: document.getElementById('nc-req-email')?.checked ?? false,
+      altura: document.getElementById('nc-req-altura')?.checked ?? false,
+      medidas: document.getElementById('nc-req-medidas')?.checked ?? false,
+    },
+    finalizado: false, oculto: false, creado: Date.now()
+  });
+  ['nc-titulo','nc-desc','nc-costo','nc-cupos','nc-fecha','nc-hora','nc-lugar','nc-ig','nc-wp','nc-img','nc-meses','nc-grupo-wa','nc-icon','nc-descansos'].forEach(id => {
+    const el = document.getElementById(id); if (el) el.value = '';
+  });
+  toast('✅ Curso publicado');
+  setAtab('cursos');
+};
+
+window.editCurso = (id) => {
+  const c = cursos[id]; if (!c) return;
+  document.getElementById('mcontent').innerHTML =
+    '<div class="mtitle">EDITAR CURSO</div>' +
+    '<div class="msub" style="margin-bottom:16px;">Modificá los datos y guardá</div>' +
+    '<label class="flbl">Título</label>' +
+    '<input class="finput" id="ec-titulo" value="' + (c.titulo || '').replace(/"/g, '&quot;') + '"/>' +
+    '<label class="flbl">Descripción</label>' +
+    '<textarea class="finput" id="ec-desc" rows="5">' + (c.desc || '') + '</textarea>' +
+    '<div class="frow2">' +
+    '<div><label class="flbl">Costo ($)</label><input class="finput" id="ec-costo" type="number" value="' + (c.costo || '') + '"/></div>' +
+    '<div><label class="flbl">Cupos (0=ilimitado)</label><input class="finput" id="ec-cupos" type="number" value="' + (c.cupos || 0) + '"/></div>' +
+    '</div>' +
+    '<div class="frow2">' +
+    '<div><label class="flbl">Fecha</label><input class="finput" id="ec-fecha" type="date" value="' + (c.fecha || '') + '" style="color-scheme:dark"/></div>' +
+    '<div><label class="flbl">Hora</label><input class="finput" id="ec-hora" value="' + (c.hora || '') + '"/></div>' +
+    '</div>' +
+    '<label class="flbl">Lugar</label>' +
+    '<input class="finput" id="ec-lugar" value="' + (c.lugar || '').replace(/"/g, '&quot;') + '"/>' +
+    '<div class="frow2">' +
+    '<div><label class="flbl">Instagram (sin @)</label><input class="finput" id="ec-ig" value="' + (c.ig || '') + '"/></div>' +
+    '<div><label class="flbl">WhatsApp consultas</label><input class="finput" id="ec-wp" value="' + (c.wp || '') + '"/></div>' +
+    '</div>' +
+    '<label class="flbl">URL imagen del flyer</label>' +
+    '<input class="finput" id="ec-img" value="' + (c.img || '') + '" placeholder="https://i.imgur.com/..."/>' +
+    '<label class="flbl">Link grupo WhatsApp</label>' +
+    '<input class="finput" id="ec-gwa" value="' + (c.grupoWA || '') + '" placeholder="https://chat.whatsapp.com/..."/>' +
+    '<label class="flbl">Tipo de pago</label>' +
+    '<select class="finput" id="ec-pago-tipo">' +
+    '<option value="unico" ' + ((c.pagoTipo || 'unico') === 'unico' ? 'selected' : '') + '>Pago único</option>' +
+    '<option value="cuotas" ' + (c.pagoTipo === 'cuotas' ? 'selected' : '') + '>Inscripción + cuotas</option>' +
+    '</select>' +
+    '<label class="flbl">Duración en meses (solo si cuotas)</label>' +
+    '<input class="finput" id="ec-meses" type="number" value="' + (c.meses || 0) + '" placeholder="0"/>' +
+    '<button class="btn-main" onclick="window.guardarEdit(\'' + id + '\')">💾 Guardar cambios</button>' +
+    '<button class="btn-out" onclick="window.closeModal()">Cancelar</button>';
+  openModal();
+};
+
+window.guardarEdit = async (id) => {
+  const titulo = document.getElementById('ec-titulo')?.value.trim();
+  if (!titulo) { toast('⚠️ El título es obligatorio'); return; }
+  await update(ref(db, 'tomauno/cursos/' + id), {
+    titulo,
+    desc: document.getElementById('ec-desc')?.value.trim() || '',
+    costo: parseInt(document.getElementById('ec-costo')?.value) || 0,
+    cupos: parseInt(document.getElementById('ec-cupos')?.value) || 0,
+    fecha: document.getElementById('ec-fecha')?.value || '',
+    hora: document.getElementById('ec-hora')?.value.trim() || '',
+    lugar: document.getElementById('ec-lugar')?.value.trim() || '',
+    ig: document.getElementById('ec-ig')?.value.trim() || '',
+    wp: document.getElementById('ec-wp')?.value.trim() || '',
+    img: document.getElementById('ec-img')?.value.trim() || '',
+    grupoWA: document.getElementById('ec-gwa')?.value.trim() || '',
+    pagoTipo: document.getElementById('ec-pago-tipo')?.value || 'unico',
+    meses: parseInt(document.getElementById('ec-meses')?.value) || 0,
+  });
+  closeModal();
+  toast('✅ Curso actualizado');
+};
+
+function renderAdminCursos() {
+  const w = document.getElementById('admin-cursos-list'); if (!w) return;
+  const lista = Object.entries(cursos).sort((a, b) => (b[1].creado || 0) - (a[1].creado || 0));
+  if (!lista.length) { w.innerHTML = '<div style="color:var(--text3);font-size:13px;">Sin cursos</div>'; return; }
+  const inscPorCurso = {};
+  Object.values(inscripciones).forEach(i => {
+    if (i.cursoId) inscPorCurso[i.cursoId] = (inscPorCurso[i.cursoId] || 0) + 1;
+  });
+  w.innerHTML = lista.map(([k, c], idx) => {
+    const n = inscPorCurso[k] || 0;
+    return '<div class="admin-ci">' +
+      '<div class="admin-ci-info">' +
+      '<div class="admin-ci-tit" style="' + (c.finalizado ? 'text-decoration:line-through;opacity:.4' : '') + '"><span style="color:var(--text3);font-size:12px;font-weight:700;margin-right:6px;">#' + (idx+1) + '</span>' + (c.titulo || 'Sin título') + '</div>' +
+      '<div class="admin-ci-sub">' + (c.fecha ? fFecha(c.fecha) : 'Sin fecha') + ' · ' + n + ' inscripto' + (n !== 1 ? 's' : '') + ' · ' + (c.oculto ? '🙈 Oculto' : '👁️ Visible') + (c.grupoWA ? ' · <a href="' + c.grupoWA + '" target="_blank" style="color:#25d366;text-decoration:none;">💬 Grupo WA</a>' : '') + '</div>' +
+      '</div>' +
+      '<div style="display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end;">' +
+      '<button class="bsm gr" onclick="window.editCurso(\'' + k + '\')">✏️ Editar</button>' +
+      (c.tipo === 'sesiones' ? '<button class="bsm bl" onclick="window.verPlanillaTurnos(\'' + k + '\')">📋 Turnos</button>' : '') +
+      '<button class="bsm bl" onclick="window.copiarLinkCurso(\'' + k + '\')">🔗 Link</button>' +
+      '<button class="bsm ' + (c.finalizado ? 'gr' : 'bl') + '" onclick="window.togFin(\'' + k + '\',' + !c.finalizado + ')">' + (c.finalizado ? '✅ Reactivar' : '🏁 Finalizar') + '</button>' +
+      '<button class="bsm ' + (c.oculto ? 'gr' : 'bl') + '" onclick="window.togOc(\'' + k + '\',' + !c.oculto + ')">' + (c.oculto ? '👁️ Mostrar' : '🙈 Ocultar') + '</button>' +
+      '<button class="bsm re" onclick="window.delCurso(\'' + k + '\')">🗑️</button>' +
+      '</div></div>';
+  }).join('');
+}
+
+window.togFin = async (id, v) => { await update(ref(db, 'tomauno/cursos/' + id), {finalizado: v}); };
+window.togOc = async (id, v) => { await update(ref(db, 'tomauno/cursos/' + id), {oculto: v}); };
+window.delCurso = async (id) => {
+  showConfirm('¿Eliminar este curso permanentemente?', async () => {
+    await remove(ref(db, 'tomauno/cursos/' + id));
+    toast('🗑️ Curso eliminado');
+  });
+};
+
+window.copiarLinkCurso = (id) => {
+  const url = window.location.origin + window.location.pathname + '#curso-' + id;
+  navigator.clipboard.writeText(url).then(() => toast('🔗 Link copiado'));
+};
+
+window.compartirCurso = (id) => {
+  const url = window.location.origin + window.location.pathname + '#curso-' + id;
+  navigator.clipboard.writeText(url).then(() => {
+    toast('🔗 Link copiado — compartilo donde quieras');
+  });
+};
+
+// ── ALUMNOS ───────────────────────────────────────────────────────────────────
+function renderFiltros() {
+  const s = document.getElementById('filtro-curso'); if (!s) return;
+  const cur = s.value;
+  s.innerHTML = '<option value="">Todos los cursos</option>' +
+    Object.entries(cursos).sort((a, b) => (b[1].creado || 0) - (a[1].creado || 0))
+      .map(([k, c]) => '<option value="' + k + '" ' + (k === cur ? 'selected' : '') + '>' + (c.titulo || k) + '</option>').join('');
+  // También el select de testimonios
+  const st = document.getElementById('nt-curso'); if (!st) return;
+  st.innerHTML = '<option value="">Sin curso específico</option>' +
+    Object.entries(cursos).sort((a, b) => (b[1].creado || 0) - (a[1].creado || 0))
+      .map(([k, c]) => '<option value="' + (c.titulo || k) + '">' + (c.titulo || k) + '</option>').join('');
+}
+
+window.renderAlumnos = () => {
+  const tb = document.getElementById('alumnos-tbody'); if (!tb) return;
+  const filtro = document.getElementById('filtro-curso')?.value || '';
+  let lista = Object.entries(inscripciones).sort((a, b) => ((b[1].creado || 0) - (a[1].creado || 0)));
+  if (filtro) lista = lista.filter(([, i]) => i.cursoId === filtro);
+  if (!lista.length) {
+    tb.innerHTML = '<tr><td colspan="6" style="text-align:center;padding:40px;color:var(--text3);">Sin inscripciones</td></tr>';
+    return;
+  }
+  const totPagadas = lista.reduce((a, [, i]) => a + (i.pagos || []).filter(p => p.estado === 'pagado').length, 0);
+  const totParcial = lista.reduce((a, [, i]) => a + (i.pagos || []).filter(p => p.estado === 'parcial').length, 0);
+  const totPend = lista.reduce((a, [, i]) => a + (i.pagos || []).filter(p => p.estado === 'pendiente').length, 0);
+  tb.innerHTML = lista.map(([k, i], idx) => {
+    const pagos = i.pagos || [{label:'Pago único', estado:'pendiente'}];
+    const ph = '<div style="display:flex;flex-wrap:wrap;gap:4px;align-items:center;">' +
+      pagos.map((p, pidx) =>
+        '<div style="display:flex;align-items:center;gap:2px;background:rgba(255,255,255,.04);border-radius:20px;padding:2px 2px 2px 8px;border:1px solid rgba(255,255,255,.08);">' +
+        '<span style="font-size:10px;font-weight:700;white-space:nowrap;">' + p.label + '</span>' +
+        '<select style="background:transparent;border:none;color:' + (p.estado==='pagado'?'#4caf7d':p.estado==='parcial'?'#f5c842':'#e05252') + ';font-size:10px;font-weight:700;cursor:pointer;padding:2px;font-family:var(--font);outline:none;" onchange="window.updPago(\'' + k + '\',' + pidx + ',this.value)">' +
+        '<option value="pendiente" ' + (p.estado==='pendiente'?'selected':'') + ' style="background:#111;color:#e05252;">Pendiente</option>' +
+        '<option value="parcial" ' + (p.estado==='parcial'?'selected':'') + ' style="background:#111;color:#f5c842;">Parcial</option>' +
+        '<option value="pagado" ' + (p.estado==='pagado'?'selected':'') + ' style="background:#111;color:#4caf7d;">✓ Pagado</option>' +
+        '</select></div>'
+      ).join('') +
+      '<button class="bsm bl" style="font-size:9px;padding:3px 8px;" onclick="window.addCuota(\'' + k + '\')">+</button>' +
+      '</div>';
+    const cur = cursos[i.cursoId];
+    const tot = (() => {
+      if (!cur) return '-';
+      const tot = (i.pagos || []).reduce((a, p) => a + (parseFloat(p.monto) || cur.costo || 0), 0);
+      return tot > 0 ? '$ ' + tot.toLocaleString('es-AR') : (cur.costo ? '$ ' + Number(cur.costo).toLocaleString('es-AR') : '-');
+    })();
+    return '<tr>' +
+      '<td>' +
+      '<div class="tdn"><span style="color:var(--text3);font-size:12px;font-weight:700;margin-right:6px;">#' + (idx+1) + '</span>' + (i.nombre || '') + '</div>' +
+      '<div class="tds">DNI ' + (i.dni || '-') + ' · ' + (i.edad || '-') + ' años</div>' +
+      (i.ig ? '<a href="https://instagram.com/' + i.ig + '" target="_blank" class="ig-link">@' + i.ig + '</a>' : '') +
+      (i.turno ? '<div class="tds" style="color:var(--red);">⏰ ' + i.turno + '</div>' : '') +
+      '</td>' +
+      '<td><div class="tds" style="color:#fff;font-weight:600;">' + (i.cursoTitulo || '') + '</div><div class="tds">' + (i.fecha || '') + '</div></td>' +
+      '<td>' +
+      '<a href="https://wa.me/549' + (i.wp || '').replace(/\D/g, '') + '" target="_blank" class="wabtn">💬 ' + (i.wp || '') + '</a>' +
+      (i.tutorWp ? '<div style="margin-top:4px;"><a href="https://wa.me/549' + i.tutorWp.replace(/\D/g, '') + '" target="_blank" class="wabtn" style="font-size:10px;">👨‍👩‍👧 Tutor</a></div>' : '') +
+      '</td>' +
+      '<td>' + ph + '</td>' +
+      '<td style="font-family:var(--display);font-size:16px;color:var(--red);white-space:nowrap;">' + tot + '</td>' +
+      '<td><button class="bsm re" onclick="window.delInsc(\'' + k + '\')">🗑️</button></td>' +
+      '</tr>';
+  }).join('') +
+  '<tr style="background:#0d0d0d;border-top:2px solid var(--red);">' +
+  '<td colspan="2" style="font-size:12px;color:var(--text3);font-weight:700;padding:12px;">📊 ' + lista.length + ' inscripto' + (lista.length!==1?'s':'') + '</td>' +
+  '<td style="font-size:12px;padding:12px;">' +
+  '<span class="ppill pp-ok">✅ ' + totPagadas + ' paga' + (totPagadas!==1?'s':'') + '</span> ' +
+  '<span class="ppill pp-pa">⚡ ' + totParcial + ' parcial' + (totParcial!==1?'es':'') + '</span> ' +
+  '<span class="ppill pp-pe">⏳ ' + totPend + ' pendiente' + (totPend!==1?'s':'') + '</span>' +
+  '</td><td></td><td></td><td></td></tr>';
+};
+
+window.updPago = async (id, idx, estado) => {
+  const insc = inscripciones[id]; if (!insc) return;
+  const pagos = [...(insc.pagos || [])];
+  pagos[idx] = {...pagos[idx], estado};
+  await update(ref(db, 'tomauno/inscripciones/' + id), {pagos});
+  toast('💰 Pago actualizado');
+};
+
+window.addCuota = (id) => {
+  showPrompt('Nombre de la cuota (ej: Mayo 2026):', async (label) => {
+    if (!label) return;
+    const insc = inscripciones[id]; if (!insc) return;
+    const pagos = [...(insc.pagos || []), {label, estado:'pendiente', monto:'', nota:''}];
+    await update(ref(db, 'tomauno/inscripciones/' + id), {pagos});
+    toast('✅ Cuota agregada');
+  });
+};
+
+window.delInsc = async (id) => {
+  showConfirm('¿Eliminar esta inscripción?', async () => {
+    await remove(ref(db, 'tomauno/inscripciones/' + id));
+    toast('🗑️ Inscripción eliminada');
+  });
+};
+
+// ── GRUPO WA ──────────────────────────────────────────────────────────────────
+window.abrirGrupoWA = () => {
+  const f = document.getElementById('filtro-curso')?.value;
+  if (!f) { toast('Seleccioná un curso primero'); return; }
+  const c = cursos[f];
+  const lista = Object.values(inscripciones).filter(i => i.cursoId === f);
+  if (!lista.length) { toast('Sin inscriptos en ese curso'); return; }
+  let html = '<div class="mtitle" style="margin-bottom:12px;">💬 GRUPO WHATSAPP</div>' +
+    '<div class="msub">' + (c ? c.titulo : '') + ' · ' + lista.length + ' inscriptos</div>';
+  if (c && c.grupoWA) {
+    html += '<a href="' + c.grupoWA + '" target="_blank" class="btn-main" style="text-decoration:none;background:#25d366;margin-top:16px;">💬 Abrir/compartir link del grupo</a>' +
+      '<div style="margin:20px 0 8px;font-size:12px;color:var(--text3);font-weight:700;text-transform:uppercase;letter-spacing:.08em;">O enviar invitación individual</div>' +
+      lista.map(i =>
+        '<div style="display:flex;align-items:center;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--border);">' +
+        '<span style="font-size:13px;">' + (i.nombre || '') + '</span>' +
+        '<a href="https://wa.me/549' + (i.wp || '').replace(/\D/g, '') + '?text=' + encodeURIComponent('Hola ' + (i.nombre || '').split(' ')[0] + '! Te comparto el link del grupo: ' + c.grupoWA) + '" target="_blank" class="wabtn">💬 Invitar</a>' +
+        '</div>'
+      ).join('');
+  } else {
+    html += '<div style="background:#1a1a1a;border:1px solid var(--border);border-radius:var(--radius-sm);padding:14px;margin:16px 0;font-size:13px;color:var(--text3);">Sin link de grupo. Podés editar el curso y agregar el link.</div>' +
+      '<div style="font-size:12px;color:var(--text3);margin-bottom:8px;font-weight:700;">Enviar mensaje individual:</div>' +
+      lista.map(i =>
+        '<div style="display:flex;align-items:center;justify-content:space-between;padding:7px 0;border-bottom:1px solid var(--border);">' +
+        '<span style="font-size:13px;">' + (i.nombre || '') + '</span>' +
+        '<a href="https://wa.me/549' + (i.wp || '').replace(/\D/g, '') + '" target="_blank" class="wabtn">💬 WA</a>' +
+        '</div>'
+      ).join('');
+  }
+  html += '<button class="btn-out" onclick="window.closeModal()" style="margin-top:16px;">Cerrar</button>';
+  document.getElementById('mcontent').innerHTML = html;
+  openModal();
+};
+
+// ── EXPORTAR ──────────────────────────────────────────────────────────────────
+window.exportarExcel = () => {
+  const f = document.getElementById('filtro-curso')?.value || '';
+  let lista = Object.values(inscripciones);
+  if (f) lista = lista.filter(i => i.cursoId === f);
+  const h = ['Nombre','DNI','Edad','IG','WhatsApp','Turno','Curso','Fecha','WP Tutor','Pagos'];
+  const rows = lista.map(i => [i.nombre||'',i.dni||'',i.edad||'',i.ig||'',i.wp||'',i.turno||'-',i.cursoTitulo||'',i.fecha||'',i.tutorWp||'',(i.pagos||[]).map(p=>p.label+':'+p.estado).join(' | ')]);
+  const csv = '\ufeff' + [h, ...rows].map(r => r.map(v => '"' + v + '"').join(',')).join('\n');
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(new Blob([csv], {type:'text/csv;charset=utf-8;'}));
+  a.download = 'tomauno_inscripciones.csv';
+  a.click();
+};
+
+window.exportarPDF = () => {
+  const f = document.getElementById('filtro-curso')?.value || '';
+  let lista = Object.values(inscripciones);
+  const cn = f && cursos[f] ? cursos[f].titulo : 'Todos los cursos';
+  if (f) lista = lista.filter(i => i.cursoId === f);
+  const rows = lista.map(i => '<tr><td>' + (i.nombre||'') + '</td><td>' + (i.dni||'') + '</td><td>' + (i.edad||'') + '</td><td>@' + (i.ig||'') + '</td><td>' + (i.wp||'') + '</td><td>' + (i.turno||'-') + '</td><td>' + (i.cursoTitulo||'') + '</td><td>' + (i.fecha||'') + '</td></tr>').join('');
+  const win = window.open('', '_blank');
+  if (win) {
+    win.document.write('<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Tomauno</title><style>body{font-family:sans-serif;padding:20px;font-size:11px}h1{font-size:16px}table{width:100%;border-collapse:collapse}th{background:#111;color:#fff;padding:6px;text-align:left}td{padding:5px 6px;border-bottom:1px solid #eee}</style></head><body><h1>Tomauno — ' + cn + '</h1><p>' + new Date().toLocaleDateString('es-AR') + ' · ' + lista.length + ' inscriptos</p><table><thead><tr><th>Nombre</th><th>DNI</th><th>Edad</th><th>IG</th><th>WP</th><th>Turno</th><th>Curso</th><th>Fecha</th></tr></thead><tbody>' + rows + '</tbody></table></body></html>');
+    win.document.close();
+    setTimeout(() => win.print(), 400);
+  }
+};
+
+// ── SERVICIOS HARDCODED ───────────────────────────────────────────────────────
+const SERVICIOS = [
+  {icon:'📷', title:'SESIONES FOTOGRÁFICAS', desc:'Capturamos tu esencia con luz profesional y dirección de arte.\n\nRealizamos sesiones de:\n• Retratos artísticos y editoriales\n• Book de modelos (principiantes y profesionales)\n• Moda y lookbook\n• Fotos para redes sociales / contenido\n• Sesiones en estudio o locación exterior\n\nCada sesión incluye selección de imágenes editadas en alta resolución.', wp:'3764354522'},
+  {icon:'🎭', title:'MODELAJE', desc:'Formación integral para modelos de todos los niveles.\n\nIncluye:\n• Asesoramiento de imagen y posado\n• Técnicas de pasarela y desfile\n• Book fotográfico profesional incluido\n• Vinculación con agencias y productoras\n• Clases grupales e individuales\n\nIdeal para quienes quieren iniciar o potenciar su carrera en el modelaje.', wp:'3764354522'},
+  {icon:'🎓', title:'CAPACITACIONES', desc:'Workshops y cursos presenciales para fotógrafos y creativos.\n\nFormatos disponibles:\n• Workshops intensivos (1 día)\n• Cursos regulares (mensuales)\n• Charlas temáticas\n• Capacitaciones in-company\n\nTemáticas: fotografía de retrato, iluminación, edición, branding personal y más.', wp:'3764354522'},
+  {icon:'🎬', title:'PRODUCCIÓN', desc:'Contenido audiovisual profesional para tu marca o proyecto.\n\nRealizamos:\n• Videos para redes sociales (Reels, TikTok, YouTube)\n• Producción de eventos\n• Fotografía y video corporativo\n• Contenido para campañas publicitarias\n• Dirección creativa integral\n\nContactanos para cotización según tu proyecto.', wp:'3764354522'}
+];
+
+window.abrirServicio = (idx) => {
+  const s = SERVICIOS[idx]; if (!s) return;
+  document.getElementById('mcontent').innerHTML =
+    '<div style="font-size:52px;text-align:center;margin-bottom:12px;">' + s.icon + '</div>' +
+    '<div class="mtitle" style="text-align:center;">' + s.title + '</div>' +
+    '<div style="font-size:14px;color:var(--text2);line-height:1.75;white-space:pre-line;margin:16px 0 20px;">' + s.desc + '</div>' +
+    '<a href="https://wa.me/549' + s.wp + '?text=' + encodeURIComponent('Hola! Me interesa el servicio de ' + s.title + '. ¿Pueden darme más info?') + '" target="_blank" class="btn-main" style="text-decoration:none;">💬 Consultar por WhatsApp</a>' +
+    '<button class="btn-out" onclick="window.closeModal()">Cerrar</button>';
+  openModal();
+};
+
+// ── SERVICIOS FIREBASE ────────────────────────────────────────────────────────
+window.agregarServicio = async () => {
+  const titulo = document.getElementById('ns-titulo')?.value.trim();
+  if (!titulo) { toast('⚠️ El título es obligatorio'); return; }
+  await push(ref(db, 'tomauno/servicios'), {
+    titulo,
+    desc: document.getElementById('ns-desc')?.value.trim() || '',
+    precio: parseInt(document.getElementById('ns-precio')?.value) || 0,
+    icon: document.getElementById('ns-icon')?.value.trim() || '📷',
+    img: document.getElementById('ns-img')?.value.trim() || '',
+    dir: document.getElementById('ns-dir')?.value.trim() || 'Pedro Méndez 2069, Posadas',
+    ig: document.getElementById('ns-ig')?.value.trim() || 'tomaunomodels',
+    wp: document.getElementById('ns-wp')?.value.trim() || '3764354522',
+    oculto: false, creado: Date.now()
+  });
+  ['ns-titulo','ns-desc','ns-precio','ns-img','ns-dir','ns-ig','ns-wp'].forEach(id => {
+    const el = document.getElementById(id); if (el) el.value = '';
+  });
+  document.getElementById('ns-icon').value = '📷';
+  toast('✅ Servicio publicado');
+};
+
+function renderServiciosAdmin() {
+  const w = document.getElementById('admin-servicios-list'); if (!w) return;
+  const lista = Object.entries(serviciosDB).sort((a, b) => (b[1].creado || 0) - (a[1].creado || 0));
+  if (!lista.length) { w.innerHTML = '<div style="color:var(--text3);font-size:13px;">Sin servicios en Firebase aún</div>'; return; }
+  w.innerHTML = lista.map(([k, s], idx) =>
+    '<div class="admin-ci">' +
+    '<div class="admin-ci-info">' +
+    '<div class="admin-ci-tit"><span style="color:var(--text3);font-size:12px;margin-right:6px;">#' + (idx+1) + '</span>' + (s.icon || '📷') + ' ' + (s.titulo || 'Sin título') + '</div>' +
+    '<div class="admin-ci-sub">' + (s.precio ? '$ ' + Number(s.precio).toLocaleString('es-AR') : 'Sin precio') + ' · ' + (s.oculto ? '🙈 Oculto' : '👁️ Visible') + '</div>' +
+    '</div>' +
+    '<div style="display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end;">' +
+    '<button class="bsm ' + (s.oculto ? 'gr' : 'bl') + '" onclick="window.togSrvOc(\'' + k + '\',' + !s.oculto + ')">' + (s.oculto ? '👁️ Mostrar' : '🙈 Ocultar') + '</button>' +
+    '<button class="bsm re" onclick="window.delServicio(\'' + k + '\')">🗑️</button>' +
+    '</div></div>'
+  ).join('');
+}
+
+function renderServiciosPublicos() {
+  const g = document.getElementById('servicios-db-grid'); if (!g) return;
+  const lista = Object.entries(serviciosDB).filter(([, s]) => !s.oculto).sort((a, b) => (b[1].creado || 0) - (a[1].creado || 0));
+  if (!lista.length) { g.innerHTML = ''; return; }
+  g.innerHTML = lista.map(([k, s]) =>
+    '<div class="srv-card" onclick="window.abrirServicioDB(\'' + k + '\')">' +
+    '<div class="srv-icon">' + (s.img ? '<img src="' + s.img + '" style="width:100%;height:140px;object-fit:cover;border-radius:var(--radius-sm);margin-bottom:12px;" onerror="this.outerHTML=\'<span style=font-size:44px>' + (s.icon || '📷') + '</span>\'"/>' : (s.icon || '📷')) + '</div>' +
+    '<div class="srv-title">' + (s.titulo || '') + '</div>' +
+    '<div class="srv-desc">' + (s.desc || '').replace(/\n/g,' ').substring(0, 90) + (s.desc && s.desc.length > 90 ? '...' : '') + '</div>' +
+    (s.precio ? '<div class="srv-price">$ ' + Number(s.precio).toLocaleString('es-AR') + '</div>' : '') +
+    '<div class="srv-cta">Ver más →</div>' +
+    '</div>'
+  ).join('');
+}
+
+window.abrirServicioDB = (id) => {
+  const s = serviciosDB[id]; if (!s) return;
+  const wp = s.wp || '3764354522';
+  document.getElementById('mcontent').innerHTML =
+    (s.img ? '<img src="' + s.img + '" style="width:100%;border-radius:var(--radius-sm);margin-bottom:16px;max-height:280px;object-fit:contain;background:#0a0a0a;" onerror="this.style.display=\'none\'"/>' : '<div style="font-size:52px;text-align:center;margin-bottom:12px;">' + (s.icon || '📷') + '</div>') +
+    '<div class="mtitle">' + (s.titulo || '') + '</div>' +
+    (s.precio ? '<div style="font-family:var(--display);font-size:32px;color:var(--red);margin:8px 0 16px;">$ ' + Number(s.precio).toLocaleString('es-AR') + '</div>' : '') +
+    '<div style="font-size:14px;color:var(--text2);line-height:1.75;white-space:pre-line;margin-bottom:20px;">' + (s.desc || '') + '</div>' +
+    (s.dir ? '<div style="font-size:13px;color:var(--text2);margin-bottom:10px;">📍 ' + s.dir + '</div>' : '') +
+    (s.ig ? '<a href="https://instagram.com/' + s.ig + '" target="_blank" class="det-link ig" style="margin-bottom:12px;display:inline-flex;">📸 @' + s.ig + '</a>' : '') +
+    '<a href="https://wa.me/549' + wp + '?text=' + encodeURIComponent('Hola! Me interesa el servicio: ' + (s.titulo || '') + '. ¿Pueden darme más info?') + '" target="_blank" class="btn-main" style="text-decoration:none;margin-top:8px;">💬 Consultar por WhatsApp</a>' +
+    '<button class="btn-out" onclick="window.closeModal()">Cerrar</button>';
+  openModal();
+};
+
+window.togSrvOc = async (id, v) => { await update(ref(db, 'tomauno/servicios/' + id), {oculto: v}); };
+window.delServicio = async (id) => {
+  showConfirm('¿Eliminar este servicio?', async () => {
+    await remove(ref(db, 'tomauno/servicios/' + id));
+    toast('🗑️ Servicio eliminado');
+  });
+};
+
+// ── TESTIMONIOS ───────────────────────────────────────────────────────────────
+function renderTestimonios() {
+  const g = document.getElementById('test-grid'); if (!g) return;
+  const lista = Object.entries(testimoniosDB)
+    .filter(([, t]) => !t.pendiente)
+    .sort((a, b) => (b[1].creado || 0) - (a[1].creado || 0));
+  if (!lista.length) {
+    g.innerHTML = '<div style="color:var(--text3);font-size:14px;padding:20px 0;">Los testimonios aparecerán aquí.</div>';
+    return;
+  }
+  g.innerHTML = lista.map(([k, t]) => {
+    const stars = '⭐'.repeat(parseInt(t.stars) || 5);
+    return '<div class="test-card">' +
+      '<div class="test-stars">' + stars + '</div>' +
+      '<div class="test-text">"' + (t.text || '') + '"</div>' +
+      '<div class="test-author">' +
+      '<div class="test-avatar">' + (t.avatar ? '<img src="' + t.avatar + '" onerror="this.parentNode.textContent=\'👤\'"/>' : '👤') + '</div>' +
+      '<div><div class="test-name">' + (t.name || 'Alumno') + '</div>' +
+      '<div class="test-course">' + (t.course || '') + '</div></div>' +
+      '</div></div>';
+  }).join('');
+}
+
+function renderTestimoniosAdmin() {
+  const w = document.getElementById('admin-test-list'); if (!w) return;
+  const lista = Object.entries(testimoniosDB).sort((a, b) => (b[1].creado || 0) - (a[1].creado || 0));
+  if (!lista.length) { w.innerHTML = '<div style="color:var(--text3);font-size:13px;">Sin testimonios aún</div>'; return; }
+  w.innerHTML = lista.map(([k, t]) =>
+    '<div class="admin-ci">' +
+    '<div class="admin-ci-info">' +
+    '<div class="admin-ci-tit">' + ('⭐'.repeat(parseInt(t.stars)||5)) + ' ' + (t.name || 'Anónimo') + (t.pendiente ? ' <span style="color:#f5c842;font-size:10px;background:#3a2800;padding:2px 8px;border-radius:10px;margin-left:6px;">PENDIENTE</span>' : '') + '</div>' +
+    '<div class="admin-ci-sub">' + (t.course || '') + ' · "' + (t.text || '').substring(0, 60) + '..."</div>' +
+    '</div>' +
+    '<div style="display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end;">' +
+    (t.pendiente ? '<button class="bsm gr" onclick="window.aprobarTest(\'' + k + '\')">✅ Aprobar</button>' : '') +
+    '<button class="bsm re" onclick="window.delTest(\'' + k + '\')">🗑️</button>' +
+    '</div></div>'
+  ).join('');
+}
+
+function renderFiltroTestimonios() {
+  // ya está en renderFiltros, pero también se llama desde cursos listener
+}
+
+window.agregarTestimonio = async () => {
+  const texto = document.getElementById('nt-texto')?.value.trim();
+  if (!texto) { toast('⚠️ El texto es obligatorio'); return; }
+  await push(ref(db, 'tomauno/testimonios'), {
+    name: document.getElementById('nt-nombre')?.value.trim() || 'Alumno',
+    text: texto,
+    course: document.getElementById('nt-curso')?.value || '',
+    stars: parseInt(document.getElementById('nt-stars')?.value) || 5,
+    avatar: document.getElementById('nt-avatar')?.value.trim() || '',
+    date: new Date().toLocaleDateString('es-AR'),
+    pendiente: false,
+    creado: Date.now()
+  });
+  ['nt-nombre','nt-texto','nt-avatar'].forEach(id => { const el = document.getElementById(id); if (el) el.value = ''; });
+  toast('✅ Testimonio publicado');
+};
+
+window.aprobarTest = async (id) => {
+  await update(ref(db, 'tomauno/testimonios/' + id), {pendiente: false});
+  toast('✅ Testimonio aprobado');
+};
+
+window.delTest = async (id) => {
+  showConfirm('¿Eliminar este testimonio?', async () => {
+    await remove(ref(db, 'tomauno/testimonios/' + id));
+    toast('🗑️ Testimonio eliminado');
+  });
+};
+
+// Link público para dejar reseña
+window.abrirFormTestimonio = () => {
+  let cursosOpts = '<option value="">Sin curso específico</option>' +
+    Object.entries(cursos).sort((a, b) => (b[1].creado||0)-(a[1].creado||0))
+      .map(([k, c]) => '<option value="' + (c.titulo||k) + '">' + (c.titulo||k) + '</option>').join('');
+  document.getElementById('mcontent').innerHTML =
+    '<div class="mtitle">DEJÁ TU RESEÑA</div>' +
+    '<div class="msub" style="margin-bottom:16px;">¡Nos encanta saber tu opinión!</div>' +
+    '<label class="flbl">Tu nombre</label>' +
+    '<input class="finput" id="rv-nombre" placeholder="Tu nombre"/>' +
+    '<label class="flbl">Curso</label>' +
+    '<select class="finput" id="rv-curso">' + cursosOpts + '</select>' +
+    '<label class="flbl">Tu experiencia *</label>' +
+    '<textarea class="finput" id="rv-texto" placeholder="Contanos qué te pareció..."></textarea>' +
+    '<label class="flbl">Estrellas</label>' +
+    '<select class="finput" id="rv-stars"><option value="5">⭐⭐⭐⭐⭐ Excelente</option><option value="4">⭐⭐⭐⭐ Muy bueno</option><option value="3">⭐⭐⭐ Bueno</option></select>' +
+    '<button class="btn-main" onclick="window.enviarReview()">⭐ Enviar reseña</button>' +
+    '<button class="btn-out" onclick="window.closeModal()">Cancelar</button>';
+  openModal();
+};
+
+window.enviarReview = async () => {
+  const texto = document.getElementById('rv-texto')?.value.trim();
+  if (!texto) { toast('⚠️ Contanos tu experiencia'); return; }
+  await push(ref(db, 'tomauno/testimonios'), {
+    name: document.getElementById('rv-nombre')?.value.trim() || 'Alumno',
+    text: texto,
+    course: document.getElementById('rv-curso')?.value || '',
+    stars: parseInt(document.getElementById('rv-stars')?.value) || 5,
+    avatar: '',
+    date: new Date().toLocaleDateString('es-AR'),
+    pendiente: true,
+    creado: Date.now()
+  });
+  document.getElementById('mcontent').innerHTML =
+    '<div style="text-align:center;padding:20px 0;">' +
+    '<div style="font-size:52px;margin-bottom:16px;">🙏</div>' +
+    '<div class="mtitle" style="margin-bottom:8px;">¡Muchas gracias!</div>' +
+    '<div style="font-size:14px;color:var(--text2);line-height:1.6;margin-bottom:20px;">Tu reseña fue enviada y será publicada pronto.</div>' +
+    '<button class="btn-out" onclick="window.closeModal()">Cerrar</button></div>';
+};
+
+// ── HELPERS ───────────────────────────────────────────────────────────────────
+function fFecha(f) {
+  if (!f) return '';
+  const [y, m, d] = f.split('-');
+  const ms = ['enero','febrero','marzo','abril','mayo','junio','julio','agosto','septiembre','octubre','noviembre','diciembre'];
+  return parseInt(d) + ' de ' + ms[parseInt(m) - 1] + ' ' + y;
+}
+
+function openModal() {
+  document.getElementById('moverlay').style.display = 'flex';
+}
+window.closeModal = () => {
+  document.getElementById('moverlay').style.display = 'none';
+};
+document.addEventListener('keydown', e => { if (e.key === 'Escape') closeModal(); });
+
+window.toast = (msg, autohide = false) => {
+  const t = document.getElementById('toast');
+  t.onclick = () => t.classList.remove('show');
+  t.textContent = msg + '  ✕';
+  t.classList.add('show');
+  if (autohide) setTimeout(() => t.classList.remove('show'), 3000);
+};
+// Alias para no romper código que llame toast sin window
+const toast = window.toast;
+
+function showNotif() {
+  const d = document.getElementById('notif-dot');
+  if (d) { d.style.display = 'inline-block'; setTimeout(() => d.style.display = 'none', 10000); }
+}
+
+function showNotifBanner(nombre, curso) {
+  let banner = document.getElementById('notif-banner');
+  if (!banner) {
+    banner = document.createElement('div');
+    banner.id = 'notif-banner';
+    banner.style.cssText = 'position:fixed;top:72px;right:16px;z-index:800;background:#111;border:1.5px solid var(--red);border-radius:14px;padding:14px 18px;max-width:300px;box-shadow:0 8px 30px rgba(0,0,0,.6);transform:translateX(320px);transition:transform .4s cubic-bezier(.4,0,.2,1);cursor:pointer;';
+    banner.onclick = () => banner.style.transform = 'translateX(320px)';
+    document.body.appendChild(banner);
+  }
+  banner.innerHTML =
+    '<div style="font-size:10px;color:var(--red);font-weight:800;letter-spacing:.1em;text-transform:uppercase;margin-bottom:6px;">🔴 Nueva inscripción</div>' +
+    '<div style="font-size:15px;font-weight:700;color:#fff;margin-bottom:3px;">' + nombre + '</div>' +
+    '<div style="font-size:12px;color:var(--text2);">📚 ' + curso + '</div>' +
+    '<div style="font-size:10px;color:var(--text3);margin-top:6px;">' + new Date().toLocaleTimeString('es-AR', {hour:'2-digit', minute:'2-digit'}) + ' · Clic para cerrar</div>';
+  setTimeout(() => banner.style.transform = 'translateX(0)', 50);
+  clearTimeout(banner._timer);
+  banner._timer = setTimeout(() => banner.style.transform = 'translateX(320px)', 12000);
+}
+
+function showConfirm(msg, onOk) {
+  document.getElementById('mcontent').innerHTML =
+    '<div style="text-align:center;padding:8px 0;">' +
+    '<div style="font-size:36px;margin-bottom:14px;">⚠️</div>' +
+    '<div class="mtitle" style="font-size:22px;margin-bottom:12px;">Confirmar acción</div>' +
+    '<div style="font-size:14px;color:var(--text2);margin-bottom:24px;line-height:1.5;">' + msg + '</div>' +
+    '<div style="display:flex;gap:10px;">' +
+    '<button class="btn-out" onclick="window.closeModal()" style="flex:1;">Cancelar</button>' +
+    '<button class="btn-main" id="confirm-ok-btn" style="flex:1;background:#c00;">Sí, eliminar</button>' +
+    '</div></div>';
+  openModal();
+  document.getElementById('confirm-ok-btn').onclick = () => { closeModal(); onOk(); };
+}
+
+function showPrompt(msg, onOk) {
+  document.getElementById('mcontent').innerHTML =
+    '<div class="mtitle" style="margin-bottom:12px;">' + msg + '</div>' +
+    '<input class="finput" id="prompt-inp" placeholder="Ej: Mayo 2026" onkeydown="if(event.key===\'Enter\')document.getElementById(\'prompt-ok\').click()"/>' +
+    '<div style="display:flex;gap:10px;margin-top:4px;">' +
+    '<button class="btn-out" onclick="window.closeModal()" style="flex:1;">Cancelar</button>' +
+    '<button class="btn-main" id="prompt-ok" style="flex:1;">Agregar</button>' +
+    '</div>';
+  openModal();
+  setTimeout(() => document.getElementById('prompt-inp')?.focus(), 80);
+  document.getElementById('prompt-ok').onclick = () => {
+    const val = document.getElementById('prompt-inp')?.value.trim();
+    closeModal();
+    onOk(val);
+  };
+}
+
+// ── DRAG & DROP ───────────────────────────────────────────────────────────────
+let draggedId = null;
+window.dragStart = (e, id) => {
+  draggedId = id;
+  e.dataTransfer.effectAllowed = 'move';
+  setTimeout(() => e.target.style.opacity = '.4', 0);
+};
+window.dropCard = async (e) => {
+  e.preventDefault();
+  const target = e.target.closest('[data-id]');
+  if (!target || !draggedId || target.dataset.id === draggedId) {
+    document.querySelectorAll('.ccard').forEach(c => c.style.opacity = '');
+    return;
+  }
+  const targetId = target.dataset.id;
+  const draggedCreado = cursos[draggedId]?.creado || 0;
+  const targetCreado = cursos[targetId]?.creado || 0;
+  await update(ref(db, 'tomauno/cursos/' + draggedId), {creado: targetCreado - 1});
+  await update(ref(db, 'tomauno/cursos/' + targetId), {creado: draggedCreado});
+  document.querySelectorAll('.ccard').forEach(c => c.style.opacity = '');
+  draggedId = null;
+};
+
+// ── CONTADOR VISITAS ──────────────────────────────────────────────────────────
+setTimeout(() => {
+  try {
+    const today = new Date().toISOString().slice(0, 10).replace(/-/g, '');
+    onValue(ref(db, 'tomauno/stats/visitas/' + today), snap => {
+      update(ref(db, 'tomauno/stats/visitas'), {[today]: (snap.val() || 0) + 1});
+    }, {onlyOnce: true});
+    onValue(ref(db, 'tomauno/stats/totalVisitas'), snap => {
+      const total = (snap.val() || 0) + 1;
+      update(ref(db, 'tomauno/stats'), {totalVisitas: total});
+      const el = document.getElementById('visit-count');
+      if (el) el.textContent = total.toLocaleString('es-AR');
+    }, {onlyOnce: true});
+  } catch(e) {}
+}, 3000);
+
+// ── WA ENCODE ─────────────────────────────────────────────────────────────────
+function waEncode(text) {
+  return Array.from(text).map(c => {
+    const code = c.codePointAt(0);
+    if (code > 127) return c;
+    if (/[a-zA-Z0-9 \-_.,!?:\/\n@()]/.test(c)) return c;
+    return encodeURIComponent(c);
+  }).join('').replace(/\n/g, '%0A').replace(/ /g, '%20');
+}
+
+// ── BEEP ──────────────────────────────────────────────────────────────────────
+function beep() {
+  try {
+    const ctx = new (window.AudioContext || window.webkitAudioContext)();
+    [880, 1100].forEach((freq, i) => {
+      const o = ctx.createOscillator(), g = ctx.createGain();
+      o.connect(g); g.connect(ctx.destination);
+      o.frequency.value = freq;
+      g.gain.setValueAtTime(.3, ctx.currentTime + i * .15);
+      g.gain.exponentialRampToValueAtTime(.001, ctx.currentTime + i * .15 + .3);
+      o.start(ctx.currentTime + i * .15);
+      o.stop(ctx.currentTime + i * .15 + .3);
+    });
+  } catch(e) {}
+}
+
+
+// ── EVENTOS ───────────────────────────────────────────────────────────────────
+onValue(ref(db, 'tomauno/eventos'), s => {
+  eventosDB = s.exists() ? s.val() : {};
+  renderEventos();
+  renderAdminEventos();
+});
+
+onValue(ref(db, 'tomauno/evRegs'), s => {
+  evInscDB = s.exists() ? s.val() : {};
+  renderEventos();
+  renderAdminEventos();
+});
+
+function renderEventos() {
+  const g = document.getElementById('eventos-grid'); if (!g) return;
+  const lista = Object.entries(eventosDB)
+    .filter(([,e]) => e.estado === 'activo' && !e.oculto)
+    .sort((a,b) => (b[1].creado||0)-(a[1].creado||0));
+  if (!lista.length) {
+    g.innerHTML = '<div style="color:var(--text3);font-size:14px;padding:40px 0;text-align:center;grid-column:1/-1;">No hay eventos publicados por el momento.</div>';
+    return;
+  }
+  const inscPorEv = {};
+  Object.values(evInscDB).forEach(i => { if(i.evId) inscPorEv[i.evId] = (inscPorEv[i.evId]||0)+1; });
+  g.innerHTML = lista.map(([k,e]) => {
+    const insc = inscPorEv[k] || 0;
+    const full = e.cupos > 0 && insc >= e.cupos;
+    const esExt = e.dniOrg && e.dniOrg !== 'tomauno';
+    return '<div class="ev-card" onclick="window.abrirDetalleEvento(\'' + k + '\')">' +
+      (esExt ? '<span class="ev-badge-ext">Externo</span>' : '') +
+      '<span class="ev-badge-tomauno">Plataforma Tomauno</span>' +
+      '<div class="cimg">' +
+      (e.img ? '<img src="' + e.img + '" style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:100%;height:100%;object-fit:contain;background:#0a0a0a;"/>'
+             : '<div class="cimg-placeholder"><span class="icon">🎪</span><span class="brand">TOMA<em>UNO</em></span></div>') +
+      '<span class="cbadge ' + (full?'full':'open') + '">' + (full?'Sin cupos':'Activo') + '</span>' +
+      (e.cupos > 0 ? '<span class="ccupos-badge">👥 ' + insc + '/' + e.cupos + '</span>' : '') +
+      '</div>' +
+      '<div class="cbody">' +
+      '<div class="ctitle">' + (e.titulo||'Sin titulo') + '</div>' +
+      '<div class="cdesc">' + (e.desc||'').substring(0,80) + '</div>' +
+      '<div class="cmeta">' +
+      (e.fecha ? '<span class="chip">📅 ' + fFecha(e.fecha) + '</span>' : '') +
+      (e.hora  ? '<span class="chip">⏰ ' + e.hora + '</span>' : '') +
+      (e.lugar ? '<span class="chip">📍 ' + e.lugar.split(',')[0] + '</span>' : '') +
+      '</div>' +
+      '<div class="cfoot">' +
+      '<div class="cprice' + (!e.costo?' free':'') + '">' + (e.costo ? '$ '+Number(e.costo).toLocaleString('es-AR') : 'GRATIS') + '</div>' +
+      '<div class="cfoot-btns">' +
+      '<button class="cbtn-info" onclick="event.stopPropagation();window.abrirDetalleEvento(\'' + k + '\')">Mas info</button>' +
+      '<button class="cbtn" ' + (full?'disabled':'') + ' onclick="event.stopPropagation();window.abrirInscEvento(\'' + k + '\')">' + (full?'Sin cupos':'Inscribirme') + '</button>' +
+      '</div></div></div></div>';
+  }).join('');
+}
+
+function renderAdminEventos() {
+  const w = document.getElementById('admin-eventos-list'); if (!w) return;
+  const filtro = document.getElementById('ev-filtro-estado')?.value || '';
+  let lista = Object.entries(eventosDB).sort((a,b) => (b[1].creado||0)-(a[1].creado||0));
+  if (filtro) lista = lista.filter(([,e]) => e.estado === filtro);
+  const inscPorEv = {};
+  Object.values(evInscDB).forEach(i => { if(i.evId) inscPorEv[i.evId] = (inscPorEv[i.evId]||0)+1; });
+  if (!lista.length) { w.innerHTML = '<div style="color:var(--text3);font-size:13px;">Sin eventos</div>'; return; }
+  w.innerHTML = lista.map(([k,e]) => {
+    const n = inscPorEv[k] || 0;
+    const ec = e.estado==='activo'?'#4caf7d':e.estado==='pendiente'?'#f5c842':'#555';
+    return '<div class="admin-ci">' +
+      '<div class="admin-ci-info">' +
+      '<div class="admin-ci-tit">' + (e.titulo||'Sin titulo') +
+      ' <span style="color:'+ec+';font-size:10px;background:rgba(255,255,255,.06);padding:2px 8px;border-radius:10px;margin-left:4px;">' + (e.estado||'pendiente').toUpperCase() + '</span>' +
+      (e.dniOrg && e.dniOrg!=='tomauno' ? ' <span style="color:#a78bfa;font-size:10px;background:rgba(90,60,220,.1);padding:2px 8px;border-radius:10px;">ORG: '+e.dniOrg+'</span>' : '') +
+      '</div>' +
+      '<div class="admin-ci-sub">' + (e.fecha?fFecha(e.fecha):'Sin fecha') + ' · ' + n + ' inscriptos</div>' +
+      '</div>' +
+      '<div style="display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end;">' +
+      (e.estado==='pendiente' ? '<button class="bsm gr" onclick="window.activarEvento(\'' + k + '\')">Activar</button>' : '') +
+      (e.estado==='activo'    ? '<button class="bsm bl" onclick="window.finalizarEvento(\'' + k + '\')">Finalizar</button>' : '') +
+      '<button class="bsm gr" onclick="window.editarEvento(\'' + k + '\')">Editar</button>' +
+      '<button class="bsm bl" onclick="window.verInscEventoAdmin(\'' + k + '\')">Inscriptos</button>' +
+      '<button class="bsm ' + (e.oculto?'gr':'bl') + '" onclick="window.togEvOc(\'' + k + '\',' + !e.oculto + ')">' + (e.oculto?'Mostrar':'Ocultar') + '</button>' +
+      '<button class="bsm re" onclick="window.delEvento(\'' + k + '\')">Borrar</button>' +
+      '</div></div>';
+  }).join('');
+}
+
+window.abrirDetalleEvento = (id) => {
+  const e = eventosDB[id]; if (!e) return;
+  const n = Object.values(evInscDB).filter(i => i.evId === id).length;
+  const full = e.cupos > 0 && n >= e.cupos;
+  document.getElementById('mcontent').innerHTML =
+    (e.img ? '<img src="' + e.img + '" style="width:100%;border-radius:var(--radius-sm);margin-bottom:16px;max-height:420px;object-fit:contain;background:#0a0a0a;display:block;cursor:zoom-in;" onclick="window.verFlyerFull(this.src)" onerror="this.style.display=\'none\'"/>' : '') +
+    '<div class="mtitle">' + (e.titulo||'') + '</div>' +
+    '<div class="msub">' + n + ' inscriptos' + (e.cupos>0?' · '+(e.cupos-n)+' cupos restantes':'') + '</div>' +
+    '<div class="cmeta" style="margin-bottom:16px;">' +
+    (e.fecha?'<span class="chip">📅 '+fFecha(e.fecha)+'</span>':'') +
+    (e.hora ?'<span class="chip">⏰ '+e.hora+'</span>':'') +
+    (e.lugar?'<span class="chip">📍 '+e.lugar+'</span>':'') +
+    (e.costo?'<span class="chip accent">💰 $ '+Number(e.costo).toLocaleString('es-AR')+'</span>':'<span class="chip" style="color:#00d25a;">GRATIS</span>') +
+    '</div>' +
+    '<div style="font-size:14px;color:var(--text2);line-height:1.7;white-space:pre-line;margin-bottom:16px;">' + (e.desc||'') + '</div>' +
+    '<div style="font-size:11px;color:var(--text3);margin-bottom:14px;padding:6px 12px;background:rgba(255,255,255,.03);border-radius:8px;display:inline-block;">Plataforma Tomauno</div>' +
+    (e.ig?'<br><a href="https://instagram.com/'+e.ig+'" target="_blank" class="det-link ig" style="margin-top:8px;display:inline-flex;">📸 @'+e.ig+'</a>':'') +
+    (!full?'<button class="btn-main" style="margin-top:14px;" onclick="window.abrirInscEvento(\'' + id + '\')">Inscribirme</button>':'') +
+    '<div style="display:flex;gap:10px;margin-top:8px;">' +
+    '<button class="btn-out" style="flex:1;" onclick="window.closeModal()">Cerrar</button>' +
+    '<button class="btn-out" style="flex:1;border-color:rgba(232,0,10,.3);color:var(--red);" onclick="window.compartirEvento(\'' + id + '\')">Compartir</button>' +
+    '</div>';
+  openModal();
+};
+
+window.compartirEvento = (id) => {
+  const url = window.location.origin + window.location.pathname + '#evento-' + id;
+  navigator.clipboard.writeText(url).then(() => toast('Link copiado'));
+};
+
+window.abrirInscEvento = (id) => {
+  const e = eventosDB[id]; if (!e) return;
+  document.getElementById('mcontent').innerHTML =
+    '<div class="mtitle">INSCRIPCION</div>' +
+    '<div class="msub">' + (e.titulo||'') + (e.fecha?' · '+fFecha(e.fecha):'') + '</div>' +
+    '<div class="mlbl">Tus datos</div>' +
+    '<input class="finput" id="fev-nom" placeholder="Nombre y apellido *"/>' +
+    '<input class="finput" id="fev-wp" placeholder="WhatsApp * ej: 3764123456" type="tel"/>' +
+    '<input class="finput" id="fev-dni" placeholder="DNI *" type="number"/>' +
+    '<input class="finput" id="fev-edad" placeholder="Edad" type="number" oninput="window.chkMenor()"/>' +
+    '<input class="finput" id="fev-ig" placeholder="Instagram (sin @)"/>' +
+    '<div id="tutor-box" style="display:none;">' +
+    '<div class="mlbl" style="color:#f5c842;">Menor de edad</div>' +
+    '<div class="tutor-box"><input class="finput" id="fev-tnombre" placeholder="Nombre tutor"/><input class="finput" id="fev-twp" placeholder="WP tutor *" type="tel"/></div>' +
+    '</div>' +
+    '<button class="btn-main" onclick="window.confirmarInscEvento(\'' + id + '\')">Confirmar inscripcion</button>' +
+    '<button class="btn-out" onclick="window.closeModal()">Cancelar</button>';
+  openModal();
+};
+
+window.confirmarInscEvento = async (id) => {
+  const nom = document.getElementById('fev-nom')?.value.trim();
+  const wp  = document.getElementById('fev-wp')?.value.trim();
+  const dni = document.getElementById('fev-dni')?.value.trim();
+  const edad= parseInt(document.getElementById('fev-edad')?.value)||0;
+  const ig  = document.getElementById('fev-ig')?.value.trim()||'';
+  const twp = document.getElementById('fev-twp')?.value.trim()||'';
+  if (!nom) { toast('El nombre es obligatorio'); return; }
+  if (!wp)  { toast('El WhatsApp es obligatorio'); return; }
+  if (!dni) { toast('El DNI es obligatorio'); return; }
+  if (edad < 18 && !twp) { toast('Ingresa el WP del tutor'); return; }
+  const e = eventosDB[id];
+  if (Object.values(evInscDB).find(i => i.evId===id && i.dni===dni)) { toast('Ya hay inscripcion con ese DNI'); return; }
+  await push(ref(db, 'tomauno/evRegs'), {
+    evId: id, evTitulo: e?e.titulo:'', nombre: nom, wp, dni, edad, ig,
+    tutorWp: twp||null, dniOrg: e?e.dniOrg:'',
+    fecha: new Date().toLocaleDateString('es-AR'), creado: Date.now(),
+    pagos: [{label:'Pago unico', estado:'pendiente', monto:''}]
+  });
+  const waTo = (e && e.wpOrg) ? '549' + e.wpOrg.replace(/\D/g,'') : '5493764354522';
+  const waText = 'NUEVA INSCRIPCION\nEvento: '+(e?e.titulo:'')+'\nNombre: '+nom+'\nDNI: '+dni+'\nWP: '+wp+(ig?'\nIG: @'+ig:'');
+  window._pendingWaUrl = 'https://api.whatsapp.com/send?phone=' + waTo + '&text=' + waEncode(waText);
+  document.getElementById('mcontent').innerHTML =
+    '<div style="text-align:center;padding:12px 0;">' +
+    '<div style="font-size:52px;margin-bottom:16px;">✅</div>' +
+    '<div class="mtitle" style="margin-bottom:8px;">INSCRIPCION REGISTRADA</div>' +
+    '<div style="font-size:14px;color:var(--text2);line-height:1.6;margin-bottom:20px;">Al presionar Aceptar se envian tus datos por WhatsApp.</div>' +
+    '<button class="btn-main" id="wa-ev-btn">Aceptar - Enviar a WhatsApp</button>' +
+    '</div>';
+  document.getElementById('wa-ev-btn').onclick = () => { window.open(window._pendingWaUrl,'_blank'); closeModal(); toast('Inscripcion confirmada!'); };
+};
+
+window.abrirFormEvento = () => {
+  document.getElementById('mcontent').innerHTML =
+    '<div class="mtitle" style="margin-bottom:4px;">REGISTRAR MI EVENTO</div>' +
+    '<div style="font-size:12px;color:var(--text3);margin-bottom:18px;line-height:1.6;">Completá los datos. Tu evento quedará pendiente de aprobación. Nos contactaremos para coordinar el flyer.</div>' +
+    '<label class="flbl">Nombre del organizador *</label>' +
+    '<input class="finput" id="nev-org-nombre" placeholder="Tu nombre y apellido"/>' +
+    '<label class="flbl">DNI del organizador * (será tu clave de acceso)</label>' +
+    '<input class="finput" id="nev-org-dni" placeholder="Tu DNI" type="number"/>' +
+    '<label class="flbl">WhatsApp del organizador *</label>' +
+    '<input class="finput" id="nev-org-wp" placeholder="3764123456" type="tel"/>' +
+    '<label class="flbl">Instagram del evento (sin @)</label>' +
+    '<input class="finput" id="nev-ig" placeholder="mi_evento_ig"/>' +
+    '<div style="height:1px;background:var(--border);margin:14px 0;"></div>' +
+    '<label class="flbl">Título del evento *</label>' +
+    '<input class="finput" id="nev-titulo" placeholder="Ej: Taller de Fotografía"/>' +
+    '<label class="flbl">Descripción</label>' +
+    '<textarea class="finput" id="nev-desc" placeholder="De qué se trata tu evento..."></textarea>' +
+    '<div class="frow2">' +
+    '<div class="fgroup"><label class="flbl">Fecha</label><input class="finput" id="nev-fecha" type="date" style="color-scheme:dark"/></div>' +
+    '<div class="fgroup"><label class="flbl">Hora</label><input class="finput" id="nev-hora" placeholder="18:00 a 21:00"/></div>' +
+    '</div>' +
+    '<label class="flbl">Lugar</label>' +
+    '<input class="finput" id="nev-lugar" placeholder="Nombre del lugar, dirección"/>' +
+    '<div class="frow2">' +
+    '<div class="fgroup"><label class="flbl">Costo ($)</label><input class="finput" id="nev-costo" type="number" placeholder="0"/></div>' +
+    '<div class="fgroup"><label class="flbl">Cupos (0=ilimitado)</label><input class="finput" id="nev-cupos" type="number" placeholder="0"/></div>' +
+    '</div>' +
+    '<div style="font-size:11px;color:var(--text3);margin-bottom:14px;padding:10px;background:rgba(255,255,255,.03);border-radius:8px;">El flyer lo agregaremos nosotros una vez aprobado tu evento.</div>' +
+    '<button class="btn-main" onclick="window.enviarSolicitudEvento()">Enviar solicitud</button>' +
+    '<button class="btn-out" onclick="window.closeModal()">Cancelar</button>';
+  openModal();
+};
+
+window.enviarSolicitudEvento = async () => {
+  const orgNombre = document.getElementById('nev-org-nombre')?.value.trim();
+  const orgDni    = document.getElementById('nev-org-dni')?.value.trim();
+  const orgWp     = document.getElementById('nev-org-wp')?.value.trim();
+  const titulo    = document.getElementById('nev-titulo')?.value.trim();
+  if (!orgNombre||!orgDni||!orgWp) { toast('Completá tus datos de organizador'); return; }
+  if (!titulo) { toast('El título del evento es obligatorio'); return; }
+  await push(ref(db, 'tomauno/eventos'), {
+    titulo, desc: document.getElementById('nev-desc')?.value.trim()||'',
+    fecha: document.getElementById('nev-fecha')?.value||'',
+    hora: document.getElementById('nev-hora')?.value.trim()||'',
+    lugar: document.getElementById('nev-lugar')?.value.trim()||'',
+    costo: parseInt(document.getElementById('nev-costo')?.value)||0,
+    cupos: parseInt(document.getElementById('nev-cupos')?.value)||0,
+    ig: document.getElementById('nev-ig')?.value.trim()||'',
+    img: '', dniOrg: orgDni, wpOrg: orgWp, nombreOrg: orgNombre,
+    estado: 'pendiente', oculto: false, creado: Date.now()
+  });
+  document.getElementById('mcontent').innerHTML =
+    '<div style="text-align:center;padding:20px 0;">' +
+    '<div style="font-size:52px;margin-bottom:16px;">🙏</div>' +
+    '<div class="mtitle" style="margin-bottom:8px;">SOLICITUD ENVIADA</div>' +
+    '<div style="font-size:14px;color:var(--text2);line-height:1.6;margin-bottom:8px;">Recibimos tu solicitud. Nos contactaremos pronto.</div>' +
+    '<div style="font-size:12px;color:var(--text3);margin-bottom:20px;">Tu clave de acceso es tu DNI: <strong style="color:#fff;">' + orgDni + '</strong></div>' +
+    '<button class="btn-out" onclick="window.closeModal()">Cerrar</button></div>';
+};
+
+window.accederOrganizador = () => {
+  const dni = document.getElementById('org-dni-input')?.value.trim();
+  if (!dni) { toast('Ingresá tu DNI'); return; }
+  const misEventos = Object.entries(eventosDB).filter(([,e]) => String(e.dniOrg) === String(dni));
+  if (!misEventos.length) { toast('No se encontraron eventos con ese DNI'); return; }
+  const wrap = document.getElementById('org-panel-wrap'); if (!wrap) return;
+  const inscPorEv = {};
+  Object.values(evInscDB).forEach(i => { if(i.evId) inscPorEv[i.evId] = (inscPorEv[i.evId]||0)+1; });
+  let html = '<div class="org-panel">' +
+    '<div class="org-panel-header">' +
+    '<div class="org-panel-title">Mis Eventos</div>' +
+    '<button class="bsm re" onclick="document.getElementById(\'org-panel-wrap\').innerHTML=\'\'">Cerrar sesión</button>' +
+    '</div>';
+  misEventos.forEach(([k,e]) => {
+    const misInsc = Object.entries(evInscDB).filter(([,i]) => i.evId===k);
+    html += '<div style="background:var(--gray2);border:1px solid var(--border);border-radius:var(--radius-sm);padding:18px;margin-bottom:16px;">' +
+      '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;flex-wrap:wrap;gap:8px;">' +
+      '<div><div style="font-size:16px;font-weight:800;">' + (e.titulo||'') + '</div>' +
+      '<div style="font-size:12px;color:var(--text3);">' + (e.fecha?fFecha(e.fecha):'Sin fecha') + ' · ' + misInsc.length + ' inscriptos</div></div>' +
+      '<div style="display:flex;gap:6px;">' +
+      '<button class="bsm bl" onclick="window.exportarExcelOrg(\'' + k + '\')">Excel</button>' +
+      '<button class="bsm bl" onclick="window.exportarPDFOrg(\'' + k + '\')">PDF</button>' +
+      '</div></div>';
+    if (misInsc.length) {
+      html += '<div style="overflow-x:auto;"><table style="width:100%;border-collapse:collapse;font-size:12px;min-width:400px;">' +
+        '<thead><tr style="border-bottom:1px solid var(--border);">' +
+        '<th style="padding:6px;text-align:left;color:var(--text3);">Nombre</th>' +
+        '<th style="padding:6px;text-align:left;color:var(--text3);">WP</th>' +
+        '<th style="padding:6px;text-align:left;color:var(--text3);">DNI</th>' +
+        '<th style="padding:6px;text-align:left;color:var(--text3);">Pago</th>' +
+        '</tr></thead><tbody>';
+      misInsc.forEach(([ik,i]) => {
+        const est = (i.pagos&&i.pagos[0]) ? i.pagos[0].estado : 'pendiente';
+        const clr = est==='pagado'?'#4caf7d':est==='parcial'?'#f5c842':'#e05252';
+        html += '<tr style="border-bottom:1px solid #181818;">' +
+          '<td style="padding:6px;">' + (i.nombre||'') + '</td>' +
+          '<td style="padding:6px;"><a href="https://wa.me/549' + (i.wp||'').replace(/[^0-9]/g,'') + '" target="_blank" style="color:#25d366;">' + (i.wp||'') + '</a></td>' +
+          '<td style="padding:6px;">' + (i.dni||'-') + '</td>' +
+          '<td style="padding:6px;"><select style="background:transparent;border:none;color:' + clr + ';font-size:11px;font-weight:700;cursor:pointer;font-family:var(--font);outline:none;" onchange="window.updPagoOrg(\'' + ik + '\',this.value)">' +
+          '<option value="pendiente" ' + (est==='pendiente'?'selected':'') + ' style="background:#111;">Pendiente</option>' +
+          '<option value="parcial" '   + (est==='parcial'  ?'selected':'') + ' style="background:#111;">Parcial</option>' +
+          '<option value="pagado" '    + (est==='pagado'   ?'selected':'') + ' style="background:#111;">Pagado</option>' +
+          '</select></td></tr>';
+      });
+      html += '</tbody></table></div>';
+    } else {
+      html += '<div style="color:var(--text3);font-size:13px;padding:8px 0;">Sin inscriptos aún</div>';
+    }
+    html += '</div>';
+  });
+  html += '</div>';
+  wrap.innerHTML = html;
+  wrap.scrollIntoView({behavior:'smooth',block:'start'});
+};
+
+window.updPagoOrg = async (inscId, estado) => {
+  const insc = evInscDB[inscId]; if (!insc) return;
+  const pagos = [...(insc.pagos||[{label:'Pago unico',estado:'pendiente',monto:''}])];
+  pagos[0] = Object.assign({}, pagos[0], {estado});
+  await update(ref(db, 'tomauno/evRegs/' + inscId), {pagos});
+  toast('Pago actualizado');
+};
+
+window.exportarExcelOrg = (evId) => {
+  const lista = Object.values(evInscDB).filter(i => i.evId===evId);
+  const e = eventosDB[evId];
+  const cols = ['Nombre','DNI','WhatsApp','Instagram','Fecha','Pago'];
+  const sep = ';';
+  const q = v => '"' + String(v||'').replace(/"/g,'""') + '"';
+  const rows = [cols.map(q).join(sep)];
+  lista.forEach(i => {
+    const est = (i.pagos&&i.pagos[0])?i.pagos[0].estado:'pendiente';
+    rows.push([i.nombre,i.dni,i.wp,i.ig||'',i.fecha,est].map(q).join(sep));
+  });
+  const csv = '\ufeff' + rows.join('\r\n');
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(new Blob([csv],{type:'text/csv;charset=utf-8'}));
+  a.download = 'inscriptos_' + (e?e.titulo:'evento').replace(/[^a-zA-Z0-9]/g,'_') + '.csv';
+  a.click();
+};
+
+window.exportarPDFOrg = (evId) => {
+  const lista = Object.values(evInscDB).filter(i => i.evId===evId);
+  const e = eventosDB[evId];
+  const rows = lista.map(i => {
+    const est = (i.pagos&&i.pagos[0])?i.pagos[0].estado:'pendiente';
+    return '<tr><td>'+(i.nombre||'')+'</td><td>'+(i.dni||'')+'</td><td>'+(i.wp||'')+'</td><td>'+est+'</td></tr>';
+  }).join('');
+  const win = window.open('','_blank');
+  if (win) {
+    win.document.write('<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Inscriptos</title><style>body{font-family:sans-serif;padding:20px;font-size:12px}table{width:100%;border-collapse:collapse}th{background:#111;color:#fff;padding:6px;text-align:left}td{padding:5px 6px;border-bottom:1px solid #eee}</style></head><body><h2>'+(e?e.titulo:'Evento')+'</h2><p>'+lista.length+' inscriptos · '+new Date().toLocaleDateString('es-AR')+'</p><table><thead><tr><th>Nombre</th><th>DNI</th><th>WP</th><th>Pago</th></tr></thead><tbody>'+rows+'</tbody></table></body></html>');
+    win.document.close();
+    setTimeout(()=>win.print(),400);
+  }
+};
+
+window.activarEvento   = async (id) => { await update(ref(db,'tomauno/eventos/'+id),{estado:'activo'}); toast('Evento activado'); };
+window.finalizarEvento = async (id) => { await update(ref(db,'tomauno/eventos/'+id),{estado:'finalizado'}); toast('Evento finalizado'); };
+window.togEvOc = async (id,v) => { await update(ref(db,'tomauno/eventos/'+id),{oculto:v}); };
+window.delEvento = async (id) => {
+  showConfirm('Eliminar este evento?', async () => {
+    await remove(ref(db,'tomauno/eventos/'+id));
+    toast('Evento eliminado');
+  });
+};
+
+window.verInscEventoAdmin = (id) => {
+  const e = eventosDB[id];
+  const lista = Object.entries(evInscDB).filter(([,i])=>i.evId===id);
+  let html = '<div class="mtitle" style="margin-bottom:8px;">' + (e?e.titulo:'Evento') + '</div>' +
+    '<div class="msub" style="margin-bottom:16px;">' + lista.length + ' inscriptos</div>';
+  if (!lista.length) {
+    html += '<div style="color:var(--text3);">Sin inscriptos aún</div>';
+  } else {
+    html += '<div style="overflow-x:auto;"><table style="width:100%;border-collapse:collapse;font-size:12px;min-width:400px;">' +
+      '<thead><tr><th style="padding:7px;text-align:left;border-bottom:1px solid var(--border);color:var(--text3);">Nombre</th>' +
+      '<th style="padding:7px;text-align:left;border-bottom:1px solid var(--border);color:var(--text3);">DNI</th>' +
+      '<th style="padding:7px;text-align:left;border-bottom:1px solid var(--border);color:var(--text3);">WP</th>' +
+      '<th style="padding:7px;text-align:left;border-bottom:1px solid var(--border);color:var(--text3);">Pago</th>' +
+      '</tr></thead><tbody>';
+    lista.forEach(([,i]) => {
+      const est = (i.pagos&&i.pagos[0])?i.pagos[0].estado:'pendiente';
+      const clr = est==='pagado'?'#4caf7d':est==='parcial'?'#f5c842':'#e05252';
+      html += '<tr><td style="padding:7px;">'+(i.nombre||'')+'</td>' +
+        '<td style="padding:7px;">'+(i.dni||'')+'</td>' +
+        '<td style="padding:7px;"><a href="https://wa.me/549'+(i.wp||'').replace(/[^0-9]/g,'')+'" target="_blank" style="color:#25d366;">'+(i.wp||'')+'</a></td>' +
+        '<td style="padding:7px;font-weight:700;color:'+clr+';">'+est+'</td></tr>';
+    });
+    html += '</tbody></table></div>';
+  }
+  html += '<button class="btn-out" onclick="window.closeModal()" style="margin-top:16px;">Cerrar</button>';
+  document.getElementById('mcontent').innerHTML = html;
+  openModal();
+};
+
+window.editarEvento = (id) => {
+  const e = eventosDB[id]; if (!e) return;
+  window._editEvId = id;
+  document.getElementById('mcontent').innerHTML =
+    '<div class="mtitle" style="margin-bottom:16px;">EDITAR EVENTO</div>' +
+    '<label class="flbl">Título</label><input class="finput" id="ee-titulo" value="' + (e.titulo||'').replace(/"/g,'&quot;') + '"/>' +
+    '<label class="flbl">Descripción</label><textarea class="finput" id="ee-desc" rows="3">' + (e.desc||'') + '</textarea>' +
+    '<div class="frow2"><div><label class="flbl">Fecha</label><input class="finput" id="ee-fecha" type="date" value="' + (e.fecha||'') + '" style="color-scheme:dark"/></div>' +
+    '<div><label class="flbl">Hora</label><input class="finput" id="ee-hora" value="' + (e.hora||'') + '"/></div></div>' +
+    '<label class="flbl">Lugar</label><input class="finput" id="ee-lugar" value="' + (e.lugar||'').replace(/"/g,'&quot;') + '"/>' +
+    '<div class="frow2"><div><label class="flbl">Costo</label><input class="finput" id="ee-costo" type="number" value="' + (e.costo||0) + '"/></div>' +
+    '<div><label class="flbl">Cupos</label><input class="finput" id="ee-cupos" type="number" value="' + (e.cupos||0) + '"/></div></div>' +
+    '<label class="flbl">URL Flyer (Imgur)</label><input class="finput" id="ee-img" value="' + (e.img||'') + '" placeholder="https://i.imgur.com/..."/>' +
+    '<label class="flbl">Instagram (sin @)</label><input class="finput" id="ee-ig" value="' + (e.ig||'') + '"/>' +
+    '<label class="flbl">WhatsApp organizador</label><input class="finput" id="ee-wp" value="' + (e.wpOrg||'') + '"/>' +
+    '<label class="flbl">Estado</label>' +
+    '<select class="finput" id="ee-estado">' +
+    '<option value="pendiente" '+(e.estado==='pendiente'?'selected':'')+'>Pendiente de aprobacion</option>' +
+    '<option value="activo" '   +(e.estado==='activo'   ?'selected':'')+'>Activo</option>' +
+    '<option value="finalizado" '+(e.estado==='finalizado'?'selected':'')+'>Finalizado</option>' +
+    '</select>' +
+    '<button class="btn-main" onclick="window.guardarEditEvento()">Guardar cambios</button>' +
+    '<button class="btn-out" onclick="window.closeModal()">Cancelar</button>';
+  openModal();
+};
+
+window.guardarEditEvento = async () => {
+  const id = window._editEvId; if (!id) return;
+  await update(ref(db,'tomauno/eventos/'+id), {
+    titulo: document.getElementById('ee-titulo')?.value.trim()||'',
+    desc:   document.getElementById('ee-desc')?.value.trim()||'',
+    fecha:  document.getElementById('ee-fecha')?.value||'',
+    hora:   document.getElementById('ee-hora')?.value.trim()||'',
+    lugar:  document.getElementById('ee-lugar')?.value.trim()||'',
+    costo:  parseInt(document.getElementById('ee-costo')?.value)||0,
+    cupos:  parseInt(document.getElementById('ee-cupos')?.value)||0,
+    img:    document.getElementById('ee-img')?.value.trim()||'',
+    ig:     document.getElementById('ee-ig')?.value.trim()||'',
+    wpOrg:  document.getElementById('ee-wp')?.value.trim()||'',
+    estado: document.getElementById('ee-estado')?.value||'pendiente',
+  });
+  window._editEvId = null;
+  closeModal();
+  toast('Evento actualizado');
+};
+
+
+
+// ── GALERÍA ───────────────────────────────────────────────────────────────────
+let galeriaDB = {};
+onValue(ref(db, 'tomauno/galeria'), s => {
+  galeriaDB = s.exists() ? s.val() : {};
+  renderGaleria();
+  renderGaleriaAdmin();
+});
+
+function renderGaleria() {
+  const g = document.getElementById('galeria-grid'); if (!g) return;
+  const lista = Object.entries(galeriaDB)
+    .filter(([,f]) => !f.oculto)
+    .sort((a,b) => (b[1].creado||0)-(a[1].creado||0));
+  if (!lista.length) {
+    g.innerHTML = '<div style="color:var(--text3);font-size:14px;padding:20px 0;">Las fotos del estudio apareceran aqui.</div>';
+    return;
+  }
+  g.innerHTML = lista.map(([k,f]) => {
+    const url = f.url || '';
+    const cap = f.caption || '';
+    return '<div class="gal-item" onclick="window.verFlyerFull(\'' + url + '\')">' +
+      '<img src="' + url + '" alt="Tomauno Estudio" loading="lazy"/>' +
+      (cap ? '<div class="gal-caption">' + cap + '</div>' : '') +
+      '</div>';
+  }).join('');
+}
+
+function renderGaleriaAdmin() {
+  const w = document.getElementById('admin-galeria-list'); if (!w) return;
+  const lista = Object.entries(galeriaDB).sort((a,b) => (b[1].creado||0)-(a[1].creado||0));
+  if (!lista.length) { w.innerHTML = '<div style="color:var(--text3);font-size:13px;">Sin fotos aun</div>'; return; }
+  w.innerHTML = lista.map(([k,f]) => {
+    const ocBtn = f.oculto
+      ? '<button class="bsm gr" onclick="window.togGalOc(\'' + k + '\',false)">Mostrar</button>'
+      : '<button class="bsm bl" onclick="window.togGalOc(\'' + k + '\',true)">Ocultar</button>';
+    return '<div class="admin-ci">' +
+      '<img src="' + (f.url||'') + '" style="width:56px;height:42px;object-fit:cover;border-radius:6px;border:1px solid var(--border);flex-shrink:0;"/>' +
+      '<div class="admin-ci-info"><div class="admin-ci-tit">' + (f.caption||'Sin descripcion') + '</div>' +
+      '<div class="admin-ci-sub">' + (f.oculto?'Oculta':'Visible') + '</div></div>' +
+      '<div style="display:flex;gap:6px;">' + ocBtn +
+      '<button class="bsm re" onclick="window.delGal(\'' + k + '\')">Borrar</button>' +
+      '</div></div>';
+  }).join('');
+}
+
+window.agregarFotoGaleria = async () => {
+  const url = document.getElementById('ng-url')?.value.trim();
+  if (!url) { toast('La URL es obligatoria'); return; }
+  await push(ref(db, 'tomauno/galeria'), {
+    url,
+    caption: document.getElementById('ng-caption')?.value.trim() || '',
+    oculto: false, creado: Date.now()
+  });
+  const eu = document.getElementById('ng-url'); if (eu) eu.value = '';
+  const ec = document.getElementById('ng-caption'); if (ec) ec.value = '';
+  toast('Foto publicada');
+};
+
+window.togGalOc = async (id,v) => { await update(ref(db,'tomauno/galeria/'+id),{oculto:v}); };
+window.delGal = async (id) => {
+  showConfirm('Eliminar esta foto?', async () => {
+    await remove(ref(db,'tomauno/galeria/'+id));
+    toast('Foto eliminada');
+  });
+};
+
+// ── CANVAS BACKGROUND ─────────────────────────────────────────────────────────
+(function() {
+  const cv = document.getElementById('bg-canvas');
+  if (!cv) return;
+  const ctx = cv.getContext('2d');
+  let W, H, blobs, t = 0;
+  const COLORS = [[200,0,15],[140,0,20],[180,10,40],[100,0,30],[220,20,50],[80,0,20],[160,0,60]];
+  function resize() { W = cv.width = window.innerWidth; H = cv.height = window.innerHeight; }
+  function initBlobs() {
+    blobs = Array.from({length: 7}, (_, i) => ({
+      x: Math.random() * W, y: Math.random() * H,
+      r: 200 + Math.random() * 300,
+      vx: (Math.random() - .5) * .6, vy: (Math.random() - .5) * .6,
+      color: COLORS[i % COLORS.length],
+      phase: Math.random() * Math.PI * 2,
+      speed: .003 + Math.random() * .004,
+    }));
+  }
+  function draw() {
+    ctx.clearRect(0, 0, W, H);
+    ctx.fillStyle = '#000';
+    ctx.fillRect(0, 0, W, H);
+    ctx.globalCompositeOperation = 'screen';
+    blobs.forEach(b => {
+      b.x += b.vx + Math.sin(t * b.speed + b.phase) * .8;
+      b.y += b.vy + Math.cos(t * b.speed + b.phase) * .8;
+      if (b.x < -b.r) b.x = W + b.r;
+      if (b.x > W + b.r) b.x = -b.r;
+      if (b.y < -b.r) b.y = H + b.r;
+      if (b.y > H + b.r) b.y = -b.r;
+      const pulse = .55 + .25 * Math.sin(t * b.speed * 2 + b.phase);
+      const grad = ctx.createRadialGradient(b.x, b.y, 0, b.x, b.y, b.r);
+      const [r, g2, bl] = b.color;
+      grad.addColorStop(0, 'rgba(' + r + ',' + g2 + ',' + bl + ',' + pulse + ')');
+      grad.addColorStop(.4, 'rgba(' + r + ',' + g2 + ',' + bl + ',' + (pulse * .4) + ')');
+      grad.addColorStop(1, 'rgba(' + r + ',' + g2 + ',' + bl + ',0)');
+      ctx.fillStyle = grad;
+      ctx.beginPath();
+      ctx.arc(b.x, b.y, b.r, 0, Math.PI * 2);
+      ctx.fill();
+    });
+    ctx.globalCompositeOperation = 'source-over';
+    ctx.fillStyle = 'rgba(0,0,0,0.38)';
+    ctx.fillRect(0, 0, W, H);
+    t++;
+    requestAnimationFrame(draw);
+  }
+  resize(); initBlobs(); draw();
+  window.addEventListener('resize', () => { resize(); initBlobs(); });
+})();
+
+// ── FLYER PANTALLA COMPLETA ───────────────────────────────────────────────────
+window.verFlyerFull = (src) => {
+  const ov = document.createElement('div');
+  ov.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.95);z-index:999;display:flex;align-items:center;justify-content:center;cursor:zoom-out;padding:20px;';
+  ov.onclick = () => document.body.removeChild(ov);
+  const img = document.createElement('img');
+  img.src = src;
+  img.style.cssText = 'max-width:100%;max-height:100%;object-fit:contain;border-radius:8px;box-shadow:0 0 60px rgba(0,0,0,.8);';
+  const close = document.createElement('button');
+  close.textContent = '✕';
+  close.style.cssText = 'position:absolute;top:16px;right:16px;background:rgba(255,255,255,.1);border:none;color:#fff;width:40px;height:40px;border-radius:50%;font-size:18px;cursor:pointer;';
+  close.onclick = () => document.body.removeChild(ov);
+  ov.appendChild(img);
+  ov.appendChild(close);
+  document.body.appendChild(ov);
+};
+
+// Resolver deep link pendiente
+if (window._pendingDeepLink) {
+  window.abrirDetalle(window._pendingDeepLink);
+  window._pendingDeepLink = null;
+}
+
+</script>
+</body>
+</html>
