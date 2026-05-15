@@ -208,7 +208,15 @@ textarea.finput{resize:vertical;min-height:90px;}
 .test-author{display:flex;align-items:center;gap:12px;}
 .test-avatar{width:40px;height:40px;border-radius:50%;background:var(--gray3);border:1.5px solid rgba(255,255,255,.1);overflow:hidden;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:18px;}
 .test-avatar img{width:100%;height:100%;object-fit:cover;}
-.test-name{font-size:14px;font-weight:700;}
+.test-name{font-size:14px;font-weight:700;margin-bottom:2px;}
+.test-ig{font-size:12px;color:#e1306c;text-decoration:none;display:block;margin-bottom:2px;}
+.test-ig:hover{opacity:.75;}
+.test-course{font-size:11px;color:var(--text3);margin-top:2px;}
+.test-date{font-size:10px;color:var(--text3);margin-top:1px;}
+.test-stars{color:var(--red);font-size:15px;margin-bottom:12px;letter-spacing:3px;}
+.test-text{font-size:13px;color:var(--text2);line-height:1.75;font-style:italic;margin-bottom:16px;}
+.test-avatar{width:52px;height:52px;border-radius:50%;background:var(--red);border:2px solid rgba(232,0,10,.3);overflow:hidden;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:20px;font-weight:800;color:#fff;}
+.test-avatar img{width:100%;height:100%;object-fit:cover;}
 .test-course{font-size:12px;color:var(--text3);}
 
 /* FAQ */
@@ -228,7 +236,7 @@ textarea.finput{resize:vertical;min-height:90px;}
 @media(max-width:700px){.grid-2{grid-template-columns:1fr !important;}}
 
 /* ADMIN */
-.admin-wrap{max-width:1140px;margin:0 auto;padding:80px 20px 80px;position:relative;z-index:2;min-height:100vh;overscroll-behavior:contain;}
+.admin-wrap{max-width:1260px;margin:0 auto;padding:80px 20px 80px;position:relative;z-index:2;min-height:100vh;overscroll-behavior:contain;}
 .admin-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:24px;}
 .admin-title{font-family:var(--display);font-size:42px;letter-spacing:2px;}
 .admin-title em{color:var(--red);font-style:normal;}
@@ -245,7 +253,7 @@ textarea.finput{resize:vertical;min-height:90px;}
 .atab.on .tab-badge{background:rgba(0,0,0,.25);}
 .acard{background:var(--gray2);border:1px solid var(--border);border-radius:var(--radius);padding:22px;margin-bottom:16px;}
 .acard-title{font-size:10px;font-weight:800;color:var(--text3);text-transform:uppercase;letter-spacing:.12em;margin-bottom:16px;}
-.tbl-wrap{overflow-x:auto;}
+.tbl-wrap{overflow-x:auto;max-width:100%;}
 table{width:100%;border-collapse:collapse;font-size:13px;min-width:680px;}
 th{text-align:left;padding:10px 12px;font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:.08em;border-bottom:1px solid var(--border);font-weight:800;background:#0d0d0d;}
 td{padding:10px 12px;border-bottom:1px solid #181818;vertical-align:top;}
@@ -333,13 +341,186 @@ footer{border-top:1px solid var(--border);padding:48px 20px;text-align:center;po
 .gal-item img{width:100%;height:100%;object-fit:cover;transition:opacity .3s;}
 .gal-item:hover img{opacity:.85;}
 .gal-caption{position:absolute;bottom:0;left:0;right:0;padding:10px 12px;background:linear-gradient(transparent,rgba(0,0,0,.8));font-size:12px;color:#fff;font-weight:600;}
+.qnav-btn{background:none;border:none;border-bottom:2px solid transparent;color:var(--text3);font-family:var(--font);font-size:11px;font-weight:800;letter-spacing:.12em;text-transform:uppercase;padding:13px 24px;cursor:pointer;white-space:nowrap;flex-shrink:0;transition:all .2s;}
+.qnav-btn:hover{color:var(--text2);}
+.qnav-btn.qnav-on{color:#fff;border-bottom-color:var(--red);}
 @media(max-width:600px){
   .frow2{grid-template-columns:1fr;}
-  .atabs{flex-wrap:nowrap;}
+  .atabs{flex-wrap:wrap;row-gap:4px;}
+  .atab{font-size:10px;padding:8px 10px;}
   .admin-ci{flex-wrap:wrap;}
   .cfoot-btns{flex-direction:column;width:100%;gap:6px;}
   .cbtn,.cbtn-info{width:100%;justify-content:center;}
 }
+
+
+/* ACCESIBILIDAD Y PERFORMANCE */
+button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-visible{outline:2px solid #fff;outline-offset:3px;}
+@media (prefers-reduced-motion: reduce){*,*::before,*::after{animation-duration:.01ms!important;animation-iteration-count:1!important;scroll-behavior:auto!important;transition-duration:.01ms!important;}#bg-canvas{display:none!important;}}
+@media(max-width:768px){#bg-canvas{display:none!important;}.grain-overlay{opacity:.22;}.hero-h1{letter-spacing:2px}.nav{padding:0 14px}.logo-sub{display:none}.cursos-grid{grid-template-columns:1fr}.mbox{padding:26px 20px 32px}}
+
+/* MEJORAS ADMIN PLANILLAS + ESTADÍSTICAS */
+.admin-metrics{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin-bottom:14px;}
+.admin-metric{background:#0d0d0d;border:1px solid var(--border);border-radius:14px;padding:12px 14px;}
+.admin-metric-n{font-family:var(--display);font-size:28px;line-height:1;color:var(--red);letter-spacing:1px;}
+.admin-metric-l{font-size:10px;color:var(--text3);font-weight:800;text-transform:uppercase;letter-spacing:.1em;margin-top:4px;}
+.planilla-toolbar{display:flex;gap:8px;margin-bottom:14px;flex-wrap:wrap;align-items:center;}
+.planilla-toolbar .finput{margin:0;flex:1;max-width:340px;min-width:220px;}
+.planilla-table{width:100%;border-collapse:separate;border-spacing:0;font-size:12px;min-width:880px;}
+.planilla-table th{background:#121212;color:#888;padding:11px 10px;border-bottom:1px solid var(--border);font-size:10px;letter-spacing:.12em;text-transform:uppercase;}
+.planilla-table td{padding:11px 10px;border-bottom:1px solid #202020;vertical-align:middle;}
+.planilla-table tr:hover td{background:rgba(232,0,10,.025);}
+.row-index{color:#777;font-size:12px;text-align:center;font-weight:700;}
+.student-name{font-size:13px;font-weight:800;color:#fff;line-height:1.25;}
+.student-sub{font-size:10px;color:var(--text3);margin-top:3px;}
+.course-cell{max-width:190px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:#ddd;font-weight:700;}
+.pay-pill{display:inline-flex;align-items:center;gap:5px;border-radius:999px;padding:5px 9px;font-size:10px;font-weight:800;border:1px solid transparent;white-space:nowrap;}
+.pay-ok{background:#0e2d1b;color:#39d477;border-color:#155c34;}
+.pay-pa{background:#342600;color:#f5c842;border-color:#6c5208;}
+.pay-pe{background:#341010;color:#ff5555;border-color:#5c1515;}
+.action-mini{display:flex;gap:5px;align-items:center;justify-content:flex-end;flex-wrap:wrap;}
+.stats-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:12px;}
+.stats-mini-card{background:#0d0d0d;border:1px solid var(--border);border-radius:14px;padding:14px;}
+.stats-mini-title{font-size:11px;color:var(--text3);font-weight:800;letter-spacing:.12em;text-transform:uppercase;margin-bottom:8px;}
+.stats-mini-value{font-family:var(--display);font-size:32px;color:var(--red);line-height:1;}
+.stats-row{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:8px 0;border-bottom:1px solid #1f1f1f;font-size:12px;}
+.stats-row:last-child{border-bottom:none;}
+@media(max-width:700px){.planilla-toolbar .finput{max-width:none;width:100%;}.admin-metrics{grid-template-columns:repeat(2,1fr);}.action-mini{justify-content:flex-start;}}
+
+/* AJUSTES PLANILLA COMPACTA */
+.planilla-table{table-layout:fixed;min-width:980px;}
+.planilla-table th,.planilla-table td{overflow:hidden;text-overflow:ellipsis;}
+.planilla-table th:nth-child(1),.planilla-table td:nth-child(1){width:42px;text-align:center;}
+.planilla-table th:nth-child(2),.planilla-table td:nth-child(2){width:175px;}
+.planilla-table th:nth-child(3),.planilla-table td:nth-child(3){width:62px;}
+.planilla-table th:nth-child(4),.planilla-table td:nth-child(4){width:90px;}
+.planilla-table th:nth-child(5),.planilla-table td:nth-child(5){width:180px;}
+.planilla-table th:nth-child(6),.planilla-table td:nth-child(6){width:125px;}
+.planilla-table th:nth-child(7),.planilla-table td:nth-child(7){width:125px;}
+.planilla-table th:nth-child(8),.planilla-table td:nth-child(8){width:115px;}
+.planilla-table th:nth-child(9),.planilla-table td:nth-child(9){width:155px;}
+.planilla-table th:nth-child(10),.planilla-table td:nth-child(10){width:145px;}
+.planilla-table.no-course{min-width:820px;}
+.planilla-table.no-course th:nth-child(5),.planilla-table.no-course td:nth-child(5){width:125px;}
+.planilla-table.no-course th:nth-child(6),.planilla-table.no-course td:nth-child(6){width:125px;}
+.planilla-table.no-course th:nth-child(7),.planilla-table.no-course td:nth-child(7){width:115px;}
+.planilla-table.no-course th:nth-child(8),.planilla-table.no-course td:nth-child(8){width:170px;}
+.planilla-table.no-course th:nth-child(9),.planilla-table.no-course td:nth-child(9){width:160px;}
+.pay-summary{display:flex;align-items:center;gap:6px;min-width:0;}
+.pay-summary-text{font-size:11px;color:var(--text2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:72px;}
+.pay-chip-btn{background:#151515;border:1px solid #303030;color:#ddd;border-radius:20px;padding:5px 8px;font-size:10px;font-weight:800;cursor:pointer;font-family:var(--font);white-space:nowrap;}
+.pay-chip-btn:hover{border-color:var(--red);color:#fff;}
+.mini-input{width:100%;background:#0d0d0d;border:1px solid var(--border);color:#fff;border-radius:8px;padding:7px 8px;font-family:var(--font);font-size:12px;}
+.print-title{display:none;}
+@media print{.print-title{display:block}.no-print{display:none!important}body{background:#fff!important;color:#111!important}.planilla-table{min-width:0!important;font-size:10px}.planilla-table th{background:#111!important;color:#fff!important}.planilla-table td{color:#111!important;border-bottom:1px solid #ddd!important}.student-name{color:#111!important}.student-sub,.tds{color:#555!important}.pay-pill{border:1px solid #bbb!important;color:#111!important;background:#eee!important}.tbl-wrap{overflow:visible!important}.acard{border:none!important;background:#fff!important}}
+
+
+
+/* v6 ajustes planilla/admin */
+.admin-wrap{max-width:1280px;}
+.acard.planilla-card{padding:18px 20px;}
+.tbl-wrap{overflow-x:auto;max-width:100%;scrollbar-width:thin;}
+.planilla-table{table-layout:fixed;min-width:0!important;width:100%;font-size:11.5px;}
+.planilla-table th{padding:10px 8px;}
+.planilla-table td{padding:10px 8px;}
+.planilla-table th:nth-child(1),.planilla-table td:nth-child(1){width:34px!important;text-align:center;}
+.planilla-table th:nth-child(2),.planilla-table td:nth-child(2){width:19%!important;}
+.planilla-table th:nth-child(3),.planilla-table td:nth-child(3){width:48px!important;}
+.planilla-table th:nth-child(4),.planilla-table td:nth-child(4){width:78px!important;}
+.planilla-table th:nth-child(5),.planilla-table td:nth-child(5){width:16%!important;}
+.planilla-table th:nth-child(6),.planilla-table td:nth-child(6){width:12%!important;}
+.planilla-table th:nth-child(7),.planilla-table td:nth-child(7){width:105px!important;}
+.planilla-table th:nth-child(8),.planilla-table td:nth-child(8){width:95px!important;}
+.planilla-table th:nth-child(9),.planilla-table td:nth-child(9){width:150px!important;}
+.planilla-table th:nth-child(10),.planilla-table td:nth-child(10){width:136px!important;}
+.planilla-table.no-course th:nth-child(5),.planilla-table.no-course td:nth-child(5){width:13%!important;}
+.planilla-table.no-course th:nth-child(6),.planilla-table.no-course td:nth-child(6){width:104px!important;}
+.planilla-table.no-course th:nth-child(7),.planilla-table.no-course td:nth-child(7){width:94px!important;}
+.planilla-table.no-course th:nth-child(8),.planilla-table.no-course td:nth-child(8){width:160px!important;}
+.planilla-table.no-course th:nth-child(9),.planilla-table.no-course td:nth-child(9){width:150px!important;}
+.pay-summary{gap:5px;}
+.pay-summary-text{display:none;}
+.pay-chip-btn{padding:6px 9px;font-size:10px;}
+.action-mini{gap:4px;justify-content:flex-start;}
+.action-mini .bsm{padding:6px 8px;font-size:10px;}
+.planilla-title{font-family:var(--display);font-size:32px;letter-spacing:1.4px;margin:0 0 10px;color:#fff;line-height:1;}
+.planilla-title em{color:var(--red);font-style:normal;}
+.test-admin-avatar{width:42px;height:42px;border-radius:50%;object-fit:cover;background:#222;display:inline-flex;align-items:center;justify-content:center;margin-right:10px;vertical-align:middle;overflow:hidden;}
+.test-admin-avatar img{width:100%;height:100%;object-fit:cover;}
+@media(max-width:900px){.planilla-table{min-width:900px!important}.tbl-wrap{overflow-x:auto}.admin-wrap{padding-left:12px;padding-right:12px}}
+@media print{*{-webkit-print-color-adjust:exact!important;print-color-adjust:exact!important}.print-title{display:block}.no-print{display:none!important}body{background:#fff!important;color:#111!important}.head{background:#111!important;color:#fff!important}.planilla-table{min-width:0!important;font-size:9px!important}.planilla-table th{background:#e8000a!important;color:#fff!important}.planilla-table td{color:#111!important;border:1px solid #ddd!important}.student-name{color:#111!important}.student-sub,.tds{color:#555!important}.pay-pill{border:1px solid #bbb!important;color:#111!important;background:#eee!important}.tbl-wrap{overflow:visible!important}.acard{border:none!important;background:#fff!important}}
+
+
+.planilla-table{min-width:0!important;table-layout:fixed;}
+.planilla-table th:nth-child(1),.planilla-table td:nth-child(1){width:36px!important;text-align:center;}
+.planilla-table th:nth-child(2),.planilla-table td:nth-child(2){width:215px!important;}
+.planilla-table th:nth-child(3),.planilla-table td:nth-child(3){width:58px!important;}
+.planilla-table th:nth-child(4),.planilla-table td:nth-child(4){width:86px!important;}
+.planilla-table th:nth-child(5),.planilla-table td:nth-child(5){width:145px!important;}
+.planilla-table.no-course th:nth-child(5),.planilla-table.no-course td:nth-child(5){width:155px!important;}
+.planilla-table th:nth-last-child(2),.planilla-table td:nth-last-child(2){width:250px!important;}
+.planilla-table th:last-child,.planilla-table td:last-child{width:180px!important;}
+.tbl-wrap{padding-bottom:4px;}
+.admin-wrap{max-width:1240px;}
+
+
+/* CHAT FLOTANTE */
+.chat-fab{position:fixed;right:24px;bottom:84px;z-index:850;width:64px;height:64px;border-radius:50%;border:2px solid rgba(255,255,255,.18);background:radial-gradient(circle at 30% 20%,#ff3a42,var(--red) 55%,#830006);color:#fff;font-size:28px;cursor:pointer;display:flex;align-items:center;justify-content:center;box-shadow:0 0 0 0 rgba(232,0,10,.45),0 18px 50px rgba(232,0,10,.28);animation:chatPulse 2.4s infinite;transition:transform .2s,box-shadow .2s,background .2s;}
+.chat-fab:hover{transform:translateY(-4px) scale(1.05);box-shadow:0 20px 60px rgba(232,0,10,.45),0 0 0 8px rgba(232,0,10,.12);}
+.chat-fab .chat-dot{position:absolute;right:5px;top:5px;width:15px;height:15px;border-radius:50%;background:#e8000a;border:2px solid #111;display:none;box-shadow:0 0 0 4px rgba(232,0,10,.18);}
+.chat-fab.has-new{background:radial-gradient(circle at 30% 20%,#ff5a60,#ff0010 55%,#b00008);box-shadow:0 0 0 8px rgba(232,0,10,.14),0 18px 50px rgba(232,0,10,.42);}
+.chat-fab.has-new .chat-dot{display:block;animation:blink 1s infinite;}
+@keyframes chatPulse{0%{box-shadow:0 0 0 0 rgba(232,0,10,.45),0 18px 50px rgba(232,0,10,.28)}70%{box-shadow:0 0 0 14px rgba(232,0,10,0),0 18px 50px rgba(232,0,10,.28)}100%{box-shadow:0 0 0 0 rgba(232,0,10,0),0 18px 50px rgba(232,0,10,.28)}}
+.chat-panel{display:flex;flex-direction:column;gap:10px;max-height:62vh;}
+.chat-head{display:flex;align-items:center;gap:12px;margin-bottom:12px;}
+.chat-avatar{width:42px;height:42px;border-radius:50%;background:linear-gradient(135deg,var(--red),#810006);display:flex;align-items:center;justify-content:center;font-size:22px;box-shadow:0 0 30px rgba(232,0,10,.2);}
+.chat-title{font-family:var(--display);font-size:28px;letter-spacing:1px;line-height:1;}
+.chat-subline{font-size:12px;color:var(--text3);margin-top:3px;}
+.chat-msgs{background:#070707;border:1px solid var(--border);border-radius:18px;padding:14px;min-height:310px;max-height:430px;overflow-y:auto;display:flex;flex-direction:column;gap:9px;scrollbar-width:thin;}
+.chat-bubble{max-width:84%;padding:11px 13px;border-radius:16px;font-size:13px;line-height:1.45;word-break:break-word;box-shadow:0 8px 22px rgba(0,0,0,.18);}
+.chat-bubble.user{align-self:flex-start;background:#171717;border:1px solid #292929;color:#fff;border-bottom-left-radius:5px;}
+.chat-bubble.admin{align-self:flex-end;background:linear-gradient(135deg,var(--red),#b5000a);color:#fff;border-bottom-right-radius:5px;}
+.chat-bubble.system{align-self:center;max-width:95%;background:rgba(255,255,255,.04);border:1px solid var(--border);color:var(--text2);font-size:12px;text-align:center;box-shadow:none;}
+.chat-meta{font-size:9px;color:rgba(255,255,255,.45);margin-top:4px;}
+.chat-row{display:flex;gap:8px;align-items:center;background:#0b0b0b;border:1px solid var(--border);border-radius:50px;padding:6px;}
+.chat-row .finput{margin:0;border:none;background:transparent;padding:11px 14px;}
+.chat-row .finput:focus{border:none;box-shadow:none;}
+.chat-send{width:46px;height:46px;border-radius:50%;background:var(--red);border:none;color:#fff;font-size:19px;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:.2s;flex-shrink:0;}
+.chat-send:hover{background:var(--red2);transform:scale(1.04);}
+.chat-name-row{display:flex;gap:8px;background:#0b0b0b;border:1px solid var(--border);border-radius:16px;padding:8px;margin-top:10px;}
+.chat-name-row .finput{margin:0;}
+.chat-list-item{border:1px solid var(--border);background:#0d0d0d;border-radius:14px;padding:12px;display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:8px;cursor:pointer;transition:.2s;}
+.chat-list-item:hover{border-color:rgba(232,0,10,.45);background:#151010;}
+.chat-list-item.unread{border-color:rgba(232,0,10,.65);background:rgba(232,0,10,.06);}
+.chat-status{font-size:10px;font-weight:800;border-radius:20px;padding:3px 9px;background:rgba(255,255,255,.06);color:var(--text3);}
+.chat-status.on{background:rgba(76,175,125,.12);color:#4caf7d;}
+.chat-status.new{background:rgba(232,0,10,.15);color:#ff5555;}
+.chat-wa-soft{display:inline-flex;align-items:center;gap:6px;margin-top:10px;color:#25d366;text-decoration:none;font-size:12px;border:1px solid rgba(37,211,102,.25);padding:8px 12px;border-radius:20px;background:rgba(37,211,102,.06);}
+.chat-popover{position:fixed;right:24px;bottom:158px;z-index:849;width:min(390px,calc(100vw - 32px));max-height:70vh;background:linear-gradient(180deg,#151515,#080808);border:1px solid rgba(255,255,255,.12);border-radius:24px;box-shadow:0 28px 90px rgba(0,0,0,.72),0 0 0 1px rgba(232,0,10,.18),0 0 70px rgba(232,0,10,.16);display:none;overflow:hidden;animation:chatPop .22s cubic-bezier(.16,1,.3,1);}
+.chat-popover.open{display:block;}
+@keyframes chatPop{from{opacity:0;transform:translateY(18px) scale(.96)}to{opacity:1;transform:translateY(0) scale(1)}}
+.chat-popover-inner{padding:16px;}
+.chat-popover-close{position:absolute;top:12px;right:12px;width:30px;height:30px;border-radius:50%;border:none;background:rgba(255,255,255,.08);color:#fff;cursor:pointer;font-size:15px;z-index:2;}
+.chat-popover-close:hover{background:var(--red);}
+.chat-quick-wrap{display:flex;gap:7px;flex-wrap:wrap;margin-top:8px;}
+.chat-quick{border:1px solid rgba(232,0,10,.28);background:rgba(232,0,10,.08);color:#fff;border-radius:18px;padding:7px 10px;font-size:11px;font-weight:800;cursor:pointer;font-family:var(--font);transition:.2s;}
+.chat-quick:hover{background:var(--red);transform:translateY(-1px);}
+
+.admin-live-indicator{position:fixed;left:24px;bottom:24px;z-index:860;display:none;align-items:center;gap:8px;background:rgba(12,12,12,.92);border:1px solid rgba(76,175,125,.35);color:#4caf7d;padding:9px 14px;border-radius:999px;font-size:12px;font-weight:800;box-shadow:0 12px 40px rgba(0,0,0,.45);backdrop-filter:blur(12px);}
+.admin-live-indicator.on{display:flex;}
+.admin-live-dot{width:9px;height:9px;border-radius:50%;background:#4caf7d;box-shadow:0 0 0 5px rgba(76,175,125,.12);animation:blink 1.4s infinite;}
+.admin-live-indicator.off{display:flex;border-color:rgba(232,0,10,.35);color:#ff5555;}
+.admin-live-indicator.off .admin-live-dot{background:#ff5555;box-shadow:0 0 0 5px rgba(232,0,10,.12);}
+.chat-tabs{display:flex;gap:6px;overflow-x:auto;padding:0 0 8px;margin:-4px 0 8px;scrollbar-width:thin;}
+.chat-tab{display:inline-flex;align-items:center;gap:6px;border:1px solid var(--border);background:#0e0e0e;color:var(--text2);border-radius:18px;padding:7px 10px;font-size:11px;font-weight:800;cursor:pointer;white-space:nowrap;max-width:130px;}
+.chat-tab.active{background:rgba(232,0,10,.16);border-color:rgba(232,0,10,.55);color:#fff;}
+.chat-tab.unread::before{content:'';width:7px;height:7px;border-radius:50%;background:var(--red);box-shadow:0 0 0 4px rgba(232,0,10,.13);flex-shrink:0;}
+.chat-tab-name{overflow:hidden;text-overflow:ellipsis;}
+.chat-tab-close{border:none;background:rgba(255,255,255,.08);color:var(--text3);border-radius:50%;width:18px;height:18px;line-height:18px;font-size:10px;cursor:pointer;flex-shrink:0;}
+.chat-tab-close:hover{background:var(--red);color:#fff;}
+
+@media(max-width:700px){.chat-fab{right:18px;bottom:78px;width:56px;height:56px;font-size:24px}.chat-popover{right:12px;left:12px;bottom:145px;width:auto;max-height:72vh}.chat-row{border-radius:22px}.chat-bubble{max-width:94%;}.chat-msgs{min-height:260px;max-height:48vh}.chat-name-row{flex-direction:column}}
+
 </style>
 </head>
 <body>
@@ -368,22 +549,22 @@ footer{border-top:1px solid var(--border);padding:48px 20px;text-align:center;po
       <div class="ig-drop" id="ig-drop">
         <button class="ig-drop-btn" onclick="toggleIgDrop()">📸 Instagram <span class="arr">▼</span></button>
         <div class="ig-drop-menu">
-          <a href="https://instagram.com/tomaunoestudio" target="_blank" class="ig-drop-item">
+          <a rel="noopener noreferrer" href="https://instagram.com/tomaunoestudio" target="_blank" class="ig-drop-item">
             <span>📷</span><div><div>@tomaunoestudio</div><div class="ig-handle">Estudio Fotográfico</div></div>
           </a>
-          <a href="https://instagram.com/tomaunomodels" target="_blank" class="ig-drop-item">
+          <a rel="noopener noreferrer" href="https://instagram.com/tomaunomodels" target="_blank" class="ig-drop-item">
             <span>👗</span><div><div>@tomaunomodels</div><div class="ig-handle">Modelaje</div></div>
           </a>
-          <a href="https://instagram.com/tomaunocapacitaciones" target="_blank" class="ig-drop-item">
+          <a rel="noopener noreferrer" href="https://instagram.com/tomaunocapacitaciones" target="_blank" class="ig-drop-item">
             <span>🎓</span><div><div>@tomaunocapacitaciones</div><div class="ig-handle">Capacitaciones</div></div>
           </a>
         </div>
       </div>
-      <a href="https://wa.me/5493764354522?text=Buenos%20d%C3%ADas%2C%20vengo%20de%20la%20web%20de%20Tomauno%2C%20quisiera%20consultar..." target="_blank" class="nav-link nav-cta">Contacto</a>
+      <a rel="noopener noreferrer" href="https://wa.me/5493764354522?text=Buenos%20d%C3%ADas%2C%20vengo%20de%20la%20web%20de%20Tomauno%2C%20quisiera%20consultar..." target="_blank" class="nav-link nav-cta">Contacto</a>
     </div>
     <span id="notif-dot"></span>
     <div id="db-status" class="connecting"><span id="db-dot"></span><span id="db-label">Conectando</span></div>
-    <button class="nav-ham" id="nav-ham" onclick="toggleMob()">
+    <button class="nav-ham" id="nav-ham" onclick="toggleMob()" aria-label="Abrir menú">
       <span></span><span></span><span></span>
     </button>
   </div>
@@ -395,10 +576,10 @@ footer{border-top:1px solid var(--border);padding:48px 20px;text-align:center;po
   <a href="#" class="mob-link" onclick="navScroll('sec-servicios');toggleMob();return false;">🛠️ Servicios</a>
   <a href="#" class="mob-link" onclick="navScroll('sec-testimonios');toggleMob();return false;">⭐ Testimonios</a>
   <a href="#" class="mob-link" onclick="navScroll('sec-galeria');toggleMob();return false;">📍 El Estudio</a>
-  <a href="https://instagram.com/tomaunoestudio" target="_blank" class="mob-link">📷 @tomaunoestudio</a>
-  <a href="https://instagram.com/tomaunomodels" target="_blank" class="mob-link">👗 @tomaunomodels</a>
-  <a href="https://instagram.com/tomaunocapacitaciones" target="_blank" class="mob-link">🎓 @tomaunocapacitaciones</a>
-  <a href="https://wa.me/5493764354522" target="_blank" class="mob-link" style="color:#25d366;">💬 WhatsApp</a>
+  <a rel="noopener noreferrer" href="https://instagram.com/tomaunoestudio" target="_blank" class="mob-link">📷 @tomaunoestudio</a>
+  <a rel="noopener noreferrer" href="https://instagram.com/tomaunomodels" target="_blank" class="mob-link">👗 @tomaunomodels</a>
+  <a rel="noopener noreferrer" href="https://instagram.com/tomaunocapacitaciones" target="_blank" class="mob-link">🎓 @tomaunocapacitaciones</a>
+  <a rel="noopener noreferrer" href="https://wa.me/5493764354522" target="_blank" class="mob-link" style="color:#25d366;">💬 WhatsApp</a>
 </div>
 
 <!-- HERO -->
@@ -420,6 +601,15 @@ footer{border-top:1px solid var(--border);padding:48px 20px;text-align:center;po
   </div>
   <div class="hero-scroll">↓<span>Ver cursos</span></div>
 </section>
+
+<!-- NAV RAPIDO SECCIONES -->
+<div id="quick-nav" style="background:rgba(5,5,5,.97);border-bottom:1px solid var(--border);position:sticky;top:64px;z-index:199;">
+  <div style="max-width:1140px;margin:0 auto;display:flex;overflow-x:auto;scrollbar-width:none;">
+    <button onclick="navScroll('sec-cursos')" class="qnav-btn qnav-on" id="qn-cursos">CURSOS &amp; CAPACITACIONES</button>
+    <button onclick="navScroll('sec-servicios')" class="qnav-btn" id="qn-servicios">SERVICIOS DEL ESTUDIO</button>
+    <button onclick="navScroll('sec-eventos')" class="qnav-btn" id="qn-eventos">🎪 EVENTOS DE LA CIUDAD</button>
+  </div>
+</div>
 
 <section id="sec-cursos">
   <div class="section-wrap">
@@ -444,7 +634,7 @@ footer{border-top:1px solid var(--border);padding:48px 20px;text-align:center;po
     <div class="ev-hero">
       <div class="ev-hero-icon">🎪</div>
       <div class="ev-hero-title">EVENTOS &amp; CURSOS DE LA CIUDAD</div>
-      <div class="ev-hero-sub">Organizadores de la ciudad pueden gestionar sus inscripciones acá.<br/>&iquest;Ten&eacute;s un evento? <a href="https://wa.me/5493764354522" target="_blank" class="ev-hero-link">Contact&aacute;nos &rarr;</a></div>
+      <div class="ev-hero-sub">Organizadores de la ciudad pueden gestionar sus inscripciones acá.<br/>&iquest;Ten&eacute;s un evento? <a rel="noopener noreferrer" href="https://wa.me/5493764354522" target="_blank" class="ev-hero-link">Contact&aacute;nos &rarr;</a></div>
       <button class="btn-main" style="display:inline-flex;width:auto;padding:11px 28px;font-size:13px;" onclick="window.abrirFormEvento()">+ Registrar mi evento</button>
     </div>
     <div class="ev-org-bar">
@@ -569,8 +759,8 @@ footer{border-top:1px solid var(--border);padding:48px 20px;text-align:center;po
 <section id="sec-ubicacion">
   <div class="section-wrap">
     <div class="sec-head" style="margin-bottom:32px;">
-      <div class="sec-title">EL ESTUDIO</div>
-      <div class="sec-sub">Pedro Méndez 2069 · Posadas, Misiones</div>
+      <div class="sec-title">UBICACI&Oacute;N</div>
+      <div class="sec-sub">Pedro M&eacute;ndez 2069 &middot; Posadas, Misiones</div>
     </div>
     <div class="grid-2">
       <div>
@@ -578,18 +768,18 @@ footer{border-top:1px solid var(--border);padding:48px 20px;text-align:center;po
           <div style="font-family:var(--display);font-size:28px;letter-spacing:1px;margin-bottom:16px;">TOMA<span style="color:var(--red);">UNO</span></div>
           <div style="font-size:14px;color:var(--text2);line-height:1.8;">
             <div style="margin-bottom:8px;">📍 Pedro Méndez 2069, Posadas, Misiones</div>
-            <div style="margin-bottom:8px;">📱 <a href="https://wa.me/5493764354522" target="_blank" class="wp-link">+54 9 3764 354522</a></div>
-            <div style="margin-bottom:8px;">📸 <a href="https://instagram.com/tomaunoestudio" target="_blank" class="ig-link">@tomaunoestudio</a></div>
-            <div style="margin-bottom:20px;">📸 <a href="https://instagram.com/tomaunomodels" target="_blank" class="ig-link">@tomaunomodels</a></div>
+            <div style="margin-bottom:8px;">📱 <a rel="noopener noreferrer" href="https://wa.me/5493764354522" target="_blank" class="wp-link">+54 9 3764 354522</a></div>
+            <div style="margin-bottom:8px;">📸 <a rel="noopener noreferrer" href="https://instagram.com/tomaunoestudio" target="_blank" class="ig-link">@tomaunoestudio</a></div>
+            <div style="margin-bottom:20px;">📸 <a rel="noopener noreferrer" href="https://instagram.com/tomaunomodels" target="_blank" class="ig-link">@tomaunomodels</a></div>
           </div>
-          <a href="https://wa.me/5493764354522" target="_blank" class="fwa" style="display:inline-flex;font-size:13px;padding:11px 22px;">💬 Escribinos</a>
+          <a rel="noopener noreferrer" href="https://wa.me/5493764354522" target="_blank" class="fwa" style="display:inline-flex;font-size:13px;padding:11px 22px;">💬 Escribinos</a>
         </div>
       </div>
       <div>
         <div style="border-radius:var(--radius);overflow:hidden;border:1px solid var(--border);height:320px;">
           <iframe src="https://maps.google.com/maps?q=Pedro+Mendez+2069+Posadas+Misiones+Argentina&z=16&output=embed" width="100%" height="100%" style="border:none;display:block;" loading="lazy" allowfullscreen referrerpolicy="no-referrer-when-downgrade"></iframe>
         </div>
-        <a href="https://maps.app.goo.gl/3KNXZ3oeknREZwM8" target="_blank" style="display:inline-flex;align-items:center;gap:6px;margin-top:10px;font-size:12px;color:var(--text3);text-decoration:none;border:1px solid var(--border);padding:7px 14px;border-radius:20px;transition:all .2s;" onmouseover="this.style.color='#fff'" onmouseout="this.style.color='var(--text3)'">📍 Abrir en Google Maps</a>
+        <a rel="noopener noreferrer" href="https://maps.app.goo.gl/3KNXZ3oeknREZwM8" target="_blank" style="display:inline-flex;align-items:center;gap:6px;margin-top:10px;font-size:12px;color:var(--text3);text-decoration:none;border:1px solid var(--border);padding:7px 14px;border-radius:20px;transition:all .2s;" onmouseover="this.style.color='#fff'" onmouseout="this.style.color='var(--text3)'">📍 Abrir en Google Maps</a>
       </div>
     </div>
   </div>
@@ -600,14 +790,14 @@ footer{border-top:1px solid var(--border);padding:48px 20px;text-align:center;po
 <footer>
   <div class="flogo">TOMA<em>UNO</em></div>
   <div class="fsub">Estudio Fotográfico & Modelaje · Pedro Méndez 2069, Posadas</div>
-  <a href="https://wa.me/5493764354522?text=Hola%2C%20me%20contacto%20desde%20la%20web%20de%20Tomauno%2C%20quisiera%20consultar" target="_blank" class="fwa">💬 Escribinos por WhatsApp</a>
-  <div class="fcred"><a href="https://wa.me/5493764354522" target="_blank">⚡ Realizado por Javier Móttola</a></div>
+  <a rel="noopener noreferrer" href="https://wa.me/5493764354522?text=Hola%2C%20me%20contacto%20desde%20la%20web%20de%20Tomauno%2C%20quisiera%20consultar" target="_blank" class="fwa">💬 Escribinos por WhatsApp</a>
+  <div class="fcred"><a rel="noopener noreferrer" href="https://wa.me/5493764354522" target="_blank">⚡ Realizado por Javier Móttola</a></div>
   <div style="margin-top:16px;display:flex;align-items:center;justify-content:center;gap:16px;flex-wrap:wrap;">
     <div style="display:inline-flex;align-items:center;gap:6px;font-size:11px;color:var(--text3);border:1px solid var(--border);padding:5px 13px;border-radius:20px;">
       👁️ <span id="visit-count">—</span> visitas
     </div>
     <div style="font-size:11px;color:var(--text3);border:1px solid var(--border);padding:5px 13px;border-radius:20px;">
-      v2.0
+      v11.1
     </div>
   </div>
 </footer>
@@ -617,7 +807,10 @@ footer{border-top:1px solid var(--border);padding:48px 20px;text-align:center;po
   <div class="admin-wrap">
     <div class="admin-header">
       <div class="admin-title">PANEL <em>ADMIN</em></div>
-      <button onclick="cerrarAdmin()" style="background:var(--gray3);border:none;color:var(--text2);padding:9px 18px;border-radius:20px;cursor:pointer;font-family:var(--font);font-size:13px;font-weight:600;">← Salir</button>
+      <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;justify-content:flex-end;">
+        <button onclick="window.pedirPermisoNotificaciones && window.pedirPermisoNotificaciones()" style="background:#1a1a1a;border:1px solid var(--border);color:var(--text2);padding:9px 14px;border-radius:20px;cursor:pointer;font-family:var(--font);font-size:12px;font-weight:700;">🔔 Activar notificaciones</button>
+        <button onclick="cerrarAdmin()" style="background:var(--gray3);border:none;color:var(--text2);padding:9px 18px;border-radius:20px;cursor:pointer;font-family:var(--font);font-size:13px;font-weight:600;">← Salir</button>
+      </div>
     </div>
     <!-- Dashboard stats -->
     <div class="admin-dash">
@@ -639,7 +832,7 @@ footer{border-top:1px solid var(--border);padding:48px 20px;text-align:center;po
 
     <!-- ALUMNOS -->
     <div id="atab-alumnos">
-      <div class="acard">
+      <div class="acard planilla-card">
         <div class="acard-title">Inscripciones</div>
         <div style="display:flex;gap:8px;margin-bottom:14px;flex-wrap:wrap;align-items:center;">
           <select class="finput" id="filtro-curso" style="margin:0;flex:1;max-width:320px;" onchange="renderAlumnos()"><option value="">Todos los cursos</option></select>
@@ -647,10 +840,11 @@ footer{border-top:1px solid var(--border);padding:48px 20px;text-align:center;po
           <button class="bsm bl" onclick="exportarPDF()">📄 PDF</button>
           <button class="bsm wa" onclick="abrirGrupoWA()">💬 Grupo WA</button>
         </div>
+        <div id="alumnos-stats" style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px;color:var(--text2);font-size:12px;background:#0d0d0d;border:1px solid var(--border);border-radius:var(--radius-sm);padding:10px 12px;">Cargando estadísticas...</div>
         <div class="tbl-wrap">
           <table>
-            <thead><tr><th>Alumno</th><th>Curso</th><th>Contacto</th><th>Pagos</th><th>$ Estimado</th><th></th></tr></thead>
-            <tbody id="alumnos-tbody"><tr><td colspan="6" style="text-align:center;padding:40px;color:var(--text3);">Sin inscripciones aún</td></tr></tbody>
+            <thead><tr><th class="th">#</th><th class="th">NOMBRE</th><th class="th">EDAD</th><th class="th">DNI</th><th class="th">CURSO</th><th class="th">INSTAGRAM</th><th class="th">WP ALUMNO</th><th class="th">WP TUTOR</th><th class="th">ESTADO PAGO</th><th class="th">ACC.</th></tr></thead>
+            <tbody id="alumnos-tbody"><tr><td colspan="10" style="text-align:center;padding:40px;color:var(--text3);">Sin inscripciones aún</td></tr></tbody>
           </table>
         </div>
       </div>
@@ -845,36 +1039,41 @@ footer{border-top:1px solid var(--border);padding:48px 20px;text-align:center;po
         <button class="btn-main" onclick="window.agregarFotoGaleria()">Publicar foto</button>
       </div>
     </div>
+    <!-- STATS VISTAS -->
+    <div class="acard" style="margin-bottom:16px;">
+      <div class="acard-title">Estadisticas de interes — Vistas por curso y servicio</div>
+      <div id="stats-vistas-content"><div style="color:var(--text3);font-size:13px;">Cargando...</div></div>
+    </div>
     <!-- APPS ADMIN -->
     <div id="atab-apps-adm" style="display:none;">
       <div class="acard">
         <div class="acard-title">Acceso rápido a Apps</div>
         <div id="apps-list">
-          <a href="https://cronometro-two.vercel.app/" target="_blank" class="app-row">
+          <a rel="noopener noreferrer" href="https://cronometro-two.vercel.app/" target="_blank" class="app-row">
             <span class="app-ico">⏱️</span><div class="app-info"><div class="app-name">Cronómetro</div><div class="app-url">cronometro-two.vercel.app</div></div><span class="app-arr">→</span>
           </a>
-          <a href="https://reproductortomauno.lovable.app/" target="_blank" class="app-row">
+          <a rel="noopener noreferrer" href="https://reproductortomauno.lovable.app/" target="_blank" class="app-row">
             <span class="app-ico">🎵</span><div class="app-info"><div class="app-name">Reproductor de Música</div><div class="app-url">reproductortomauno.lovable.app</div></div><span class="app-arr">→</span>
           </a>
-          <a href="https://tomaunomodels1.vercel.app/" target="_blank" class="app-row">
+          <a rel="noopener noreferrer" href="https://tomaunomodels1.vercel.app/" target="_blank" class="app-row">
             <span class="app-ico">👗</span><div class="app-info"><div class="app-name">Gestor Modelos 1</div><div class="app-url">tomaunomodels1.vercel.app</div></div><span class="app-arr">→</span>
           </a>
-          <a href="https://script.google.com/macros/s/AKfycbxrrrbLE22rwEw-eh6tVwEbsPZ_MDqDTA7sOnX21qhkaOED77kkIEFrKnGB2cf1Zeq8/exec" target="_blank" class="app-row">
+          <a rel="noopener noreferrer" href="https://script.google.com/macros/s/AKfycbxrrrbLE22rwEw-eh6tVwEbsPZ_MDqDTA7sOnX21qhkaOED77kkIEFrKnGB2cf1Zeq8/exec" target="_blank" class="app-row">
             <span class="app-ico">👗</span><div class="app-info"><div class="app-name">Gestor Modelos 2</div><div class="app-url">Google Script</div></div><span class="app-arr">→</span>
           </a>
-          <a href="https://script.google.com/macros/s/AKfycbwgOK2_WSsKgVxCPwlyekANJgLrIyPWaYvU6QfuqSdxQkHJdvWoKH2FIKvzLJiF2wgd/exec" target="_blank" class="app-row">
+          <a rel="noopener noreferrer" href="https://script.google.com/macros/s/AKfycbwgOK2_WSsKgVxCPwlyekANJgLrIyPWaYvU6QfuqSdxQkHJdvWoKH2FIKvzLJiF2wgd/exec" target="_blank" class="app-row">
             <span class="app-ico">👗</span><div class="app-info"><div class="app-name">Gestor Modelos 3</div><div class="app-url">Google Script</div></div><span class="app-arr">→</span>
           </a>
-          <a href="https://secretaria-bice.vercel.app/" target="_blank" class="app-row">
+          <a rel="noopener noreferrer" href="https://secretaria-bice.vercel.app/" target="_blank" class="app-row">
             <span class="app-ico">🏫</span><div class="app-info"><div class="app-name">Secretaría San Jorge</div><div class="app-url">secretaria-bice.vercel.app</div></div><span class="app-arr">→</span>
           </a>
-          <a href="https://remedios-umber.vercel.app/" target="_blank" class="app-row">
+          <a rel="noopener noreferrer" href="https://remedios-umber.vercel.app/" target="_blank" class="app-row">
             <span class="app-ico">💊</span><div class="app-info"><div class="app-name">Remedios</div><div class="app-url">remedios-umber.vercel.app</div></div><span class="app-arr">→</span>
           </a>
-          <a href="https://claude.ai/public/artifacts/a0ae2a0e-4f45-4262-926b-7f8caa51191f" target="_blank" class="app-row">
+          <a rel="noopener noreferrer" href="https://claude.ai/public/artifacts/a0ae2a0e-4f45-4262-926b-7f8caa51191f" target="_blank" class="app-row">
             <span class="app-ico">🎲</span><div class="app-info"><div class="app-name">Sorteo</div><div class="app-url">claude.ai/artifacts</div></div><span class="app-arr">→</span>
           </a>
-          <a href="https://presupuestos-blush.vercel.app/" target="_blank" class="app-row">
+          <a rel="noopener noreferrer" href="https://presupuestos-blush.vercel.app/" target="_blank" class="app-row">
             <span class="app-ico">💰</span><div class="app-info"><div class="app-name">Presupuesto</div><div class="app-url">presupuestos-blush.vercel.app</div></div><span class="app-arr">→</span>
           </a>
         </div>
@@ -884,10 +1083,16 @@ footer{border-top:1px solid var(--border);padding:48px 20px;text-align:center;po
   </div>
 </div>
 
+
+<!-- CHAT FLOTANTE -->
+<div id="chat-popover" class="chat-popover"></div>
+<button id="chat-fab" class="chat-fab" onclick="window.abrirChatTomauno()" title="Mensaje directo">💬<span class="chat-dot"></span></button>
+<div id="admin-live-indicator" class="admin-live-indicator"><span class="admin-live-dot"></span><span id="admin-live-text">ADM activo</span></div>
+
 <!-- MODAL -->
 <div id="moverlay" class="moverlay" style="display:none;" onclick="if(event.target===this)window.closeModal()">
   <div class="mbox">
-    <button class="mclose" onclick="window.closeModal()">✕</button>
+    <button class="mclose" onclick="window.closeModal()" aria-label="Cerrar modal">✕</button>
     <div id="mcontent"></div>
   </div>
 </div>
@@ -916,6 +1121,11 @@ function toggleIgDrop() {
 document.addEventListener('click', function(e) {
   var d = document.getElementById('ig-drop');
   if (d && !d.contains(e.target)) d.classList.remove('open');
+});
+
+// Mejora de performance: lazy loading automático para imágenes agregadas al DOM
+document.addEventListener('DOMContentLoaded', function() {
+  document.querySelectorAll('img:not([loading])').forEach(function(img){ img.setAttribute('loading','lazy'); });
 });
 
 function toggleFaq(el) {
@@ -966,6 +1176,25 @@ window.addEventListener('load', checkDeepLink);
 
 // Teclado: flechas entre secciones
 // Botón volver arriba
+// Actualizar tab activo segun scroll
+window.addEventListener('scroll', function() {
+  var secs = [
+    {id:'qn-cursos', sec:'sec-cursos'},
+    {id:'qn-servicios', sec:'sec-servicios'},
+    {id:'qn-eventos', sec:'sec-eventos'}
+  ];
+  var scrollY = window.scrollY + 120;
+  var active = 'qn-cursos';
+  secs.forEach(function(s) {
+    var el = document.getElementById(s.sec);
+    if (el && el.offsetTop <= scrollY) active = s.id;
+  });
+  secs.forEach(function(s) {
+    var btn = document.getElementById(s.id);
+    if (btn) btn.classList.toggle('qnav-on', s.id === active);
+  });
+});
+
 window.addEventListener('scroll', function() {
   var btn = document.getElementById('back-top');
   if (btn) btn.classList.toggle('show', window.scrollY > 400);
@@ -989,35 +1218,9 @@ document.addEventListener('keydown', function(e) {
 });
 </script>
 
-<script>
-var SERVICIOS = [
-  {icon:'📷',title:'SESIONES FOTOGRAFICAS',desc:'Capturamos tu esencia con luz profesional.\n\nSesiones de:\n- Retratos artísticos\n- Book de modelos\n- Moda y lookbook\n- Fotos para redes\n- En estudio o exterior\n\nImágenes editadas en alta resolución.',wp:'3764354522'},
-  {icon:'🎭',title:'MODELAJE',desc:'Formación integral para modelos.\n\nIncluye:\n- Asesoramiento de imagen\n- Técnicas de pasarela\n- Book fotográfico profesional\n- Vinculación con agencias\n\nPara iniciar o potenciar tu carrera.',wp:'3764354522'},
-  {icon:'🎓',title:'CAPACITACIONES',desc:'Workshops y cursos presenciales.\n\nFormatos:\n- Workshops intensivos\n- Cursos regulares\n- Charlas temáticas\n\nFotografía, iluminación, edición, branding y más.',wp:'3764354522'},
-  {icon:'🎬',title:'PRODUCCION',desc:'Contenido audiovisual profesional.\n\nRealizamos:\n- Videos para redes sociales\n- Producción de eventos\n- Fotografía corporativa\n- Dirección creativa\n\nContactanos para cotización.',wp:'3764354522'}
-];
-function abrirServicio(idx){
-  var s=SERVICIOS[idx]; if(!s) return;
-  var modal=document.getElementById('moverlay');
-  var mc=document.getElementById('mcontent');
-  if(!modal||!mc) return;
-  mc.innerHTML='<div style="font-size:52px;text-align:center;margin-bottom:12px;">'+s.icon+'</div>'+
-    '<div style="font-family:var(--display);font-size:34px;letter-spacing:1px;margin-bottom:4px;text-align:center;">'+s.title+'</div>'+
-    '<div style="font-size:14px;color:var(--text2);line-height:1.75;white-space:pre-line;margin:16px 0 20px;">'+s.desc+'</div>'+
-    '<a href="https://wa.me/549'+s.wp+'?text='+encodeURIComponent('Hola! Me interesa: '+s.title)+'" target="_blank" class="btn-main" style="text-decoration:none;">Consultar por WhatsApp</a>'+
-    '<button class="btn-out" onclick="document.getElementById('moverlay').style.display='none'">Cerrar</button>';
-  modal.style.display='flex';
-}
-window.abrirServicio=abrirServicio;
-function switchMainTab(tab){
-  document.querySelectorAll('.main-tab').forEach(function(b){b.classList.remove('on');});
-  var btn=document.getElementById('mtab-'+tab);
-  if(btn) btn.classList.add('on');
-  var ids={cursos:'sec-cursos',servicios:'sec-servicios',eventos:'sec-eventos'};
-  var el=document.getElementById(ids[tab]);
-  if(el) el.scrollIntoView({behavior:'smooth',block:'start'});
-}
-</script>
+
+<!-- Script redundante removido: SERVICIOS se define en el módulo principal -->
+
 
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
@@ -1071,7 +1274,9 @@ window.submitPin = () => {
 };
 
 function toggleAdmin(show) {
-  if(show) window._adminWasActive=true;
+  if(show){ window._adminWasActive=true; adminOk=true; try{localStorage.setItem('tomauno-admin-notify','1');}catch(e){} try{ if('Notification' in window && Notification.permission === 'default') Notification.requestPermission(); }catch(e){} }
+  if(adminOk){ try{ update(ref(db,'tomauno/status'), {adminOnline:true, adminLast: Date.now()}); }catch(e){} }
+  setTimeout(updateAdminLiveIndicator, 80);
   document.getElementById('admin-section').style.display = show ? 'block' : 'none';
   ['hero','sec-cursos','sec-eventos','sec-servicios','sec-galeria','sec-testimonios','sec-faq','sec-ubicacion'].forEach(id => {
     const el = document.getElementById(id);
@@ -1081,16 +1286,33 @@ function toggleAdmin(show) {
   if (footer) footer.style.display = show ? 'none' : '';
   window.scrollTo(0, 0);
   if (show) history.pushState({admin:true}, '', '#admin');
-  else history.replaceState({}, '', ' ');
+  else history.replaceState({}, '', window.location.pathname + window.location.search);
 }
 window.addEventListener('popstate', () => {
   if (document.getElementById('admin-section').style.display !== 'none') toggleAdmin(false);
   if (document.getElementById('moverlay').style.display === 'flex') closeModal();
 });
 window.cerrarAdmin = () => toggleAdmin(false);
+setInterval(() => { if (adminOk || isAdminNotifier()) { try{ update(ref(db,'tomauno/status'), {adminOnline:true, adminLast:Date.now()}); }catch(e){} } updateAdminLiveIndicator(); }, 25000);
+window.addEventListener('beforeunload', () => { if(adminOk){ try{ update(ref(db,'tomauno/status'), {adminOnline:false, adminLast:Date.now()}); }catch(e){} } });
 
 // ── STATE ─────────────────────────────────────────────────────────────────────
-let cursos = {}, inscripciones = {}, serviciosDB = {}, testimoniosDB = {}, prevCount = 0, eventosDB = {}, evInscDB = {};
+try{ window._adminWasActive = localStorage.getItem('tomauno-admin-notify') === '1'; }catch(e){}
+function isAdminNotifier(){ try { return !!(adminOk || window._adminWasActive || localStorage.getItem('tomauno-admin-notify') === '1'); } catch(e) { return !!(adminOk || window._adminWasActive); } }
+function updateAdminLiveIndicator(){
+  const el=document.getElementById('admin-live-indicator'), tx=document.getElementById('admin-live-text');
+  if(!el||!tx) return;
+  if(isAdminNotifier()){
+    const online = isAdminOnline ? isAdminOnline() : true;
+    el.className = 'admin-live-indicator ' + (online ? 'on' : 'off');
+    tx.textContent = online ? 'ADM activo · alertas ON' : 'ADM alertas ON · reconectando';
+  } else {
+    el.className = 'admin-live-indicator';
+  }
+}
+setInterval(updateAdminLiveIndicator, 5000);
+
+let cursos = {}, inscripciones = {}, serviciosDB = {}, testimoniosDB = {}, prevCount = 0, prevEventosCount = 0, prevTestCount = 0, prevServiciosCount = 0, prevEvRegsCount = 0, eventosDB = {}, evInscDB = {};
 
 onValue(ref(db, 'tomauno/cursos'), s => {
   setDbStatus('online');
@@ -1106,14 +1328,21 @@ onValue(ref(db, 'tomauno/inscripciones'), s => {
     const newest = entries[entries.length - 1];
     const nombre = newest ? (newest.nombre || 'Alguien') : 'Alguien';
     const curso = newest ? (newest.cursoTitulo || '') : '';
-    if(adminOk||window._adminWasActive){beep();showNotifBanner(nombre,curso);showNotif();}
+    if(isAdminNotifier()){beep();showNotifBanner('Nueva inscripción', nombre + (curso ? ' · ' + curso : ''));showNotif();}
   }
   prevCount = c;
-  renderCursos(); renderAlumnos(); renderFiltros(); updateStats();
+  renderCursos(); renderAdminCursos(); renderAlumnos(); renderFiltros(); updateStats();
 });
 
 onValue(ref(db, 'tomauno/servicios'), s => {
+  const oldServiciosCount = prevServiciosCount;
   serviciosDB = s.exists() ? s.val() : {};
+  const totalServicios = Object.keys(serviciosDB).length;
+  if (totalServicios > oldServiciosCount && oldServiciosCount > 0 && isAdminNotifier()) {
+    const newest = Object.values(serviciosDB).sort((a,b)=>(b.creado||0)-(a.creado||0))[0];
+    beep(); showNotif(); showNotifBanner('Nuevo servicio registrado', newest?.titulo || 'Servicio sin título');
+  }
+  prevServiciosCount = totalServicios;
   renderServiciosAdmin();
   renderServiciosPublicos();
   updateStats();
@@ -1121,6 +1350,16 @@ onValue(ref(db, 'tomauno/servicios'), s => {
 
 onValue(ref(db, 'tomauno/testimonios'), s => {
   testimoniosDB = s.exists() ? s.val() : {};
+  const c = Object.keys(testimoniosDB).length;
+  if (c > prevTestCount && prevTestCount > 0) {
+    const newest = Object.values(testimoniosDB).sort((a,b)=>(b.creado||0)-(a.creado||0))[0];
+    if (isAdminNotifier()) {
+      beep();
+      showNotifBanner('Nueva reseña pendiente', (newest?.name || 'Alumno') + ' · ' + (newest?.course || 'Sin curso'));
+      showNotif();
+    }
+  }
+  prevTestCount = c;
   renderTestimonios();
   renderTestimoniosAdmin();
   updateStats();
@@ -1139,6 +1378,7 @@ function updateStats() {
   el('adm-stat-test', Object.keys(testimoniosDB).length);
   const badge = document.getElementById('badge-alumnos');
   if (badge) badge.textContent = totalInsc;
+  renderStatsVistas();
 }
 
 // ── RENDER CURSOS ─────────────────────────────────────────────────────────────
@@ -1204,7 +1444,11 @@ window.abrirDetalle = (id) => {
   const insc = Object.values(inscripciones).filter(x => x.cursoId === id).length;
   const full = c.cupos > 0 && insc >= c.cupos;
   const ses = c.tipo === 'sesiones';
+  const esExterno = c.dniOrg && c.dniOrg !== 'tomauno';
   document.getElementById('mcontent').innerHTML =
+    '<div style="display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap;">' +
+    (!esExterno ? '<span style="background:rgba(232,0,10,.15);color:var(--red);border:1px solid rgba(232,0,10,.3);font-size:10px;font-weight:800;padding:4px 12px;border-radius:20px;letter-spacing:.08em;">✦ CERTIFICADO TOMAUNO</span>' : '<span style="background:rgba(90,60,220,.12);color:#a78bfa;border:1px solid rgba(90,60,220,.25);font-size:10px;font-weight:800;padding:4px 12px;border-radius:20px;">ORGANIZADOR EXTERNO</span>') +
+    '</div>' +
     (c.img ? '<img src="' + c.img + '" style="width:100%;border-radius:var(--radius-sm);margin-bottom:16px;max-height:420px;object-fit:contain;background:#0a0a0a;display:block;cursor:zoom-in;" onclick="window.verFlyerFull(this.src)" onerror="this.style.display=\'none\'"/>' : '') +
     '<div class="mtitle">' + (c.titulo || 'Sin título') + '</div>' +
     '<div class="msub">' + insc + ' inscripto' + (insc !== 1 ? 's' : '') + (c.cupos > 0 ? ' · ' + (c.cupos - insc) + ' cupos restantes' : '') + '</div>' +
@@ -1216,8 +1460,8 @@ window.abrirDetalle = (id) => {
     '</div>' +
     '<div style="font-size:14px;color:var(--text2);line-height:1.7;white-space:pre-line;margin-bottom:18px;">' + (c.desc || '') + '</div>' +
     '<div class="det-links">' +
-    (c.ig ? '<a href="https://instagram.com/' + c.ig + '" target="_blank" class="det-link ig">📸 @' + c.ig + '</a>' : '') +
-    (c.wp ? '<a href="https://wa.me/549' + c.wp.replace(/\D/g, '') + '" target="_blank" class="det-link wp">💬 Consultar</a>' : '') +
+    (c.ig ? '<a rel="noopener noreferrer" href="https://instagram.com/' + c.ig + '" target="_blank" class="det-link ig">📸 @' + c.ig + '</a>' : '') +
+    (c.wp ? '<a rel="noopener noreferrer" href="https://wa.me/549' + c.wp.replace(/\D/g, '') + '" target="_blank" class="det-link wp">💬 Consultar</a>' : '') +
     '</div>' +
     (!c.finalizado && !full ?
       '<button class="btn-main" style="margin-top:16px;" onclick="' + (ses ? 'window.abrirSesiones(\'' + id + '\')' : 'window.abrirInscripcion(\'' + id + '\')') + '">' +
@@ -1259,7 +1503,8 @@ window.abrirInscripcion = (id) => {
 };
 
 window.chkMenor = () => {
-  const e = parseInt(document.getElementById('f-edad')?.value) || 0;
+  const edadInput = document.getElementById('f-edad') || document.getElementById('fev-edad');
+  const e = parseInt(edadInput?.value) || 0;
   const b = document.getElementById('tutor-box');
   if (b) b.style.display = e > 0 && e < 18 ? 'block' : 'none';
 };
@@ -1323,14 +1568,15 @@ function genPagos(c) {
   if (c.pagoTipo === 'cuotas' && c.meses > 0) {
     const mm = ['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'];
     const n = new Date();
-    const p = [{label:'Inscripción', estado:'pendiente', monto:'', nota:''}];
+    const montoBase = Number(c.costo) || 0;
+    const p = [{label:'Inscripción', estado:'pendiente', monto:montoBase || '', nota:''}];
     for (let i = 0; i < c.meses; i++) {
       const d = new Date(n.getFullYear(), n.getMonth() + i, 1);
-      p.push({label: mm[d.getMonth()] + ' ' + d.getFullYear(), estado:'pendiente', monto:'', nota:''});
+      p.push({label: mm[d.getMonth()] + ' ' + d.getFullYear(), estado:'pendiente', monto:montoBase || '', nota:''});
     }
     return p;
   }
-  return [{label:'Pago único', estado:'pendiente', monto:'', nota:''}];
+  return [{label:'Pago único', estado:'pendiente', monto:Number(c.costo) || '', nota:''}];
 }
 
 // ── SESIONES / TURNOS ─────────────────────────────────────────────────────────
@@ -1472,7 +1718,7 @@ window.verPlanillaTurnos = (id) => {
     '<div style="display:flex;gap:8px;margin-bottom:14px;flex-wrap:wrap;">' +
     '<button class="bsm bl" id="btn-cp-full">📋 Copiar planilla</button>' +
     '<button class="bsm bl" id="btn-cp-nom">👤 Solo nombres</button>' +
-    '<a href="https://cronometro-two.vercel.app/" target="_blank" class="bsm gr" style="text-decoration:none;">⏱️ Cronómetro</a>' +
+    '<a rel="noopener noreferrer" href="https://cronometro-two.vercel.app/" target="_blank" class="bsm gr" style="text-decoration:none;">⏱️ Cronómetro</a>' +
     '</div>' +
     '<textarea id="txt-comp" readonly style="width:100%;background:#0d0d0d;border:1px solid var(--border);border-radius:var(--radius-sm);padding:12px;color:var(--text);font-size:12px;font-family:monospace;resize:vertical;min-height:180px;margin-bottom:8px;"></textarea>' +
     '<textarea id="txt-nom" readonly style="width:100%;background:#0d0d0d;border:1px solid var(--border);border-radius:var(--radius-sm);padding:12px;color:var(--text);font-size:12px;font-family:monospace;resize:vertical;min-height:100px;"></textarea>' +
@@ -1620,9 +1866,11 @@ function renderAdminCursos() {
     return '<div class="admin-ci">' +
       '<div class="admin-ci-info">' +
       '<div class="admin-ci-tit" style="' + (c.finalizado ? 'text-decoration:line-through;opacity:.4' : '') + '"><span style="color:var(--text3);font-size:12px;font-weight:700;margin-right:6px;">#' + (idx+1) + '</span>' + (c.titulo || 'Sin título') + '</div>' +
-      '<div class="admin-ci-sub">' + (c.fecha ? fFecha(c.fecha) : 'Sin fecha') + ' · ' + n + ' inscripto' + (n !== 1 ? 's' : '') + ' · ' + (c.oculto ? '🙈 Oculto' : '👁️ Visible') + (c.grupoWA ? ' · <a href="' + c.grupoWA + '" target="_blank" style="color:#25d366;text-decoration:none;">💬 Grupo WA</a>' : '') + '</div>' +
+      '<div class="admin-ci-sub">' + (c.fecha ? fFecha(c.fecha) : 'Sin fecha') + ' · ' + n + ' inscripto' + (n !== 1 ? 's' : '') + ' · ' + (c.oculto ? '🙈 Oculto' : '👁️ Visible') + (c.grupoWA ? ' · <a rel="noopener noreferrer" href="' + c.grupoWA + '" target="_blank" style="color:#25d366;text-decoration:none;">💬 Grupo WA</a>' : '') + '</div>' +
       '</div>' +
       '<div style="display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end;">' +
+      '<button class="bsm bl" onclick="window.verAlumnosCurso(\'' + k + '\')">'
+      + '👥 ' + n + ' Alumnos</button>' +
       '<button class="bsm gr" onclick="window.editCurso(\'' + k + '\')">✏️ Editar</button>' +
       (c.tipo === 'sesiones' ? '<button class="bsm bl" onclick="window.verPlanillaTurnos(\'' + k + '\')">📋 Turnos</button>' : '') +
       '<button class="bsm bl" onclick="window.copiarLinkCurso(\'' + k + '\')">🔗 Link</button>' +
@@ -1632,6 +1880,17 @@ function renderAdminCursos() {
       '</div></div>';
   }).join('');
 }
+
+window.verAlumnosCurso = (id) => {
+  setAtab('alumnos');
+  setTimeout(() => {
+    const sel = document.getElementById('filtro-curso');
+    if (sel) sel.value = id;
+    renderAlumnos();
+    const panel = document.getElementById('atab-alumnos');
+    if (panel) panel.scrollIntoView({behavior:'smooth', block:'start'});
+  }, 60);
+};
 
 window.togFin = async (id, v) => { await update(ref(db, 'tomauno/cursos/' + id), {finalizado: v}); };
 window.togOc = async (id, v) => { await update(ref(db, 'tomauno/cursos/' + id), {oculto: v}); };
@@ -1668,77 +1927,171 @@ function renderFiltros() {
       .map(([k, c]) => '<option value="' + (c.titulo || k) + '">' + (c.titulo || k) + '</option>').join('');
 }
 
-window.renderAlumnos = () => {
-  const tb = document.getElementById('alumnos-tbody'); if (!tb) return;
+function escHtml(v) {
+  return String(v ?? '').replace(/[&<>"]/g, ch => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[ch]));
+}
+
+function getPagoAlumnoInfo(i, cur) {
+  const pagos = i.pagos || [{label:'Pago único', estado:'pendiente', monto:(cur && cur.costo) ? Number(cur.costo) : ''}];
+  const pagadas = pagos.filter(p => p.estado === 'pagado').length;
+  const parciales = pagos.filter(p => p.estado === 'parcial').length;
+  const pendientes = pagos.filter(p => p.estado === 'pendiente').length;
+  let monto = pagos.reduce((acc,p) => acc + (parseFloat(String(p.monto||'').replace(',','.')) || 0), 0);
+  if (!monto && pagadas > 0 && cur && cur.costo) monto = Number(cur.costo) || 0;
+  const estado = pagadas ? 'pagado' : parciales ? 'parcial' : 'pendiente';
+  return {pagos,pagadas,parciales,pendientes,monto,estado};
+}
+
+function getAlumnosFiltrados() {
   const filtro = document.getElementById('filtro-curso')?.value || '';
   let lista = Object.entries(inscripciones).sort((a, b) => ((b[1].creado || 0) - (a[1].creado || 0)));
   if (filtro) lista = lista.filter(([, i]) => i.cursoId === filtro);
+  return {filtro, lista};
+}
+
+window.renderAlumnos = () => {
+  const tb = document.getElementById('alumnos-tbody'); if (!tb) return;
+  const table = tb.closest('table');
+  const thead = table?.querySelector('thead');
+  const {filtro, lista} = getAlumnosFiltrados();
+  const cursoSeleccionado = filtro && cursos[filtro] ? cursos[filtro] : null;
+  const mostrarCurso = !filtro;
+
+  if (table) {
+    table.classList.add('planilla-table');
+    table.classList.toggle('no-course', !mostrarCurso);
+  }
+  if (thead) {
+    thead.innerHTML = '<tr>' +
+      '<th>#</th><th>NOMBRE</th><th>EDAD</th><th>DNI</th>' +
+      (mostrarCurso ? '<th>CURSO</th>' : '') +
+      '<th>INSTAGRAM</th><th>WP ALUMNO</th><th>WP TUTOR</th><th>PAGO</th><th>ACC.</th>' +
+      '</tr>';
+  }
+
+  const totalMonto = lista.reduce((acc, [,i]) => acc + getPagoAlumnoInfo(i, cursos[i.cursoId]).monto, 0);
+  const conPago = lista.filter(([,i]) => getPagoAlumnoInfo(i, cursos[i.cursoId]).estado === 'pagado').length;
+  const parcial = lista.filter(([,i]) => getPagoAlumnoInfo(i, cursos[i.cursoId]).estado === 'parcial').length;
+  const pendientesPersonas = lista.filter(([,i]) => getPagoAlumnoInfo(i, cursos[i.cursoId]).estado === 'pendiente').length;
+  const statEl = document.getElementById('alumnos-stats');
+  if (statEl) statEl.innerHTML =
+    (cursoSeleccionado ? '<div class="planilla-title">' + escHtml(cursoSeleccionado.titulo || 'Curso seleccionado') + '</div>' : '<div class="planilla-title">PLANILLA <em>GENERAL</em></div>') +
+    '<div class="admin-metrics" style="width:100%;margin:0;">' +
+      '<div class="admin-metric"><div class="admin-metric-n">' + lista.length + '</div><div class="admin-metric-l">Inscriptos</div></div>' +
+      '<div class="admin-metric"><div class="admin-metric-n" style="color:#4caf7d;">' + conPago + '</div><div class="admin-metric-l">Con pago</div></div>' +
+      '<div class="admin-metric"><div class="admin-metric-n" style="color:#f5c842;">' + parcial + '</div><div class="admin-metric-l">Parciales</div></div>' +
+      '<div class="admin-metric"><div class="admin-metric-n" style="color:#e05252;">' + pendientesPersonas + '</div><div class="admin-metric-l">Pendientes</div></div>' +
+      '<div class="admin-metric"><div class="admin-metric-n" style="color:#4caf7d;">$ ' + totalMonto.toLocaleString('es-AR') + '</div><div class="admin-metric-l">Total registrado</div></div>' +
+    '</div>';
+
   if (!lista.length) {
-    tb.innerHTML = '<tr><td colspan="6" style="text-align:center;padding:40px;color:var(--text3);">Sin inscripciones</td></tr>';
+    tb.innerHTML = '<tr><td colspan="' + (mostrarCurso ? 10 : 9) + '" style="text-align:center;padding:40px;color:var(--text3);">Sin inscripciones para este filtro</td></tr>';
     return;
   }
-  const totPagadas = lista.reduce((a, [, i]) => a + (i.pagos || []).filter(p => p.estado === 'pagado').length, 0);
-  const totParcial = lista.reduce((a, [, i]) => a + (i.pagos || []).filter(p => p.estado === 'parcial').length, 0);
-  const totPend = lista.reduce((a, [, i]) => a + (i.pagos || []).filter(p => p.estado === 'pendiente').length, 0);
+
   tb.innerHTML = lista.map(([k, i], idx) => {
-    const pagos = i.pagos || [{label:'Pago único', estado:'pendiente'}];
-    const ph = '<div style="display:flex;flex-wrap:wrap;gap:4px;align-items:center;">' +
-      pagos.map((p, pidx) =>
-        '<div style="display:flex;align-items:center;gap:2px;background:rgba(255,255,255,.04);border-radius:20px;padding:2px 2px 2px 8px;border:1px solid rgba(255,255,255,.08);">' +
-        '<span style="font-size:10px;font-weight:700;white-space:nowrap;">' + p.label + '</span>' +
-        '<select style="background:transparent;border:none;color:' + (p.estado==='pagado'?'#4caf7d':p.estado==='parcial'?'#f5c842':'#e05252') + ';font-size:10px;font-weight:700;cursor:pointer;padding:2px;font-family:var(--font);outline:none;" onchange="window.updPago(\'' + k + '\',' + pidx + ',this.value)">' +
-        '<option value="pendiente" ' + (p.estado==='pendiente'?'selected':'') + ' style="background:#111;color:#e05252;">Pendiente</option>' +
-        '<option value="parcial" ' + (p.estado==='parcial'?'selected':'') + ' style="background:#111;color:#f5c842;">Parcial</option>' +
-        '<option value="pagado" ' + (p.estado==='pagado'?'selected':'') + ' style="background:#111;color:#4caf7d;">✓ Pagado</option>' +
-        '</select></div>'
-      ).join('') +
-      '<button class="bsm bl" style="font-size:9px;padding:3px 8px;" onclick="window.addCuota(\'' + k + '\')">+</button>' +
-      '</div>';
     const cur = cursos[i.cursoId];
-    const tot = (() => {
-      if (!cur) return '-';
-      const tot = (i.pagos || []).reduce((a, p) => a + (parseFloat(p.monto) || cur.costo || 0), 0);
-      return tot > 0 ? '$ ' + tot.toLocaleString('es-AR') : (cur.costo ? '$ ' + Number(cur.costo).toLocaleString('es-AR') : '-');
-    })();
+    const cursoNombre = i.cursoTitulo || (cur ? cur.titulo : '') || 'Sin curso';
+    const pinfo = getPagoAlumnoInfo(i, cur);
+    const estadoClass = pinfo.estado === 'pagado' ? 'pay-ok' : pinfo.estado === 'parcial' ? 'pay-pa' : 'pay-pe';
+    const estadoTxt = pinfo.estado === 'pagado' ? 'Con pagos' : pinfo.estado === 'parcial' ? 'Parcial' : 'Pendiente';
+    const resumenPagos = '✅ ' + pinfo.pagadas + ' · ⚡ ' + pinfo.parciales + ' · ⏳ ' + pinfo.pendientes + (pinfo.monto ? ' · $ ' + pinfo.monto.toLocaleString('es-AR') : '');
+    const waText = 'Hola ' + (i.nombre||'').split(' ')[0] + '! Te escribimos de Tomauno para confirmarte tu pre-inscripción a ' + cursoNombre + '. En breve nos comunicamos con los detalles. Muchas gracias!';
+    const waLink = 'https://wa.me/549' + (i.wp||'').replace(/\D/g,'') + '?text=' + waEncode(waText);
     return '<tr>' +
-      '<td>' +
-      '<div class="tdn"><span style="color:var(--text3);font-size:12px;font-weight:700;margin-right:6px;">#' + (idx+1) + '</span>' + (i.nombre || '') + '</div>' +
-      '<div class="tds">DNI ' + (i.dni || '-') + ' · ' + (i.edad || '-') + ' años</div>' +
-      (i.ig ? '<a href="https://instagram.com/' + i.ig + '" target="_blank" class="ig-link">@' + i.ig + '</a>' : '') +
-      (i.turno ? '<div class="tds" style="color:var(--red);">⏰ ' + i.turno + '</div>' : '') +
-      '</td>' +
-      '<td><div class="tds" style="color:#fff;font-weight:600;">' + (i.cursoTitulo || '') + '</div><div class="tds">' + (i.fecha || '') + '</div></td>' +
-      '<td>' +
-      '<a href="https://wa.me/549' + (i.wp || '').replace(/\D/g, '') + '" target="_blank" class="wabtn">💬 ' + (i.wp || '') + '</a>' +
-      (i.tutorWp ? '<div style="margin-top:4px;"><a href="https://wa.me/549' + i.tutorWp.replace(/\D/g, '') + '" target="_blank" class="wabtn" style="font-size:10px;">👨‍👩‍👧 Tutor</a></div>' : '') +
-      '</td>' +
-      '<td>' + ph + '</td>' +
-      '<td style="font-family:var(--display);font-size:16px;color:var(--red);white-space:nowrap;">' + tot + '</td>' +
-      '<td><button class="bsm re" onclick="window.delInsc(\'' + k + '\')">🗑️</button></td>' +
+      '<td class="row-index">' + (idx+1) + '</td>' +
+      '<td title="' + escHtml(i.nombre||'') + '"><div class="student-name">' + escHtml(i.nombre||'-') + '</div><div class="student-sub">' + escHtml(i.fecha||'') + (i.hora?' · '+escHtml(i.hora):'') + '</div>' + (i.turno ? '<div class="student-sub" style="color:var(--red);">⏰ '+escHtml(i.turno)+'</div>' : '') + '</td>' +
+      '<td>' + escHtml(i.edad||'-') + '</td>' +
+      '<td>' + escHtml(i.dni||'-') + '</td>' +
+      (mostrarCurso ? '<td><div class="course-cell" title="' + escHtml(cursoNombre) + '">' + escHtml(cursoNombre) + '</div></td>' : '') +
+      '<td>' + (i.ig ? '<a rel="noopener noreferrer" href="https://instagram.com/'+escHtml(i.ig.replace('@',''))+'" target="_blank" class="ig-link">@'+escHtml(i.ig.replace('@',''))+'</a>' : '<span class="tds">-</span>') + '</td>' +
+      '<td><a rel="noopener noreferrer" href="https://wa.me/549' + (i.wp||'').replace(/\D/g,'') + '" target="_blank" class="wabtn">' + escHtml(i.wp||'-') + '</a></td>' +
+      '<td>' + (i.tutorWp ? '<a rel="noopener noreferrer" href="https://wa.me/549'+i.tutorWp.replace(/\D/g,'')+'" target="_blank" class="wabtn" style="font-size:10px;">'+escHtml(i.tutorWp)+'</a>' : '<span class="tds">-</span>') + '</td>' +
+      '<td><div class="pay-summary"><span class="pay-pill ' + estadoClass + '">' + estadoTxt + '</span><span class="pay-summary-text" title="' + escHtml(resumenPagos) + '">' + escHtml(resumenPagos) + '</span><button class="pay-chip-btn" onclick="window.abrirPagosAlumno(\'' + k + '\')">Pagos</button></div></td>' +
+      '<td><div class="action-mini"><a rel="noopener noreferrer" href="' + waLink + '" target="_blank" class="bsm gr" style="text-decoration:none;">WA</a><button class="bsm bl" onclick="window.enviarTicketPagoAlumno(\'' + k + '\')">Ticket</button><button class="bsm re" onclick="window.delInsc(\'' + k + '\')">✕</button></div></td>' +
       '</tr>';
   }).join('') +
-  '<tr style="background:#0d0d0d;border-top:2px solid var(--red);">' +
-  '<td colspan="2" style="font-size:12px;color:var(--text3);font-weight:700;padding:12px;">📊 ' + lista.length + ' inscripto' + (lista.length!==1?'s':'') + '</td>' +
-  '<td style="font-size:12px;padding:12px;">' +
-  '<span class="ppill pp-ok">✅ ' + totPagadas + ' paga' + (totPagadas!==1?'s':'') + '</span> ' +
-  '<span class="ppill pp-pa">⚡ ' + totParcial + ' parcial' + (totParcial!==1?'es':'') + '</span> ' +
-  '<span class="ppill pp-pe">⏳ ' + totPend + ' pendiente' + (totPend!==1?'s':'') + '</span>' +
-  '</td><td></td><td></td><td></td></tr>';
+  '<tr style="background:#0d0d0d;border-top:2px solid var(--red);"><td colspan="' + (mostrarCurso ? 10 : 9) + '" style="padding:12px;font-size:12px;color:var(--text2);font-weight:700;white-space:normal;">📊 ' + (cursoSeleccionado ? escHtml(cursoSeleccionado.titulo || '') + ' · ' : '') + 'Total: ' + lista.length + ' · ✅ Con pago: ' + conPago + ' · ⚡ Parciales: ' + parcial + ' · ⏳ Pendientes: ' + pendientesPersonas + ' · 💰 Total registrado: $ ' + totalMonto.toLocaleString('es-AR') + '</td></tr>';
+};
+
+window.abrirPagosAlumno = (id) => {
+  const i = inscripciones[id]; if (!i) return;
+  const cur = cursos[i.cursoId];
+  const pinfo = getPagoAlumnoInfo(i, cur);
+  const montoDefault = Number(cur?.costo || 0) || '';
+  const pagos = pinfo.pagos.map(p => ({...p, monto: (p.monto === undefined || p.monto === null || p.monto === '') ? montoDefault : p.monto}));
+  document.getElementById('mcontent').innerHTML =
+    '<div class="mtitle">PAGOS</div>' +
+    '<div class="msub" style="margin-bottom:16px;">' + escHtml(i.nombre||'Alumno') + ' · ' + escHtml(i.cursoTitulo || cur?.titulo || '') + '</div>' +
+    '<div style="display:grid;gap:10px;">' +
+    pagos.map((p, idx) => {
+      const clr = p.estado==='pagado'?'#4caf7d':p.estado==='parcial'?'#f5c842':'#e05252';
+      return '<div style="display:grid;grid-template-columns:1fr 120px 120px;gap:8px;align-items:center;background:#0d0d0d;border:1px solid var(--border);border-radius:12px;padding:10px;">' +
+        '<div><div style="font-size:12px;font-weight:800;color:#fff;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">' + escHtml(p.label||'Pago') + '</div><div style="font-size:10px;color:var(--text3);margin-top:2px;">Cuota / concepto</div></div>' +
+        '<select class="mini-input" style="color:' + clr + ';font-weight:800;" onchange="window.updPago(\'' + id + '\',' + idx + ',this.value)">' +
+          '<option value="pendiente" ' + (p.estado==='pendiente'?'selected':'') + '>Pendiente</option>' +
+          '<option value="parcial" ' + (p.estado==='parcial'?'selected':'') + '>Parcial</option>' +
+          '<option value="pagado" ' + (p.estado==='pagado'?'selected':'') + '>Pagado</option>' +
+        '</select>' +
+        '<input class="mini-input" type="number" value="' + escHtml((p.monto === undefined || p.monto === null || p.monto === '') ? montoDefault : p.monto) + '" placeholder="Monto" onchange="window.updMontoPagoAlumno(\'' + id + '\',' + idx + ',this.value)" />' +
+      '</div>';
+    }).join('') +
+    '</div>' +
+    '<div style="display:flex;gap:8px;margin-top:14px;"><button class="btn-out" style="flex:1;" onclick="window.addCuota(\'' + id + '\')">+ Agregar cuota</button><button class="btn-main" style="flex:1;" onclick="window.closeModal()">Listo</button></div>';
+  openModal();
+};
+
+window.updMontoPagoAlumno = async (id, idx, monto) => {
+  const insc = inscripciones[id]; if (!insc) return;
+  const pagos = [...(insc.pagos || [])];
+  pagos[idx] = {...pagos[idx], monto};
+  await update(ref(db, 'tomauno/inscripciones/' + id), {pagos});
+  toast('💰 Monto actualizado');
 };
 
 window.updPago = async (id, idx, estado) => {
   const insc = inscripciones[id]; if (!insc) return;
+  const cur = cursos[insc.cursoId];
   const pagos = [...(insc.pagos || [])];
-  pagos[idx] = {...pagos[idx], estado};
+  const montoDefault = Number(cur?.costo || 0) || '';
+  pagos[idx] = {...pagos[idx], estado, monto: (pagos[idx].monto === undefined || pagos[idx].monto === null || pagos[idx].monto === '') ? montoDefault : pagos[idx].monto, fechaPago: (estado === 'pagado' || estado === 'parcial') ? (pagos[idx].fechaPago || new Date().toLocaleDateString('es-AR')) : (pagos[idx].fechaPago || '')};
   await update(ref(db, 'tomauno/inscripciones/' + id), {pagos});
   toast('💰 Pago actualizado');
 };
+
+
+window.enviarTicketPagoAlumno = (id) => {
+  const i = inscripciones[id]; if (!i) return;
+  const cur = cursos[i.cursoId];
+  const cursoNombre = i.cursoTitulo || cur?.titulo || 'Curso';
+  const pagos = i.pagos || [];
+  const total = pagos.reduce((acc,p) => acc + ((p.estado === 'pagado' || p.estado === 'parcial') ? (parseFloat(String(p.monto||'').replace(',','.')) || 0) : 0), 0);
+  const detalle = pagos.map((p, idx) => {
+    const icon = p.estado === 'pagado' ? '✅' : p.estado === 'parcial' ? '⚡' : '⏳';
+    const monto = p.monto ? ('$ ' + Number(String(p.monto).replace(',','.')).toLocaleString('es-AR')) : '$ 0';
+    const fecha = p.fechaPago ? (' · ' + p.fechaPago) : '';
+    return icon + ' ' + (p.label || ('Pago ' + (idx+1))) + ': ' + estadoPagoTxt(p.estado) + ' · ' + monto + fecha;
+  }).join('\n');
+  const msg = '🧾 *Historial de pagos - Tomauno*\n\n' +
+    '👤 Alumno/a: ' + (i.nombre || '-') + '\n' +
+    '📚 Curso: ' + cursoNombre + '\n' +
+    '📄 DNI: ' + (i.dni || '-') + '\n\n' +
+    '💰 *Pagos registrados:*\n' + (detalle || 'Sin pagos registrados') + '\n\n' +
+    '✅ Total abonado/registrado: $ ' + total.toLocaleString('es-AR') + '\n\n' +
+    'Gracias por formar parte de Tomauno 🙌';
+  const wp = (i.wp || '').replace(/\D/g,'');
+  if (!wp) { toast('Este alumno no tiene WhatsApp cargado'); return; }
+  window.open('https://wa.me/549' + wp + '?text=' + waEncode(msg), '_blank');
+};
+
+function estadoPagoTxt(e){ return e === 'pagado' ? 'Pagado' : e === 'parcial' ? 'Parcial' : 'Pendiente'; }
 
 window.addCuota = (id) => {
   showPrompt('Nombre de la cuota (ej: Mayo 2026):', async (label) => {
     if (!label) return;
     const insc = inscripciones[id]; if (!insc) return;
-    const pagos = [...(insc.pagos || []), {label, estado:'pendiente', monto:'', nota:''}];
+    const cur = cursos[insc.cursoId];
+    const pagos = [...(insc.pagos || []), {label, estado:'pendiente', monto:(cur && cur.costo) ? Number(cur.costo) : '', nota:''}];
     await update(ref(db, 'tomauno/inscripciones/' + id), {pagos});
     toast('✅ Cuota agregada');
   });
@@ -1761,12 +2114,12 @@ window.abrirGrupoWA = () => {
   let html = '<div class="mtitle" style="margin-bottom:12px;">💬 GRUPO WHATSAPP</div>' +
     '<div class="msub">' + (c ? c.titulo : '') + ' · ' + lista.length + ' inscriptos</div>';
   if (c && c.grupoWA) {
-    html += '<a href="' + c.grupoWA + '" target="_blank" class="btn-main" style="text-decoration:none;background:#25d366;margin-top:16px;">💬 Abrir/compartir link del grupo</a>' +
+    html += '<a rel="noopener noreferrer" href="' + c.grupoWA + '" target="_blank" class="btn-main" style="text-decoration:none;background:#25d366;margin-top:16px;">💬 Abrir/compartir link del grupo</a>' +
       '<div style="margin:20px 0 8px;font-size:12px;color:var(--text3);font-weight:700;text-transform:uppercase;letter-spacing:.08em;">O enviar invitación individual</div>' +
       lista.map(i =>
         '<div style="display:flex;align-items:center;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--border);">' +
         '<span style="font-size:13px;">' + (i.nombre || '') + '</span>' +
-        '<a href="https://wa.me/549' + (i.wp || '').replace(/\D/g, '') + '?text=' + encodeURIComponent('Hola ' + (i.nombre || '').split(' ')[0] + '! Te comparto el link del grupo: ' + c.grupoWA) + '" target="_blank" class="wabtn">💬 Invitar</a>' +
+        '<a rel="noopener noreferrer" href="https://wa.me/549' + (i.wp || '').replace(/\D/g, '') + '?text=' + encodeURIComponent('Hola ' + (i.nombre || '').split(' ')[0] + '! Te comparto el link del grupo: ' + c.grupoWA) + '" target="_blank" class="wabtn">💬 Invitar</a>' +
         '</div>'
       ).join('');
   } else {
@@ -1775,7 +2128,7 @@ window.abrirGrupoWA = () => {
       lista.map(i =>
         '<div style="display:flex;align-items:center;justify-content:space-between;padding:7px 0;border-bottom:1px solid var(--border);">' +
         '<span style="font-size:13px;">' + (i.nombre || '') + '</span>' +
-        '<a href="https://wa.me/549' + (i.wp || '').replace(/\D/g, '') + '" target="_blank" class="wabtn">💬 WA</a>' +
+        '<a rel="noopener noreferrer" href="https://wa.me/549' + (i.wp || '').replace(/\D/g, '') + '" target="_blank" class="wabtn">💬 WA</a>' +
         '</div>'
       ).join('');
   }
@@ -1785,28 +2138,62 @@ window.abrirGrupoWA = () => {
 };
 
 // ── EXPORTAR ──────────────────────────────────────────────────────────────────
-window.exportarExcel = () => {
-  const f = document.getElementById('filtro-curso')?.value || '';
-  let lista = Object.values(inscripciones);
-  if (f) lista = lista.filter(i => i.cursoId === f);
-  const h = ['Nombre','DNI','Edad','IG','WhatsApp','Turno','Curso','Fecha','WP Tutor','Pagos'];
-  const rows = lista.map(i => [i.nombre||'',i.dni||'',i.edad||'',i.ig||'',i.wp||'',i.turno||'-',i.cursoTitulo||'',i.fecha||'',i.tutorWp||'',(i.pagos||[]).map(p=>p.label+':'+p.estado).join(' | ')]);
-  const csv = '\ufeff' + [h, ...rows].map(r => r.map(v => '"' + v + '"').join(',')).join('\n');
+function descargarExcelCsv(nombreArchivo, titulo, columnas, filas) {
+  const sep = ';';
+  const limpiar = (v) => String(v ?? '').replace(/\r?\n/g, ' ').replace(/;/g, ',').trim();
+  const lines = [];
+  lines.push(limpiar(titulo));
+  lines.push('Generado;' + new Date().toLocaleDateString('es-AR'));
+  lines.push('');
+  lines.push(columnas.map(limpiar).join(sep));
+  filas.forEach(r => lines.push(r.map(limpiar).join(sep)));
+  const blob = new Blob(['\ufeff' + lines.join('\r\n')], {type:'text/csv;charset=utf-8;'});
   const a = document.createElement('a');
-  a.href = URL.createObjectURL(new Blob([csv], {type:'text/csv;charset=utf-8;'}));
-  a.download = 'tomauno_inscripciones.csv';
+  a.href = URL.createObjectURL(blob);
+  a.download = nombreArchivo.endsWith('.csv') ? nombreArchivo : nombreArchivo + '.csv';
+  document.body.appendChild(a);
   a.click();
+  setTimeout(() => {
+    URL.revokeObjectURL(a.href);
+    a.remove();
+  }, 800);
+}
+
+window.exportarExcel = () => {
+  const {filtro, lista} = getAlumnosFiltrados();
+  const cn = filtro && cursos[filtro] ? cursos[filtro].titulo : 'Todos los cursos';
+  const mostrarCurso = !filtro;
+  const cols = ['N°','Nombre','DNI','Edad','Instagram','WhatsApp','Turno','Fecha','WP Tutor','Estado pago','Monto registrado'];
+  if (mostrarCurso) cols.splice(8, 0, 'Curso');
+  const rows = lista.map(([,i], idx) => {
+    const cur = cursos[i.cursoId];
+    const p = getPagoAlumnoInfo(i, cur);
+    const estadoTxt = p.estado === 'pagado' ? 'Con pagos' : p.estado === 'parcial' ? 'Parcial' : 'Pendiente';
+    const row = [idx+1, i.nombre||'', i.dni||'', i.edad||'', i.ig||'', i.wp||'', i.turno||'', i.fecha||'', i.tutorWp||'', estadoTxt, p.monto || ''];
+    if (mostrarCurso) row.splice(8, 0, i.cursoTitulo || cur?.titulo || '');
+    return row;
+  });
+  descargarExcelCsv('tomauno_inscripciones_' + cn.replace(/[^a-zA-Z0-9]/g,'_') + '.csv', 'Tomauno — ' + cn, cols, rows);
 };
 
 window.exportarPDF = () => {
-  const f = document.getElementById('filtro-curso')?.value || '';
-  let lista = Object.values(inscripciones);
-  const cn = f && cursos[f] ? cursos[f].titulo : 'Todos los cursos';
-  if (f) lista = lista.filter(i => i.cursoId === f);
-  const rows = lista.map(i => '<tr><td>' + (i.nombre||'') + '</td><td>' + (i.dni||'') + '</td><td>' + (i.edad||'') + '</td><td>@' + (i.ig||'') + '</td><td>' + (i.wp||'') + '</td><td>' + (i.turno||'-') + '</td><td>' + (i.cursoTitulo||'') + '</td><td>' + (i.fecha||'') + '</td></tr>').join('');
+  const {filtro, lista} = getAlumnosFiltrados();
+  const cn = filtro && cursos[filtro] ? cursos[filtro].titulo : 'Todos los cursos';
+  const mostrarCurso = !filtro;
+  const head = '<tr><th>#</th><th>Nombre</th><th>DNI</th><th>Edad</th>' + (mostrarCurso ? '<th>Curso</th>' : '') + '<th>IG</th><th>WP</th><th>Turno</th><th>Fecha</th><th>Pago</th><th>Monto</th></tr>';
+  const rows = lista.map(([,i], idx) => {
+    const cur = cursos[i.cursoId];
+    const p = getPagoAlumnoInfo(i, cur);
+    const estadoTxt = p.estado === 'pagado' ? 'Con pagos' : p.estado === 'parcial' ? 'Parcial' : 'Pendiente';
+    return '<tr><td>' + (idx+1) + '</td><td>' + escHtml(i.nombre||'') + '</td><td>' + escHtml(i.dni||'') + '</td><td>' + escHtml(i.edad||'') + '</td>' +
+      (mostrarCurso ? '<td>' + escHtml(i.cursoTitulo || cur?.titulo || '') + '</td>' : '') +
+      '<td>@' + escHtml(i.ig||'') + '</td><td>' + escHtml(i.wp||'') + '</td><td>' + escHtml(i.turno||'-') + '</td><td>' + escHtml(i.fecha||'') + '</td><td>' + estadoTxt + '</td><td>$ ' + Number(p.monto||0).toLocaleString('es-AR') + '</td></tr>';
+  }).join('');
+  const total = lista.reduce((a,[,i]) => a + getPagoAlumnoInfo(i, cursos[i.cursoId]).monto, 0);
   const win = window.open('', '_blank');
   if (win) {
-    win.document.write('<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Tomauno</title><style>body{font-family:sans-serif;padding:20px;font-size:11px}h1{font-size:16px}table{width:100%;border-collapse:collapse}th{background:#111;color:#fff;padding:6px;text-align:left}td{padding:5px 6px;border-bottom:1px solid #eee}</style></head><body><h1>Tomauno — ' + cn + '</h1><p>' + new Date().toLocaleDateString('es-AR') + ' · ' + lista.length + ' inscriptos</p><table><thead><tr><th>Nombre</th><th>DNI</th><th>Edad</th><th>IG</th><th>WP</th><th>Turno</th><th>Curso</th><th>Fecha</th></tr></thead><tbody>' + rows + '</tbody></table></body></html>');
+    const colgroup = mostrarCurso ? '<col style="width:4%"><col style="width:18%"><col style="width:9%"><col style="width:6%"><col style="width:17%"><col style="width:12%"><col style="width:11%"><col style="width:8%"><col style="width:8%"><col style="width:7%"><col style="width:8%">' : '<col style="width:4%"><col style="width:22%"><col style="width:10%"><col style="width:6%"><col style="width:13%"><col style="width:12%"><col style="width:9%"><col style="width:9%"><col style="width:8%"><col style="width:7%">';
+    win.document.write('<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Tomauno</title><style>@page{size:A4 landscape;margin:9mm}*{-webkit-print-color-adjust:exact!important;print-color-adjust:exact!important}body{font-family:Arial,sans-serif;padding:0;font-size:10px;color:#111}.head{background:#111!important;color:#fff!important;border-radius:10px;padding:16px 18px;margin-bottom:12px}.brand{font-size:34px;font-weight:900;letter-spacing:2px;line-height:1}.brand span{color:#e8000a!important}.course-title{font-size:18px;font-weight:900;margin-top:8px;color:#fff!important}.meta{color:#ddd!important;margin-top:4px;font-size:11px}.summary{display:flex;gap:10px;margin:10px 0 14px}.box{border:1px solid #ddd;background:#f5f5f5!important;padding:8px 10px;border-radius:8px;font-weight:700}table{width:100%;border-collapse:collapse;table-layout:fixed;border:1px solid #bbb}th{background:#e8000a!important;color:#fff!important;padding:7px;text-align:left;font-size:8.5px;border:1px solid #b5000a;text-transform:uppercase}td{padding:6px;border:1px solid #d5d5d5;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}tbody tr:nth-child(even){background:#f7f7f7!important}</style></head><body><div class="head"><div class="brand">TOMA<span>UNO</span></div><div class="course-title">' + escHtml(cn) + '</div><div class="meta">Planilla de alumnos · ' + new Date().toLocaleDateString('es-AR') + '</div></div><div class="summary"><div class="box">Inscriptos: ' + lista.length + '</div><div class="box">Total registrado: $ ' + total.toLocaleString('es-AR') + '</div></div><table><colgroup>' + colgroup + '</colgroup><thead>' + head + '</thead><tbody>' + rows + '</tbody></table></body></html>');
     win.document.close();
     setTimeout(() => win.print(), 400);
   }
@@ -1826,7 +2213,7 @@ window.abrirServicio = (idx) => {
     '<div style="font-size:52px;text-align:center;margin-bottom:12px;">' + s.icon + '</div>' +
     '<div class="mtitle" style="text-align:center;">' + s.title + '</div>' +
     '<div style="font-size:14px;color:var(--text2);line-height:1.75;white-space:pre-line;margin:16px 0 20px;">' + s.desc + '</div>' +
-    '<a href="https://wa.me/549' + s.wp + '?text=' + encodeURIComponent('Hola! Me interesa el servicio de ' + s.title + '. ¿Pueden darme más info?') + '" target="_blank" class="btn-main" style="text-decoration:none;">💬 Consultar por WhatsApp</a>' +
+    '<a rel="noopener noreferrer" href="https://wa.me/549' + s.wp + '?text=' + encodeURIComponent('Hola! Me interesa el servicio de ' + s.title + '. ¿Pueden darme más info?') + '" target="_blank" class="btn-main" style="text-decoration:none;">💬 Consultar por WhatsApp</a>' +
     '<button class="btn-out" onclick="window.closeModal()">Cerrar</button>';
   openModal();
 };
@@ -1894,8 +2281,8 @@ window.abrirServicioDB = (id) => {
     (s.precio ? '<div style="font-family:var(--display);font-size:32px;color:var(--red);margin:8px 0 16px;">$ ' + Number(s.precio).toLocaleString('es-AR') + '</div>' : '') +
     '<div style="font-size:14px;color:var(--text2);line-height:1.75;white-space:pre-line;margin-bottom:20px;">' + (s.desc || '') + '</div>' +
     (s.dir ? '<div style="font-size:13px;color:var(--text2);margin-bottom:10px;">📍 ' + s.dir + '</div>' : '') +
-    (s.ig ? '<a href="https://instagram.com/' + s.ig + '" target="_blank" class="det-link ig" style="margin-bottom:12px;display:inline-flex;">📸 @' + s.ig + '</a>' : '') +
-    '<a href="https://wa.me/549' + wp + '?text=' + encodeURIComponent('Hola! Me interesa el servicio: ' + (s.titulo || '') + '. ¿Pueden darme más info?') + '" target="_blank" class="btn-main" style="text-decoration:none;margin-top:8px;">💬 Consultar por WhatsApp</a>' +
+    (s.ig ? '<a rel="noopener noreferrer" href="https://instagram.com/' + s.ig + '" target="_blank" class="det-link ig" style="margin-bottom:12px;display:inline-flex;">📸 @' + s.ig + '</a>' : '') +
+    '<a rel="noopener noreferrer" href="https://wa.me/549' + wp + '?text=' + encodeURIComponent('Hola! Me interesa el servicio: ' + (s.titulo || '') + '. ¿Pueden darme más info?') + '" target="_blank" class="btn-main" style="text-decoration:none;margin-top:8px;">💬 Consultar por WhatsApp</a>' +
     '<button class="btn-out" onclick="window.closeModal()">Cerrar</button>';
   openModal();
 };
@@ -1919,15 +2306,25 @@ function renderTestimonios() {
     return;
   }
   g.innerHTML = lista.map(([k, t]) => {
-    const stars = '⭐'.repeat(parseInt(t.stars) || 5);
+    const stars = '★'.repeat(parseInt(t.stars) || 5);
+    const ini = (t.name || 'A')[0].toUpperCase();
+    const avatarHtml = t.avatar
+      ? '<img src="' + t.avatar + '" style="width:100%;height:100%;object-fit:cover;" loading="lazy"/>'
+      : ini;
+    const igHtml = t.ig
+      ? '<a rel="noopener noreferrer" href="https://instagram.com/' + t.ig.replace('@','') + '" target="_blank" class="test-ig">@' + t.ig.replace('@','') + '</a>'
+      : '';
     return '<div class="test-card">' +
       '<div class="test-stars">' + stars + '</div>' +
-      '<div class="test-text">"' + (t.text || '') + '"</div>' +
+      '<div class="test-text">' + (t.text || '') + '</div>' +
       '<div class="test-author">' +
-      '<div class="test-avatar">' + (t.avatar ? '<img src="' + t.avatar + '" onerror="this.parentNode.textContent=\'👤\'"/>' : '👤') + '</div>' +
-      '<div><div class="test-name">' + (t.name || 'Alumno') + '</div>' +
-      '<div class="test-course">' + (t.course || '') + '</div></div>' +
-      '</div></div>';
+      '<div class="test-avatar">' + avatarHtml + '</div>' +
+      '<div>' +
+      '<div class="test-name">' + (t.name || 'Alumno') + '</div>' +
+      igHtml +
+      (t.course ? '<div class="test-course">' + t.course + '</div>' : '') +
+      (t.date ? '<div class="test-date">' + t.date + '</div>' : '') +
+      '</div></div></div>';
   }).join('');
 }
 
@@ -1967,6 +2364,44 @@ window.agregarTestimonio = async () => {
   });
   ['nt-nombre','nt-texto','nt-avatar'].forEach(id => { const el = document.getElementById(id); if (el) el.value = ''; });
   toast('✅ Testimonio publicado');
+};
+
+
+window.editTest = (id) => {
+  const t = testimoniosDB[id]; if (!t) return;
+  document.getElementById('mcontent').innerHTML =
+    '<div class="mtitle">EDITAR TESTIMONIO</div>' +
+    '<div class="msub" style="margin-bottom:16px;">Corregí texto, curso, estrellas o imagen antes de publicarlo.</div>' +
+    '<label class="flbl">Nombre</label><input class="finput" id="et-name" value="' + escHtml(t.name || '') + '" />' +
+    '<label class="flbl">Curso / referencia</label><input class="finput" id="et-course" value="' + escHtml(t.course || '') + '" />' +
+    '<label class="flbl">Texto</label><textarea class="finput" id="et-text" rows="5">' + escHtml(t.text || '') + '</textarea>' +
+    '<div class="frow2"><div><label class="flbl">Estrellas</label><select class="finput" id="et-stars">' +
+      '<option value="5" ' + ((parseInt(t.stars)||5)===5?'selected':'') + '>⭐⭐⭐⭐⭐ 5</option>' +
+      '<option value="4" ' + ((parseInt(t.stars)||5)===4?'selected':'') + '>⭐⭐⭐⭐ 4</option>' +
+      '<option value="3" ' + ((parseInt(t.stars)||5)===3?'selected':'') + '>⭐⭐⭐ 3</option>' +
+    '</select></div><div><label class="flbl">Estado</label><select class="finput" id="et-pendiente">' +
+      '<option value="false" ' + (!t.pendiente?'selected':'') + '>Publicado</option>' +
+      '<option value="true" ' + (t.pendiente?'selected':'') + '>Pendiente</option>' +
+    '</select></div></div>' +
+    '<label class="flbl">URL foto / avatar</label><input class="finput" id="et-avatar" value="' + escHtml(t.avatar || '') + '" placeholder="https://i.imgur.com/..." />' +
+    '<button class="btn-main" onclick="window.guardarTestEdit(\'' + id + '\')">💾 Guardar testimonio</button>' +
+    '<button class="btn-out" onclick="window.closeModal()">Cancelar</button>';
+  openModal();
+};
+
+window.guardarTestEdit = async (id) => {
+  const texto = document.getElementById('et-text')?.value.trim();
+  if (!texto) { toast('⚠️ El texto es obligatorio'); return; }
+  await update(ref(db, 'tomauno/testimonios/' + id), {
+    name: document.getElementById('et-name')?.value.trim() || 'Alumno',
+    course: document.getElementById('et-course')?.value.trim() || '',
+    text: texto,
+    stars: parseInt(document.getElementById('et-stars')?.value) || 5,
+    avatar: document.getElementById('et-avatar')?.value.trim() || '',
+    pendiente: document.getElementById('et-pendiente')?.value === 'true'
+  });
+  closeModal();
+  toast('✅ Testimonio actualizado');
 };
 
 window.aprobarTest = async (id) => {
@@ -2019,9 +2454,286 @@ window.enviarReview = async () => {
     '<div style="text-align:center;padding:20px 0;">' +
     '<div style="font-size:52px;margin-bottom:16px;">🙏</div>' +
     '<div class="mtitle" style="margin-bottom:8px;">¡Muchas gracias!</div>' +
-    '<div style="font-size:14px;color:var(--text2);line-height:1.6;margin-bottom:20px;">Tu reseña fue enviada y será publicada pronto.</div>' +
-    '<button class="btn-out" onclick="window.closeModal()">Cerrar</button></div>';
+    '<div style="font-size:14px;color:var(--text2);line-height:1.6;margin-bottom:20px;">Tu reseña fue registrada correctamente y será revisada antes de publicarse.</div>' +
+    '<button class="btn-main" onclick="window.closeModal()">Cerrar</button></div>';
 };
+
+
+function renderStatsVistas() {
+  const w = document.getElementById('stats-vistas-content');
+  if (!w) return;
+  const inscPorCurso = {};
+  Object.values(inscripciones || {}).forEach(i => { if (i.cursoId) inscPorCurso[i.cursoId] = (inscPorCurso[i.cursoId] || 0) + 1; });
+  const evPorEvento = {};
+  Object.values(evInscDB || {}).forEach(i => { if (i.evId) evPorEvento[i.evId] = (evPorEvento[i.evId] || 0) + 1; });
+  const cursosTop = Object.entries(cursos || {}).map(([id,c]) => ({id, titulo:c.titulo || 'Sin título', n:inscPorCurso[id] || 0})).sort((a,b)=>b.n-a.n).slice(0,6);
+  const eventosTop = Object.entries(eventosDB || {}).map(([id,e]) => ({id, titulo:e.titulo || 'Sin título', n:evPorEvento[id] || 0})).sort((a,b)=>b.n-a.n).slice(0,6);
+  const totalCursos = Object.values(inscPorCurso).reduce((a,b)=>a+b,0);
+  const totalEventos = Object.values(evPorEvento).reduce((a,b)=>a+b,0);
+  const renderRows = arr => arr.length ? arr.map(x => '<div class="stats-row"><span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">' + x.titulo + '</span><strong style="color:#fff;">' + x.n + '</strong></div>').join('') : '<div style="color:var(--text3);font-size:12px;">Sin datos todavía</div>';
+  w.innerHTML = '<div class="stats-grid">' +
+    '<div class="stats-mini-card"><div class="stats-mini-title">Inscripciones cursos</div><div class="stats-mini-value">' + totalCursos + '</div><div style="margin-top:10px;">' + renderRows(cursosTop) + '</div></div>' +
+    '<div class="stats-mini-card"><div class="stats-mini-title">Inscripciones eventos</div><div class="stats-mini-value">' + totalEventos + '</div><div style="margin-top:10px;">' + renderRows(eventosTop) + '</div></div>' +
+    '<div class="stats-mini-card"><div class="stats-mini-title">Actividad general</div>' +
+      '<div class="stats-row"><span>Cursos publicados</span><strong>' + Object.keys(cursos || {}).length + '</strong></div>' +
+      '<div class="stats-row"><span>Eventos registrados</span><strong>' + Object.keys(eventosDB || {}).length + '</strong></div>' +
+      '<div class="stats-row"><span>Servicios</span><strong>' + Object.keys(serviciosDB || {}).length + '</strong></div>' +
+      '<div class="stats-row"><span>Testimonios</span><strong>' + Object.keys(testimoniosDB || {}).length + '</strong></div>' +
+    '</div>' +
+  '</div>';
+}
+
+
+
+// ── CHAT DIRECTO ─────────────────────────────────────────────────────────────
+let chatsDB = {}, adminStatus = {adminOnline:false, adminLast:0};
+let knownChatIds = null;
+let notifiedChatIds = (() => { try { return new Set(JSON.parse(localStorage.getItem('tomauno-chat-notified') || '[]')); } catch(e){ return new Set(); } })();
+// IMPORTANTE: el chat del visitante queda por pestaña, no por navegador completo.
+// Así un usuario nuevo no hereda mensajes viejos si abre otra pestaña o navegador.
+let currentVisitorChatId = (() => { try { return sessionStorage.getItem('tomauno-chat-id') || ''; } catch(e){ return ''; } })();
+let currentOpenChatId = '';
+let audioUnlocked = false;
+
+function unlockAudio(){
+  if(audioUnlocked) return;
+  try{
+    const Ctx = window.AudioContext || window.webkitAudioContext;
+    if(!Ctx) return;
+    const ctx = new Ctx();
+    if(ctx.state === 'suspended') ctx.resume();
+    const o = ctx.createOscillator(), g = ctx.createGain();
+    o.connect(g); g.connect(ctx.destination); g.gain.value = .0001; o.start(); o.stop(ctx.currentTime + .02);
+    audioUnlocked = true;
+  }catch(e){}
+}
+document.addEventListener('click', unlockAudio, {once:false});
+document.addEventListener('keydown', unlockAudio, {once:false});
+
+window.pedirPermisoNotificaciones = async () => {
+  if (!('Notification' in window)) { toast('⚠️ Este navegador no soporta notificaciones'); return false; }
+  if (Notification.permission === 'granted') { toast('🔔 Notificaciones ya activas', true); return true; }
+  if (Notification.permission === 'denied') { toast('⚠️ Las notificaciones están bloqueadas en el navegador'); return false; }
+  try{
+    const permiso = await Notification.requestPermission();
+    if (permiso === 'granted') { toast('🔔 Notificaciones activadas', true); return true; }
+  }catch(e){}
+  toast('⚠️ No se activaron las notificaciones');
+  return false;
+};
+
+function notifyNative(title, body, tag){
+  try{
+    if('Notification' in window && Notification.permission === 'granted'){
+      const n = new Notification(title, {
+        body: body || 'Nuevo mensaje desde la web',
+        icon: 'https://i.imgur.com/oZnkCPD.png',
+        badge: 'https://i.imgur.com/oZnkCPD.png',
+        tag: tag || 'tomauno-chat',
+        renotify: true,
+        requireInteraction: false
+      });
+      n.onclick = () => { try{ window.focus(); }catch(e){} window.abrirPanelChatsAdmin && window.abrirPanelChatsAdmin(); n.close(); };
+    }
+  }catch(e){}
+}
+
+function notifyAdminChat(title, body, chatId){
+  try{ beep(); }catch(e){}
+  try{ showNotif(); showNotifBanner(title, body || 'Nuevo mensaje'); }catch(e){}
+  notifyNative('💬 ' + title, body || 'Nuevo mensaje desde la web', chatId ? 'tomauno-chat-' + chatId : 'tomauno-chat');
+}
+
+onValue(ref(db, 'tomauno/status'), snap => {
+  adminStatus = snap.exists() ? snap.val() : {adminOnline:false, adminLast:0};
+  updateAdminLiveIndicator();
+  const pop=document.getElementById('chat-popover');
+  if (currentVisitorChatId && pop?.classList.contains('open')) setTimeout(()=>abrirChatVisitante(currentVisitorChatId, true), 50);
+});
+
+onValue(ref(db, 'tomauno/chats'), snap => {
+  chatsDB = snap.exists() ? snap.val() : {};
+  const chatEntries = Object.entries(chatsDB);
+  const unreadAdmin = chatEntries.filter(([,c]) => !!c.unreadAdmin && c.status !== 'cerrado').length;
+  const fab = document.getElementById('chat-fab');
+  if (fab) {
+    fab.classList.toggle('has-new', isAdminNotifier() && unreadAdmin > 0);
+    fab.title = isAdminNotifier() && unreadAdmin > 0 ? ('Tenés ' + unreadAdmin + ' chat' + (unreadAdmin!==1?'s':'') + ' pendiente' + (unreadAdmin!==1?'s':'')) : 'Mensaje directo';
+  }
+
+  if (knownChatIds === null) {
+    knownChatIds = new Set(chatEntries.map(([id]) => id));
+  } else if (isAdminNotifier()) {
+    // Notificar una sola vez por conversación cuando aparece el primer mensaje no leído para admin.
+    // Aunque el chat ya haya sido creado segundos antes al poner el nombre.
+    const nuevos = chatEntries
+      .filter(([id,c]) => !notifiedChatIds.has(id) && c.unreadAdmin && c.status !== 'cerrado')
+      .sort((a,b)=>(b[1].updatedAt||0)-(a[1].updatedAt||0));
+    if (nuevos.length) {
+      const [newId, newest] = nuevos[0];
+      notifyAdminChat('Nuevo chat web', (newest?.name || 'Visitante') + ': ' + (newest?.lastMsg || 'Escribió desde la web'), newId);
+      nuevos.forEach(([id]) => notifiedChatIds.add(id));
+      try{ localStorage.setItem('tomauno-chat-notified', JSON.stringify([...notifiedChatIds])); }catch(e){}
+    }
+    chatEntries.forEach(([id]) => knownChatIds.add(id));
+  }
+
+  const pop = document.getElementById('chat-popover');
+  if (currentOpenChatId && pop?.classList.contains('open')) {
+    const active = document.activeElement;
+    const isTyping = active && (active.id === 'chat-text' || active.id === 'chat-admin-text');
+    if (!isTyping) {
+      if (isAdminNotifier()) abrirChatAdmin(currentOpenChatId, true);
+      else abrirChatVisitante(currentOpenChatId, true);
+    } else {
+      updateChatMessagesOnly(currentOpenChatId, active.id === 'chat-admin-text');
+    }
+  }
+});
+
+function isAdminOnline(){ return !!(adminStatus.adminOnline && (Date.now() - (adminStatus.adminLast || 0) < 90000)); }
+function chatTime(){ return new Date().toLocaleTimeString('es-AR',{hour:'2-digit',minute:'2-digit'}); }
+function chatMsgs(chat){ return chat && chat.messages ? Object.entries(chat.messages).sort((a,b)=>(a[1].createdAt||0)-(b[1].createdAt||0)) : []; }
+function chatGreeting(){ return isAdminOnline() ? '🟢 Estoy en línea. Escribime por acá y te respondo.' : '⚫ Ahora no estoy en línea. Dejá tu mensaje; si demoro, te dejo también mi WhatsApp directo.'; }
+function chatHtmlWrap(inner){ return '<button class="chat-popover-close" onclick="window.cerrarChatPopover()">✕</button><div class="chat-popover-inner">'+inner+'</div>'; }
+function setChatPopover(html){ const p=document.getElementById('chat-popover'); if(!p) return; p.innerHTML=chatHtmlWrap(html); p.classList.add('open'); }
+window.cerrarChatPopover = () => { const p=document.getElementById('chat-popover'); if(p) p.classList.remove('open'); currentOpenChatId=''; };
+
+const CHAT_QUICK = [
+  {label:'📍 Ubicación', text:'📍 Estamos en Pedro Méndez 2069, Posadas, Misiones. Te dejo el mapa: https://maps.app.goo.gl/3KNXZ3oeknREZwM8'},
+  {label:'📸 Instagram', text:'📸 Nuestros Instagram son: @tomaunoestudio, @tomaunomodels y @tomaunocapacitaciones.'},
+  {label:'💬 WhatsApp', text:'💬 También podés escribirme directo por WhatsApp: https://wa.me/5493764354522'},
+  {label:'🎓 Cursos', text:'🎓 En la sección CURSOS de esta web podés ver las capacitaciones disponibles. Si querés, decime cuál te interesa y te paso más detalles.'},
+  {label:'📷 Sesiones', text:'📷 Hacemos sesiones fotográficas, books, retratos, moda y contenido para redes. Contame qué tipo de sesión buscás y te oriento.'}
+];
+function quickRepliesHtml(){ return '<div class="chat-quick-wrap">'+CHAT_QUICK.map((q,i)=>'<button class="chat-quick" onclick="window.usarRespuestaRapida('+i+')">'+q.label+'</button>').join('')+'</div>'; }
+window.usarRespuestaRapida = (idx) => {
+  const q = CHAT_QUICK[idx]; if(!q) return;
+  const inp = document.getElementById('chat-admin-text');
+  if(inp){ inp.value = q.text; inp.focus(); inp.setSelectionRange(inp.value.length, inp.value.length); }
+};
+
+window.abrirChatTomauno = () => {
+  unlockAudio();
+  // Si este navegador quedó habilitado como administrador, el botón de chat SIEMPRE abre la bandeja admin.
+  // Antes usaba solo adminOk/admin-section y al salir del panel te trataba como visitante aunque el indicador dijera ADM activo.
+  if (isAdminNotifier()) {
+    const abiertos = Object.entries(chatsDB).filter(([,c]) => c.status !== 'cerrado').sort((a,b)=>(b[1].updatedAt||0)-(a[1].updatedAt||0));
+    if (abiertos.length === 1) return abrirChatAdmin(abiertos[0][0]);
+    return abrirPanelChatsAdmin();
+  }
+  document.getElementById('chat-fab')?.classList.remove('has-new');
+  if (currentVisitorChatId && chatsDB[currentVisitorChatId] && chatsDB[currentVisitorChatId].status !== 'cerrado') return abrirChatVisitante(currentVisitorChatId);
+  setChatPopover(
+    '<div class="chat-head"><div class="chat-avatar">💬</div><div><div class="chat-title">CHAT TOMAUNO</div><div class="chat-subline">Consulta directa desde la web</div></div></div>' +
+    '<div class="chat-panel"><div class="chat-msgs" id="chat-msgs">' +
+    '<div class="chat-bubble admin"><div>Hola 👋 Soy Javier de Tomauno.</div><div class="chat-meta">Ahora</div></div>' +
+    '<div class="chat-bubble admin"><div>'+escHtml(chatGreeting())+'</div><div class="chat-meta">Ahora</div></div>' +
+    '<div class="chat-bubble system">Para iniciar, decime tu nombre.</div>' +
+    '</div>' +
+    '<div class="chat-name-row"><input class="finput" id="chat-name" placeholder="Tu nombre" onkeydown="if(event.key===\'Enter\')window.iniciarChatConNombre()"/><button class="chat-send" onclick="window.iniciarChatConNombre()">➜</button></div></div>'
+  );
+  setTimeout(()=>document.getElementById('chat-name')?.focus(),80);
+};
+
+window.iniciarChatConNombre = async () => {
+  const name = document.getElementById('chat-name')?.value.trim();
+  if(!name){ toast('⚠️ Escribí tu nombre para iniciar'); return; }
+  const chatRef = await push(ref(db,'tomauno/chats'), {name, wp:'', status:'abierto', createdAt:Date.now(), updatedAt:Date.now(), lastMsg:'Esperando mensaje', unreadAdmin:false, unreadVisitor:false});
+  currentVisitorChatId = chatRef.key;
+  try{ sessionStorage.setItem('tomauno-chat-id', currentVisitorChatId); }catch(e){}
+  abrirChatVisitante(currentVisitorChatId);
+};
+
+function renderMsgs(chat){
+  return chatMsgs(chat).map(([,m]) => '<div class="chat-bubble '+(m.from==='admin'?'admin':m.from==='system'?'system':'user')+'"><div>'+escHtml(m.text||'')+'</div>'+(m.from==='system'?'':'<div class="chat-meta">'+escHtml(m.time||'')+'</div>')+'</div>').join('');
+}
+function updateChatMessagesOnly(id, adminView){
+  const box=document.getElementById('chat-msgs'); if(!box) return;
+  const chat=chatsDB[id]||{};
+  const html = renderMsgs(chat) + (!adminView && !isAdminOnline() ? '<div class="chat-bubble system">Si no respondo pronto, también podés escribirme por WhatsApp.<br><a class="chat-wa-soft" target="_blank" rel="noopener noreferrer" href="https://wa.me/5493764354522">💬 WhatsApp directo</a></div>' : '');
+  if(box.dataset.lastHtml !== html){ box.innerHTML=html; box.dataset.lastHtml=html; box.scrollTop=box.scrollHeight; }
+}
+
+function abrirChatVisitante(id, silent=false){
+  currentOpenChatId = id;
+  const chat = chatsDB[id] || {};
+  const inputVal = document.getElementById('chat-text')?.value || '';
+  const wasFocused = document.activeElement?.id === 'chat-text';
+  const msgs = renderMsgs(chat);
+  setChatPopover(
+    '<div class="chat-head"><div class="chat-avatar">💬</div><div><div class="chat-title">CHAT TOMAUNO</div><div class="chat-subline">'+escHtml(chat.name||'Visitante')+' · '+(isAdminOnline()?'🟢 Admin en línea':'⚫ Admin fuera de línea')+'</div></div></div>' +
+    '<div class="chat-panel"><div class="chat-msgs" id="chat-msgs">' + (msgs || '<div class="chat-bubble admin">Hola '+escHtml(chat.name||'')+' 👋 ¿En qué puedo ayudarte?</div>') +
+    (!isAdminOnline() ? '<div class="chat-bubble system">Si no respondo pronto, también podés escribirme por WhatsApp.<br><a class="chat-wa-soft" target="_blank" rel="noopener noreferrer" href="https://wa.me/5493764354522">💬 WhatsApp directo</a></div>' : '') +
+    '</div>' +
+    '<div class="chat-row"><input class="finput" id="chat-text" placeholder="Escribí tu mensaje..." value="'+escAttr(inputVal)+'" onkeydown="if(event.key===\'Enter\')window.enviarChatVisitante(\''+id+'\')"/><button class="chat-send" onclick="window.enviarChatVisitante(\''+id+'\')">➜</button></div>' +
+    '</div>'
+  );
+  update(ref(db,'tomauno/chats/'+id), {unreadVisitor:false}).catch(()=>{});
+  setTimeout(()=>{const el=document.getElementById('chat-msgs'); if(el) el.scrollTop=el.scrollHeight; const inp=document.getElementById('chat-text'); if(inp && (!silent || wasFocused)){ inp.focus(); inp.setSelectionRange(inp.value.length, inp.value.length); }},60);
+}
+
+window.enviarChatVisitante = async (id) => {
+  const inp = document.getElementById('chat-text');
+  const text = inp?.value.trim();
+  if(!text) return;
+  inp.value=''; inp.focus();
+  await push(ref(db,'tomauno/chats/'+id+'/messages'), {from:'user', text, time:chatTime(), createdAt:Date.now()});
+  await update(ref(db,'tomauno/chats/'+id), {updatedAt:Date.now(), lastMsg:text, status:'abierto', unreadAdmin:true});
+};
+
+function abrirPanelChatsAdmin(){
+  currentOpenChatId = '';
+  const lista = Object.entries(chatsDB).sort((a,b)=>(b[1].updatedAt||0)-(a[1].updatedAt||0));
+  setChatPopover(
+    '<div class="chat-head"><div class="chat-avatar">📥</div><div><div class="chat-title">BANDEJA DE CHATS</div><div class="chat-subline">'+lista.length+' conversación'+(lista.length!==1?'es':'')+' desde la web</div></div></div>' +
+    '<div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px;"><button class="chat-quick" onclick="window.pedirPermisoNotificaciones()">🔔 Activar notificaciones</button></div>' +
+    (lista.length ? lista.map(([id,c]) => '<div class="chat-list-item '+(c.unreadAdmin?'unread':'')+'" onclick="window.abrirChatAdmin(\''+id+'\')"><div><div style="font-weight:800;font-size:14px;">'+escHtml(c.name||'Visitante')+'</div><div style="font-size:11px;color:var(--text3);margin-top:2px;max-width:245px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">'+escHtml(c.lastMsg||'')+'</div>'+(c.wp?'<div style="font-size:11px;color:#25d366;margin-top:2px;">WP: '+escHtml(c.wp)+'</div>':'')+'</div><span class="chat-status '+(c.unreadAdmin?'new':c.status==='abierto'?'on':'')+'">'+(c.unreadAdmin?'Nuevo':escHtml(c.status||'abierto'))+'</span></div>').join('') : '<div style="color:var(--text3);font-size:13px;padding:20px;text-align:center;">Sin chats todavía</div>')
+  );
+}
+window.abrirPanelChatsAdmin = abrirPanelChatsAdmin;
+
+function adminChatTabsHtml(activeId){
+  const abiertos = Object.entries(chatsDB).filter(([,c]) => c.status !== 'cerrado').sort((a,b)=>(b[1].updatedAt||0)-(a[1].updatedAt||0));
+  if (abiertos.length <= 1) return '';
+  return '<div class="chat-tabs">' + abiertos.slice(0,8).map(([id,c]) =>
+    '<button class="chat-tab '+(id===activeId?'active ':'')+(c.unreadAdmin?'unread':'')+'" onclick="window.abrirChatAdmin(\''+id+'\')"><span class="chat-tab-name">'+escHtml(c.name||'Visitante')+'</span><span class="chat-tab-close" onclick="event.stopPropagation();window.cerrarConversacionChat(\''+id+'\')">×</span></button>'
+  ).join('') + '</div>';
+}
+window.cerrarConversacionChat = async (id) => {
+  await update(ref(db,'tomauno/chats/'+id), {status:'cerrado', unreadAdmin:false, updatedAt:Date.now()});
+  const abiertos = Object.entries(chatsDB).filter(([k,c]) => k!==id && c.status !== 'cerrado').sort((a,b)=>(b[1].updatedAt||0)-(a[1].updatedAt||0));
+  if (abiertos.length) abrirChatAdmin(abiertos[0][0]); else abrirPanelChatsAdmin();
+};
+
+window.abrirChatAdmin = (id, silent=false) => {
+  currentOpenChatId = id;
+  const chat = chatsDB[id] || {};
+  const inputVal = document.getElementById('chat-admin-text')?.value || '';
+  const wasFocused = document.activeElement?.id === 'chat-admin-text';
+  const msgs = renderMsgs(chat);
+  setChatPopover(
+    adminChatTabsHtml(id) +
+    '<div class="chat-head"><div class="chat-avatar">👤</div><div><div class="chat-title">'+escHtml(chat.name||'Visitante')+'</div><div class="chat-subline">'+(chat.wp?'WhatsApp: '+escHtml(chat.wp):'Chat web directo')+'</div></div></div>' +
+    '<div class="chat-panel"><div class="chat-msgs" id="chat-msgs">'+msgs+'</div>' +
+    '<div class="chat-row"><input class="finput" id="chat-admin-text" placeholder="Responder..." value="'+escAttr(inputVal)+'" onkeydown="if(event.key===\'Enter\')window.enviarChatAdmin(\''+id+'\')"/><button class="chat-send" onclick="window.enviarChatAdmin(\''+id+'\')">➜</button></div>' +
+    quickRepliesHtml() +
+    '<div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:4px;"><button class="btn-out" style="flex:1;" onclick="abrirPanelChatsAdmin()">← Bandeja</button><button class="btn-out" style="flex:1;color:#ff5555;border-color:rgba(232,0,10,.35);" onclick="window.cerrarConversacionChat(\'' + id + '\')">Cerrar chat</button>' + (chat.wp?'<a class="btn-out" style="flex:1;text-align:center;text-decoration:none;color:#25d366;border-color:rgba(37,211,102,.35);" target="_blank" rel="noopener noreferrer" href="https://wa.me/549'+String(chat.wp||'').replace(/\D/g,'')+'">Abrir WhatsApp</a>':'') + '</div></div>'
+  );
+  update(ref(db,'tomauno/chats/'+id), {unreadAdmin:false}).catch(()=>{});
+  setTimeout(()=>{const el=document.getElementById('chat-msgs'); if(el) el.scrollTop=el.scrollHeight; const inp=document.getElementById('chat-admin-text'); if(inp && (!silent || wasFocused)){ inp.focus(); inp.setSelectionRange(inp.value.length, inp.value.length); }},60);
+};
+
+window.enviarChatAdmin = async (id) => {
+  const inp = document.getElementById('chat-admin-text');
+  const text = inp?.value.trim();
+  if(!text) return;
+  inp.value=''; inp.focus();
+  await push(ref(db,'tomauno/chats/'+id+'/messages'), {from:'admin', text, time:chatTime(), createdAt:Date.now()});
+  await update(ref(db,'tomauno/chats/'+id), {updatedAt:Date.now(), lastMsg:text, status:'respondido', unreadVisitor:true, unreadAdmin:false});
+};
+
+function escAttr(v){ return String(v ?? '').replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
 
 // ── HELPERS ───────────────────────────────────────────────────────────────────
 function fFecha(f) {
@@ -2054,23 +2766,21 @@ function showNotif() {
   if (d) { d.style.display = 'inline-block'; setTimeout(() => d.style.display = 'none', 10000); }
 }
 
-function showNotifBanner(nombre, curso) {
+function showNotifBanner(titulo, detalle, icono='🔴') {
   let banner = document.getElementById('notif-banner');
   if (!banner) {
     banner = document.createElement('div');
     banner.id = 'notif-banner';
-    banner.style.cssText = 'position:fixed;top:72px;right:16px;z-index:800;background:#111;border:1.5px solid var(--red);border-radius:14px;padding:14px 18px;max-width:300px;box-shadow:0 8px 30px rgba(0,0,0,.6);transform:translateX(320px);transition:transform .4s cubic-bezier(.4,0,.2,1);cursor:pointer;';
-    banner.onclick = () => banner.style.transform = 'translateX(320px)';
+    banner.style.cssText = 'position:fixed;top:72px;right:16px;z-index:800;background:#111;border:1.5px solid var(--red);border-radius:14px;padding:14px 18px;max-width:320px;box-shadow:0 8px 30px rgba(0,0,0,.6);transform:translateX(340px);transition:transform .4s cubic-bezier(.4,0,.2,1);cursor:pointer;';
+    banner.onclick = () => banner.style.transform = 'translateX(340px)';
     document.body.appendChild(banner);
   }
   banner.innerHTML =
-    '<div style="font-size:10px;color:var(--red);font-weight:800;letter-spacing:.1em;text-transform:uppercase;margin-bottom:6px;">🔴 Nueva inscripción</div>' +
-    '<div style="font-size:15px;font-weight:700;color:#fff;margin-bottom:3px;">' + nombre + '</div>' +
-    '<div style="font-size:12px;color:var(--text2);">📚 ' + curso + '</div>' +
+    '<div style="font-size:10px;color:var(--red);font-weight:800;letter-spacing:.1em;text-transform:uppercase;margin-bottom:6px;">' + icono + ' ' + escHtml(titulo || 'Notificación') + '</div>' +
+    '<div style="font-size:14px;font-weight:700;color:#fff;margin-bottom:3px;line-height:1.35;">' + escHtml(detalle || '') + '</div>' +
     '<div style="font-size:10px;color:var(--text3);margin-top:6px;">' + new Date().toLocaleTimeString('es-AR', {hour:'2-digit', minute:'2-digit'}) + ' · Clic para cerrar</div>';
   setTimeout(() => banner.style.transform = 'translateX(0)', 50);
   clearTimeout(banner._timer);
-  banner._timer = setTimeout(() => banner.style.transform = 'translateX(320px)', 12000);
 }
 
 function showConfirm(msg, onOk) {
@@ -2172,15 +2882,35 @@ function beep() {
 
 // ── EVENTOS ───────────────────────────────────────────────────────────────────
 onValue(ref(db, 'tomauno/eventos'), s => {
+  const oldEventosCount = prevEventosCount;
   eventosDB = s.exists() ? s.val() : {};
+  const totalEventos = Object.keys(eventosDB).length;
+  if (totalEventos > oldEventosCount && oldEventosCount > 0) {
+    const newest = Object.entries(eventosDB).sort((a,b)=>(b[1].creado||0)-(a[1].creado||0))[0];
+    if (newest && isAdminNotifier()) {
+      beep();
+      showNotif();
+      showNotifBanner('Nuevo evento registrado', newest[1].titulo || 'Evento sin título');
+    }
+  }
+  prevEventosCount = totalEventos;
   renderEventos();
   renderAdminEventos();
+  renderStatsVistas();
 });
 
 onValue(ref(db, 'tomauno/evRegs'), s => {
+  const oldEvRegsCount = prevEvRegsCount;
   evInscDB = s.exists() ? s.val() : {};
+  const totalEvRegs = Object.keys(evInscDB).length;
+  if (totalEvRegs > oldEvRegsCount && oldEvRegsCount > 0 && isAdminNotifier()) {
+    const newest = Object.values(evInscDB).sort((a,b)=>(b.creado||0)-(a.creado||0))[0];
+    beep(); showNotif(); showNotifBanner('Nueva inscripción a evento', (newest?.nombre || 'Alumno') + ' · ' + (newest?.evTitulo || 'Evento'));
+  }
+  prevEvRegsCount = totalEvRegs;
   renderEventos();
   renderAdminEventos();
+  renderStatsVistas();
 });
 
 function renderEventos() {
@@ -2241,13 +2971,16 @@ function renderAdminEventos() {
       ' <span style="color:'+ec+';font-size:10px;background:rgba(255,255,255,.06);padding:2px 8px;border-radius:10px;margin-left:4px;">' + (e.estado||'pendiente').toUpperCase() + '</span>' +
       (e.dniOrg && e.dniOrg!=='tomauno' ? ' <span style="color:#a78bfa;font-size:10px;background:rgba(90,60,220,.1);padding:2px 8px;border-radius:10px;">ORG: '+e.dniOrg+'</span>' : '') +
       '</div>' +
-      '<div class="admin-ci-sub">' + (e.fecha?fFecha(e.fecha):'Sin fecha') + ' · ' + n + ' inscriptos</div>' +
+      '<div class="admin-ci-sub">' + (e.fecha?fFecha(e.fecha):'Sin fecha') + ' · ' + n + ' inscriptos' + (e.nombreOrg?' · Org: <strong>'+e.nombreOrg+'</strong> ('+e.dniOrg+')':'') + '</div>' +
       '</div>' +
       '<div style="display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end;">' +
       (e.estado==='pendiente' ? '<button class="bsm gr" onclick="window.activarEvento(\'' + k + '\')">Activar</button>' : '') +
       (e.estado==='activo'    ? '<button class="bsm bl" onclick="window.finalizarEvento(\'' + k + '\')">Finalizar</button>' : '') +
       '<button class="bsm gr" onclick="window.editarEvento(\'' + k + '\')">Editar</button>' +
-      '<button class="bsm bl" onclick="window.verInscEventoAdmin(\'' + k + '\')">Inscriptos</button>' +
+      '<button class="bsm bl" onclick="window.exportarExcelEvento(\'' + k + '\')">Excel</button>' +
+      '<button class="bsm bl" onclick="window.exportarPDFEvento(\'' + k + '\')">PDF</button>' +
+      '<button class="bsm wa" onclick="window.verPlanillaEventoAdmin(\'' + k + '\')">📋 Planilla vivo</button>' +
+      '<button class="bsm bl" onclick="window.verPlanillaEventoAdmin(\'' + k + '\')">📋 Planilla vivo</button>' +
       '<button class="bsm ' + (e.oculto?'gr':'bl') + '" onclick="window.togEvOc(\'' + k + '\',' + !e.oculto + ')">' + (e.oculto?'Mostrar':'Ocultar') + '</button>' +
       '<button class="bsm re" onclick="window.delEvento(\'' + k + '\')">Borrar</button>' +
       '</div></div>';
@@ -2270,7 +3003,7 @@ window.abrirDetalleEvento = (id) => {
     '</div>' +
     '<div style="font-size:14px;color:var(--text2);line-height:1.7;white-space:pre-line;margin-bottom:16px;">' + (e.desc||'') + '</div>' +
     '<div style="font-size:11px;color:var(--text3);margin-bottom:14px;padding:6px 12px;background:rgba(255,255,255,.03);border-radius:8px;display:inline-block;">Plataforma Tomauno</div>' +
-    (e.ig?'<br><a href="https://instagram.com/'+e.ig+'" target="_blank" class="det-link ig" style="margin-top:8px;display:inline-flex;">📸 @'+e.ig+'</a>':'') +
+    (e.ig?'<br><a rel="noopener noreferrer" href="https://instagram.com/'+e.ig+'" target="_blank" class="det-link ig" style="margin-top:8px;display:inline-flex;">📸 @'+e.ig+'</a>':'') +
     (!full?'<button class="btn-main" style="margin-top:14px;" onclick="window.abrirInscEvento(\'' + id + '\')">Inscribirme</button>':'') +
     '<div style="display:flex;gap:10px;margin-top:8px;">' +
     '<button class="btn-out" style="flex:1;" onclick="window.closeModal()">Cerrar</button>' +
@@ -2376,7 +3109,7 @@ window.enviarSolicitudEvento = async () => {
   const titulo    = document.getElementById('nev-titulo')?.value.trim();
   if (!orgNombre||!orgDni||!orgWp) { toast('Completá tus datos de organizador'); return; }
   if (!titulo) { toast('El título del evento es obligatorio'); return; }
-  await push(ref(db, 'tomauno/eventos'), {
+  const nuevoEventoData = {
     titulo, desc: document.getElementById('nev-desc')?.value.trim()||'',
     fecha: document.getElementById('nev-fecha')?.value||'',
     hora: document.getElementById('nev-hora')?.value.trim()||'',
@@ -2386,7 +3119,27 @@ window.enviarSolicitudEvento = async () => {
     ig: document.getElementById('nev-ig')?.value.trim()||'',
     img: '', dniOrg: orgDni, wpOrg: orgWp, nombreOrg: orgNombre,
     estado: 'pendiente', oculto: false, creado: Date.now()
-  });
+  };
+  await push(ref(db, 'tomauno/eventos'), nuevoEventoData);
+  const avisoEvento = [
+    '🎪 *EVENTO REGISTRADO EN LA WEB*',
+    '',
+    '📌 *Evento:* ' + (nuevoEventoData.titulo || '-'),
+    '👤 *Organizador:* ' + (nuevoEventoData.nombreOrg || '-'),
+    '🪪 *DNI acceso:* ' + (nuevoEventoData.dniOrg || '-'),
+    '📱 *WhatsApp:* ' + (nuevoEventoData.wpOrg || '-'),
+    nuevoEventoData.ig ? '📸 *Instagram:* @' + nuevoEventoData.ig : '',
+    nuevoEventoData.fecha ? '📅 *Fecha:* ' + fFecha(nuevoEventoData.fecha) : '',
+    nuevoEventoData.hora ? '⏰ *Hora:* ' + nuevoEventoData.hora : '',
+    nuevoEventoData.lugar ? '📍 *Lugar:* ' + nuevoEventoData.lugar : '',
+    '💰 *Costo:* ' + (nuevoEventoData.costo ? '$ ' + Number(nuevoEventoData.costo).toLocaleString('es-AR') : 'Gratis / sin costo cargado'),
+    '👥 *Cupos:* ' + (nuevoEventoData.cupos ? nuevoEventoData.cupos : 'Ilimitados / sin cupo cargado'),
+    '',
+    '🖼️ Falta cargar flyer: pedir imagen por WhatsApp, subir a Imgur y editar evento.',
+    '✅ Estado actual: Pendiente de aprobación'
+  ].filter(Boolean).join('\n');
+  window._pendingEventoAdminWa = 'https://api.whatsapp.com/send?phone=5493764354522&text=' + waEncode(avisoEvento);
+  setTimeout(() => { try { window.open(window._pendingEventoAdminWa, '_blank'); } catch(e) {} }, 200);
   document.getElementById('mcontent').innerHTML =
     '<div style="text-align:center;padding:20px 0;">' +
     '<div style="font-size:52px;margin-bottom:16px;">🙏</div>' +
@@ -2414,7 +3167,7 @@ window.accederOrganizador = () => {
     html += '<div style="background:var(--gray2);border:1px solid var(--border);border-radius:var(--radius-sm);padding:18px;margin-bottom:16px;">' +
       '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;flex-wrap:wrap;gap:8px;">' +
       '<div><div style="font-size:16px;font-weight:800;">' + (e.titulo||'') + '</div>' +
-      '<div style="font-size:12px;color:var(--text3);">' + (e.fecha?fFecha(e.fecha):'Sin fecha') + ' · ' + misInsc.length + ' inscriptos</div></div>' +
+      '<div style="font-size:12px;color:var(--text3);">' + (e.fecha?fFecha(e.fecha):'Sin fecha') + ' · ' + misInsc.length + ' inscriptos · 💰 $ ' + totalPagosEvento(misInsc, e).toLocaleString('es-AR') + '</div></div>' +
       '<div style="display:flex;gap:6px;">' +
       '<button class="bsm bl" onclick="window.exportarExcelOrg(\'' + k + '\')">Excel</button>' +
       '<button class="bsm bl" onclick="window.exportarPDFOrg(\'' + k + '\')">PDF</button>' +
@@ -2426,19 +3179,21 @@ window.accederOrganizador = () => {
         '<th style="padding:6px;text-align:left;color:var(--text3);">WP</th>' +
         '<th style="padding:6px;text-align:left;color:var(--text3);">DNI</th>' +
         '<th style="padding:6px;text-align:left;color:var(--text3);">Pago</th>' +
+        '<th style="padding:6px;text-align:left;color:var(--text3);">Monto</th>' +
         '</tr></thead><tbody>';
       misInsc.forEach(([ik,i]) => {
         const est = (i.pagos&&i.pagos[0]) ? i.pagos[0].estado : 'pendiente';
         const clr = est==='pagado'?'#4caf7d':est==='parcial'?'#f5c842':'#e05252';
         html += '<tr style="border-bottom:1px solid #181818;">' +
           '<td style="padding:6px;">' + (i.nombre||'') + '</td>' +
-          '<td style="padding:6px;"><a href="https://wa.me/549' + (i.wp||'').replace(/[^0-9]/g,'') + '" target="_blank" style="color:#25d366;">' + (i.wp||'') + '</a></td>' +
+          '<td style="padding:6px;"><a rel="noopener noreferrer" href="https://wa.me/549' + (i.wp||'').replace(/[^0-9]/g,'') + '" target="_blank" style="color:#25d366;">' + (i.wp||'') + '</a></td>' +
           '<td style="padding:6px;">' + (i.dni||'-') + '</td>' +
           '<td style="padding:6px;"><select style="background:transparent;border:none;color:' + clr + ';font-size:11px;font-weight:700;cursor:pointer;font-family:var(--font);outline:none;" onchange="window.updPagoOrg(\'' + ik + '\',this.value)">' +
           '<option value="pendiente" ' + (est==='pendiente'?'selected':'') + ' style="background:#111;">Pendiente</option>' +
           '<option value="parcial" '   + (est==='parcial'  ?'selected':'') + ' style="background:#111;">Parcial</option>' +
           '<option value="pagado" '    + (est==='pagado'   ?'selected':'') + ' style="background:#111;">Pagado</option>' +
-          '</select></td></tr>';
+          '</select></td>' +
+          '<td style="padding:6px;"><input type="number" value="' + ((i.pagos&&i.pagos[0]&&i.pagos[0].monto)?i.pagos[0].monto:(((i.pagos&&i.pagos[0]&&i.pagos[0].estado)==='pagado'&&e.costo)?e.costo:'')) + '" placeholder="0" onchange="window.updMontoPagoEvento(\'' + ik + '\',this.value)" style="width:90px;background:#0d0d0d;border:1px solid var(--border);color:#fff;border-radius:8px;padding:5px;font-family:var(--font);"/></td></tr>';
       });
       html += '</tbody></table></div>';
     } else {
@@ -2462,13 +3217,14 @@ window.updPagoOrg = async (inscId, estado) => {
 window.exportarExcelOrg = (evId) => {
   const lista = Object.values(evInscDB).filter(i => i.evId===evId);
   const e = eventosDB[evId];
-  const cols = ['Nombre','DNI','WhatsApp','Instagram','Fecha','Pago'];
+  const cols = ['Nombre','DNI','WhatsApp','Instagram','Fecha','Pago','Monto'];
   const sep = ';';
   const q = v => '"' + String(v||'').replace(/"/g,'""') + '"';
   const rows = [cols.map(q).join(sep)];
   lista.forEach(i => {
     const est = (i.pagos&&i.pagos[0])?i.pagos[0].estado:'pendiente';
-    rows.push([i.nombre,i.dni,i.wp,i.ig||'',i.fecha,est].map(q).join(sep));
+    const monto = pagoEventoInfo(i, e).monto;
+    rows.push([i.nombre,i.dni,i.wp,i.ig||'',i.fecha,est,monto].map(q).join(sep));
   });
   const csv = '\ufeff' + rows.join('\r\n');
   const a = document.createElement('a');
@@ -2482,7 +3238,43 @@ window.exportarPDFOrg = (evId) => {
   const e = eventosDB[evId];
   const rows = lista.map(i => {
     const est = (i.pagos&&i.pagos[0])?i.pagos[0].estado:'pendiente';
-    return '<tr><td>'+(i.nombre||'')+'</td><td>'+(i.dni||'')+'</td><td>'+(i.wp||'')+'</td><td>'+est+'</td></tr>';
+    const monto = pagoEventoInfo(i, e).monto;
+    return '<tr><td>'+(i.nombre||'')+'</td><td>'+(i.dni||'')+'</td><td>'+(i.wp||'')+'</td><td>'+est+'</td><td>$ '+Number(monto).toLocaleString('es-AR')+'</td></tr>';
+  }).join('');
+  const win = window.open('','_blank');
+  if (win) {
+    win.document.write('<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Inscriptos</title><style>body{font-family:sans-serif;padding:20px;font-size:12px}table{width:100%;border-collapse:collapse}th{background:#111;color:#fff;padding:6px;text-align:left}td{padding:5px 6px;border-bottom:1px solid #eee}</style></head><body><h2>'+(e?e.titulo:'Evento')+'</h2><p>'+lista.length+' inscriptos · '+new Date().toLocaleDateString('es-AR')+'</p><table><thead><tr><th>Nombre</th><th>DNI</th><th>WP</th><th>Pago</th></tr></thead><tbody>'+rows+'</tbody></table></body></html>');
+    win.document.close();
+    setTimeout(()=>win.print(),400);
+  }
+};
+
+window.exportarExcelEvento = (evId) => {
+  const lista = Object.values(evInscDB).filter(i => i.evId===evId);
+  const e = eventosDB[evId];
+  const cols = ['Nombre','DNI','WhatsApp','Instagram','Fecha','Pago','Monto'];
+  const sep = ';';
+  const q = v => '"' + String(v||'').replace(/"/g,'""') + '"';
+  const rows = [cols.map(q).join(sep)];
+  lista.forEach(i => {
+    const est = (i.pagos&&i.pagos[0])?i.pagos[0].estado:'pendiente';
+    const monto = pagoEventoInfo(i, e).monto;
+    rows.push([i.nombre,i.dni,i.wp,i.ig||'',i.fecha,est,monto].map(q).join(sep));
+  });
+  const csv = '\ufeff' + rows.join('\r\n');
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(new Blob([csv],{type:'text/csv;charset=utf-8'}));
+  a.download = 'inscriptos_' + (e?e.titulo:'evento').replace(/[^a-zA-Z0-9]/g,'_') + '.csv';
+  a.click();
+};
+
+window.exportarPDFEvento = (evId) => {
+  const lista = Object.values(evInscDB).filter(i => i.evId===evId);
+  const e = eventosDB[evId];
+  const rows = lista.map(i => {
+    const est = (i.pagos&&i.pagos[0])?i.pagos[0].estado:'pendiente';
+    const monto = pagoEventoInfo(i, e).monto;
+    return '<tr><td>'+(i.nombre||'')+'</td><td>'+(i.dni||'')+'</td><td>'+(i.wp||'')+'</td><td>'+est+'</td><td>$ '+Number(monto).toLocaleString('es-AR')+'</td></tr>';
   }).join('');
   const win = window.open('','_blank');
   if (win) {
@@ -2500,6 +3292,70 @@ window.delEvento = async (id) => {
     await remove(ref(db,'tomauno/eventos/'+id));
     toast('Evento eliminado');
   });
+};
+
+
+function pagoEventoInfo(i, e) {
+  const p = (i.pagos && i.pagos[0]) ? i.pagos[0] : {label:'Pago unico', estado:'pendiente', monto:''};
+  const estado = p.estado || 'pendiente';
+  let monto = parseFloat(String(p.monto || '').replace(',', '.')) || 0;
+  if (!monto && estado === 'pagado' && e && e.costo) monto = Number(e.costo) || 0;
+  return {estado, monto};
+}
+
+function totalPagosEvento(lista, e) {
+  return lista.reduce((acc, [,i]) => acc + pagoEventoInfo(i, e).monto, 0);
+}
+
+window.updMontoPagoEvento = async (inscId, monto) => {
+  const insc = evInscDB[inscId]; if (!insc) return;
+  const pagos = [...(insc.pagos||[{label:'Pago unico',estado:'pendiente',monto:''}])];
+  pagos[0] = Object.assign({}, pagos[0], {monto: monto || ''});
+  await update(ref(db, 'tomauno/evRegs/' + inscId), {pagos});
+  toast('Monto actualizado');
+};
+
+window.verPlanillaEventoAdmin = (id) => {
+  const e = eventosDB[id];
+  const lista = Object.entries(evInscDB).filter(([,i])=>i.evId===id).sort((a,b)=>(b[1].creado||0)-(a[1].creado||0));
+  const total = totalPagosEvento(lista, e);
+  const pagados = lista.filter(([,i]) => pagoEventoInfo(i,e).estado === 'pagado').length;
+  const parciales = lista.filter(([,i]) => pagoEventoInfo(i,e).estado === 'parcial').length;
+  const pendientes = lista.filter(([,i]) => pagoEventoInfo(i,e).estado === 'pendiente').length;
+  let html = '<div class="mtitle" style="margin-bottom:6px;">📋 PLANILLA EVENTO</div>' +
+    '<div class="msub" style="margin-bottom:14px;">' + (e?e.titulo:'Evento') + '</div>' +
+    '<div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px;background:#0d0d0d;border:1px solid var(--border);border-radius:var(--radius-sm);padding:10px 12px;font-size:12px;color:var(--text2);">' +
+    '<span>👥 <strong>' + lista.length + '</strong> inscriptos</span>' +
+    '<span>✅ <strong style="color:#4caf7d;">' + pagados + '</strong> pagados</span>' +
+    '<span>⚡ <strong style="color:#f5c842;">' + parciales + '</strong> parciales</span>' +
+    '<span>⏳ <strong style="color:#e05252;">' + pendientes + '</strong> pendientes</span>' +
+    '<span>💰 Total cobrado: <strong style="color:#4caf7d;">$ ' + total.toLocaleString('es-AR') + '</strong></span>' +
+    '</div>' +
+    '<div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px;">' +
+    '<button class="bsm bl" onclick="window.exportarExcelEvento(\'' + id + '\')">📊 Excel</button>' +
+    '<button class="bsm bl" onclick="window.exportarPDFEvento(\'' + id + '\')">📄 PDF</button>' +
+    '</div>';
+  if (!lista.length) {
+    html += '<div style="color:var(--text3);padding:18px 0;">Sin inscriptos aún</div>';
+  } else {
+    html += '<div style="overflow-x:auto;"><table style="width:100%;border-collapse:collapse;font-size:12px;min-width:680px;">' +
+      '<thead><tr><th style="padding:7px;text-align:left;color:var(--text3);">Nombre</th><th style="padding:7px;text-align:left;color:var(--text3);">DNI</th><th style="padding:7px;text-align:left;color:var(--text3);">WP</th><th style="padding:7px;text-align:left;color:var(--text3);">IG</th><th style="padding:7px;text-align:left;color:var(--text3);">Pago</th><th style="padding:7px;text-align:left;color:var(--text3);">Monto</th></tr></thead><tbody>';
+    lista.forEach(([ik,i]) => {
+      const p = pagoEventoInfo(i,e);
+      const clr = p.estado==='pagado'?'#4caf7d':p.estado==='parcial'?'#f5c842':'#e05252';
+      const montoActual = (i.pagos&&i.pagos[0]&&i.pagos[0].monto) ? i.pagos[0].monto : (p.estado==='pagado'&&e&&e.costo?e.costo:'');
+      html += '<tr style="border-bottom:1px solid #181818;"><td style="padding:7px;">'+(i.nombre||'')+'</td>' +
+        '<td style="padding:7px;">'+(i.dni||'')+'</td>' +
+        '<td style="padding:7px;"><a rel="noopener noreferrer" href="https://wa.me/549'+(i.wp||'').replace(/[^0-9]/g,'')+'" target="_blank" style="color:#25d366;">'+(i.wp||'')+'</a></td>' +
+        '<td style="padding:7px;">'+(i.ig?'<a rel="noopener noreferrer" href="https://instagram.com/'+i.ig.replace('@','')+'" target="_blank" class="ig-link">@'+i.ig.replace('@','')+'</a>':'-')+'</td>' +
+        '<td style="padding:7px;"><select style="background:transparent;border:none;color:'+clr+';font-size:11px;font-weight:700;cursor:pointer;font-family:var(--font);outline:none;" onchange="window.updPagoOrg(\'' + ik + '\',this.value)"><option value="pendiente" '+(p.estado==='pendiente'?'selected':'')+' style="background:#111;">Pendiente</option><option value="parcial" '+(p.estado==='parcial'?'selected':'')+' style="background:#111;">Parcial</option><option value="pagado" '+(p.estado==='pagado'?'selected':'')+' style="background:#111;">Pagado</option></select></td>' +
+        '<td style="padding:7px;"><input type="number" value="'+montoActual+'" placeholder="0" onchange="window.updMontoPagoEvento(\'' + ik + '\',this.value)" style="width:95px;background:#0d0d0d;border:1px solid var(--border);color:#fff;border-radius:8px;padding:6px;font-family:var(--font);"/></td></tr>';
+    });
+    html += '</tbody></table></div>';
+  }
+  html += '<button class="btn-out" onclick="window.closeModal()" style="margin-top:16px;">Cerrar</button>';
+  document.getElementById('mcontent').innerHTML = html;
+  openModal();
 };
 
 window.verInscEventoAdmin = (id) => {
@@ -2521,7 +3377,7 @@ window.verInscEventoAdmin = (id) => {
       const clr = est==='pagado'?'#4caf7d':est==='parcial'?'#f5c842':'#e05252';
       html += '<tr><td style="padding:7px;">'+(i.nombre||'')+'</td>' +
         '<td style="padding:7px;">'+(i.dni||'')+'</td>' +
-        '<td style="padding:7px;"><a href="https://wa.me/549'+(i.wp||'').replace(/[^0-9]/g,'')+'" target="_blank" style="color:#25d366;">'+(i.wp||'')+'</a></td>' +
+        '<td style="padding:7px;"><a rel="noopener noreferrer" href="https://wa.me/549'+(i.wp||'').replace(/[^0-9]/g,'')+'" target="_blank" style="color:#25d366;">'+(i.wp||'')+'</a></td>' +
         '<td style="padding:7px;font-weight:700;color:'+clr+';">'+est+'</td></tr>';
     });
     html += '</tbody></table></div>';
@@ -2648,7 +3504,9 @@ window.delGal = async (id) => {
 // ── CANVAS BACKGROUND ─────────────────────────────────────────────────────────
 (function() {
   const cv = document.getElementById('bg-canvas');
-  if (!cv) return;
+  const reduceMotion = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const lowPowerScreen = window.innerWidth < 768;
+  if (!cv || reduceMotion || lowPowerScreen) { if (cv) cv.style.display = 'none'; return; }
   const ctx = cv.getContext('2d');
   let W, H, blobs, t = 0;
   const COLORS = [[200,0,15],[140,0,20],[180,10,40],[100,0,30],[220,20,50],[80,0,20],[160,0,60]];
