@@ -505,6 +505,12 @@ button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,te
 .chat-quick-wrap{display:flex;gap:7px;flex-wrap:wrap;margin-top:8px;}
 .chat-quick{border:1px solid rgba(232,0,10,.28);background:rgba(232,0,10,.08);color:#fff;border-radius:18px;padding:7px 10px;font-size:11px;font-weight:800;cursor:pointer;font-family:var(--font);transition:.2s;}
 .chat-quick:hover{background:var(--red);transform:translateY(-1px);}
+.chat-link{color:#7dd3fc;text-decoration:underline;text-underline-offset:2px;font-weight:800;}
+.chat-link.ig{color:#ff5ca8;}
+.chat-filter{border:1px solid var(--border);background:#0b0b0b;color:var(--text3);border-radius:18px;padding:7px 11px;font-size:11px;font-weight:800;cursor:pointer;font-family:var(--font);}
+.chat-filter.on{background:rgba(232,0,10,.16);border-color:rgba(232,0,10,.45);color:#fff;}
+.chat-trash{border:none;background:rgba(232,0,10,.12);color:#ff6b6b;border-radius:50%;width:28px;height:28px;cursor:pointer;font-size:13px;flex-shrink:0;}
+.chat-trash:hover{background:var(--red);color:#fff;}
 
 .admin-live-indicator{position:fixed;left:24px;bottom:24px;z-index:860;display:none;align-items:center;gap:8px;background:rgba(12,12,12,.92);border:1px solid rgba(76,175,125,.35);color:#4caf7d;padding:9px 14px;border-radius:999px;font-size:12px;font-weight:800;box-shadow:0 12px 40px rgba(0,0,0,.45);backdrop-filter:blur(12px);}
 .admin-live-indicator.on{display:flex;}
@@ -797,7 +803,7 @@ button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,te
       👁️ <span id="visit-count">—</span> visitas
     </div>
     <div style="font-size:11px;color:var(--text3);border:1px solid var(--border);padding:5px 13px;border-radius:20px;">
-      v11.1
+      v12.0
     </div>
   </div>
 </footer>
@@ -975,9 +981,21 @@ button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,te
           </div>
         </div>
         <div class="fgroup"><label class="flbl">URL imagen</label><input class="finput" id="ns-img" placeholder="https://i.imgur.com/..."/></div>
-        <div class="fgroup"><label class="flbl">Dirección</label><input class="finput" id="ns-dir" placeholder="Pedro Méndez 2069, Posadas"/></div>
+        <div class="fgroup"><label class="flbl">Dirección</label>
+          <div style="display:flex;gap:6px;">
+            <input class="finput" id="ns-dir" placeholder="Pedro Méndez 2069, Posadas" style="margin:0;"/>
+            <button type="button" onclick="document.getElementById('ns-dir').value='Pedro Méndez 2069, Posadas, Misiones'" style="background:var(--gray3);border:none;color:var(--text2);border-radius:var(--radius-sm);padding:0 12px;font-size:11px;cursor:pointer;font-family:var(--font);white-space:nowrap;">📍 Estudio</button>
+          </div>
+        </div>
         <div class="frow2">
-          <div class="fgroup"><label class="flbl">Instagram (sin @)</label><input class="finput" id="ns-ig" placeholder="tomaunomodels"/></div>
+          <div class="fgroup"><label class="flbl">Instagram (sin @)</label>
+            <div style="display:flex;gap:6px;flex-wrap:wrap;">
+              <input class="finput" id="ns-ig" placeholder="tomaunomodels" style="margin:0;flex:1;min-width:150px;"/>
+              <button type="button" onclick="document.getElementById('ns-ig').value='tomaunomodels'" style="background:var(--gray3);border:none;color:var(--text2);border-radius:var(--radius-sm);padding:0 10px;font-size:10px;cursor:pointer;font-family:var(--font);">Models</button>
+              <button type="button" onclick="document.getElementById('ns-ig').value='tomaunoestudio'" style="background:var(--gray3);border:none;color:var(--text2);border-radius:var(--radius-sm);padding:0 10px;font-size:10px;cursor:pointer;font-family:var(--font);">Estudio</button>
+              <button type="button" onclick="document.getElementById('ns-ig').value='tomaunocapacitaciones'" style="background:var(--gray3);border:none;color:var(--text2);border-radius:var(--radius-sm);padding:0 10px;font-size:10px;cursor:pointer;font-family:var(--font);">Capacitaciones</button>
+            </div>
+          </div>
           <div class="fgroup"><label class="flbl">WhatsApp</label>
             <div style="display:flex;gap:6px;">
               <input class="finput" id="ns-wp" placeholder="3764354522" style="margin:0;"/>
@@ -1324,11 +1342,12 @@ onValue(ref(db, 'tomauno/inscripciones'), s => {
   inscripciones = s.exists() ? s.val() : {};
   const c = Object.keys(inscripciones).length;
   if (c > prevCount && prevCount > 0) {
-    const entries = Object.values(inscripciones);
-    const newest = entries[entries.length - 1];
+    const entries = Object.entries(inscripciones).sort((a,b)=>(b[1].creado||0)-(a[1].creado||0));
+    const newestPair = entries[0];
+    const newest = newestPair ? newestPair[1] : null;
     const nombre = newest ? (newest.nombre || 'Alguien') : 'Alguien';
     const curso = newest ? (newest.cursoTitulo || '') : '';
-    if(isAdminNotifier()){beep();showNotifBanner('Nueva inscripción', nombre + (curso ? ' · ' + curso : ''));showNotif();}
+    if(isAdminNotifier()){beep();showNotifBanner('Nueva inscripción', nombre + (curso ? ' · ' + curso : ''), '👥', () => window.irAPlanillaCurso(newest?.cursoId));showNotif();}
   }
   prevCount = c;
   renderCursos(); renderAdminCursos(); renderAlumnos(); renderFiltros(); updateStats();
@@ -1340,7 +1359,7 @@ onValue(ref(db, 'tomauno/servicios'), s => {
   const totalServicios = Object.keys(serviciosDB).length;
   if (totalServicios > oldServiciosCount && oldServiciosCount > 0 && isAdminNotifier()) {
     const newest = Object.values(serviciosDB).sort((a,b)=>(b.creado||0)-(a.creado||0))[0];
-    beep(); showNotif(); showNotifBanner('Nuevo servicio registrado', newest?.titulo || 'Servicio sin título');
+    beep(); showNotif(); showNotifBanner('Nuevo servicio registrado', newest?.titulo || 'Servicio sin título', '🛠️', () => window.irAAdminTab('servicios-adm'));
   }
   prevServiciosCount = totalServicios;
   renderServiciosAdmin();
@@ -1355,7 +1374,7 @@ onValue(ref(db, 'tomauno/testimonios'), s => {
     const newest = Object.values(testimoniosDB).sort((a,b)=>(b.creado||0)-(a.creado||0))[0];
     if (isAdminNotifier()) {
       beep();
-      showNotifBanner('Nueva reseña pendiente', (newest?.name || 'Alumno') + ' · ' + (newest?.course || 'Sin curso'));
+      showNotifBanner('Nueva reseña pendiente', (newest?.name || 'Alumno') + ' · ' + (newest?.course || 'Sin curso'), '⭐', () => window.irAAdminTab('testimonios-adm'));
       showNotif();
     }
   }
@@ -1738,6 +1757,31 @@ window.setAtab = (tab) => {
     if (el) el.style.display = t === tab ? 'block' : 'none';
   });
   document.querySelectorAll('.atab').forEach((b, i) => b.classList.toggle('on', tabs[i] === tab));
+};
+
+window.irAAdminTab = (tab) => {
+  if (!isAdminNotifier()) return;
+  if (document.getElementById('admin-section').style.display === 'none') toggleAdmin(true);
+  setAtab(tab);
+  setTimeout(()=>document.getElementById('admin-section')?.scrollIntoView({behavior:'smooth',block:'start'}),80);
+};
+
+window.irAPlanillaCurso = (cursoId) => {
+  if (!cursoId || !isAdminNotifier()) return;
+  if (document.getElementById('admin-section').style.display === 'none') toggleAdmin(true);
+  setAtab('alumnos');
+  setTimeout(()=>{
+    const f=document.getElementById('filtro-curso');
+    if(f){ f.value=cursoId; renderAlumnos(); }
+    document.getElementById('atab-alumnos')?.scrollIntoView({behavior:'smooth',block:'start'});
+  },120);
+};
+
+window.irAPlanillaEvento = (evId) => {
+  if (!evId || !isAdminNotifier()) return;
+  if (document.getElementById('admin-section').style.display === 'none') toggleAdmin(true);
+  setAtab('eventos-adm');
+  setTimeout(()=>window.verPlanillaEventoAdmin && window.verPlanillaEventoAdmin(evId),160);
 };
 
 window.toggleTipoConfig = () => {
@@ -2493,6 +2537,7 @@ let notifiedChatIds = (() => { try { return new Set(JSON.parse(localStorage.getI
 // Así un usuario nuevo no hereda mensajes viejos si abre otra pestaña o navegador.
 let currentVisitorChatId = (() => { try { return sessionStorage.getItem('tomauno-chat-id') || ''; } catch(e){ return ''; } })();
 let currentOpenChatId = '';
+let chatListFilter = 'abiertos';
 let audioUnlocked = false;
 
 function unlockAudio(){
@@ -2645,8 +2690,18 @@ window.iniciarChatConNombre = async () => {
   abrirChatVisitante(currentVisitorChatId);
 };
 
+function chatLinkify(text){
+  let safe = escHtml(text || '');
+  safe = safe.replace(/(https?:\/\/[^\s<]+)/g, function(url){
+    const clean = url.replace(/[.,;!?)]$/,'');
+    const tail = url.slice(clean.length);
+    return '<a class="chat-link" href="'+clean+'" target="_blank" rel="noopener noreferrer">'+clean+'</a>'+tail;
+  });
+  safe = safe.replace(/(^|\s)@([a-zA-Z0-9._]{2,30})/g, '$1<a class="chat-link ig" href="https://instagram.com/$2" target="_blank" rel="noopener noreferrer">@$2</a>');
+  return safe;
+}
 function renderMsgs(chat){
-  return chatMsgs(chat).map(([,m]) => '<div class="chat-bubble '+(m.from==='admin'?'admin':m.from==='system'?'system':'user')+'"><div>'+escHtml(m.text||'')+'</div>'+(m.from==='system'?'':'<div class="chat-meta">'+escHtml(m.time||'')+'</div>')+'</div>').join('');
+  return chatMsgs(chat).map(([,m]) => '<div class="chat-bubble '+(m.from==='admin'?'admin':m.from==='system'?'system':'user')+'"><div>'+chatLinkify(m.text||'')+'</div>'+(m.from==='system'?'':'<div class="chat-meta">'+escHtml(m.time||'')+'</div>')+'</div>').join('');
 }
 function updateChatMessagesOnly(id, adminView){
   const box=document.getElementById('chat-msgs'); if(!box) return;
@@ -2684,13 +2739,24 @@ window.enviarChatVisitante = async (id) => {
 
 function abrirPanelChatsAdmin(){
   currentOpenChatId = '';
-  const lista = Object.entries(chatsDB).sort((a,b)=>(b[1].updatedAt||0)-(a[1].updatedAt||0));
+  let lista = Object.entries(chatsDB).sort((a,b)=>(b[1].updatedAt||0)-(a[1].updatedAt||0));
+  if (chatListFilter === 'abiertos') lista = lista.filter(([,c]) => c.status !== 'cerrado');
+  if (chatListFilter === 'cerrados') lista = lista.filter(([,c]) => c.status === 'cerrado');
+  const total = Object.keys(chatsDB).length;
+  const abiertosCount = Object.values(chatsDB).filter(c=>c.status !== 'cerrado').length;
+  const cerradosCount = Object.values(chatsDB).filter(c=>c.status === 'cerrado').length;
   setChatPopover(
-    '<div class="chat-head"><div class="chat-avatar">📥</div><div><div class="chat-title">BANDEJA DE CHATS</div><div class="chat-subline">'+lista.length+' conversación'+(lista.length!==1?'es':'')+' desde la web</div></div></div>' +
+    '<div class="chat-head"><div class="chat-avatar">📥</div><div><div class="chat-title">BANDEJA DE CHATS</div><div class="chat-subline">'+total+' conversación'+(total!==1?'es':'')+' desde la web</div></div></div>' +
     '<div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px;"><button class="chat-quick" onclick="window.pedirPermisoNotificaciones()">🔔 Activar notificaciones</button></div>' +
-    (lista.length ? lista.map(([id,c]) => '<div class="chat-list-item '+(c.unreadAdmin?'unread':'')+'" onclick="window.abrirChatAdmin(\''+id+'\')"><div><div style="font-weight:800;font-size:14px;">'+escHtml(c.name||'Visitante')+'</div><div style="font-size:11px;color:var(--text3);margin-top:2px;max-width:245px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">'+escHtml(c.lastMsg||'')+'</div>'+(c.wp?'<div style="font-size:11px;color:#25d366;margin-top:2px;">WP: '+escHtml(c.wp)+'</div>':'')+'</div><span class="chat-status '+(c.unreadAdmin?'new':c.status==='abierto'?'on':'')+'">'+(c.unreadAdmin?'Nuevo':escHtml(c.status||'abierto'))+'</span></div>').join('') : '<div style="color:var(--text3);font-size:13px;padding:20px;text-align:center;">Sin chats todavía</div>')
+    '<div style="display:flex;gap:7px;flex-wrap:wrap;margin-bottom:12px;">' +
+    '<button class="chat-filter '+(chatListFilter==='abiertos'?'on':'')+'" onclick="window.setChatListFilter(\'abiertos\')">Abiertos '+abiertosCount+'</button>' +
+    '<button class="chat-filter '+(chatListFilter==='cerrados'?'on':'')+'" onclick="window.setChatListFilter(\'cerrados\')">Cerrados '+cerradosCount+'</button>' +
+    '<button class="chat-filter '+(chatListFilter==='todos'?'on':'')+'" onclick="window.setChatListFilter(\'todos\')">Todos '+total+'</button>' +
+    '</div>' +
+    (lista.length ? lista.map(([id,c]) => '<div class="chat-list-item '+(c.unreadAdmin?'unread':'')+'" onclick="window.abrirChatAdmin(\''+id+'\')"><div style="flex:1;min-width:0;"><div style="font-weight:800;font-size:14px;">'+escHtml(c.name||'Visitante')+'</div><div style="font-size:11px;color:var(--text3);margin-top:2px;max-width:245px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">'+escHtml(c.lastMsg||'')+'</div>'+(c.wp?'<div style="font-size:11px;color:#25d366;margin-top:2px;">WP: '+escHtml(c.wp)+'</div>':'')+'</div><span class="chat-status '+(c.unreadAdmin?'new':c.status==='abierto'?'on':'')+'">'+(c.unreadAdmin?'Nuevo':escHtml(c.status||'abierto'))+'</span><button class="chat-trash" title="Eliminar chat" onclick="event.stopPropagation();window.eliminarChatDefinitivo(\''+id+'\')">🗑️</button></div>').join('') : '<div style="color:var(--text3);font-size:13px;padding:20px;text-align:center;">Sin chats en este filtro</div>')
   );
 }
+window.setChatListFilter = (f) => { chatListFilter = f || 'abiertos'; abrirPanelChatsAdmin(); };
 window.abrirPanelChatsAdmin = abrirPanelChatsAdmin;
 
 function adminChatTabsHtml(activeId){
@@ -2700,6 +2766,16 @@ function adminChatTabsHtml(activeId){
     '<button class="chat-tab '+(id===activeId?'active ':'')+(c.unreadAdmin?'unread':'')+'" onclick="window.abrirChatAdmin(\''+id+'\')"><span class="chat-tab-name">'+escHtml(c.name||'Visitante')+'</span><span class="chat-tab-close" onclick="event.stopPropagation();window.cerrarConversacionChat(\''+id+'\')">×</span></button>'
   ).join('') + '</div>';
 }
+window.eliminarChatDefinitivo = (id) => {
+  const c = chatsDB[id] || {};
+  showConfirm('¿Eliminar definitivamente el chat de ' + (c.name || 'Visitante') + '? Esto borra todo el historial de Firebase.', async () => {
+    await remove(ref(db,'tomauno/chats/'+id));
+    try{ notifiedChatIds.delete(id); localStorage.setItem('tomauno-chat-notified', JSON.stringify([...notifiedChatIds])); }catch(e){}
+    toast('🗑️ Chat eliminado');
+    abrirPanelChatsAdmin();
+  });
+};
+
 window.cerrarConversacionChat = async (id) => {
   await update(ref(db,'tomauno/chats/'+id), {status:'cerrado', unreadAdmin:false, updatedAt:Date.now()});
   const abiertos = Object.entries(chatsDB).filter(([k,c]) => k!==id && c.status !== 'cerrado').sort((a,b)=>(b[1].updatedAt||0)-(a[1].updatedAt||0));
@@ -2718,7 +2794,7 @@ window.abrirChatAdmin = (id, silent=false) => {
     '<div class="chat-panel"><div class="chat-msgs" id="chat-msgs">'+msgs+'</div>' +
     '<div class="chat-row"><input class="finput" id="chat-admin-text" placeholder="Responder..." value="'+escAttr(inputVal)+'" onkeydown="if(event.key===\'Enter\')window.enviarChatAdmin(\''+id+'\')"/><button class="chat-send" onclick="window.enviarChatAdmin(\''+id+'\')">➜</button></div>' +
     quickRepliesHtml() +
-    '<div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:4px;"><button class="btn-out" style="flex:1;" onclick="abrirPanelChatsAdmin()">← Bandeja</button><button class="btn-out" style="flex:1;color:#ff5555;border-color:rgba(232,0,10,.35);" onclick="window.cerrarConversacionChat(\'' + id + '\')">Cerrar chat</button>' + (chat.wp?'<a class="btn-out" style="flex:1;text-align:center;text-decoration:none;color:#25d366;border-color:rgba(37,211,102,.35);" target="_blank" rel="noopener noreferrer" href="https://wa.me/549'+String(chat.wp||'').replace(/\D/g,'')+'">Abrir WhatsApp</a>':'') + '</div></div>'
+    '<div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:4px;"><button class="btn-out" style="flex:1;" onclick="abrirPanelChatsAdmin()">← Bandeja</button><button class="btn-out" style="flex:1;color:#ff5555;border-color:rgba(232,0,10,.35);" onclick="window.cerrarConversacionChat(\'' + id + '\')">Cerrar chat</button><button class="btn-out" style="flex:1;color:#ff7777;border-color:rgba(232,0,10,.35);" onclick="window.eliminarChatDefinitivo(\'' + id + '\')">🗑️ Eliminar</button>' + (chat.wp?'<a class="btn-out" style="flex:1;text-align:center;text-decoration:none;color:#25d366;border-color:rgba(37,211,102,.35);" target="_blank" rel="noopener noreferrer" href="https://wa.me/549'+String(chat.wp||'').replace(/\D/g,'')+'">Abrir WhatsApp</a>':'') + '</div></div>'
   );
   update(ref(db,'tomauno/chats/'+id), {unreadAdmin:false}).catch(()=>{});
   setTimeout(()=>{const el=document.getElementById('chat-msgs'); if(el) el.scrollTop=el.scrollHeight; const inp=document.getElementById('chat-admin-text'); if(inp && (!silent || wasFocused)){ inp.focus(); inp.setSelectionRange(inp.value.length, inp.value.length); }},60);
@@ -2766,15 +2842,16 @@ function showNotif() {
   if (d) { d.style.display = 'inline-block'; setTimeout(() => d.style.display = 'none', 10000); }
 }
 
-function showNotifBanner(titulo, detalle, icono='🔴') {
+function showNotifBanner(titulo, detalle, icono='🔴', onClick=null) {
   let banner = document.getElementById('notif-banner');
   if (!banner) {
     banner = document.createElement('div');
     banner.id = 'notif-banner';
     banner.style.cssText = 'position:fixed;top:72px;right:16px;z-index:800;background:#111;border:1.5px solid var(--red);border-radius:14px;padding:14px 18px;max-width:320px;box-shadow:0 8px 30px rgba(0,0,0,.6);transform:translateX(340px);transition:transform .4s cubic-bezier(.4,0,.2,1);cursor:pointer;';
-    banner.onclick = () => banner.style.transform = 'translateX(340px)';
+    banner.onclick = () => { if (typeof banner._action === 'function') { banner.style.transform='translateX(340px)'; banner._action(); } else banner.style.transform = 'translateX(340px)'; };
     document.body.appendChild(banner);
   }
+  banner._action = onClick;
   banner.innerHTML =
     '<div style="font-size:10px;color:var(--red);font-weight:800;letter-spacing:.1em;text-transform:uppercase;margin-bottom:6px;">' + icono + ' ' + escHtml(titulo || 'Notificación') + '</div>' +
     '<div style="font-size:14px;font-weight:700;color:#fff;margin-bottom:3px;line-height:1.35;">' + escHtml(detalle || '') + '</div>' +
@@ -2890,7 +2967,7 @@ onValue(ref(db, 'tomauno/eventos'), s => {
     if (newest && isAdminNotifier()) {
       beep();
       showNotif();
-      showNotifBanner('Nuevo evento registrado', newest[1].titulo || 'Evento sin título');
+      showNotifBanner('Nuevo evento registrado', newest[1].titulo || 'Evento sin título', '🎪', () => window.irAAdminTab('eventos-adm'));
     }
   }
   prevEventosCount = totalEventos;
@@ -2905,7 +2982,7 @@ onValue(ref(db, 'tomauno/evRegs'), s => {
   const totalEvRegs = Object.keys(evInscDB).length;
   if (totalEvRegs > oldEvRegsCount && oldEvRegsCount > 0 && isAdminNotifier()) {
     const newest = Object.values(evInscDB).sort((a,b)=>(b.creado||0)-(a.creado||0))[0];
-    beep(); showNotif(); showNotifBanner('Nueva inscripción a evento', (newest?.nombre || 'Alumno') + ' · ' + (newest?.evTitulo || 'Evento'));
+    beep(); showNotif(); showNotifBanner('Nueva inscripción a evento', (newest?.nombre || 'Alumno') + ' · ' + (newest?.evTitulo || 'Evento'), '🎟️', () => window.irAPlanillaEvento(newest?.evId));
   }
   prevEvRegsCount = totalEvRegs;
   renderEventos();
@@ -2980,7 +3057,6 @@ function renderAdminEventos() {
       '<button class="bsm bl" onclick="window.exportarExcelEvento(\'' + k + '\')">Excel</button>' +
       '<button class="bsm bl" onclick="window.exportarPDFEvento(\'' + k + '\')">PDF</button>' +
       '<button class="bsm wa" onclick="window.verPlanillaEventoAdmin(\'' + k + '\')">📋 Planilla vivo</button>' +
-      '<button class="bsm bl" onclick="window.verPlanillaEventoAdmin(\'' + k + '\')">📋 Planilla vivo</button>' +
       '<button class="bsm ' + (e.oculto?'gr':'bl') + '" onclick="window.togEvOc(\'' + k + '\',' + !e.oculto + ')">' + (e.oculto?'Mostrar':'Ocultar') + '</button>' +
       '<button class="bsm re" onclick="window.delEvento(\'' + k + '\')">Borrar</button>' +
       '</div></div>';
@@ -3079,6 +3155,8 @@ window.abrirFormEvento = () => {
     '<input class="finput" id="nev-org-dni" placeholder="Tu DNI" type="number"/>' +
     '<label class="flbl">WhatsApp del organizador *</label>' +
     '<input class="finput" id="nev-org-wp" placeholder="3764123456" type="tel"/>' +
+    '<label class="flbl">Link grupo WhatsApp del evento (opcional)</label>' +
+    '<input class="finput" id="nev-grupo-wa" placeholder="https://chat.whatsapp.com/..."/>' +
     '<label class="flbl">Instagram del evento (sin @)</label>' +
     '<input class="finput" id="nev-ig" placeholder="mi_evento_ig"/>' +
     '<div style="height:1px;background:var(--border);margin:14px 0;"></div>' +
@@ -3117,6 +3195,7 @@ window.enviarSolicitudEvento = async () => {
     costo: parseInt(document.getElementById('nev-costo')?.value)||0,
     cupos: parseInt(document.getElementById('nev-cupos')?.value)||0,
     ig: document.getElementById('nev-ig')?.value.trim()||'',
+    grupoWA: document.getElementById('nev-grupo-wa')?.value.trim()||'',
     img: '', dniOrg: orgDni, wpOrg: orgWp, nombreOrg: orgNombre,
     estado: 'pendiente', oculto: false, creado: Date.now()
   };
@@ -3171,6 +3250,8 @@ window.accederOrganizador = () => {
       '<div style="display:flex;gap:6px;">' +
       '<button class="bsm bl" onclick="window.exportarExcelOrg(\'' + k + '\')">Excel</button>' +
       '<button class="bsm bl" onclick="window.exportarPDFOrg(\'' + k + '\')">PDF</button>' +
+      (e.grupoWA ? '<a rel="noopener noreferrer" target="_blank" href="' + e.grupoWA + '" class="bsm wa" style="text-decoration:none;">Grupo WA</a>' : '') +
+      '<button class="bsm gr" onclick="window.guardarPagosEvento(\'' + k + '\')">Guardar cambios</button>' +
       '</div></div>';
     if (misInsc.length) {
       html += '<div style="overflow-x:auto;"><table style="width:100%;border-collapse:collapse;font-size:12px;min-width:400px;">' +
@@ -3220,7 +3301,13 @@ window.exportarExcelOrg = (evId) => {
   const cols = ['Nombre','DNI','WhatsApp','Instagram','Fecha','Pago','Monto'];
   const sep = ';';
   const q = v => '"' + String(v||'').replace(/"/g,'""') + '"';
-  const rows = [cols.map(q).join(sep)];
+  const rows = [
+    ['Evento', e?e.titulo:'Evento'].map(q).join(sep),
+    ['Fecha del evento', e&&e.fecha?e.fecha:''].map(q).join(sep),
+    ['Generado', new Date().toLocaleDateString('es-AR')].map(q).join(sep),
+    '',
+    cols.map(q).join(sep)
+  ];
   lista.forEach(i => {
     const est = (i.pagos&&i.pagos[0])?i.pagos[0].estado:'pendiente';
     const monto = pagoEventoInfo(i, e).monto;
@@ -3243,7 +3330,7 @@ window.exportarPDFOrg = (evId) => {
   }).join('');
   const win = window.open('','_blank');
   if (win) {
-    win.document.write('<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Inscriptos</title><style>body{font-family:sans-serif;padding:20px;font-size:12px}table{width:100%;border-collapse:collapse}th{background:#111;color:#fff;padding:6px;text-align:left}td{padding:5px 6px;border-bottom:1px solid #eee}</style></head><body><h2>'+(e?e.titulo:'Evento')+'</h2><p>'+lista.length+' inscriptos · '+new Date().toLocaleDateString('es-AR')+'</p><table><thead><tr><th>Nombre</th><th>DNI</th><th>WP</th><th>Pago</th></tr></thead><tbody>'+rows+'</tbody></table></body></html>');
+    win.document.write('<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Inscriptos</title><style>body{font-family:sans-serif;padding:20px;font-size:12px}table{width:100%;border-collapse:collapse}th{background:#111;color:#fff;padding:6px;text-align:left}td{padding:5px 6px;border-bottom:1px solid #eee}</style></head><body><div style="background:#111;color:#fff;padding:16px 18px;border-radius:10px;margin-bottom:14px;"><h1 style="margin:0;font-size:22px;">TOMA<span style="color:#e8000a;">UNO</span></h1><div style="font-size:13px;margin-top:5px;">Planilla de evento: <strong>'+(e?e.titulo:'Evento')+'</strong>'+(e&&e.fecha?' · '+e.fecha:'')+'</div></div><p><strong>'+lista.length+'</strong> inscriptos · Generado: '+new Date().toLocaleDateString('es-AR')+'</p><table><thead><tr><th>Nombre</th><th>DNI</th><th>WP</th><th>Pago</th><th>Monto</th></tr></thead><tbody>'+rows+'</tbody></table></body></html>');
     win.document.close();
     setTimeout(()=>win.print(),400);
   }
@@ -3255,7 +3342,13 @@ window.exportarExcelEvento = (evId) => {
   const cols = ['Nombre','DNI','WhatsApp','Instagram','Fecha','Pago','Monto'];
   const sep = ';';
   const q = v => '"' + String(v||'').replace(/"/g,'""') + '"';
-  const rows = [cols.map(q).join(sep)];
+  const rows = [
+    ['Evento', e?e.titulo:'Evento'].map(q).join(sep),
+    ['Fecha del evento', e&&e.fecha?e.fecha:''].map(q).join(sep),
+    ['Generado', new Date().toLocaleDateString('es-AR')].map(q).join(sep),
+    '',
+    cols.map(q).join(sep)
+  ];
   lista.forEach(i => {
     const est = (i.pagos&&i.pagos[0])?i.pagos[0].estado:'pendiente';
     const monto = pagoEventoInfo(i, e).monto;
@@ -3278,7 +3371,7 @@ window.exportarPDFEvento = (evId) => {
   }).join('');
   const win = window.open('','_blank');
   if (win) {
-    win.document.write('<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Inscriptos</title><style>body{font-family:sans-serif;padding:20px;font-size:12px}table{width:100%;border-collapse:collapse}th{background:#111;color:#fff;padding:6px;text-align:left}td{padding:5px 6px;border-bottom:1px solid #eee}</style></head><body><h2>'+(e?e.titulo:'Evento')+'</h2><p>'+lista.length+' inscriptos · '+new Date().toLocaleDateString('es-AR')+'</p><table><thead><tr><th>Nombre</th><th>DNI</th><th>WP</th><th>Pago</th></tr></thead><tbody>'+rows+'</tbody></table></body></html>');
+    win.document.write('<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Inscriptos</title><style>body{font-family:sans-serif;padding:20px;font-size:12px}table{width:100%;border-collapse:collapse}th{background:#111;color:#fff;padding:6px;text-align:left}td{padding:5px 6px;border-bottom:1px solid #eee}</style></head><body><div style="background:#111;color:#fff;padding:16px 18px;border-radius:10px;margin-bottom:14px;"><h1 style="margin:0;font-size:22px;">TOMA<span style="color:#e8000a;">UNO</span></h1><div style="font-size:13px;margin-top:5px;">Planilla de evento: <strong>'+(e?e.titulo:'Evento')+'</strong>'+(e&&e.fecha?' · '+e.fecha:'')+'</div></div><p><strong>'+lista.length+'</strong> inscriptos · Generado: '+new Date().toLocaleDateString('es-AR')+'</p><table><thead><tr><th>Nombre</th><th>DNI</th><th>WP</th><th>Pago</th><th>Monto</th></tr></thead><tbody>'+rows+'</tbody></table></body></html>');
     win.document.close();
     setTimeout(()=>win.print(),400);
   }
@@ -3312,7 +3405,11 @@ window.updMontoPagoEvento = async (inscId, monto) => {
   const pagos = [...(insc.pagos||[{label:'Pago unico',estado:'pendiente',monto:''}])];
   pagos[0] = Object.assign({}, pagos[0], {monto: monto || ''});
   await update(ref(db, 'tomauno/evRegs/' + inscId), {pagos});
-  toast('Monto actualizado');
+};
+
+window.guardarPagosEvento = (evId) => {
+  toast('✅ Cambios de pagos guardados', true);
+  setTimeout(()=>{ if(evId && window.verPlanillaEventoAdmin) window.verPlanillaEventoAdmin(evId); }, 250);
 };
 
 window.verPlanillaEventoAdmin = (id) => {
@@ -3334,6 +3431,8 @@ window.verPlanillaEventoAdmin = (id) => {
     '<div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px;">' +
     '<button class="bsm bl" onclick="window.exportarExcelEvento(\'' + id + '\')">📊 Excel</button>' +
     '<button class="bsm bl" onclick="window.exportarPDFEvento(\'' + id + '\')">📄 PDF</button>' +
+    (e&&e.grupoWA ? '<a rel="noopener noreferrer" target="_blank" href="' + e.grupoWA + '" class="bsm wa" style="text-decoration:none;">💬 Grupo WA</a>' : '') +
+    '<button class="bsm gr" onclick="window.guardarPagosEvento(\'' + id + '\')">💾 Guardar cambios</button>' +
     '</div>';
   if (!lista.length) {
     html += '<div style="color:var(--text3);padding:18px 0;">Sin inscriptos aún</div>';
@@ -3402,6 +3501,7 @@ window.editarEvento = (id) => {
     '<label class="flbl">URL Flyer (Imgur)</label><input class="finput" id="ee-img" value="' + (e.img||'') + '" placeholder="https://i.imgur.com/..."/>' +
     '<label class="flbl">Instagram (sin @)</label><input class="finput" id="ee-ig" value="' + (e.ig||'') + '"/>' +
     '<label class="flbl">WhatsApp organizador</label><input class="finput" id="ee-wp" value="' + (e.wpOrg||'') + '"/>' +
+    '<label class="flbl">Link grupo WhatsApp del evento</label><input class="finput" id="ee-gwa" value="' + (e.grupoWA||'') + '" placeholder="https://chat.whatsapp.com/..."/>' +
     '<label class="flbl">Estado</label>' +
     '<select class="finput" id="ee-estado">' +
     '<option value="pendiente" '+(e.estado==='pendiente'?'selected':'')+'>Pendiente de aprobacion</option>' +
@@ -3426,6 +3526,7 @@ window.guardarEditEvento = async () => {
     img:    document.getElementById('ee-img')?.value.trim()||'',
     ig:     document.getElementById('ee-ig')?.value.trim()||'',
     wpOrg:  document.getElementById('ee-wp')?.value.trim()||'',
+    grupoWA: document.getElementById('ee-gwa')?.value.trim()||'',
     estado: document.getElementById('ee-estado')?.value||'pendiente',
   });
   window._editEvId = null;
