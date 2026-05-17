@@ -514,6 +514,14 @@ button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,te
 .chat-wa-soft{display:inline-flex;align-items:center;gap:6px;margin-top:10px;color:#25d366;text-decoration:none;font-size:12px;border:1px solid rgba(37,211,102,.25);padding:8px 12px;border-radius:20px;background:rgba(37,211,102,.06);}
 .chat-popover{position:fixed;right:24px;bottom:158px;z-index:849;width:min(390px,calc(100vw - 32px));max-height:70vh;background:linear-gradient(180deg,#151515,#080808);border:1px solid rgba(255,255,255,.12);border-radius:24px;box-shadow:0 28px 90px rgba(0,0,0,.72),0 0 0 1px rgba(232,0,10,.18),0 0 70px rgba(232,0,10,.16);display:none;overflow:hidden;animation:chatPop .22s cubic-bezier(.16,1,.3,1);}
 .chat-popover.open{display:block;}
+.chat-popover.expanded{width:min(980px,calc(100vw - 48px));max-height:88vh;right:24px;bottom:96px;}
+.chat-popover.expanded .chat-msgs{min-height:520px;max-height:62vh;}
+.chat-online-dot{display:inline-block;width:8px;height:8px;border-radius:50%;background:#555;margin-right:5px;box-shadow:0 0 0 3px rgba(255,255,255,.04);vertical-align:middle;}
+.chat-online-dot.on{background:#4caf7d;box-shadow:0 0 0 4px rgba(76,175,125,.15),0 0 14px rgba(76,175,125,.45);}
+.chat-presence-text{font-size:11px;color:var(--text3);margin-top:2px;}
+.chat-max-btn{position:absolute;top:12px;right:48px;width:30px;height:30px;border-radius:50%;border:none;background:rgba(255,255,255,.08);color:#fff;cursor:pointer;font-size:14px;z-index:2;}
+.chat-max-btn:hover{background:var(--red);}
+@media(max-width:700px){.chat-popover.expanded{left:8px;right:8px;bottom:110px;width:auto;max-height:78vh}.chat-popover.expanded .chat-msgs{min-height:300px;max-height:54vh}}
 @keyframes chatPop{from{opacity:0;transform:translateY(18px) scale(.96)}to{opacity:1;transform:translateY(0) scale(1)}}
 .chat-popover-inner{padding:16px;}
 .chat-popover-close{position:absolute;top:12px;right:12px;width:30px;height:30px;border-radius:50%;border:none;background:rgba(255,255,255,.08);color:#fff;cursor:pointer;font-size:15px;z-index:2;}
@@ -561,6 +569,11 @@ button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,te
 .chat-clean-btn{border:1px solid rgba(232,0,10,.35);background:rgba(232,0,10,.08);color:#ff7777;border-radius:18px;padding:7px 11px;font-size:11px;font-weight:800;cursor:pointer;font-family:var(--font);}
 .chat-clean-btn:hover{background:var(--red);color:#fff;}
 
+.chat-admin-actions{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:7px;margin-top:8px;}
+.chat-admin-actions .btn-out,.chat-admin-actions a.btn-out{min-width:0!important;width:100%;font-size:11px;padding:9px 6px;margin-top:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.chat-admin-actions .danger{color:#ff7777!important;border-color:rgba(232,0,10,.35)!important;}
+@media(max-width:700px){.chat-admin-actions{grid-template-columns:repeat(3,minmax(0,1fr));gap:6px}.chat-admin-actions .btn-out,.chat-admin-actions a.btn-out{font-size:10px;padding:8px 4px;border-radius:18px}.chat-head .chat-title{font-size:24px}}
+
 /* ASISTENTE */
 .ai-pill{display:inline-flex;align-items:center;gap:6px;border:1px solid rgba(232,0,10,.28);background:rgba(232,0,10,.08);color:#fff;border-radius:18px;padding:5px 9px;font-size:10px;font-weight:800;margin:2px;}
 .ai-item{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;border:1px solid var(--border);background:#0d0d0d;border-radius:var(--radius-sm);padding:14px;margin-bottom:8px;}
@@ -577,7 +590,7 @@ button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,te
 .gal-sec-head .sec-sub{text-align:right;max-width:320px;}
 @media(max-width:700px){.gal-sec-head{align-items:flex-start}.gal-sec-head .sec-sub{text-align:left}.chat-head-actions{padding-right:32px}.chat-clean-btn{font-size:10px;padding:7px 9px}}
 
-@media(max-width:700px){.chat-fab{right:18px;bottom:78px;width:56px;height:56px;font-size:24px}.chat-popover{right:12px;left:12px;bottom:145px;width:auto;max-height:72vh}.chat-row{border-radius:22px}.chat-bubble{max-width:94%;}.chat-msgs{min-height:260px;max-height:48vh}.chat-name-row{flex-direction:column}}
+@media(max-width:700px){.cfoot{flex-direction:column;align-items:stretch}.cfoot-btns{width:100%;display:grid;grid-template-columns:1fr 1fr}.cbtn,.cbtn-info{width:100%;padding:10px 8px;font-size:11px}.chat-fab{right:18px;bottom:78px;width:56px;height:56px;font-size:24px}.chat-popover{right:12px;left:12px;bottom:145px;width:auto;max-height:72vh}.chat-row{border-radius:22px}.chat-bubble{max-width:94%;}.chat-msgs{min-height:260px;max-height:48vh}.chat-name-row{flex-direction:column}}
 
 
 /* Ajustes v25 */
@@ -874,7 +887,7 @@ button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,te
   <a rel="noopener noreferrer" href="https://wa.me/5493764354522?text=Hola%2C%20me%20contacto%20desde%20la%20web%20de%20Tomauno%2C%20quisiera%20consultar" target="_blank" class="fwa">💬 Escribinos por WhatsApp</a>
   <div class="fcred"><a rel="noopener noreferrer" href="https://wa.me/5493764354522" target="_blank">⚡ Realizado por Javier Móttola</a></div>
   <div style="margin-top:16px;display:flex;align-items:center;justify-content:center;gap:16px;flex-wrap:wrap;">
-    <div style="font-size:11px;color:var(--text3);border:1px solid var(--border);padding:5px 13px;border-radius:20px;">v29.2</div>
+    <div style="font-size:11px;color:var(--text3);border:1px solid var(--border);padding:5px 13px;border-radius:20px;">v32.0</div>
   </div>
 </footer>
 
@@ -1183,7 +1196,7 @@ button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,te
     <!-- ASISTENTE ADMIN -->
     <div id="atab-asistente-adm" style="display:none;">
       <div class="acard">
-        <div class="acard-title">🤖 Asistente automático / cerebro Tomauno</div>
+        <div class="acard-title" style="display:flex;align-items:center;justify-content:space-between;gap:10px;">🤖 Asistente automático / cerebro Tomauno <button class="bsm bl" onclick="window.mostrarAyudaAsistente()">❔ Ayuda / Machete</button></div>
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;align-items:start;">
           <div>
             <label class="flbl">Modo de respuesta</label>
@@ -1210,15 +1223,25 @@ button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,te
         <div class="acard-title">+ Agregar información al cerebro</div>
         <div class="frow2">
           <div class="fgroup"><label class="flbl">Título / tema</label><input class="finput" id="ai-title" placeholder="Ej: Bodas y 15 años"/></div>
-          <div class="fgroup"><label class="flbl">Palabras clave</label><input class="finput" id="ai-keys" placeholder="boda, casamiento, quince, 15 años"/></div>
+          <div class="fgroup"><label class="flbl">Comando rápido opcional</label><input class="finput" id="ai-command" placeholder="Ej: /pack15, /alias, /equipos"/></div>
         </div>
+        <div class="fgroup"><label class="flbl">Palabras clave</label><input class="finput" id="ai-keys" placeholder="boda, casamiento, quince, 15 años"/></div>
         <div class="fgroup"><label class="flbl">Respuesta que debe usar</label><textarea class="finput" id="ai-answer" placeholder="Pegá acá listas completas, paquetes, precios, condiciones o respuestas extensas. Ej: servicios para 15 años, bodas, alquiler del estudio..." style="min-height:220px;"></textarea></div>
-        <div style="font-size:11px;color:var(--text3);line-height:1.55;margin:-2px 0 12px;">Consejo: para textos muy largos conviene crear una ficha por tema. Ej: <b>Bodas</b>, <b>15 años</b>, <b>Alquiler de estudio</b>, <b>Paquetes para modelos</b>. Usá palabras clave separadas por coma para que el asistente encuentre la respuesta.</div>
+        <div style="font-size:11px;color:var(--text3);line-height:1.55;margin:-2px 0 12px;">Consejo: para textos muy largos conviene crear una ficha por tema. Ej: <b>Bodas</b>, <b>15 años</b>, <b>Alquiler de estudio</b>, <b>Paquetes para modelos</b>. Usá palabras clave separadas por coma. Podés usar {{nombre}}, acciones como #cursos# o #ubicacion#, y comandos rápidos como /pack15.</div>
         <button class="btn-main" onclick="window.agregarInfoAsistente()">💾 Guardar información</button>
       </div>
       <div class="acard">
         <div class="acard-title">Información cargada</div>
         <div id="ai-knowledge-list"><div style="color:var(--text3);font-size:13px;">Cargando...</div></div>
+      </div>
+      <div class="acard">
+        <div class="acard-title">Botones rápidos del chat admin</div>
+        <div class="frow2">
+          <div class="fgroup"><label class="flbl">Texto del botón</label><input class="finput" id="aiqr-label" placeholder="Ej: Ubicación"/></div>
+          <div class="fgroup"><label class="flbl">Respuesta</label><input class="finput" id="aiqr-text" placeholder="Texto que se enviará al tocar el botón"/></div>
+        </div>
+        <button class="btn-main" onclick="window.agregarRespuestaRapidaAsistente()">➕ Agregar botón rápido</button>
+        <div id="ai-quick-list" style="margin-top:14px;"><div style="color:var(--text3);font-size:13px;">Cargando...</div></div>
       </div>
     </div>
 
@@ -1410,7 +1433,7 @@ document.addEventListener('keydown', function(e) {
 
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
-import { getDatabase, ref, onValue, update, push, remove, set, onDisconnect } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js";
+import { getDatabase, ref, onValue, update, push, remove, set, onDisconnect, get } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js";
 
 function setDbStatus(s){
   const el=document.getElementById('db-status'),lb=document.getElementById('db-label');
@@ -3128,12 +3151,16 @@ onValue(ref(db, 'tomauno/chats'), snap => {
     if (nuevos.length) {
       const [newId, newest] = nuevos[0];
       notifyAdminChat('Nuevo chat web', (newest?.name || 'Sin nombre') + ': ' + (newest?.lastMsg || 'Escribió desde la web'), newId);
+      // Si el chat está minimizado, abrir automáticamente la conversación nueva para el admin.
+      const popAuto = document.getElementById('chat-popover');
+      if (!popAuto || !popAuto.classList.contains('open')) setTimeout(() => window.abrirChatAdmin && window.abrirChatAdmin(newId), 120);
       nuevos.forEach(([id]) => notifiedChatIds.add(id));
       try{ localStorage.setItem('tomauno-chat-notified', JSON.stringify([...notifiedChatIds])); }catch(e){}
     }
     chatEntries.forEach(([id]) => knownChatIds.add(id));
   }
 
+  if (currentVisitorChatId && chatsDB[currentVisitorChatId]) maybeRunVisitorActionTags(currentVisitorChatId, chatsDB[currentVisitorChatId]);
   const pop = document.getElementById('chat-popover');
   if (currentOpenChatId && pop?.classList.contains('open')) {
     const active = document.activeElement;
@@ -3163,26 +3190,61 @@ function chatMsgs(chat){
   });
 }
 function isValidChat(c){
-  const name = String(c && c.name ? c.name : '').trim();
-  if (!c || !name || name.toLowerCase() === 'sin nombre' || name === '.') return false;
-  if (!chatMsgs(c).length && !String(c.lastMsg||'').trim()) return false;
+  if (!c) return false;
+  const msgs = chatMsgs(c);
+  const name = String(c.name || '').trim();
+  const last = String(c.lastMsg || '').trim();
+  // Ignora chats realmente vacíos o creados solo al pedir nombre.
+  if (!msgs.length && (!last || last === 'Esperando mensaje')) return false;
+  // Si se borró parcialmente y quedó sin nombre, igual lo mostramos si tiene mensajes reales.
+  if ((!name || name.toLowerCase() === 'sin nombre' || name === '.') && !msgs.some(([,m]) => m && String(m.text||'').trim())) return false;
   return true;
 }
 function chatGreeting(){ return isAdminOnline() ? '🟢 ¿En qué puedo ayudarte?' : '⚫ En este momento puedo responder algunas consultas automáticamente. Dejá tu mensaje; si hace falta, Javier te responde luego.'; }
-function chatHtmlWrap(inner){ return '<button class="chat-popover-close" onclick="window.cerrarChatPopover()">✕</button><div class="chat-popover-inner">'+inner+'</div>'; }
+function isChatUserOnline(c){ return !!(c && c.userOnline && c.userLastSeen && Date.now() - Number(c.userLastSeen) < 75000); }
+function lastSeenText(c){
+  if(isChatUserOnline(c)) return 'En línea ahora';
+  const t = Number(c?.userLastSeen || 0);
+  if(!t) return 'Sin actividad reciente';
+  const mins = Math.max(1, Math.round((Date.now() - t)/60000));
+  return mins <= 1 ? 'Se fue hace instantes' : 'Última actividad hace ' + mins + ' min';
+}
+let visitorPresenceTimer = null;
+function markVisitorChatOnline(id){
+  if(!id) return;
+  try{
+    update(ref(db,'tomauno/chats/'+id), {userOnline:true, userLastSeen:Date.now()}).catch(()=>{});
+    try{ onDisconnect(ref(db,'tomauno/chats/'+id)).update({userOnline:false, userLastSeen:Date.now()}); }catch(e){}
+    clearInterval(visitorPresenceTimer);
+    visitorPresenceTimer = setInterval(()=>{
+      if(currentVisitorChatId === id) update(ref(db,'tomauno/chats/'+id), {userOnline:true, userLastSeen:Date.now()}).catch(()=>{});
+    }, 25000);
+  }catch(e){}
+}
+window.addEventListener('beforeunload', () => { if(currentVisitorChatId){ try{ update(ref(db,'tomauno/chats/'+currentVisitorChatId), {userOnline:false, userLastSeen:Date.now()}); }catch(e){} } });
+function chatHtmlWrap(inner){ return '<button class="chat-max-btn" title="Ampliar chat" onclick="window.toggleChatExpanded()">⛶</button><button class="chat-popover-close" onclick="window.cerrarChatPopover()">✕</button><div class="chat-popover-inner">'+inner+'</div>'; }
+window.toggleChatExpanded = () => { const p=document.getElementById('chat-popover'); if(p) p.classList.toggle('expanded'); };
 function setChatPopover(html){ const p=document.getElementById('chat-popover'); if(!p) return; p.innerHTML=chatHtmlWrap(html); p.classList.add('open'); }
 window.cerrarChatPopover = () => { const p=document.getElementById('chat-popover'); if(p) p.classList.remove('open'); currentOpenChatId=''; };
 
-const CHAT_QUICK = [
+
+const DEFAULT_CHAT_QUICK = [
   {label:'📍 Ubicación', text:'📍 Estamos en Pedro Méndez 2069, Posadas, Misiones. Te dejo el mapa: https://www.google.com/maps/place/Estudio+Fotogr%C3%A1fico+Tomauno/@-27.3764851,-55.8976743,17z/data=!3m1!4b1!4m6!3m5!1s0x9457be494f85260f:0x9b7c2b5fd920df9f!8m2!3d-27.3764851!4d-55.8976743!16s%2Fg%2F11cmdn9j9z?entry=ttu&g_ep=EgoyMDI2MDUxMy4wIKXMDSoASAFQAw%3D%3D'},
   {label:'📸 Instagram', text:'📸 Nuestros Instagram son: @tomaunoestudio, @tomaunomodels y @tomaunocapacitaciones.'},
   {label:'💬 WhatsApp', text:'💬 También podés escribirme directo por WhatsApp: https://wa.me/5493764354522?text=Hola%20vengo%20de%20la%20web%20Tomauno%20Cursos%20y%20Capacitaciones%2C%20quisiera%20hacer%20una%20consulta.'},
   {label:'🎓 Cursos', text:'🎓 En la sección CURSOS de esta web podés ver las capacitaciones disponibles. Si querés, decime cuál te interesa y te paso más detalles.'},
   {label:'📷 Sesiones', text:'📷 Hacemos sesiones fotográficas, books, retratos, moda y contenido para redes. Contame qué tipo de sesión buscás y te oriento.'}
 ];
-function quickRepliesHtml(){ return '<div class="chat-quick-wrap">'+CHAT_QUICK.map((q,i)=>'<button class="chat-quick" onclick="window.usarRespuestaRapida('+i+')">'+q.label+'</button>').join('')+'</div>'; }
+function chatQuickList(){
+  const custom = Object.entries(asistenteDB?.quickReplies || {})
+    .filter(([,q]) => q && q.activo !== false && q.label && q.text)
+    .sort((a,b)=>(a[1].orden||0)-(b[1].orden||0))
+    .map(([,q]) => ({label:q.label, text:q.text}));
+  return custom.length ? custom : DEFAULT_CHAT_QUICK;
+}
+function quickRepliesHtml(){ return '<div class="chat-quick-wrap">'+chatQuickList().map((q,i)=>'<button class="chat-quick" onclick="window.usarRespuestaRapida('+i+')">'+escHtml(q.label)+'</button>').join('')+'</div>'; }
 window.usarRespuestaRapida = (idx) => {
-  const q = CHAT_QUICK[idx]; if(!q) return;
+  const q = chatQuickList()[idx]; if(!q) return;
   const inp = document.getElementById('chat-admin-text');
   if(inp && currentOpenChatId){ window.enviarChatAdmin(currentOpenChatId, q.text); return; }
   if(inp){ inp.value = q.text; inp.focus(); inp.setSelectionRange(inp.value.length, inp.value.length); }
@@ -3190,6 +3252,12 @@ window.usarRespuestaRapida = (idx) => {
 
 window.abrirChatTomauno = () => {
   unlockAudio();
+  const popToggle = document.getElementById('chat-popover');
+  // Si el chat está abierto y el usuario toca nuevamente el botón flotante, se minimiza.
+  if (popToggle && popToggle.classList.contains('open')) {
+    window.cerrarChatPopover && window.cerrarChatPopover();
+    return;
+  }
   // Si este navegador quedó habilitado como administrador, el botón de chat SIEMPRE abre la bandeja admin.
   // Antes usaba solo adminOk/admin-section y al salir del panel te trataba como visitante aunque el indicador dijera ADM activo.
   if (isAdminNotifier()) {
@@ -3219,12 +3287,15 @@ window.iniciarChatConNombre = async () => {
   if(!name){ toast('⚠️ Escribí tu nombre para iniciar'); return; }
   const chatRef = await push(ref(db,'tomauno/chats'), {name, wp:'', status:'abierto', createdAt:Date.now(), updatedAt:Date.now(), lastMsg:'Esperando mensaje', unreadAdmin:false, unreadVisitor:false});
   currentVisitorChatId = chatRef.key;
-  try{ sessionStorage.setItem('tomauno-chat-id', currentVisitorChatId); }catch(e){}
+  try{
+    sessionStorage.setItem('tomauno-chat-id', currentVisitorChatId);
+    sessionStorage.setItem('tomauno-chat-name', name);
+  }catch(e){}
   abrirChatVisitante(currentVisitorChatId);
 };
 
 function chatLinkify(text){
-  let safe = escHtml(text || '');
+  let safe = escHtml(cleanChatDisplayText(text || ''));
   // Negrita simple estilo Markdown: **texto**
   safe = safe.replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>');
   // Cursiva simple: _texto_ o *texto*
@@ -3248,7 +3319,7 @@ function chatLinkify(text){
 }
 function chatActionButtonsForMessage(text){
   const t = normAI(text || '');
-  const btns = [];
+  const btns = parseChatActions(text || '');
   if(t.includes('cursos activos') || t.includes('seccion cursos') || t.includes('ver cursos')) btns.push({label:'🎓 Ver cursos', sec:'sec-cursos'});
   if(t.includes('eventos activos') || t.includes('seccion eventos') || t.includes('ver eventos')) btns.push({label:'🎪 Ver eventos', sec:'sec-eventos'});
   if(t.includes('servicios disponibles') || t.includes('seccion servicios') || t.includes('ver servicios')) btns.push({label:'📷 Ver servicios', sec:'sec-servicios'});
@@ -3272,15 +3343,25 @@ function renderMsgs(chat, adminView=false, chatId=''){
     return '<div class="chat-bubble '+cls+'"><div>'+chatLinkify(m.text||'')+editBtn+'</div>'+actions+(m.from==='system'?'':'<div class="chat-meta">'+escHtml(m.time||'')+'</div>')+'</div>';
   }).join('');
 }
+function scrollChatSmart(box){
+  if(!box) return;
+  const bubbles = box.querySelectorAll('.chat-bubble');
+  const last = bubbles[bubbles.length - 1];
+  if(!last){ box.scrollTop = box.scrollHeight; return; }
+  const longMsg = (last.innerText || '').length > 260 || last.scrollHeight > 180;
+  if(longMsg) box.scrollTop = Math.max(0, last.offsetTop - 10);
+  else box.scrollTop = box.scrollHeight;
+}
 function updateChatMessagesOnly(id, adminView){
   const box=document.getElementById('chat-msgs'); if(!box) return;
   const chat=chatsDB[id]||{};
   const html = renderMsgs(chat, adminView, id) + (!adminView && !isAdminOnline() ? '<div class="chat-bubble system">Si no respondo pronto, también podés escribirme por WhatsApp.<br><a class="chat-wa-soft" target="_blank" rel="noopener noreferrer" href="https://wa.me/5493764354522?text=Hola%20vengo%20de%20la%20web%20Tomauno%20Cursos%20y%20Capacitaciones%2C%20quisiera%20hacer%20una%20consulta.">💬 WhatsApp directo</a></div>' : '');
-  if(box.dataset.lastHtml !== html){ box.innerHTML=html; box.dataset.lastHtml=html; box.scrollTop=box.scrollHeight; }
+  if(box.dataset.lastHtml !== html){ box.innerHTML=html; box.dataset.lastHtml=html; scrollChatSmart(box); }
 }
 
 function abrirChatVisitante(id, silent=false){
   currentOpenChatId = id;
+  markVisitorChatOnline(id);
   const chat = chatsDB[id] || {};
   const inputVal = document.getElementById('chat-text')?.value || '';
   const wasFocused = document.activeElement?.id === 'chat-text';
@@ -3294,7 +3375,8 @@ function abrirChatVisitante(id, silent=false){
     '</div>'
   );
   update(ref(db,'tomauno/chats/'+id), {unreadVisitor:false}).catch(()=>{});
-  setTimeout(()=>{const el=document.getElementById('chat-msgs'); if(el) el.scrollTop=el.scrollHeight; const inp=document.getElementById('chat-text'); if(inp && (!silent || wasFocused)){ inp.focus(); inp.setSelectionRange(inp.value.length, inp.value.length); }},60);
+  maybeRunVisitorActionTags(id, chat);
+  setTimeout(()=>{const el=document.getElementById('chat-msgs'); if(el) scrollChatSmart(el); const inp=document.getElementById('chat-text'); if(inp && (!silent || wasFocused)){ inp.focus(); inp.setSelectionRange(inp.value.length, inp.value.length); }},60);
 }
 
 window.enviarChatVisitante = async (id) => {
@@ -3302,13 +3384,44 @@ window.enviarChatVisitante = async (id) => {
   const text = inp?.value.trim();
   if(!text) return;
   inp.value=''; inp.focus();
+  const existingChat = chatsDB?.[id] || {};
+  let fallbackName = '';
+  try{ fallbackName = sessionStorage.getItem('tomauno-chat-name') || ''; }catch(e){}
+  const repairedName = limpiarNombreChat(existingChat.name || fallbackName || 'Consulta web');
+  // Repara metadata si el chat fue borrado parcialmente desde Firebase mientras el visitante conservaba el id en su pestaña.
+  await update(ref(db,'tomauno/chats/'+id), {
+    name: repairedName,
+    status:'abierto',
+    updatedAt:Date.now(),
+    lastMsg:text,
+    unreadAdmin:true,
+    userOnline:true,
+    userLastSeen:Date.now()
+  });
   await push(ref(db,'tomauno/chats/'+id+'/messages'), {from:'user', text, time:chatTime(), createdAt:Date.now()});
-  await update(ref(db,'tomauno/chats/'+id), {updatedAt:Date.now(), lastMsg:text, status:'abierto', unreadAdmin:true});
+  await update(ref(db,'tomauno/chats/'+id), {updatedAt:Date.now(), lastMsg:text, status:'abierto', unreadAdmin:true, userOnline:true, userLastSeen:Date.now()});
   responderAutomaticoChat(id, text);
 };
 
 
 function chatVisibleName(c){ return (c && c.name ? c.name : (c && c.lastMsg && c.lastMsg !== 'Esperando mensaje' ? 'Consulta web' : 'Sin nombre')); }
+window.editarNombreChat = (id) => {
+  const c = chatsDB[id]; if(!c) return;
+  document.getElementById('mcontent').innerHTML =
+    '<div class="mtitle">EDITAR NOMBRE</div>'+
+    '<div class="msub" style="margin-bottom:12px;">Acomodá el nombre para ordenar mejor la bandeja.</div>'+
+    '<input class="finput" id="chat-edit-name" value="'+escAttr((c.name && !/^consulta web$/i.test(c.name)) ? c.name : '')+'" placeholder="Nombre del contacto" onkeydown="if(event.key===\'Enter\')document.getElementById(\'chat-name-save\').click()"/>'+
+    '<button class="btn-main" id="chat-name-save">💾 Guardar nombre</button>'+
+    '<button class="btn-out" onclick="window.closeModal()">Cancelar</button>';
+  openModal();
+  setTimeout(()=>document.getElementById('chat-edit-name')?.focus(),80);
+  document.getElementById('chat-name-save').onclick = async () => {
+    const name = limpiarNombreChat(document.getElementById('chat-edit-name')?.value.trim() || '');
+    if(!name){ toast('Escribí un nombre válido'); return; }
+    await update(ref(db,'tomauno/chats/'+id), {name, updatedAt:Date.now()});
+    closeModal(); abrirChatAdmin(id, true); toast('✅ Nombre actualizado', true);
+  };
+};
 
 function abrirPanelChatsAdmin(){
   currentOpenChatId = '';
@@ -3400,23 +3513,46 @@ window.abrirChatAdmin = (id, silent=false) => {
   const msgs = renderMsgs(chat, true, id);
   setChatPopover(
     adminChatTabsHtml(id) +
-    '<div class="chat-head"><div class="chat-avatar">👤</div><div><div class="chat-title">'+escHtml(chatVisibleName(chat))+'</div><div class="chat-subline">'+(chat.wp?'WhatsApp: '+escHtml(chat.wp):'Chat web directo')+'</div></div></div>' +
+    '<div class="chat-head"><div class="chat-avatar">👤</div><div><div class="chat-title"><span class="chat-online-dot '+(isChatUserOnline(chat)?'on':'')+'"></span>'+escHtml(chatVisibleName(chat))+'</div><div class="chat-subline">'+(chat.wp?'WhatsApp: '+escHtml(chat.wp)+' · ':'')+lastSeenText(chat)+'</div></div></div>' +
     '<div class="chat-panel"><div class="chat-msgs" id="chat-msgs">'+msgs+'</div>' +
     '<div class="chat-row"><input class="finput" id="chat-admin-text" placeholder="Responder..." value="'+escAttr(inputVal)+'" onkeydown="if(event.key===\'Enter\')window.enviarChatAdmin(\''+id+'\')"/><button class="chat-send" onclick="window.enviarChatAdmin(\''+id+'\')">➜</button></div>' +
-    '<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-top:8px;"><button class="chat-filter '+(asistenteModo()==='automatico'?'on':'')+'" onclick="window.toggleModoAsistenteChat()">🤖 Auto '+(asistenteModo()==='automatico'?'ON':'OFF')+'</button><span style="font-size:11px;color:var(--text3);">Respuestas rápidas:</span></div>' + quickRepliesHtml() +
-    '<div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:4px;"><button class="btn-out" style="flex:1;" onclick="abrirPanelChatsAdmin()">← Bandeja</button><button class="btn-out" style="flex:1;color:#ff5555;border-color:rgba(232,0,10,.35);" onclick="window.cerrarConversacionChat(\'' + id + '\')">Cerrar chat</button><button class="btn-out" style="flex:1;color:#ff7777;border-color:rgba(232,0,10,.35);" onclick="window.eliminarChatDefinitivo(\'' + id + '\')">🗑️ Eliminar</button>' + (chat.wp?'<a class="btn-out" style="flex:1;text-align:center;text-decoration:none;color:#25d366;border-color:rgba(37,211,102,.35);" target="_blank" rel="noopener noreferrer" href="https://wa.me/549'+String(chat.wp||'').replace(/\D/g,'')+'">Abrir WhatsApp</a>':'') + '</div></div>'
+    '<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-top:8px;"><button class="chat-filter '+(asistenteModo()==='automatico'?'on':'')+'" onclick="window.toggleModoAsistenteChat()">🤖 Auto '+(asistenteModo()==='automatico'?'ON':'OFF')+'</button><button class="chat-filter" onclick="window.mostrarAyudaAsistente()">/?</button><button class="chat-filter" onclick="window.mostrarSelectorCerebroChat(\''+id+'\')">//</button><button class="chat-filter" onclick="window.mostrarAccionesChatAdmin(\''+id+'\')">⚡ Acciones</button><span style="font-size:11px;color:var(--text3);">Respuestas rápidas:</span></div>' + quickRepliesHtml() +
+    '<div class="chat-admin-actions"><button class="btn-out" onclick="abrirPanelChatsAdmin()">← Bandeja</button><button class="btn-out" onclick="window.editarNombreChat(\'' + id + '\')">✏️ Nombre</button><button class="btn-out" onclick="window.copiarHistorialChat(\'' + id + '\')">📋 Copiar</button><button class="btn-out" onclick="window.exportarHistorialChat(\'' + id + '\')">⬇️ TXT</button><button class="btn-out danger" onclick="window.cerrarConversacionChat(\'' + id + '\')">Cerrar</button><button class="btn-out danger" onclick="window.eliminarChatDefinitivo(\'' + id + '\')">🗑️ Borrar</button>' + (chat.wp?'<a class="btn-out" style="text-align:center;text-decoration:none;color:#25d366;border-color:rgba(37,211,102,.35);" target="_blank" rel="noopener noreferrer" href="https://wa.me/549'+String(chat.wp||'').replace(/\D/g,'')+'">WA</a>':'') + '</div></div>'
   );
   update(ref(db,'tomauno/chats/'+id), {unreadAdmin:false}).catch(()=>{});
-  setTimeout(()=>{const el=document.getElementById('chat-msgs'); if(el) el.scrollTop=el.scrollHeight; const inp=document.getElementById('chat-admin-text'); if(inp && (!silent || wasFocused)){ inp.focus(); inp.setSelectionRange(inp.value.length, inp.value.length); }},60);
+  setTimeout(()=>{const el=document.getElementById('chat-msgs'); if(el) scrollChatSmart(el); const inp=document.getElementById('chat-admin-text'); if(inp && (!silent || wasFocused)){ inp.focus(); inp.setSelectionRange(inp.value.length, inp.value.length); }},60);
 };
 
 window.enviarChatAdmin = async (id, presetText='') => {
   const inp = document.getElementById('chat-admin-text');
-  const text = String(presetText || inp?.value || '').trim();
+  let text = String(presetText || inp?.value || '').trim();
   if(!text) return;
+  if(!presetText){
+    if(text === '/?'){ window.mostrarAyudaAsistente(); return; }
+    if(text === '//'){ window.mostrarSelectorCerebroChat(id); if(inp) inp.value=''; return; }
+    if(normAI(text) === '/acciones'){ window.mostrarAccionesChatAdmin(id); if(inp) inp.value=''; return; }
+    if(text.charAt(0) === '/'){
+      const found = findKnowledgeByCommand(text);
+      if(found){ text = applyAIVariables(found.k.respuesta || '', chatsDB[id] || {}); }
+    }
+  }
+  text = applyAIVariables(text, chatsDB[id] || {});
   if(inp){ inp.value=''; inp.focus(); }
   await push(ref(db,'tomauno/chats/'+id+'/messages'), {from:'admin', text, time:chatTime(), createdAt:Date.now()});
-  await update(ref(db,'tomauno/chats/'+id), {updatedAt:Date.now(), lastMsg:text, status:'respondido', unreadVisitor:true, unreadAdmin:false});
+  await update(ref(db,'tomauno/chats/'+id), {updatedAt:Date.now(), lastMsg:cleanChatDisplayText(text), status:'respondido', unreadVisitor:true, unreadAdmin:false});
+};
+
+
+window.copiarHistorialChat = async (id) => {
+  const c = chatsDB[id]; if(!c) return;
+  const lines = ['Historial chat Tomauno', 'Cliente: ' + chatVisibleName(c), c.wp ? ('WhatsApp: ' + c.wp) : '', 'Estado: ' + (c.status || 'abierto'), ''];
+  chatMsgs(c).forEach(([,m]) => {
+    if(m.typing) return;
+    const who = m.from === 'user' ? chatVisibleName(c) : (m.auto ? 'Asistente Tomauno' : 'Tomauno');
+    lines.push('[' + (m.time || '') + '] ' + who + ': ' + (m.text || ''));
+  });
+  try{ await navigator.clipboard.writeText(lines.filter(Boolean).join('\n')); toast('📋 Historial copiado', true); }
+  catch(e){ toast('No pude copiar el historial'); }
 };
 
 window.editarMensajeChat = (chatId, msgId) => {
@@ -3457,18 +3593,27 @@ function renderAsistenteAdmin(){
   const entries = Object.entries(asistenteDB?.knowledge || {}).sort((a,b)=>(b[1].creado||0)-(a[1].creado||0));
   if(!entries.length){
     list.innerHTML = '<div style="color:var(--text3);font-size:13px;">Todavía no cargaste información extra. El asistente puede usar ubicación, WhatsApp, Instagram, cursos, eventos y servicios cargados.</div>';
+    renderQuickRepliesAdmin();
     return;
   }
   list.innerHTML = entries.map(([id,k]) =>
     '<div class="ai-item">' +
     '<div style="flex:1;min-width:0;"><div class="ai-item-title">'+escHtml(k.titulo||'Sin título')+'</div>'+
-    '<div style="margin-bottom:6px;">'+String(k.keys||'').split(',').filter(Boolean).map(x=>'<span class="ai-pill">'+escHtml(x.trim())+'</span>').join('')+'</div>'+
+    '<div style="margin-bottom:6px;">'+(k.command?'<span class="ai-pill">'+escHtml(k.command)+'</span>':'')+String(k.keys||'').split(',').filter(Boolean).map(x=>'<span class="ai-pill">'+escHtml(x.trim())+'</span>').join('')+'</div>'+
     '<div class="ai-item-answer">'+escHtml(k.respuesta||'')+'</div></div>'+
     '<div style="display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end;">'+
     '<button class="bsm bl" onclick="window.editarInfoAsistente(\''+id+'\')">✏️ Editar</button>'+
     '<button class="bsm '+(k.activo===false?'gr':'bl')+'" onclick="window.toggleInfoAsistente(\''+id+'\','+(k.activo===false?'true':'false')+')">'+(k.activo===false?'Activar':'Pausar')+'</button>'+
     '<button class="bsm re" onclick="window.eliminarInfoAsistente(\''+id+'\')">🗑️</button></div></div>'
   ).join('');
+  renderQuickRepliesAdmin();
+}
+function renderQuickRepliesAdmin(){
+  const box = document.getElementById('ai-quick-list');
+  if(!box) return;
+  const entries = Object.entries(asistenteDB?.quickReplies || {}).sort((a,b)=>(a[1].orden||0)-(b[1].orden||0));
+  if(!entries.length){ box.innerHTML = '<div style="color:var(--text3);font-size:13px;">Si no cargás botones, se usan los botones rápidos predeterminados.</div>'; return; }
+  box.innerHTML = entries.map(([id,q]) => '<div class="admin-ci"><div class="admin-ci-info"><div class="admin-ci-tit">'+escHtml(q.label||'Botón')+'</div><div class="admin-ci-sub" style="max-width:620px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">'+escHtml(q.text||'')+'</div></div><button class="bsm re" onclick="window.eliminarRespuestaRapidaAsistente(\''+id+'\')">🗑️</button></div>').join('');
 }
 window.guardarModoAsistente = async () => {
   const modo = document.getElementById('ai-mode')?.value || 'manual';
@@ -3487,11 +3632,12 @@ window.toggleModoAsistenteChat = async () => {
 window.agregarInfoAsistente = async () => {
   const titulo = document.getElementById('ai-title')?.value.trim();
   const keys = document.getElementById('ai-keys')?.value.trim();
+  const command = document.getElementById('ai-command')?.value.trim();
   const respuesta = document.getElementById('ai-answer')?.value.trim();
   if(!titulo || !respuesta){ toast('⚠️ Completá título y respuesta'); return; }
-  await push(ref(db,'tomauno/asistente/knowledge'), {titulo, keys:keys||'', respuesta, activo:true, creado:Date.now()});
-  ['ai-title','ai-keys','ai-answer'].forEach(id=>{const el=document.getElementById(id); if(el) el.value='';});
-  toast('✅ Información agregada al asistente');
+  await push(ref(db,'tomauno/asistente/knowledge'), {titulo, keys:keys||'', command:command||'', respuesta, activo:true, creado:Date.now()});
+  ['ai-title','ai-command','ai-keys','ai-answer'].forEach(id=>{const el=document.getElementById(id); if(el) el.value='';});
+  toast('✅ Información agregada al asistente', true);
 };
 window.editarInfoAsistente = (id) => {
   const k = asistenteDB?.knowledge?.[id]; if(!k) return;
@@ -3506,6 +3652,7 @@ window.editarInfoAsistente = (id) => {
     await update(ref(db,'tomauno/asistente/knowledge/'+id), {
       titulo:document.getElementById('eai-title')?.value.trim()||'',
       keys:document.getElementById('eai-keys')?.value.trim()||'',
+      command:document.getElementById('eai-command')?.value.trim()||'',
       respuesta:document.getElementById('eai-answer')?.value.trim()||'',
       actualizado:Date.now()
     });
@@ -3518,6 +3665,136 @@ window.eliminarInfoAsistente = (id) => {
     await remove(ref(db,'tomauno/asistente/knowledge/'+id));
     toast('🗑️ Información eliminada');
   });
+};
+
+
+window.agregarRespuestaRapidaAsistente = async () => {
+  const label = document.getElementById('aiqr-label')?.value.trim();
+  const text = document.getElementById('aiqr-text')?.value.trim();
+  if(!label || !text){ toast('⚠️ Completá botón y respuesta'); return; }
+  await push(ref(db,'tomauno/asistente/quickReplies'), {label, text, activo:true, orden:Date.now(), creado:Date.now()});
+  ['aiqr-label','aiqr-text'].forEach(id=>{const el=document.getElementById(id); if(el) el.value='';});
+  toast('✅ Botón rápido agregado');
+};
+window.eliminarRespuestaRapidaAsistente = (id) => {
+  showConfirm('¿Eliminar este botón rápido?', async()=>{
+    await remove(ref(db,'tomauno/asistente/quickReplies/'+id));
+    toast('🗑️ Botón rápido eliminado');
+  });
+};
+
+
+// ── AYUDA / COMANDOS / ACCIONES DEL ASISTENTE ───────────────────────────────
+function aiMacheteHtml(){
+  return '<div class="mtitle">AYUDA RÁPIDA DEL ASISTENTE</div>'+
+    '<div class="msub" style="margin-bottom:14px;">Machete para usar el Cerebro y el chat admin.</div>'+
+    '<div style="font-size:13px;color:var(--text2);line-height:1.75;background:#0d0d0d;border:1px solid var(--border);border-radius:14px;padding:14px;">'+
+    '<b>Variables</b><br>{{nombre}} = nombre del contacto del chat.<br><br>'+
+    '<b>Acciones dentro de una respuesta</b><br>#cursos# · #servicios# · #eventos# · #testimonios# · #ubicacion# · #contacto#<br>Ej: “Te llevo a testimonios #testimonios#”.<br><br>'+
+    '<b>Comandos en el chat admin</b><br>/? = ver esta ayuda<br>// = abrir lista de respuestas del Cerebro<br>/acciones = abrir acciones rápidas: Info / Inscribir / Ir a sección<br>/alias, /pack15, /equipos, etc. = si los configuraste en una ficha del Cerebro.<br><br>'+
+    '<b>Formato</b><br>**negrita** · _cursiva_ · links y @instagram se vuelven cliqueables.<br><br>'+
+    '<b>Consejo</b><br>Para respuestas largas cargá una ficha por tema: Pack 15 años, Bodas, Alquiler de estudio, Alias de pago, Equipos.</div>'+
+    '<button class="btn-out" onclick="window.closeModal()">Cerrar</button>';
+}
+window.mostrarAyudaAsistente = () => { document.getElementById('mcontent').innerHTML = aiMacheteHtml(); openModal(); };
+function applyAIVariables(text, chat){
+  return String(text||'').replace(/{{\s*nombre\s*}}/gi, chatVisibleName(chat||{}) || '');
+}
+function findKnowledgeByCommand(cmd){
+  const c = normAI(cmd || '');
+  return asistenteKnowledgeEntries().map(([id,k])=>({id,k})).find(x => normAI(x.k.command||'') === c || String(x.k.keys||'').split(',').map(normAI).includes(c)) || null;
+}
+function cleanChatDisplayText(text){
+  return String(text||'').replace(/#\s*(cursos|servicios|eventos|testimonios|ubicacion|ubicación|contacto)\s*#/gi,'').replace(/#\s*(info|inscripcion|inscripción):(curso|servicio|evento):([^#]+)#/gi,'').trim();
+}
+function parseChatActions(text){
+  const raw = String(text||'');
+  const actions = [];
+  const pushSec = (label, sec) => { if(!actions.some(a=>a.sec===sec)) actions.push({label, sec}); };
+  if(/#\s*cursos\s*#/i.test(raw)) pushSec('🎓 Ver cursos','sec-cursos');
+  if(/#\s*servicios\s*#/i.test(raw)) pushSec('📷 Ver servicios','sec-servicios');
+  if(/#\s*eventos\s*#/i.test(raw)) pushSec('🎪 Ver eventos','sec-eventos');
+  if(/#\s*testimonios\s*#/i.test(raw)) pushSec('⭐ Ver testimonios','sec-testimonios');
+  if(/#\s*(ubicacion|ubicación)\s*#/i.test(raw)) pushSec('📍 Ver ubicación','sec-ubicacion');
+  if(/#\s*contacto\s*#/i.test(raw)) actions.push({label:'💬 WhatsApp Javier', url:'https://wa.me/5493764354522?text=Hola%20vengo%20de%20la%20web%20Tomauno%2C%20quisiera%20hacer%20una%20consulta.'});
+  raw.replace(/#\s*(info|inscripcion|inscripción):(curso|servicio|evento):([^#]+)#/gi, (m, kind, type, id) => {
+    const k = normAI(kind).startsWith('ins') ? 'inscripcion' : 'info';
+    const label = (k==='inscripcion' ? '✍️ Inscribirme' : 'ℹ️ Ver info');
+    actions.push({label, fn:k, type:normAI(type), id:String(id).trim()});
+    return m;
+  });
+  return actions;
+}
+window.executeChatAction = (fn,type,id) => {
+  window.cerrarChatPopover && window.cerrarChatPopover();
+  setTimeout(()=>{
+    try{
+      if(type==='curso'){
+        if(fn==='inscripcion' && window.abrirInscripcion) window.abrirInscripcion(id); else if(window.abrirDetalle) window.abrirDetalle(id);
+      }else if(type==='servicio'){
+        if(window.abrirServicioDB) window.abrirServicioDB(id); else navScroll('sec-servicios');
+      }else if(type==='evento'){
+        if(fn==='inscripcion' && window.abrirInscEvento) window.abrirInscEvento(id); else if(window.abrirDetalleEvento) window.abrirDetalleEvento(id);
+      }
+    }catch(e){ console.warn('executeChatAction', e); }
+  },180);
+};
+function maybeRunVisitorActionTags(chatId, chat){
+  if(!chatId || chatId !== currentVisitorChatId || isAdminNotifier()) return;
+  const msgs = chatMsgs(chat).filter(([,m]) => m && m.from === 'admin' && !m.typing);
+  if(!msgs.length) return;
+  const [mid,last] = msgs[msgs.length-1];
+  const key = 'tomauno-action-done-' + chatId;
+  try{ if(sessionStorage.getItem(key) === mid) return; }catch(e){}
+  const actions = parseChatActions(last.text || '');
+  const auto = actions.find(a => a.sec || a.fn);
+  if(!auto) return;
+  try{ sessionStorage.setItem(key, mid); }catch(e){}
+  setTimeout(()=>{
+    if(auto.sec) navScroll(auto.sec);
+    else if(auto.fn) window.executeChatAction(auto.fn, auto.type, auto.id);
+  }, 650);
+}
+window.mostrarSelectorCerebroChat = (chatId) => {
+  const entries = asistenteKnowledgeEntries().sort((a,b)=>String(a[1].titulo||'').localeCompare(String(b[1].titulo||'')));
+  document.getElementById('mcontent').innerHTML = '<div class="mtitle">RESPUESTAS DEL CEREBRO</div><div class="msub">Elegí una respuesta para enviarla al chat.</div>'+
+    (entries.length ? entries.map(([id,k]) => '<div class="admin-ci"><div class="admin-ci-info"><div class="admin-ci-tit">'+escHtml(k.titulo||'Sin título')+'</div><div class="admin-ci-sub">'+escHtml((k.command||'') + (k.keys?(' · '+k.keys):''))+'</div></div><button class="bsm bl" onclick="window.enviarFichaCerebroChat(\''+chatId+'\',\''+id+'\')">Enviar</button></div>').join('') : '<div style="color:var(--text3);font-size:13px;">No hay fichas cargadas.</div>')+
+    '<button class="btn-out" onclick="window.closeModal()">Cerrar</button>';
+  openModal();
+};
+window.enviarFichaCerebroChat = (chatId,id) => {
+  const k = asistenteDB?.knowledge?.[id]; if(!k) return;
+  closeModal();
+  window.enviarChatAdmin(chatId, applyAIVariables(k.respuesta||'', chatsDB[chatId]||{}));
+};
+function actionRowsFor(kind, chatId){
+  let entries = [];
+  if(kind==='curso') entries = Object.entries(cursos||{}).filter(([,c])=>!c.oculto);
+  if(kind==='servicio') entries = Object.entries(serviciosDB||{}).filter(([,s])=>!s.oculto);
+  if(kind==='evento') entries = Object.entries(eventosDB||{}).filter(([,e])=>e.estado==='activo' && !e.oculto);
+  return entries.sort((a,b)=>String(a[1].titulo||'').localeCompare(String(b[1].titulo||''))).map(([id,x])=>{
+    const titulo = x.titulo || (kind==='curso'?'Curso':kind==='servicio'?'Servicio':'Evento');
+    return '<div class="admin-ci"><div class="admin-ci-info"><div class="admin-ci-tit">'+escHtml(titulo)+'</div><div class="admin-ci-sub">'+(x.fecha?escHtml(fFecha(x.fecha)):'')+(x.costo?' · '+escHtml(moneyAI(x.costo)):'')+'</div></div><div style="display:flex;gap:6px;flex-wrap:wrap;"><button class="bsm bl" onclick="window.enviarAccionChat(\''+chatId+'\',\'info\',\''+kind+'\',\''+id+'\')">Info</button><button class="bsm gr" onclick="window.enviarAccionChat(\''+chatId+'\',\'inscripcion\',\''+kind+'\',\''+id+'\')">Inscribir</button></div></div>';
+  }).join('');
+}
+window.mostrarAccionesChatAdmin = (chatId) => {
+  document.getElementById('mcontent').innerHTML = '<div class="mtitle">ACCIONES RÁPIDAS</div><div class="msub">Abrí info o formulario en la web del visitante sin recordar títulos exactos.</div>'+
+    '<div class="mlbl">Cursos</div>'+ (actionRowsFor('curso',chatId) || '<div class="tds">Sin cursos</div>') +
+    '<div class="mlbl">Servicios</div>'+ (actionRowsFor('servicio',chatId) || '<div class="tds">Sin servicios</div>') +
+    '<div class="mlbl">Eventos</div>'+ (actionRowsFor('evento',chatId) || '<div class="tds">Sin eventos</div>') +
+    '<button class="btn-out" onclick="window.closeModal()">Cerrar</button>';
+  openModal();
+};
+window.enviarAccionChat = (chatId, fn, type, id) => {
+  let nombre = '';
+  if(type==='curso') nombre = cursos?.[id]?.titulo || 'esta actividad';
+  if(type==='servicio') nombre = serviciosDB?.[id]?.titulo || 'este servicio';
+  if(type==='evento') nombre = eventosDB?.[id]?.titulo || 'este evento';
+  const txt = fn === 'inscripcion'
+    ? 'Perfecto 😊 Te abro el formulario para que completes los datos de **'+nombre+'**. #' + fn + ':' + type + ':' + id + '#'
+    : 'Te muestro la información completa de **'+nombre+'**. #' + fn + ':' + type + ':' + id + '#';
+  closeModal();
+  window.enviarChatAdmin(chatId, txt);
 };
 
 const FAQ_AI = [
@@ -3540,19 +3817,72 @@ function faqMatchAI(q){
 }
 
 function moneyAI(n){ return n ? '$ ' + Number(n).toLocaleString('es-AR') : 'Gratis'; }
-function entityWordsAI(t){ return normAI(t).split(/\s+/).filter(w => w.length > 2 && !['con','del','los','las','para','curso','evento','servicio','tomauno','estudio','fotografico','fotografia'].includes(w)); }
-function scoreEntityAI(q, title){
-  const words = entityWordsAI(title);
-  if(!words.length) return 0;
+
+function isAvailabilityAI(q){
+  return /(tienen|tenes|tenés|hay|alguno|alguna|algun|algún|disponible|disponibles|activos|activas|ofrecen|ofreces|mostrame|mostrar|lista|listado|cuales|cuáles)/.test(q);
+}
+function isPriceOrSpecificAI(q){
+  return /(cuanto|cuánto|sale|precio|costo|valor|horario|hora|fecha|cuando|cuándo|profesor|organizador|disertante|contacto|whatsapp|inscrib|anotar|registrar|reservar)/.test(q);
+}
+function hasCategoryAI(q, cat){
+  if(cat==='curso') return /(curso|cursos|capacit|taller|workshop|clase|clases|aprender)/.test(q);
+  if(cat==='servicio') return /(servicio|servicios|sesion|sesiones|book|portfolio|beauty|belleza|foto|fotos|video|produccion|producción|alquiler)/.test(q);
+  if(cat==='evento') return /(evento|eventos|agenda|ciudad|show|charla)/.test(q);
+  return false;
+}
+
+function entityWordsAI(t){
+  // No eliminamos términos de dominio como fotografia/modelo/beauty porque son claves para filtrar cursos y servicios.
+  const stop = ['con','del','los','las','para','curso','cursos','evento','eventos','servicio','servicios','tomauno','estudio','alguno','alguna','algun','tienen','tenes','hay','solo','info','informacion','quiero','saber','sobre','cuanto','sale','precio','costo','valor','horario','hora','disponible','disponibles','activo','activos'];
+  return normAI(t).split(/\s+/).filter(w => w.length > 2 && !stop.includes(w));
+}
+function termHitAI(hay, w){
+  if(!w || w.length < 3) return false;
+  if(hay.includes(w)) return true;
+  // equivalencias simples para consultas reales: modelo/modelaje, foto/fotografía, beauty/belleza
+  const aliases = {
+    modelo:['modelo','modelos','modelaje'], modelos:['modelo','modelos','modelaje'], modelaje:['modelo','modelos','modelaje'],
+    foto:['foto','fotos','fotografia','fotografias','fotografico','fotografica'], fotos:['foto','fotos','fotografia','fotografias','fotografico','fotografica'], fotografia:['foto','fotos','fotografia','fotografias','fotografico','fotografica'],
+    beauty:['beauty','belleza','makeup','maquillaje'], belleza:['beauty','belleza','makeup','maquillaje']
+  };
+  return (aliases[w] || []).some(a => hay.includes(a));
+}
+
+function importantTermsAI(q){
+  // Palabras realmente útiles para cruzar contra títulos cargados.
+  const raw = normAI(q).split(/\s+/).map(w=>w.replace(/[^a-z0-9ñ]/g,'')).filter(Boolean);
+  const stop = new Set(['con','del','los','las','para','curso','cursos','evento','eventos','servicio','servicios','tomauno','estudio','quiero','saber','tenes','tenés','tienen','hay','alguno','alguna','algun','algún','solo','disponible','disponibles','activo','activos','cuanto','cuánto','sale','precio','costo','valor','horario','hora','info','informacion','información','mostrar','mostrame','lista','listado','de','la','el','un','una','unos','unas','que','qué']);
+  return raw.filter(w => w.length > 2 && !stop.has(w));
+}
+function scoreEntityAI(q, title, extra=''){
+  const titleHay = normAI(title || '');
+  const extraHay = normAI(extra || '');
+  const hay = (titleHay + ' ' + extraHay).trim();
+  const qWords = entityWordsAI(q).filter(w => w.length > 2);
+  const titleWords = entityWordsAI(title);
   let score = 0;
-  words.forEach(w => { if(q.includes(w)) score++; });
-  return score / words.length;
+  qWords.forEach(w => {
+    if(termHitAI(titleHay, w)) score += 4;
+    else if(termHitAI(extraHay, w)) score += 1.5;
+  });
+  titleWords.forEach(w => { if(termHitAI(q, w)) score += 2; });
+  // Prioridades comunes: cuando el usuario dice curso/modelo/fotografía/beauty, pesa más el título exacto que textos largos.
+  if(/fotograf|foto/.test(q)){
+    if(/fotografia|fotograf[ií]a/.test(titleHay)) score += 5;
+    else if(/foto|fotos/.test(titleHay)) score += 2;
+  }
+  if(/modelo|modelaje/.test(q) && /modelo|modelaje/.test(titleHay)) score += 5;
+  if(/beauty|belleza|maquillaje/.test(q) && /beauty|belleza|maquillaje/.test(titleHay)) score += 5;
+  if(/curso|capacit|taller|clase/.test(q) && /curso|capacit|taller|clase/.test(titleHay)) score += 2;
+  if(!score) return 0;
+  // Pequeña normalización: mantiene comparables títulos cortos/largos.
+  return score / Math.max(2, Math.min(8, titleWords.length || 2));
 }
 function findCursoAI(q){
   const lista = Object.entries(cursos||{}).filter(([,c])=>!c.oculto);
   let best = null;
   lista.forEach(([id,c]) => {
-    const sc = scoreEntityAI(q, c.titulo || '');
+    const sc = scoreEntityAI(q, c.titulo || '', [c.desc,c.ig,c.disertante,c.profesor,c.organizador,c.docente].join(' '));
     if(sc > 0 && (!best || sc > best.sc)) best = {id,c,sc};
   });
   return best && best.sc >= .35 ? best : null;
@@ -3561,7 +3891,7 @@ function findEventoAI(q){
   const lista = Object.entries(eventosDB||{}).filter(([,e])=>e.estado==='activo' && !e.oculto);
   let best = null;
   lista.forEach(([id,e]) => {
-    const sc = scoreEntityAI(q, e.titulo || '');
+    const sc = scoreEntityAI(q, e.titulo || '', [e.desc,e.ig,e.nombreOrg,e.lugar].join(' '));
     if(sc > 0 && (!best || sc > best.sc)) best = {id,e,sc};
   });
   return best && best.sc >= .35 ? best : null;
@@ -3570,7 +3900,7 @@ function findServicioAI(q){
   const lista = Object.entries(serviciosDB||{}).filter(([,x])=>!x.oculto);
   let best = null;
   lista.forEach(([id,x]) => {
-    const sc = scoreEntityAI(q, x.titulo || '');
+    const sc = scoreEntityAI(q, x.titulo || '', [x.desc,x.ig,x.dir].join(' '));
     if(sc > 0 && (!best || sc > best.sc)) best = {id,s:x,sc};
   });
   return best && best.sc >= .35 ? best : null;
@@ -3613,10 +3943,35 @@ function detalleEventoAI(e){
     (e.extraLink ? '🔗 Más info: ' + e.extraLink + '\n' : '') +
     '\nPodés tocar el botón **Ver eventos** para ir directo a la sección Eventos.';
 }
-function listaCursosAI(){
-  const lista = Object.values(cursos||{}).filter(c=>!c.oculto && !c.finalizado).sort((a,b)=>(a.fecha||'').localeCompare(b.fecha||''));
-  if(!lista.length) return 'Por el momento no tengo cursos activos publicados. Podés escribirnos por WhatsApp para consultar próximas fechas.';
-  return '📚 **Cursos activos**\n\n' + lista.slice(0,8).map((c,i)=>
+function listaCursosAI(query){
+  let lista = Object.values(cursos||{}).filter(c=>!c.oculto && !c.finalizado).sort((a,b)=>(a.fecha||'').localeCompare(b.fecha||''));
+  const q = normAI(query || '');
+  const allActiveCount = lista.length;
+  const terms = importantTermsAI(q);
+  if(terms.length){
+    const scored = lista.map(c => {
+      const titleHay = normAI(c.titulo||'');
+      const allHay = normAI([(c.titulo||''),(c.desc||''),(c.ig||''),(c.disertante||''),(c.profesor||''),(c.organizador||''),(c.docente||'')].join(' '));
+      let score = 0;
+      terms.forEach(w => {
+        if(termHitAI(titleHay, w)) score += 4;
+        else if(termHitAI(allHay, w)) score += 1;
+      });
+      // Coincidencias de dos términos importantes en el título tienen prioridad máxima.
+      const titleHits = terms.filter(w => termHitAI(titleHay, w)).length;
+      if(titleHits >= 2) score += 8;
+      if(/fotograf|foto/.test(q) && /fotografia|foto/.test(titleHay)) score += 6;
+      if(/modelo|modelaje/.test(q) && /modelo|modelaje/.test(titleHay)) score += 6;
+      return {c, score};
+    }).filter(x => x.score > 0).sort((a,b)=>b.score-a.score);
+    if(scored.length){
+      const best = scored[0].score;
+      lista = scored.filter(x => x.score >= Math.max(1, best - 2)).map(x=>x.c);
+    }
+  }
+  if(!lista.length) return 'Por el momento no encontré cursos activos relacionados con esa consulta. Podés escribirnos por WhatsApp para consultar próximas fechas.';
+  const titulo = (terms.length && lista.length < allActiveCount) ? '📚 **Cursos encontrados**' : '📚 **Cursos activos**';
+  return titulo + '\n\n' + lista.slice(0,8).map((c,i)=>
     (i+1)+'. **'+(c.titulo||'Curso')+'**\n' +
     (c.fecha?'📅 '+fFecha(c.fecha)+'\n':'') +
     (c.hora?'⏰ '+c.hora+'\n':'') +
@@ -3628,19 +3983,54 @@ function listaEventosAI(){
   if(!lista.length) return 'Por el momento no tengo eventos activos publicados en la web.';
   return '🎪 **Eventos activos**\n\n' + lista.slice(0,8).map((e,i)=>(i+1)+'. **'+(e.titulo||'Evento')+'**'+(e.fecha?'\n📅 '+fFecha(e.fecha):'')+(e.hora?'\n⏰ '+e.hora:'')+'\n💰 '+moneyAI(e.costo)).join('\n\n') + '\n\nPodés tocar el botón **Ver eventos** para ir a la sección.';
 }
-function listaServiciosAI(){
-  const lista = Object.values(serviciosDB||{}).filter(s=>!s.oculto).sort((a,b)=>(b.creado||0)-(a.creado||0));
-  if(!lista.length) return 'Ofrecemos sesiones fotográficas, modelaje, capacitaciones y producción. Decime qué servicio te interesa y te oriento.';
-  return '📷 **Servicios disponibles**\n\n' + lista.slice(0,8).map((s,i)=>(i+1)+'. **'+(s.titulo||'Servicio')+'**'+(s.precio?'\n💰 Desde $ '+Number(s.precio).toLocaleString('es-AR'):'')).join('\n\n') + '\n\nPodés tocar el botón **Ver servicios** para ir a la sección.';
+function listaServiciosAI(query){
+  let lista = Object.values(serviciosDB||{}).filter(s=>!s.oculto).sort((a,b)=>(b.creado||0)-(a.creado||0));
+  const q = normAI(query || '');
+  const terms = importantTermsAI(q);
+  const allCount = lista.length;
+  if(terms.length){
+    const scored = lista.map(s => {
+      const titleHay = normAI(s.titulo||'');
+      const allHay = normAI([(s.titulo||''),(s.desc||''),(s.ig||''),(s.dir||'')].join(' '));
+      let score = 0;
+      terms.forEach(w => {
+        if(termHitAI(titleHay, w)) score += 4;
+        else if(termHitAI(allHay, w)) score += 1;
+      });
+      const titleHits = terms.filter(w => termHitAI(titleHay, w)).length;
+      if(titleHits >= 2) score += 8;
+      return {s, score};
+    }).filter(x=>x.score>0).sort((a,b)=>b.score-a.score);
+    if(scored.length){
+      const best=scored[0].score;
+      lista=scored.filter(x=>x.score>=Math.max(1,best-2)).map(x=>x.s);
+    }
+  }
+  if(!lista.length) return 'No encontré servicios activos relacionados con esa consulta. También ofrecemos sesiones fotográficas, modelaje, capacitaciones y producción. Decime qué servicio te interesa y te oriento.';
+  const titulo = (terms.length && lista.length < allCount) ? '📷 **Servicios encontrados**' : '📷 **Servicios disponibles**';
+  return titulo + '\n\n' + lista.slice(0,8).map((s,i)=>(i+1)+'. **'+(s.titulo||'Servicio')+'**'+(s.precio?'\n💰 Desde $ '+Number(s.precio).toLocaleString('es-AR'):'')).join('\n\n') + '\n\nPodés tocar el botón **Ver servicios** para ir a la sección.';
 }
 function knowledgeMatchesAI(q){
   const matches = [];
+  const qWords = entityWordsAI(q).filter(w => w.length > 2);
   asistenteKnowledgeEntries().forEach(([id,k]) => {
-    const hay = String((k.keys||'') + ',' + (k.titulo||'')).split(',').map(normAI).filter(Boolean);
+    const title = normAI(k.titulo||'');
+    const keysRaw = String(k.keys||'').split(',').map(normAI).filter(Boolean);
+    const resp = normAI(k.respuesta||'');
     let score = 0;
-    hay.forEach(x => { if(x && (q.includes(x) || x.includes(q))) score += 3; });
-    entityWordsAI(k.titulo||'').forEach(w => { if(q.includes(w)) score += 1; });
-    entityWordsAI(q).forEach(w => { if(normAI(k.respuesta||'').includes(w)) score += .75; });
+    keysRaw.forEach(x => {
+      if(!x || x.length < 3) return;
+      if(q.includes(x)) score += 5;
+      else if(x.includes(q) && q.length > 4) score += 3;
+    });
+    entityWordsAI(k.titulo||'').forEach(w => { if(q.includes(w)) score += 2; });
+    let pairHits = 0;
+    qWords.forEach(w => { if(resp.includes(w)) score += .9; if(title.includes(w)) score += 1.2; if(resp.includes(w) || title.includes(w) || keysRaw.some(x=>x.includes(w))) pairHits++; });
+    // Si el usuario combina 2 o más palabras importantes, priorizamos la ficha que contenga esa combinación.
+    // Ejemplo: "whatsapp organizador" debe pesar más que solo "whatsapp".
+    if(pairHits >= 2) score += 4 + pairHits;
+    // Consultas del tipo "desde qué edad", "edad mínima", "cuánto sale", etc. priorizan el cerebro si hay coincidencia.
+    if(/edad|desde que edad|edad minima|menor|menores|precio|costo|valor|cuanto|alias|pago|fotolibro|album/.test(q) && score > 0) score += 2;
     if(score > 0) matches.push({id,k,score});
   });
   return matches.sort((a,b)=>b.score-a.score);
@@ -3662,47 +4052,181 @@ function shouldOpenFormAI(q){
   return /inscrib|anotar|registrar|reservar|quiero ir|me quiero sumar|formulario/.test(q);
 }
 function buscarRespuestaAsistente(text){
-  const q = normAI(text);
+  const q = normAI(text || '');
   window._lastAiSuggestions = [];
+  window._lastAiSection = '';
+  if(!q) return '';
+
+  const go = (sec) => { window._lastAiSection = sec; };
+  const brainDirect = (groups) => {
+    const wanted = Array.isArray(groups) ? groups : [groups];
+    const found = [];
+    asistenteKnowledgeEntries().forEach(([id,k]) => {
+      const hayKeys = String(k.keys||'').split(',').map(normAI).filter(Boolean);
+      const hayTitle = normAI(k.titulo||'');
+      const hayResp = normAI(k.respuesta||'');
+      let score = 0;
+      wanted.forEach(g => {
+        const terms = String(g).split('|').map(normAI).filter(Boolean);
+        terms.forEach(t => {
+          if(!t || t.length < 3) return;
+          if(q.includes(t)) score += 2;
+          if(hayKeys.some(kx => kx === t || kx.includes(t) || t.includes(kx))) score += 6;
+          if(hayTitle.includes(t)) score += 4;
+          if(hayResp.includes(t)) score += 1;
+        });
+      });
+      if(score > 0) found.push({id,k,score});
+    });
+    found.sort((a,b)=>b.score-a.score);
+    return found;
+  };
+  const topBrainAnswer = (groups, min=6) => {
+    const m = brainDirect(groups);
+    if(m.length && m[0].score >= min) return m[0].k.respuesta || '';
+    return '';
+  };
+
   if(isThanksOrByeAI(q)) return '¡Gracias a vos! 😊\nQuedo a disposición si necesitás algo más.';
 
-  if(/ubicacion|direccion|donde|mapa|maps|google maps|lugar|queda|como llegar/.test(q)) return '📍 **Dirección del estudio**\nPedro Méndez 2069, Posadas, Misiones.\n\n🗺️ Google Maps: https://www.google.com/maps/place/Estudio+Fotogr%C3%A1fico+Tomauno/@-27.3764851,-55.8976743,17z/data=!3m1!4b1!4m6!3m5!1s0x9457be494f85260f:0x9b7c2b5fd920df9f!8m2!3d-27.3764851!4d-55.8976743!16s%2Fg%2F11cmdn9j9z?entry=ttu&g_ep=EgoyMDI2MDUxMy4wIKXMDSoASAFQAw%3D%3D\n\nTambién podés tocar **Ver ubicación** para ir a la sección Ubicación.';
-  if(/whatsapp|telefono|contacto|celular|numero/.test(q)) return '💬 **Contacto Tomauno**\nWhatsApp: 3764354522\nLink directo: https://wa.me/5493764354522?text=Hola%20vengo%20de%20la%20web%20Tomauno%20Cursos%20y%20Capacitaciones%2C%20quisiera%20hacer%20una%20consulta.';
-  if(/instagram|ig|redes/.test(q)) return '📸 **Instagram Tomauno**\n@tomaunomodels\n@tomaunoestudio\n@tomaunocapacitaciones';
+  // 1) Intenciones institucionales fuertes: NO deben caer en cursos por coincidencias sueltas.
+  if(/(ubicacion|ubicación|direccion|dirección|donde|dónde|mapa|maps|google maps|lugar|queda|como llegar|cómo llegar)/.test(q)){
+    go('sec-ubicacion');
+    return '📍 **Dirección del estudio**\nPedro Méndez 2069, Posadas, Misiones.\n\n🗺️ Google Maps: https://www.google.com/maps/place/Estudio+Fotogr%C3%A1fico+Tomauno/@-27.3764851,-55.8976743,17z/data=!3m1!4b1!4m6!3m5!1s0x9457be494f85260f:0x9b7c2b5fd920df9f!8m2!3d-27.3764851!4d-55.8976743!16s%2Fg%2F11cmdn9j9z?entry=ttu&g_ep=EgoyMDI2MDUxMy4wIKXMDSoASAFQAw%3D%3D\n\nTambién podés tocar **Ver ubicación** para ir a la sección Ubicación.';
+  }
+  if(/(horario|horarios|atencion|atención|abren|abre|cerrado|cerrados|dias|días)/.test(q) && /(estudio|tomauno|atienden|atencion|atención|abren|abre|cerrado|cerrados)/.test(q)){
+    const b = topBrainAnswer(['horario|horarios|atencion|atención|dias|días'], 6);
+    if(b) return b;
+    return '🕒 **Horarios del estudio**\nLos horarios se coordinan según sesiones, cursos y reservas.\n\nPara confirmar disponibilidad escribinos por WhatsApp: https://wa.me/5493764354522?text=Hola%20vengo%20de%20la%20web%20Tomauno%2C%20quiero%20consultar%20horarios.';
+  }
+  if(/(whatsapp|telefono|teléfono|contacto|celular|numero|número)/.test(q) && !/(organizador|organiza|profesor|docente|disertante)/.test(q)){
+    return '💬 **Contacto Tomauno**\nWhatsApp: 3764354522\nLink directo: https://wa.me/5493764354522?text=Hola%20vengo%20de%20la%20web%20Tomauno%20Cursos%20y%20Capacitaciones%2C%20quisiera%20hacer%20una%20consulta.';
+  }
+  if(/(instagram|ig|redes)/.test(q)) return '📸 **Instagram Tomauno**\n@tomaunomodels\n@tomaunoestudio\n@tomaunocapacitaciones';
+  if(/(javier|mottola|dueño|dueno|fundador|quien es javier|quién es javier|quien es el dueño|quién es el dueño)/.test(q)){
+    const b = topBrainAnswer(['javier|mottola|dueño|dueno|fundador|quien soy'], 6);
+    if(b) return b;
+    return '👤 **Javier Móttola** es parte de Tomauno y está a cargo de la coordinación de consultas, cursos, servicios y actividades del estudio.\n\nSi querés hablar directo con él: https://wa.me/5493764354522';
+  }
+  if(/(profes|profesor|profesores|docente|docentes|quienes dan|quiénes dan|quien dicta|quién dicta|academia de modelos|academia modelaje|materias de modelaje|materias modelo)/.test(q)){
+    const b = topBrainAnswer(['profes|profesores|docentes|docente|academia|modelaje|materias'], 6);
+    if(b) return b;
+    const cSpec = findCursoAI(q);
+    if(cSpec && cSpec.sc >= .8){
+      const c = cSpec.c;
+      const prof = c.disertante || c.profesor || c.organizador || c.docente || c.nombreOrg || '';
+      const wp = c.wp || c.wpOrg || c.contacto || '';
+      return '**' + (c.titulo || 'Curso') + '**\n' +
+        (prof ? '👤 Profesor/organizador: ' + prof + '\n' : '') +
+        (wp ? '💬 WhatsApp de contacto: https://wa.me/549' + String(wp).replace(/\D/g,'') + '\n' : '') +
+        (!prof && !wp ? 'No tengo cargado un profesor u organizador específico para ese curso.' : '');
+    }
+    return '👥 Sobre profesores o materias de la academia, puedo pasarte la información cargada o derivarte con Javier para confirmarlo en detalle.';
+  }
+  if(/(desde que edad|desde qué edad|edad minima|edad mínima|menores|menor de edad|pueden inscribirse|puedo inscribirme con)/.test(q)){
+    const b = topBrainAnswer(['edad|edad minima|edad mínima|menores|inscripcion menores|inscripción menores'], 5);
+    if(b) return b;
+    const faqAns = faqMatchAI(q);
+    if(faqAns) return '❓ **Pregunta frecuente**\n' + faqAns;
+  }
 
+  // 2) Listas claras. Si el usuario pide cursos/servicios/eventos en general, no buscar un título al azar.
+  if(/(curso|cursos|capacitaciones|capacitacion|capacitación|taller|talleres|workshop|workshops)/.test(q) && /(info|informacion|información|disponible|disponibles|activo|activos|tienen|tenes|tenés|hay|lista|listado|cuales|cuáles|ver|mostrar)/.test(q) && importantTermsAI(q).length === 0){
+    go('sec-cursos');
+    return listaCursosAI('');
+  }
+  if(/(servicio|servicios|sesiones|sesion|sesión|book|produccion|producción)/.test(q) && /(info|informacion|información|disponible|disponibles|tienen|tenes|tenés|hay|lista|listado|cuales|cuáles|ver|mostrar)/.test(q) && importantTermsAI(q).length === 0){
+    go('sec-servicios');
+    return listaServiciosAI('');
+  }
+  if(/(evento|eventos|agenda|actividades)/.test(q) && /(info|informacion|información|disponible|disponibles|activo|activos|tienen|tenes|tenés|hay|lista|listado|cuales|cuáles|ver|mostrar)/.test(q)){
+    go('sec-eventos');
+    return listaEventosAI();
+  }
+
+  // 3) Preguntas por pagos generales.
+  if(/(abonar|pagar|pago|seña|senia|reservar cupo|transferencia|mercado pago|alias)/.test(q) && !/(precio|costo|valor|cuanto|cuánto|sale)/.test(q)){
+    const b = topBrainAnswer(['pago|pagos|alias|transferencia|mercado pago|seña|senia'], 6);
+    if(b) return b;
+    return '💳 **Pagos e inscripción**\nPara confirmar un lugar normalmente coordinamos el pago por WhatsApp.\n\nSi querés, decime el curso, servicio o evento que te interesa y te paso el detalle correcto.\n\nTambién podés escribirnos directo: https://wa.me/5493764354522?text=Hola%20vengo%20de%20la%20web%20Tomauno%2C%20quiero%20consultar%20por%20un%20pago.';
+  }
+
+  // 4) Entidades específicas publicadas: primero títulos de web, después cerebro.
+  const asksSpecific = isPriceOrSpecificAI(q) || /(horario|hora|fecha|profesor|organizador|quien|quién|inscrib|anotar|registrar|formulario|precio|costo|valor|cuanto|cuánto|sale|info|informacion|información)/.test(q);
+  if(/(servicio|servicios|sesion|sesiones|sesión|beauty|book|foto|fotografia|fotografía|retrato|boda|15|quince|casamiento|filmacion|filmación|video)/.test(q)){
+    const sSpec = findServicioAI(q);
+    const cSpec = findCursoAI(q);
+    // Si dice explícitamente sesión/servicio/beauty/book, priorizamos servicios.
+    if(sSpec && (/servicio|sesion|sesiones|sesión|beauty|book|boda|casamiento|quince|15/.test(q) || !cSpec || sSpec.sc >= cSpec.sc)){
+      go('sec-servicios');
+      return detalleServicioAI(sSpec.s);
+    }
+  }
+  if(/(curso|cursos|capacitacion|capacitación|capacitaciones|taller|workshop|clase|fotografia|fotografía|modelo|modelaje)/.test(q)){
+    const cSpec = findCursoAI(q);
+    if(cSpec && (asksSpecific || importantTermsAI(q).length > 0)){
+      go('sec-cursos');
+      return detalleCursoAI(cSpec.c);
+    }
+    if(hasCategoryAI(q,'curso') || /fotografia|fotografía|modelo|modelaje/.test(q)){
+      go('sec-cursos');
+      return listaCursosAI(q);
+    }
+  }
+  if(/(evento|eventos|organizador|organiza)/.test(q)){
+    const eSpec = findEventoAI(q);
+    if(eSpec && asksSpecific){ go('sec-eventos'); return detalleEventoAI(eSpec.e); }
+    if(hasCategoryAI(q,'evento')){ go('sec-eventos'); return listaEventosAI(); }
+  }
+
+  // 5) FAQ antes del cerebro largo.
   const faqAns = faqMatchAI(q);
   if(faqAns) return '❓ **Pregunta frecuente**\n' + faqAns;
 
-  const curso = findCursoAI(q);
-  const evento = findEventoAI(q);
-  const servicio = findServicioAI(q);
-  if(curso && curso.sc >= .35){
-    const base = detalleCursoAI(curso.c);
-    if(shouldOpenFormAI(q)) return 'Perfecto 😊\nTe dejo la información de **' + (curso.c.titulo||'este curso') + '**. Tocá **Ver cursos** para abrir la sección de inscripción.\n\n' + base;
-    return base;
-  }
-  if(servicio && servicio.sc >= .35) return detalleServicioAI(servicio.s);
-  if(evento && evento.sc >= .35) return detalleEventoAI(evento.e);
-
-  if(/curso|capacit|workshop|taller|clase|aprender|inscrip/.test(q)) return listaCursosAI();
-  if(/evento|agenda|ciudad|show|charla/.test(q)) return listaEventosAI();
-
+  // 6) Cerebro como fuente secundaria para info extra, paquetes, bodas, 15 años, alquiler, etc.
   const custom = knowledgeMatchesAI(q);
-  if(custom.length === 1 || (custom.length && custom[0].score >= custom[1].score + 2)) return custom[0].k.respuesta;
-  if(custom.length > 1){
+  if(custom.length === 1 && custom[0].score >= 6) return custom[0].k.respuesta;
+  if(custom.length > 1 && custom[0].score >= custom[1].score + 3 && custom[0].score >= 7) return custom[0].k.respuesta;
+  if(custom.length > 0){
     window._lastAiSuggestions = custom.slice(0,4).map(m => ({id:m.id, titulo:m.k.titulo||'Tema', respuesta:m.k.respuesta||''}));
     return suggestedTopicsAI(custom);
   }
 
-  if(/servicio|sesion|sesiones|beauty|foto|book|modelo|portfolio|produccion|video|retrato|alquiler|boda|casamiento|quince|15|fiesta|cumple|fotolibro|album|streaming|robot|360/.test(q)) return listaServiciosAI();
-  if(/precio|costo|valor|cuanto|cuota|pago/.test(q)) return 'Los precios dependen del curso, evento o servicio. Si me decís exactamente cuál te interesa, te paso el detalle.';
-  return 'Gracias por escribirnos. Puedo ayudarte con **cursos**, **eventos**, **servicios**, **ubicación**, **WhatsApp**, **Instagram** y agenda activa. Si tu consulta es más específica, Javier puede responderte personalmente.';
+  // 7) Fallbacks ordenados.
+  if(/(servicio|sesion|sesiones|foto|book|modelo|portfolio|produccion|video|retrato|alquiler|boda|casamiento|quince|15|fiesta|cumple|fotolibro|album|streaming|robot|360)/.test(q)){
+    go('sec-servicios');
+    return listaServiciosAI(q);
+  }
+  if(/(curso|capacit|workshop|taller|clase|aprender|inscrip)/.test(q)){
+    go('sec-cursos');
+    return listaCursosAI(q);
+  }
+  if(/(precio|costo|valor|cuanto|cuánto|cuota)/.test(q)) return 'Los precios dependen del curso, evento o servicio. Si me decís exactamente cuál te interesa, te paso el detalle.';
+  return 'Gracias por escribirnos. Puedo ayudarte con **cursos**, **eventos**, **servicios**, **ubicación**, **WhatsApp**, **Instagram**, preguntas frecuentes y agenda activa. Si tu consulta es más específica, Javier puede responderte personalmente.';
 }
 async function responderAutomaticoChat(chatId, userText){
   try{
-    if(asistenteModo() !== 'automatico') return;
-    const chat = chatsDB?.[chatId] || {};
+    // Leemos el modo real desde Firebase para que AUTO funcione aunque el listener local tarde en actualizar.
+    let modo = asistenteModo();
+    try{
+      const modoSnap = await get(ref(db,'tomauno/asistente/modo'));
+      if(modoSnap.exists()) modo = modoSnap.val();
+    }catch(e){}
+    if(modo !== 'automatico') return;
+
+    // Usamos el chat más actualizado de Firebase, no solo el snapshot local.
+    let chat = chatsDB?.[chatId] || {};
+    try{
+      const chatSnap = await get(ref(db,'tomauno/chats/'+chatId));
+      if(chatSnap.exists()) chat = chatSnap.val();
+    }catch(e){}
+
     const q = normAI(userText);
+    if(!q) return;
+
+    // Evita responder dos veces exactamente al mismo mensaje de usuario.
+    if(normAI(chat.lastAutoUserText || '') === q && (Date.now() - Number(chat.lastAutoAt || 0)) < 12000) return;
+
     const picked = pickPendingTopicAI(chat, q);
     let respuesta = '';
     let pendingTopics = null;
@@ -3714,13 +4238,38 @@ async function responderAutomaticoChat(chatId, userText){
       pendingTopics = Array.isArray(window._lastAiSuggestions) ? window._lastAiSuggestions : [];
     }
     if(!respuesta) return;
+    respuesta = applyAIVariables(respuesta, chat);
+
+    const lastAuto = chatMsgs(chat).slice().reverse().find(([,m]) => m && m.from === 'admin' && m.auto);
+    if(lastAuto && normAI(lastAuto[1].text||'') === normAI(respuesta)){
+      respuesta = 'Creo que mi respuesta anterior no fue lo suficientemente precisa. ¿Querés que te muestre opciones relacionadas o preferís que Javier te responda personalmente?';
+      pendingTopics = pendingTopics && pendingTopics.length ? pendingTopics : [];
+    }
+
     const typingRef = await push(ref(db,'tomauno/chats/'+chatId+'/messages'), {from:'system', text:'Tomauno está escribiendo', time:chatTime(), createdAt:Date.now(), typing:true});
     await update(ref(db,'tomauno/chats/'+chatId), {updatedAt:Date.now(), lastMsg:'Tomauno está escribiendo...', status:'abierto'});
     await new Promise(r=>setTimeout(r, Math.min(1700, Math.max(650, String(respuesta).length * 12))));
     try{ await remove(ref(db,'tomauno/chats/'+chatId+'/messages/'+typingRef.key)); }catch(e){}
     await push(ref(db,'tomauno/chats/'+chatId+'/messages'), {from:'admin', text:respuesta, time:chatTime(), createdAt:Date.now(), auto:true});
-    await update(ref(db,'tomauno/chats/'+chatId), {updatedAt:Date.now(), lastMsg:respuesta, status:'respondido-auto', unreadVisitor:true, unreadAdmin:false, temaPrincipal:detectarTemaConsulta(userText), pendingTopics});
-  }catch(e){ console.warn('Asistente automático:', e); }
+    try{
+      const sec = window._lastAiSection || '';
+      window._lastAiSection = '';
+      if(sec && typeof navScroll === 'function') setTimeout(() => navScroll(sec), 450);
+    }catch(e){}
+    await update(ref(db,'tomauno/chats/'+chatId), {
+      updatedAt:Date.now(),
+      lastMsg:cleanChatDisplayText(respuesta),
+      status:'abierto-auto',
+      unreadVisitor:true,
+      unreadAdmin:true,
+      temaPrincipal:detectarTemaConsulta(userText),
+      pendingTopics,
+      lastAutoUserText:userText,
+      lastAutoAt:Date.now()
+    });
+  }catch(e){
+    console.error('Asistente automático:', e);
+  }
 }
 function detectarTemaConsulta(text){
   const q = normAI(text);
