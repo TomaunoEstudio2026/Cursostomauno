@@ -574,6 +574,29 @@ button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,te
 .chat-admin-actions .danger{color:#ff7777!important;border-color:rgba(232,0,10,.35)!important;}
 @media(max-width:700px){.chat-admin-actions{grid-template-columns:repeat(3,minmax(0,1fr));gap:6px}.chat-admin-actions .btn-out,.chat-admin-actions a.btn-out{font-size:10px;padding:8px 4px;border-radius:18px}.chat-head .chat-title{font-size:24px}}
 
+/* Ajustes v32.3: chat expandido, buscador cerebro y visor links */
+.chat-popover.expanded .chat-popover-inner{max-height:calc(88vh - 34px);overflow-y:auto;padding-bottom:18px;scrollbar-width:thin;scrollbar-color:var(--red) #111;}
+.chat-popover.expanded .chat-popover-inner::-webkit-scrollbar{width:8px;}
+.chat-popover.expanded .chat-popover-inner::-webkit-scrollbar-track{background:#111;border-radius:20px;}
+.chat-popover.expanded .chat-popover-inner::-webkit-scrollbar-thumb{background:linear-gradient(var(--red),#7d0007);border-radius:20px;border:2px solid #111;}
+.chat-popover.expanded .chat-admin-actions{position:sticky;bottom:-18px;background:linear-gradient(180deg,rgba(8,8,8,.72),#080808 32%,#080808);padding-top:10px;padding-bottom:4px;z-index:3;}
+.chat-open-inline{display:inline-flex;align-items:center;margin-left:5px;border:1px solid rgba(255,255,255,.14);background:rgba(255,255,255,.06);color:#fff;border-radius:999px;padding:2px 7px;font-size:10px;font-weight:900;cursor:pointer;font-family:var(--font);vertical-align:middle;}
+.chat-open-inline:hover{background:var(--red);border-color:var(--red);}
+.ai-selector-search{position:sticky;top:0;z-index:2;background:var(--gray);padding:0 0 10px;margin-bottom:4px;}
+.web-preview-frame{width:100%;height:min(72vh,720px);border:1px solid var(--border);border-radius:14px;background:#fff;display:block;}
+.web-preview-note{font-size:11px;color:var(--text3);line-height:1.45;margin:8px 0 12px;}
+
+
+
+/* Ajustes v32.3: barra admin compacta/scroll y buscador del cerebro en admin */
+.chat-admin-actions{display:flex!important;flex-wrap:nowrap!important;overflow-x:auto!important;gap:6px!important;padding:6px 2px 8px!important;scrollbar-width:thin;scrollbar-color:var(--red) #111;}
+.chat-admin-actions::-webkit-scrollbar{height:7px;}
+.chat-admin-actions::-webkit-scrollbar-track{background:#111;border-radius:20px;}
+.chat-admin-actions::-webkit-scrollbar-thumb{background:linear-gradient(90deg,var(--red),#7d0007);border-radius:20px;}
+.chat-admin-actions .btn-out,.chat-admin-actions a.btn-out{flex:0 0 auto!important;width:auto!important;min-width:74px!important;max-width:none!important;padding:8px 10px!important;font-size:10.5px!important;}
+.chat-popover.expanded .chat-admin-actions{position:relative!important;bottom:auto!important;background:#080808!important;padding-top:8px!important;}
+.ai-admin-search{margin-bottom:12px;}
+
 /* ASISTENTE */
 .ai-pill{display:inline-flex;align-items:center;gap:6px;border:1px solid rgba(232,0,10,.28);background:rgba(232,0,10,.08);color:#fff;border-radius:18px;padding:5px 9px;font-size:10px;font-weight:800;margin:2px;}
 .ai-item{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;border:1px solid var(--border);background:#0d0d0d;border-radius:var(--radius-sm);padding:14px;margin-bottom:8px;}
@@ -608,6 +631,95 @@ button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,te
 .admin-live-indicator.on,.admin-live-indicator.off{display:inline-flex!important;}
 .admin-live-indicator.off{display:none!important;}
 @media(max-width:860px){#quick-nav{transform:translateY(-88px)!important;max-width:calc(100vw - 22px)!important;margin-bottom:-50px!important;}#quick-nav>div{justify-content:flex-start}.qnav-btn{padding:8px 13px;font-size:10px}.hero{padding-top:80px;}}
+
+
+
+
+/* v32.6 - chat admin más limpio: iconos, copiar tokens y alertas de pestañas */
+.chat-popover.expanded{right:50%!important;left:auto!important;transform:translateX(50%)!important;width:min(1080px,calc(100vw - 28px))!important;bottom:64px!important;max-height:90vh!important;}
+.chat-popover.expanded .chat-popover-inner{max-height:calc(90vh - 30px)!important;padding-bottom:24px!important;}
+.chat-popover.expanded .chat-msgs{min-height:500px;max-height:58vh!important;}
+.chat-popover.expanded .chat-admin-actions{padding-bottom:12px!important;margin-bottom:0!important;}
+.chat-quick-wrap{display:flex!important;gap:7px!important;flex-wrap:nowrap!important;overflow-x:auto!important;padding:4px 2px 8px!important;margin-top:6px!important;scrollbar-width:thin;scrollbar-color:var(--red) #111;}
+.chat-quick-wrap::-webkit-scrollbar{height:6px;}
+.chat-quick-wrap::-webkit-scrollbar-track{background:#111;border-radius:20px;}
+.chat-quick-wrap::-webkit-scrollbar-thumb{background:linear-gradient(90deg,var(--red),#7d0007);border-radius:20px;}
+.chat-quick{flex:0 0 auto!important;width:36px!important;height:36px!important;min-width:36px!important;border-radius:50%!important;padding:0!important;display:inline-flex!important;align-items:center!important;justify-content:center!important;font-size:15px!important;line-height:1!important;}
+.chat-quick .qr-text{display:none!important;}
+.chat-quick .qr-ico{font-size:16px;line-height:1;}
+.chat-admin-actions{justify-content:flex-start!important;padding-right:74px!important;}
+.chat-admin-actions .btn-out,.chat-admin-actions a.btn-out{min-width:42px!important;width:42px!important;height:42px!important;border-radius:50%!important;padding:0!important;font-size:0!important;display:inline-flex!important;align-items:center!important;justify-content:center!important;overflow:visible!important;}
+.chat-admin-actions .btn-out .ico,.chat-admin-actions a.btn-out .ico{font-size:17px!important;line-height:1!important;}
+.chat-tab.unread{border-color:rgba(232,0,10,.75)!important;color:#fff!important;animation:chatTabPulse 1.2s ease-in-out infinite;}
+@keyframes chatTabPulse{0%,100%{box-shadow:0 0 0 rgba(232,0,10,0)}50%{box-shadow:0 0 18px rgba(232,0,10,.55)}}
+.chat-copy-card{display:inline-flex;align-items:center;gap:8px;margin:4px 0;padding:7px 9px;border-radius:13px;background:rgba(0,0,0,.22);border:1px solid rgba(255,255,255,.18);font-weight:900;word-break:break-all;}
+.chat-copy-btn{border:1px solid rgba(255,255,255,.18);background:rgba(255,255,255,.10);color:#fff;border-radius:999px;padding:4px 8px;font-size:10px;font-weight:900;cursor:pointer;font-family:var(--font);white-space:nowrap;}
+.chat-copy-btn:hover{background:#fff;color:#111;}
+.chat-admin-tools{display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin-top:8px;}
+.chat-admin-tools .chat-filter{width:36px;height:32px;padding:0;display:inline-flex;align-items:center;justify-content:center;font-size:12px;}
+.chat-admin-tools .chat-filter.auto{width:auto;padding:0 10px;}
+.chat-quick-label{font-size:10px;color:var(--text3);margin-top:6px;}
+@media(max-width:700px){
+  .chat-popover.expanded{left:8px!important;right:8px!important;transform:none!important;bottom:96px!important;width:auto!important;}
+  .chat-popover.expanded .chat-msgs{min-height:300px;max-height:50vh!important;}
+  .chat-admin-actions{padding-right:58px!important;}
+  .chat-admin-actions .btn-out,.chat-admin-actions a.btn-out{min-width:38px!important;width:38px!important;height:38px!important;}
+}
+
+
+
+/* v32.7 - ajuste final chat: layout sin barras inútiles, fullscreen centrado y copiar sólo para tokens cortos */
+.chat-popover{width:min(430px,calc(100vw - 20px))!important;bottom:112px!important;max-height:min(82vh,760px)!important;}
+.chat-popover-inner{display:flex!important;flex-direction:column!important;max-height:inherit!important;overflow:hidden!important;padding:18px!important;}
+.chat-panel{display:flex!important;flex-direction:column!important;min-height:0!important;flex:1 1 auto!important;overflow:hidden!important;}
+.chat-msgs{flex:1 1 auto!important;min-height:250px!important;max-height:none!important;overflow-y:auto!important;overflow-x:hidden!important;}
+.chat-row{flex-shrink:0!important;}
+.chat-admin-tools,.chat-quick-label,.chat-quick-wrap,.chat-admin-actions{flex-shrink:0!important;}
+.chat-admin-actions{display:flex!important;flex-wrap:wrap!important;overflow:visible!important;padding:6px 0 4px!important;gap:7px!important;justify-content:flex-start!important;}
+.chat-admin-actions .btn-out,.chat-admin-actions a.btn-out{min-width:40px!important;width:40px!important;height:40px!important;}
+.chat-quick-wrap{overflow-x:visible!important;flex-wrap:wrap!important;padding:4px 0 6px!important;}
+.chat-popover.expanded{left:50%!important;right:auto!important;bottom:34px!important;transform:translateX(-50%)!important;width:min(1120px,calc(100vw - 54px))!important;max-height:calc(100vh - 68px)!important;}
+.chat-popover.expanded .chat-popover-inner{max-height:calc(100vh - 92px)!important;overflow:hidden!important;padding-bottom:18px!important;}
+.chat-popover.expanded .chat-msgs{min-height:360px!important;max-height:none!important;}
+.chat-popover.expanded ~ .chat-fab{display:none!important;}
+.chat-link{word-break:break-word;}
+.chat-copy-card{max-width:100%;}
+@media(min-width:701px){
+  .chat-popover.expanded .chat-panel{height:calc(100vh - 220px)!important;}
+}
+@media(max-width:700px){
+  .chat-popover{left:10px!important;right:10px!important;width:auto!important;bottom:96px!important;max-height:calc(100vh - 126px)!important;}
+  .chat-popover.expanded{left:8px!important;right:8px!important;bottom:86px!important;width:auto!important;transform:none!important;max-height:calc(100vh - 106px)!important;}
+  .chat-popover.expanded .chat-popover-inner{max-height:calc(100vh - 126px)!important;}
+  .chat-popover.expanded .chat-panel{height:calc(100vh - 250px)!important;}
+  .chat-admin-actions .btn-out,.chat-admin-actions a.btn-out{min-width:38px!important;width:38px!important;height:38px!important;}
+}
+
+
+/* PATCH v33.1 - chat actions visible + expanded layout safer */
+.chat-popover.expanded{left:50%!important;right:auto!important;bottom:28px!important;transform:translateX(-50%)!important;width:min(1160px,calc(100vw - 42px))!important;max-height:calc(100vh - 56px)!important;}
+.chat-popover.expanded .chat-popover-inner{max-height:calc(100vh - 82px)!important;display:flex!important;flex-direction:column!important;overflow:hidden!important;}
+.chat-popover.expanded .chat-panel{flex:1 1 auto!important;min-height:0!important;display:flex!important;flex-direction:column!important;}
+.chat-popover.expanded .chat-msgs{flex:1 1 auto!important;min-height:260px!important;max-height:none!important;}
+.chat-admin-actions{display:flex!important;flex-wrap:wrap!important;overflow:visible!important;gap:7px!important;padding:6px 68px 8px 0!important;}
+.chat-admin-actions .btn-out,.chat-admin-actions a.btn-out{min-width:40px!important;width:40px!important;height:40px!important;border-radius:50%!important;padding:0!important;font-size:0!important;display:inline-flex!important;align-items:center!important;justify-content:center!important;}
+.chat-admin-actions .btn-out .ico,.chat-admin-actions a.btn-out .ico{font-size:17px!important;line-height:1!important;}
+.chat-quick-wrap{display:flex!important;flex-wrap:wrap!important;overflow:visible!important;gap:7px!important;padding:4px 68px 6px 0!important;}
+.chat-quick{width:36px!important;height:36px!important;min-width:36px!important;border-radius:50%!important;padding:0!important;display:inline-flex!important;align-items:center!important;justify-content:center!important;}
+.chat-quick .qr-text{display:none!important;}
+@media(max-width:700px){.chat-popover.expanded{left:8px!important;right:8px!important;transform:none!important;width:auto!important;bottom:86px!important;max-height:calc(100vh - 106px)!important}.chat-popover.expanded .chat-popover-inner{max-height:calc(100vh - 126px)!important}.chat-admin-actions,.chat-quick-wrap{padding-right:58px!important}.chat-admin-actions .btn-out,.chat-admin-actions a.btn-out{min-width:38px!important;width:38px!important;height:38px!important}}
+
+
+/* v33.3 - ajustes finales chat: draggable/resizable, botonera plegable y layout */
+.chat-popover{resize:both;min-width:360px;min-height:460px;max-width:calc(100vw - 24px);max-height:calc(100vh - 24px);}
+.chat-popover.dragged{right:auto!important;bottom:auto!important;transform:none!important;}
+.chat-head{cursor:move;}
+.chat-head button,.chat-head a,.chat-head input,.chat-head .chat-tab{cursor:pointer;}
+.chat-tools-collapsed .chat-quick-label,.chat-tools-collapsed .chat-quick-wrap,.chat-tools-collapsed .chat-admin-actions{display:none!important;}
+.chat-tools-toggle.on{background:rgba(232,0,10,.18)!important;border-color:rgba(232,0,10,.5)!important;color:#fff!important;}
+.chat-popover.expanded .chat-popover-inner{padding-bottom:18px!important;}
+.chat-admin-tools{display:flex;gap:7px;flex-wrap:wrap;align-items:center;margin-top:8px;}
+@media(max-width:700px){.chat-popover{resize:none;min-width:0}.chat-head{cursor:default}.chat-admin-tools{gap:6px}.chat-filter{padding:6px 9px;font-size:10px}}
 
 </style>
 </head>
@@ -723,12 +835,6 @@ button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,te
 
 <section id="sec-eventos">
   <div class="section-wrap">
-    <div class="ev-hero">
-      <div class="ev-hero-icon">🎪</div>
-      <div class="ev-hero-title">EVENTOS &amp; CURSOS DE LA CIUDAD</div>
-      <div class="ev-hero-sub">Organizadores de la ciudad pueden gestionar sus inscripciones acá.<br/>&iquest;Ten&eacute;s un evento? <a rel="noopener noreferrer" href="https://wa.me/5493764354522" target="_blank" class="ev-hero-link">Contact&aacute;nos &rarr;</a></div>
-      <button class="btn-main" style="display:inline-flex;width:auto;padding:11px 28px;font-size:13px;" onclick="window.abrirFormEvento()">+ Registrar mi evento</button>
-    </div>
     <div class="ev-org-bar">
       <div style="display:flex;align-items:center;gap:12px;">
         <div style="font-size:22px;">&#x1F464;</div>
@@ -743,6 +849,12 @@ button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,te
     <div id="org-panel-wrap"></div>
     <div id="eventos-grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:20px;">
       <div style="color:var(--text3);font-size:14px;padding:40px 0;text-align:center;grid-column:1/-1;">Cargando eventos...</div>
+    </div>
+    <div class="ev-hero" style="margin-top:30px;">
+      <div class="ev-hero-icon">🎪</div>
+      <div class="ev-hero-title">EVENTOS &amp; CURSOS DE LA CIUDAD</div>
+      <div class="ev-hero-sub">Organizadores de la ciudad pueden gestionar sus inscripciones acá.<br/>&iquest;Ten&eacute;s un evento? <a rel="noopener noreferrer" href="https://wa.me/5493764354522" target="_blank" class="ev-hero-link">Contact&aacute;nos &rarr;</a></div>
+      <button class="btn-main" style="display:inline-flex;width:auto;padding:11px 28px;font-size:13px;" onclick="window.abrirFormEvento()">+ Registrar mi evento</button>
     </div>
   </div>
 </section>
@@ -887,7 +999,7 @@ button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,te
   <a rel="noopener noreferrer" href="https://wa.me/5493764354522?text=Hola%2C%20me%20contacto%20desde%20la%20web%20de%20Tomauno%2C%20quisiera%20consultar" target="_blank" class="fwa">💬 Escribinos por WhatsApp</a>
   <div class="fcred"><a rel="noopener noreferrer" href="https://wa.me/5493764354522" target="_blank">⚡ Realizado por Javier Móttola</a></div>
   <div style="margin-top:16px;display:flex;align-items:center;justify-content:center;gap:16px;flex-wrap:wrap;">
-    <div style="font-size:11px;color:var(--text3);border:1px solid var(--border);padding:5px 13px;border-radius:20px;">v32.0</div>
+    <div style="font-size:11px;color:var(--text3);border:1px solid var(--border);padding:5px 13px;border-radius:20px;">v32.3</div>
   </div>
 </footer>
 
@@ -1232,6 +1344,7 @@ button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,te
       </div>
       <div class="acard">
         <div class="acard-title">Información cargada</div>
+        <input class="finput ai-admin-search" id="ai-knowledge-search" placeholder="Buscar en el cerebro por título, comando o palabra clave..." oninput="window.buscarCerebroAdmin()" autocomplete="off"/>
         <div id="ai-knowledge-list"><div style="color:var(--text3);font-size:13px;">Cargando...</div></div>
       </div>
       <div class="acard">
@@ -3160,6 +3273,13 @@ onValue(ref(db, 'tomauno/chats'), snap => {
     chatEntries.forEach(([id]) => knownChatIds.add(id));
   }
 
+  if (currentVisitorChatId && chatsDB[currentVisitorChatId] && !isAdminNotifier()) {
+    const cVisit = chatsDB[currentVisitorChatId];
+    const popVisit = document.getElementById('chat-popover');
+    if (cVisit.unreadVisitor && (!popVisit || !popVisit.classList.contains('open'))) {
+      setTimeout(() => abrirChatVisitante(currentVisitorChatId, true), 80);
+    }
+  }
   if (currentVisitorChatId && chatsDB[currentVisitorChatId]) maybeRunVisitorActionTags(currentVisitorChatId, chatsDB[currentVisitorChatId]);
   const pop = document.getElementById('chat-popover');
   if (currentOpenChatId && pop?.classList.contains('open')) {
@@ -3200,7 +3320,7 @@ function isValidChat(c){
   if ((!name || name.toLowerCase() === 'sin nombre' || name === '.') && !msgs.some(([,m]) => m && String(m.text||'').trim())) return false;
   return true;
 }
-function chatGreeting(){ return isAdminOnline() ? '🟢 ¿En qué puedo ayudarte?' : '⚫ En este momento puedo responder algunas consultas automáticamente. Dejá tu mensaje; si hace falta, Javier te responde luego.'; }
+function chatGreeting(){ return isAdminOnline() ? '🟢 ¿En qué puedo ayudarte?' : '⚫ Puedo ayudarte con consultas rápidas. Si hace falta, Javier continúa la conversación personalmente.'; }
 function isChatUserOnline(c){ return !!(c && c.userOnline && c.userLastSeen && Date.now() - Number(c.userLastSeen) < 75000); }
 function lastSeenText(c){
   if(isChatUserOnline(c)) return 'En línea ahora';
@@ -3222,18 +3342,42 @@ function markVisitorChatOnline(id){
   }catch(e){}
 }
 window.addEventListener('beforeunload', () => { if(currentVisitorChatId){ try{ update(ref(db,'tomauno/chats/'+currentVisitorChatId), {userOnline:false, userLastSeen:Date.now()}); }catch(e){} } });
-function chatHtmlWrap(inner){ return '<button class="chat-max-btn" title="Ampliar chat" onclick="window.toggleChatExpanded()">⛶</button><button class="chat-popover-close" onclick="window.cerrarChatPopover()">✕</button><div class="chat-popover-inner">'+inner+'</div>'; }
-window.toggleChatExpanded = () => { const p=document.getElementById('chat-popover'); if(p) p.classList.toggle('expanded'); };
-function setChatPopover(html){ const p=document.getElementById('chat-popover'); if(!p) return; p.innerHTML=chatHtmlWrap(html); p.classList.add('open'); }
+function chatHtmlWrap(inner){ return '<button class="chat-max-btn" title="Ampliar chat" onclick="window.toggleChatExpanded()">⛶</button><button class="chat-popover-close" title="Minimizar chat" onclick="window.cerrarChatPopover()">−</button><div class="chat-popover-inner">'+inner+'</div>'; }
+let chatToolsCollapsed = false;
+window.toggleChatExpanded = () => { const p=document.getElementById('chat-popover'); if(p) { p.classList.toggle('expanded'); if(p.classList.contains('expanded')) p.classList.remove('dragged'); } };
+function setChatPopover(html){ const p=document.getElementById('chat-popover'); if(!p) return; p.innerHTML=chatHtmlWrap(html); p.classList.add('open'); p.classList.toggle('chat-tools-collapsed', !!chatToolsCollapsed); enableChatWindowControls(); }
 window.cerrarChatPopover = () => { const p=document.getElementById('chat-popover'); if(p) p.classList.remove('open'); currentOpenChatId=''; };
+window.toggleChatTools = () => { chatToolsCollapsed = !chatToolsCollapsed; const p=document.getElementById('chat-popover'); if(p) p.classList.toggle('chat-tools-collapsed', chatToolsCollapsed); const b=document.getElementById('chat-tools-toggle'); if(b){ b.classList.toggle('on', !chatToolsCollapsed); b.textContent = chatToolsCollapsed ? '▴' : '▾'; } };
+function enableChatWindowControls(){
+  const p=document.getElementById('chat-popover'); if(!p || p.dataset.dragReady==='1') return;
+  p.dataset.dragReady='1';
+  let dragging=false, sx=0, sy=0, sl=0, st=0;
+  p.addEventListener('mousedown', (ev)=>{
+    if(window.innerWidth < 760) return;
+    const head = ev.target.closest && ev.target.closest('.chat-head');
+    if(!head || ev.target.closest('button,a,input,textarea,select')) return;
+    dragging=true; sx=ev.clientX; sy=ev.clientY;
+    const r=p.getBoundingClientRect(); sl=r.left; st=r.top;
+    p.classList.add('dragged'); p.classList.remove('expanded');
+    p.style.left=sl+'px'; p.style.top=st+'px'; p.style.right='auto'; p.style.bottom='auto'; p.style.transform='none';
+    ev.preventDefault();
+  });
+  window.addEventListener('mousemove', (ev)=>{
+    if(!dragging) return;
+    const nx=Math.max(8, Math.min(window.innerWidth - p.offsetWidth - 8, sl + ev.clientX - sx));
+    const ny=Math.max(8, Math.min(window.innerHeight - p.offsetHeight - 8, st + ev.clientY - sy));
+    p.style.left=nx+'px'; p.style.top=ny+'px';
+  });
+  window.addEventListener('mouseup', ()=>{ dragging=false; });
+}
 
 
 const DEFAULT_CHAT_QUICK = [
-  {label:'📍 Ubicación', text:'📍 Estamos en Pedro Méndez 2069, Posadas, Misiones. Te dejo el mapa: https://www.google.com/maps/place/Estudio+Fotogr%C3%A1fico+Tomauno/@-27.3764851,-55.8976743,17z/data=!3m1!4b1!4m6!3m5!1s0x9457be494f85260f:0x9b7c2b5fd920df9f!8m2!3d-27.3764851!4d-55.8976743!16s%2Fg%2F11cmdn9j9z?entry=ttu&g_ep=EgoyMDI2MDUxMy4wIKXMDSoASAFQAw%3D%3D'},
-  {label:'📸 Instagram', text:'📸 Nuestros Instagram son: @tomaunoestudio, @tomaunomodels y @tomaunocapacitaciones.'},
+  {label:'📍 Ubicación', text:'📍 Estamos en Pedro Méndez 2069, Posadas, Misiones. Te dejo el mapa: https://www.google.com/maps/place/Estudio+Fotogr%C3%A1fico+Tomauno/@-27.3764851,-55.8976743,17z/data=!3m1!4b1!4m6!3m5!1s0x9457be494f85260f:0x9b7c2b5fd920df9f!8m2!3d-27.3764851!4d-55.8976743!16s%2Fg%2F11cmdn9j9z?entry=ttu&g_ep=EgoyMDI2MDUxMy4wIKXMDSoASAFQAw%3D%3D\n#ubicacion'},
+  {label:'📲 Instagram', text:'📲 Nuestros Instagram son:\n@tomaunoestudio\n@tomaunomodels\n@tomaunocapacitaciones'},
   {label:'💬 WhatsApp', text:'💬 También podés escribirme directo por WhatsApp: https://wa.me/5493764354522?text=Hola%20vengo%20de%20la%20web%20Tomauno%20Cursos%20y%20Capacitaciones%2C%20quisiera%20hacer%20una%20consulta.'},
-  {label:'🎓 Cursos', text:'🎓 En la sección CURSOS de esta web podés ver las capacitaciones disponibles. Si querés, decime cuál te interesa y te paso más detalles.'},
-  {label:'📷 Sesiones', text:'📷 Hacemos sesiones fotográficas, books, retratos, moda y contenido para redes. Contame qué tipo de sesión buscás y te oriento.'}
+  {label:'🎓 Cursos', text:'🎓 En la sección CURSOS de esta web podés ver las capacitaciones disponibles. Si querés, decime cuál te interesa y te paso más detalles.\n#cursos'},
+  {label:'📷 Sesiones', text:'📷 Hacemos sesiones fotográficas, books, retratos, moda y contenido para redes. Contame qué tipo de sesión buscás y te oriento.\n#servicios'}
 ];
 function chatQuickList(){
   const custom = Object.entries(asistenteDB?.quickReplies || {})
@@ -3242,7 +3386,16 @@ function chatQuickList(){
     .map(([,q]) => ({label:q.label, text:q.text}));
   return custom.length ? custom : DEFAULT_CHAT_QUICK;
 }
-function quickRepliesHtml(){ return '<div class="chat-quick-wrap">'+chatQuickList().map((q,i)=>'<button class="chat-quick" onclick="window.usarRespuestaRapida('+i+')">'+escHtml(q.label)+'</button>').join('')+'</div>'; }
+function quickReplyIcon(label){
+  const m = String(label || '').match(/[\u{1F300}-\u{1FAFF}\u{2600}-\u{27BF}]/u);
+  if(m) return m[0];
+  const clean = String(label || '?').trim();
+  return clean ? clean[0].toUpperCase() : '?';
+}
+function quickRepliesHtml(){
+  const list = chatQuickList();
+  return '<div class="chat-quick-label">Respuestas rápidas:</div><div class="chat-quick-wrap">'+list.map((q,i)=>'<button class="chat-quick" title="'+escAttr(q.label)+'" aria-label="'+escAttr(q.label)+'" onclick="window.usarRespuestaRapida('+i+')"><span class="qr-ico">'+escHtml(quickReplyIcon(q.label))+'</span><span class="qr-text">'+escHtml(q.label)+'</span></button>').join('')+'</div>';
+}
 window.usarRespuestaRapida = (idx) => {
   const q = chatQuickList()[idx]; if(!q) return;
   const inp = document.getElementById('chat-admin-text');
@@ -3272,7 +3425,7 @@ window.abrirChatTomauno = () => {
   setChatPopover(
     '<div class="chat-head"><div class="chat-avatar">💬</div><div><div class="chat-title">CHAT TOMAUNO</div><div class="chat-subline">Consulta directa desde la web</div></div></div>' +
     '<div class="chat-panel"><div class="chat-msgs" id="chat-msgs">' +
-    '<div class="chat-bubble admin"><div>Hola 👋 Soy Javier de Tomauno.</div><div class="chat-meta">Ahora</div></div>' +
+    '<div class="chat-bubble admin"><div>Hola 👋 Soy el Asistente Tomauno.</div><div class="chat-meta">Ahora</div></div>' +
     '<div class="chat-bubble admin"><div>'+escHtml(chatGreeting())+'</div><div class="chat-meta">Ahora</div></div>' +
     '<div class="chat-bubble system">¿Cómo es tu nombre?</div>' +
     '</div>' +
@@ -3294,21 +3447,80 @@ window.iniciarChatConNombre = async () => {
   abrirChatVisitante(currentVisitorChatId);
 };
 
-function chatLinkify(text){
-  let safe = escHtml(cleanChatDisplayText(text || ''));
+function isGenericChatName(n){ return /^(consulta web|sin nombre|visitante|usuario\s+[a-z]|hola|buenas|consulta)$/i.test(String(n||'').trim()); }
+function chatWhatsappUrl(chat){
+  const n = chatVisibleName(chat || {});
+  const nombreReal = n && !/^Usuario\s+[A-Z]$/i.test(n) && !isGenericChatName(n);
+  const msg = nombreReal
+    ? ('Hola soy ' + n + ', vengo de la web Tomauno y quiero continuar mi consulta.')
+    : 'Hola Javier, vengo de la web Tomauno y quiero continuar mi consulta.';
+  return 'https://wa.me/5493764354522?text=' + encodeURIComponent(msg);
+}
+function isExternalOnlyLink(url){ return /(wa\.me|api\.whatsapp\.com|whatsapp\.com|drive\.google\.com|docs\.google\.com|sheets\.google\.com|forms\.gle|instagram\.com|google\.com\/maps|maps\.app\.goo\.gl)/i.test(String(url||'')); }
+function lastAdminAskedName(chat){
+  const last = chatMsgs(chat).slice().reverse().find(([,m]) => m && m.from === 'admin');
+  return !!(last && /nombre|como\s+te\s+llamas|cómo\s+te\s+llamás|como\s+es\s+tu\s+nombre|cómo\s+es\s+tu\s+nombre/i.test(String(last[1].text||'')));
+}
+function isJustNameReply(text, chat){
+  const n = extraerNombreAI(text);
+  if(!n) return '';
+  if(lastAdminAskedName(chat)) return n;
+  const raw = String(text||'').trim();
+  if(/^(soy|me llamo|mi nombre es|nombre es)\s+/i.test(raw)) return n;
+  if(!tieneNombreRealChat(chat) && /^[A-Za-zÁÉÍÓÚÑÜáéíóúñü]{2,}(\s+[A-Za-zÁÉÍÓÚÑÜáéíóúñü]{2,}){0,2}$/.test(raw)) return n;
+  return '';
+}
+function chatCopyTokenHtml(value){
+  const val = String(value || '').trim();
+  if(!val) return '';
+  return '<span class="chat-copy-card"><span>'+escHtml(val)+'</span><button class="chat-copy-btn" onclick="event.preventDefault();event.stopPropagation();window.copiarTextoChat(\''+escAttr(val)+'\')">Copiar</button></span>';
+}
+window.copiarTextoChat = (txt) => {
+  const val = String(txt || '');
+  if(!val) return;
+  navigator.clipboard?.writeText(val).then(()=>toast('Copiado', true)).catch(()=>{
+    try{ const ta=document.createElement('textarea'); ta.value=val; document.body.appendChild(ta); ta.select(); document.execCommand('copy'); ta.remove(); toast('Copiado', true); }catch(e){ toast('No se pudo copiar'); }
+  });
+};
+function chatLinkify(text, chat){
+  const original = String(cleanChatDisplayText(text || ''));
+  const copyTokens = [];
+  // Los bloques copiables usan !texto!, pero evitamos convertir partes internas de URLs largas
+  // como Google Maps (ej: .../data=!3m1!4b1...), porque eso ensucia el mensaje.
+  const withMarkers = original.replace(/(^|[\s(])!([^!\n]{1,80})!(?=$|[\s).,;:!?])/g, function(m, pre, val){
+    const raw = String(val || '').trim();
+    if(!raw || raw.length > 60 || /https?:\/\//i.test(raw) || /[\/\\]/.test(raw)) return m;
+    const idx = copyTokens.push(raw) - 1;
+    return pre + '§§COPY'+idx+'§§';
+  });
+  let safe = escHtml(withMarkers);
   // Negrita simple estilo Markdown: **texto**
   safe = safe.replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>');
   // Cursiva simple: _texto_ o *texto*
   safe = safe.replace(/(^|\s)_([^_]+)_(?=\s|$|[.,;:!?])/g, '$1<em>$2</em>');
   safe = safe.replace(/(^|\s)\*([^*]+)\*(?=\s|$|[.,;:!?])/g, '$1<em>$2</em>');
+  safe = safe.replace(/§§COPY(\d+)§§/g, function(m, n){ return chatCopyTokenHtml(copyTokens[Number(n)] || ''); });
   // Links cliqueables
   safe = safe.replace(/(https?:\/\/[^\s<]+)/g, function(url){
     const clean = url.replace(/[.,;!?)]$/,'');
     const tail = url.slice(clean.length);
-    return '<a class="chat-link" href="'+clean+'" target="_blank" rel="noopener noreferrer">'+clean+'</a>'+tail;
+    let safeClean = clean.replace(/&quot;/g,'').replace(/'/g,'%27');
+    if(/(wa\.me|api\.whatsapp\.com).*3764354522/i.test(safeClean)) safeClean = chatWhatsappUrl(chat || {});
+    let label = safeClean;
+    if(/google\.com\/maps|maps\.app\.goo\.gl/i.test(safeClean)) label = 'Abrir Google Maps';
+    else if(/wa\.me|api\.whatsapp\.com|whatsapp\.com/i.test(safeClean)) label = 'Abrir WhatsApp';
+    else if(/drive\.google\.com|docs\.google\.com|sheets\.google\.com|forms\.gle/i.test(safeClean)) label = 'Abrir archivo';
+    else if(safeClean.length > 62) label = safeClean.slice(0, 50) + '...';
+    const extra = isExternalOnlyLink(safeClean) ? '' : '<button class="chat-open-inline" onclick="event.preventDefault();event.stopPropagation();window.previsualizarLinkChat(\'' + safeClean + '\')">ver aquí</button>';
+    return '<a class="chat-link" href="'+safeClean+'" target="_blank" rel="noopener noreferrer">'+label+'</a>'+extra+tail;
   });
-  // Instagram cliqueable
-  safe = safe.replace(/(^|\s)@([a-zA-Z0-9._]{2,30})/g, '$1<a class="chat-link ig" href="https://instagram.com/$2" target="_blank" rel="noopener noreferrer">@$2</a>');
+  // Instagram cliqueable, evitando que el punto final quede pegado al usuario.
+  safe = safe.replace(/(^|\s)@([a-zA-Z0-9._]{2,30})/g, function(m, pre, handle){
+    const clean = String(handle).replace(/[.]+$/,'');
+    const tail = handle.slice(clean.length);
+    if(!clean || clean.length < 2) return m;
+    return pre + '<a class="chat-link ig" href="https://instagram.com/'+clean+'" target="_blank" rel="noopener noreferrer">@'+clean+'</a>' + tail;
+  });
   // Teléfonos argentinos simples a WhatsApp
   safe = safe.replace(/(^|\s)(\+?54\s?9?\s?)?(\d{3,4}[\s-]?\d{6,8})(?=\s|$|[.,;!?)])/g, function(m, pre, pref, num){
     const clean = String(num).replace(/\D/g,'');
@@ -3332,7 +3544,6 @@ function chatActionButtonsForMessage(text){
   ).join('') + '</div>';
 }
 window.chatGoToSection = (id) => {
-  window.cerrarChatPopover && window.cerrarChatPopover();
   navScroll(id);
 };
 function renderMsgs(chat, adminView=false, chatId=''){
@@ -3367,7 +3578,7 @@ function abrirChatVisitante(id, silent=false){
   const wasFocused = document.activeElement?.id === 'chat-text';
   const msgs = renderMsgs(chat, false, id);
   setChatPopover(
-    '<div class="chat-head"><div class="chat-avatar">💬</div><div><div class="chat-title">CHAT TOMAUNO</div><div class="chat-subline">'+escHtml(chatVisibleName(chat))+' · '+(isAdminOnline()?'🟢 Admin en línea':'⚫ Admin fuera de línea')+'</div></div></div>' +
+    '<div class="chat-head"><div class="chat-avatar">💬</div><div><div class="chat-title">CHAT TOMAUNO</div><div class="chat-subline">'+escHtml(chatVisibleName(chat,id))+' · '+(isAdminOnline()?'🟢 Admin en línea':'⚫ Admin fuera de línea')+'</div></div></div>' +
     '<div class="chat-panel"><div class="chat-msgs" id="chat-msgs">' + (msgs || '<div class="chat-bubble admin">Hola '+escHtml(chat.name||'')+' 👋 ¿En qué puedo ayudarte?</div>') +
     (!isAdminOnline() ? '<div class="chat-bubble system">Si no respondo pronto, también podés escribirme por WhatsApp.<br><a class="chat-wa-soft" target="_blank" rel="noopener noreferrer" href="https://wa.me/5493764354522?text=Hola%20vengo%20de%20la%20web%20Tomauno%20Cursos%20y%20Capacitaciones%2C%20quisiera%20hacer%20una%20consulta.">💬 WhatsApp directo</a></div>' : '') +
     '</div>' +
@@ -3387,7 +3598,8 @@ window.enviarChatVisitante = async (id) => {
   const existingChat = chatsDB?.[id] || {};
   let fallbackName = '';
   try{ fallbackName = sessionStorage.getItem('tomauno-chat-name') || ''; }catch(e){}
-  const repairedName = limpiarNombreChat(existingChat.name || fallbackName || 'Consulta web');
+  const detectedName = isJustNameReply(text, existingChat);
+  const repairedName = limpiarNombreChat(detectedName || existingChat.name || fallbackName || chatAnonName(id, existingChat));
   // Repara metadata si el chat fue borrado parcialmente desde Firebase mientras el visitante conservaba el id en su pestaña.
   await update(ref(db,'tomauno/chats/'+id), {
     name: repairedName,
@@ -3399,12 +3611,26 @@ window.enviarChatVisitante = async (id) => {
     userLastSeen:Date.now()
   });
   await push(ref(db,'tomauno/chats/'+id+'/messages'), {from:'user', text, time:chatTime(), createdAt:Date.now()});
-  await update(ref(db,'tomauno/chats/'+id), {updatedAt:Date.now(), lastMsg:text, status:'abierto', unreadAdmin:true, userOnline:true, userLastSeen:Date.now()});
+  await update(ref(db,'tomauno/chats/'+id), {updatedAt:Date.now(), lastMsg:text, status:'abierto', unreadAdmin:true, userOnline:true, userLastSeen:Date.now(), name:repairedName});
+  try{ if(detectedName) sessionStorage.setItem('tomauno-chat-name', detectedName); }catch(e){}
+  // Si solo respondió su nombre porque se lo pedimos, no disparar una respuesta temática equivocada.
+  if(detectedName && lastAdminAskedName(existingChat)) return;
   responderAutomaticoChat(id, text);
 };
 
 
-function chatVisibleName(c){ return (c && c.name ? c.name : (c && c.lastMsg && c.lastMsg !== 'Esperando mensaje' ? 'Consulta web' : 'Sin nombre')); }
+function chatAnonName(id, c){
+  const raw = String(id || (c && (c.createdAt || c.updatedAt)) || 'anon');
+  let h = 0;
+  for(let i=0;i<raw.length;i++) h = ((h * 31) + raw.charCodeAt(i)) >>> 0;
+  const letter = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'[h % 26] || 'A';
+  return 'Usuario ' + letter;
+}
+function chatVisibleName(c, id){
+  const n = String((c && c.name) || '').trim();
+  if(n && !isGenericChatName(n)) return n;
+  return chatAnonName(id, c);
+}
 window.editarNombreChat = (id) => {
   const c = chatsDB[id]; if(!c) return;
   document.getElementById('mcontent').innerHTML =
@@ -3441,7 +3667,7 @@ function abrirPanelChatsAdmin(){
     '<button class="chat-filter" onclick="window.verResumenConsultasChat()">📋 Resumen</button>' +
     '<button class="chat-clean-btn" onclick="window.limpiarChatsDefinitivo()">🧹 Limpiar chats</button>' +
     '</div>' +
-    (lista.length ? lista.map(([id,c]) => '<div class="chat-list-item '+(c.unreadAdmin?'unread':'')+'" onclick="window.abrirChatAdmin(\''+id+'\')"><div style="flex:1;min-width:0;"><div style="font-weight:800;font-size:14px;">'+escHtml(chatVisibleName(c))+'</div><div style="font-size:11px;color:var(--text3);margin-top:2px;max-width:245px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">'+escHtml(c.lastMsg||'')+'</div>'+(c.wp?'<div style="font-size:11px;color:#25d366;margin-top:2px;">WP: '+escHtml(c.wp)+'</div>':'')+'</div><span class="chat-status '+(c.unreadAdmin?'new':c.status==='abierto'?'on':'')+'">'+(c.unreadAdmin?'Nuevo':escHtml(c.status||'abierto'))+'</span><button class="chat-trash" title="Eliminar chat" onclick="event.stopPropagation();window.eliminarChatDefinitivo(\''+id+'\')">🗑️</button></div>').join('') : '<div style="color:var(--text3);font-size:13px;padding:20px;text-align:center;">Sin chats en este filtro</div>')
+    (lista.length ? lista.map(([id,c]) => '<div class="chat-list-item '+(c.unreadAdmin?'unread':'')+'" onclick="window.abrirChatAdmin(\''+id+'\')"><div style="flex:1;min-width:0;"><div style="font-weight:800;font-size:14px;">'+(c.humanRequested?'⭐ ':'')+(c.updatedAt && c.createdAt && (c.updatedAt-c.createdAt)>60000?'🔁 ':'')+escHtml(chatVisibleName(c,id))+'</div><div style="font-size:11px;color:var(--text3);margin-top:2px;max-width:245px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">'+escHtml((c.humanRequested?'Atención Javier · ':'')+(c.lastMsg||''))+'</div>'+(c.wp?'<div style="font-size:11px;color:#25d366;margin-top:2px;">WP: '+escHtml(c.wp)+'</div>':'')+'</div><span class="chat-status '+(c.unreadAdmin?'new':c.status==='abierto'?'on':'')+'">'+(c.unreadAdmin?'Nuevo':escHtml(c.status||'abierto'))+'</span><button class="chat-trash" title="Eliminar chat" onclick="event.stopPropagation();window.eliminarChatDefinitivo(\''+id+'\')">🗑️</button></div>').join('') : '<div style="color:var(--text3);font-size:13px;padding:20px;text-align:center;">Sin chats en este filtro</div>')
   );
 }
 window.setChatListFilter = (f) => { chatListFilter = f || 'abiertos'; abrirPanelChatsAdmin(); };
@@ -3458,7 +3684,7 @@ function resumenConsultasChatHtml(){
     const wp = String(c.wp||'').replace(/\D/g,'');
     const consulta = primerMensajeUsuario(c);
     const tema = c.temaPrincipal || detectarTemaConsulta(consulta);
-    return '<tr><td><strong>'+escHtml(chatVisibleName(c))+'</strong></td><td>'+(wp?'<a class="wabtn" target="_blank" rel="noopener noreferrer" href="https://wa.me/549'+wp+'">'+escHtml(c.wp)+'</a>':'<span class="tds">-</span>')+'</td><td>'+escHtml(tema||'-')+'</td><td style="max-width:240px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">'+escHtml(consulta||'-')+'</td><td>'+escHtml(c.status||'abierto')+'</td><td><button class="bsm bl" onclick="window.abrirChatAdmin(\''+id+'\')">Leer</button></td></tr>';
+    return '<tr><td><strong>'+escHtml(chatVisibleName(c,id))+'</strong></td><td>'+(wp?'<a class="wabtn" target="_blank" rel="noopener noreferrer" href="https://wa.me/549'+wp+'">'+escHtml(c.wp)+'</a>':'<span class="tds">-</span>')+'</td><td>'+escHtml(tema||'-')+'</td><td style="max-width:240px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">'+escHtml(consulta||'-')+'</td><td>'+escHtml(c.status||'abierto')+'</td><td><button class="bsm bl" onclick="window.abrirChatAdmin(\''+id+'\')">Leer</button></td></tr>';
   }).join('') + '</tbody></table></div>';
 }
 window.verResumenConsultasChat = () => {
@@ -3473,12 +3699,12 @@ function adminChatTabsHtml(activeId){
   const abiertos = Object.entries(chatsDB).filter(([,c]) => isValidChat(c) && c.status !== 'cerrado').sort((a,b)=>(b[1].updatedAt||0)-(a[1].updatedAt||0));
   if (abiertos.length <= 1) return '';
   return '<div class="chat-tabs">' + abiertos.slice(0,8).map(([id,c]) =>
-    '<button class="chat-tab '+(id===activeId?'active ':'')+(c.unreadAdmin?'unread':'')+'" onclick="window.abrirChatAdmin(\''+id+'\')"><span class="chat-tab-name">'+escHtml(chatVisibleName(c))+'</span><span class="chat-tab-close" onclick="event.stopPropagation();window.cerrarConversacionChat(\''+id+'\')">×</span></button>'
+    '<button class="chat-tab '+(id===activeId?'active ':'')+(c.unreadAdmin?'unread':'')+'" onclick="window.abrirChatAdmin(\''+id+'\')"><span class="chat-tab-name">'+escHtml(chatVisibleName(c,id))+'</span><span class="chat-tab-close" onclick="event.stopPropagation();window.cerrarConversacionChat(\''+id+'\')">×</span></button>'
   ).join('') + '</div>';
 }
 window.eliminarChatDefinitivo = (id) => {
   const c = chatsDB[id] || {};
-  showConfirm('¿Eliminar definitivamente el chat de ' + (c.name || 'Sin nombre') + '? Esto borra todo el historial de Firebase.', async () => {
+  showConfirm('¿Eliminar definitivamente el chat de ' + chatVisibleName(c,id) + '? Esto borra todo el historial de Firebase.', async () => {
     await remove(ref(db,'tomauno/chats/'+id));
     try{ notifiedChatIds.delete(id); localStorage.setItem('tomauno-chat-notified', JSON.stringify([...notifiedChatIds])); }catch(e){}
     toast('🗑️ Chat eliminado');
@@ -3516,8 +3742,9 @@ window.abrirChatAdmin = (id, silent=false) => {
     '<div class="chat-head"><div class="chat-avatar">👤</div><div><div class="chat-title"><span class="chat-online-dot '+(isChatUserOnline(chat)?'on':'')+'"></span>'+escHtml(chatVisibleName(chat))+'</div><div class="chat-subline">'+(chat.wp?'WhatsApp: '+escHtml(chat.wp)+' · ':'')+lastSeenText(chat)+'</div></div></div>' +
     '<div class="chat-panel"><div class="chat-msgs" id="chat-msgs">'+msgs+'</div>' +
     '<div class="chat-row"><input class="finput" id="chat-admin-text" placeholder="Responder..." value="'+escAttr(inputVal)+'" onkeydown="if(event.key===\'Enter\')window.enviarChatAdmin(\''+id+'\')"/><button class="chat-send" onclick="window.enviarChatAdmin(\''+id+'\')">➜</button></div>' +
-    '<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-top:8px;"><button class="chat-filter '+(asistenteModo()==='automatico'?'on':'')+'" onclick="window.toggleModoAsistenteChat()">🤖 Auto '+(asistenteModo()==='automatico'?'ON':'OFF')+'</button><button class="chat-filter" onclick="window.mostrarAyudaAsistente()">/?</button><button class="chat-filter" onclick="window.mostrarSelectorCerebroChat(\''+id+'\')">//</button><button class="chat-filter" onclick="window.mostrarAccionesChatAdmin(\''+id+'\')">⚡ Acciones</button><span style="font-size:11px;color:var(--text3);">Respuestas rápidas:</span></div>' + quickRepliesHtml() +
-    '<div class="chat-admin-actions"><button class="btn-out" onclick="abrirPanelChatsAdmin()">← Bandeja</button><button class="btn-out" onclick="window.editarNombreChat(\'' + id + '\')">✏️ Nombre</button><button class="btn-out" onclick="window.copiarHistorialChat(\'' + id + '\')">📋 Copiar</button><button class="btn-out" onclick="window.exportarHistorialChat(\'' + id + '\')">⬇️ TXT</button><button class="btn-out danger" onclick="window.cerrarConversacionChat(\'' + id + '\')">Cerrar</button><button class="btn-out danger" onclick="window.eliminarChatDefinitivo(\'' + id + '\')">🗑️ Borrar</button>' + (chat.wp?'<a class="btn-out" style="text-align:center;text-decoration:none;color:#25d366;border-color:rgba(37,211,102,.35);" target="_blank" rel="noopener noreferrer" href="https://wa.me/549'+String(chat.wp||'').replace(/\D/g,'')+'">WA</a>':'') + '</div></div>'
+    '<div class="chat-admin-tools"><button class="chat-filter auto '+(asistenteModo()==='automatico'?'on':'')+'" title="Activar/desactivar automático" onclick="window.toggleModoAsistenteChat()">🤖 '+(asistenteModo()==='automatico'?'ON':'OFF')+'</button><button class="chat-filter" title="Ayuda / Machete" onclick="window.mostrarAyudaAsistente()">/?</button><button class="chat-filter" title="Respuestas del cerebro" onclick="window.mostrarSelectorCerebroChat(\''+id+'\')">//</button><button class="chat-filter" title="Acciones rápidas" onclick="window.mostrarAccionesChatAdmin(\''+id+'\')">⚡</button><button id="chat-tools-toggle" class="chat-filter chat-tools-toggle '+(!chatToolsCollapsed?'on':'')+'" title="Mostrar/ocultar botones" onclick="window.toggleChatTools()">'+(chatToolsCollapsed?'▴':'▾')+'</button></div>' +
+    '<div class="chat-tools-block">' + quickRepliesHtml() +
+    '<div class="chat-admin-actions"><button class="btn-out" title="Bandeja" onclick="abrirPanelChatsAdmin()"><span class="ico">←</span></button><button class="btn-out" title="Editar nombre" onclick="window.editarNombreChat(\''+id+'\')"><span class="ico">✏️</span></button><button class="btn-out" title="Copiar conversación" onclick="window.copiarHistorialChat(\''+id+'\')"><span class="ico">📋</span></button><button class="btn-out" title="Exportar TXT" onclick="window.exportarHistorialChat(\''+id+'\')"><span class="ico">⬇️</span></button><button class="btn-out danger" title="Cerrar chat" onclick="window.cerrarConversacionChat(\''+id+'\')"><span class="ico">✕</span></button><button class="btn-out danger" title="Borrar chat" onclick="window.eliminarChatDefinitivo(\''+id+'\')"><span class="ico">🗑️</span></button>' + (chat.wp?'<a class="btn-out" title="WhatsApp" style="text-align:center;text-decoration:none;color:#25d366;border-color:rgba(37,211,102,.35);" target="_blank" rel="noopener noreferrer" href="https://wa.me/549'+String(chat.wp||'').replace(/\D/g,'')+'"><span class="ico">💬</span></a>':'') + '</div></div></div>'
   );
   update(ref(db,'tomauno/chats/'+id), {unreadAdmin:false}).catch(()=>{});
   setTimeout(()=>{const el=document.getElementById('chat-msgs'); if(el) scrollChatSmart(el); const inp=document.getElementById('chat-admin-text'); if(inp && (!silent || wasFocused)){ inp.focus(); inp.setSelectionRange(inp.value.length, inp.value.length); }},60);
@@ -3531,7 +3758,19 @@ window.enviarChatAdmin = async (id, presetText='') => {
     if(text === '/?'){ window.mostrarAyudaAsistente(); return; }
     if(text === '//'){ window.mostrarSelectorCerebroChat(id); if(inp) inp.value=''; return; }
     if(normAI(text) === '/acciones'){ window.mostrarAccionesChatAdmin(id); if(inp) inp.value=''; return; }
-    if(text.charAt(0) === '/'){
+    if(/^\/info\b/i.test(text) || /^\/inscribir\b/i.test(text)){
+      const isIns = /^\/inscribir\b/i.test(text);
+      const query = text.replace(/^\/(info|inscribir)\b/i,'').trim();
+      const match = bestPublishedTitleMatchAI(query || '');
+      if(match){
+        text = isIns
+          ? 'Perfecto 😊 Te abro el formulario para **' + (match.obj.titulo || 'esta actividad') + '**. #inscripcion:' + match.type + ':' + match.id + '#'
+          : 'Te muestro la información completa de **' + (match.obj.titulo || 'esta actividad') + '**. #info:' + match.type + ':' + match.id + '#';
+      }else{
+        toast('No encontré esa actividad. Probá /info fotografía o usá ⚡ Acciones.', true);
+        return;
+      }
+    }else if(text.charAt(0) === '/'){
       const found = findKnowledgeByCommand(text);
       if(found){ text = applyAIVariables(found.k.respuesta || '', chatsDB[id] || {}); }
     }
@@ -3553,6 +3792,46 @@ window.copiarHistorialChat = async (id) => {
   });
   try{ await navigator.clipboard.writeText(lines.filter(Boolean).join('\n')); toast('📋 Historial copiado', true); }
   catch(e){ toast('No pude copiar el historial'); }
+};
+
+function historialChatTextoPlano(id){
+  const c = chatsDB[id]; if(!c) return '';
+  const lines = ['Historial chat Tomauno', 'Cliente: ' + chatVisibleName(c), c.wp ? ('WhatsApp: ' + c.wp) : '', 'Estado: ' + (c.status || 'abierto'), ''];
+  chatMsgs(c).forEach(([,m]) => {
+    if(!m || m.typing) return;
+    const who = m.from === 'user' ? chatVisibleName(c) : (m.auto ? 'Asistente Tomauno' : 'Tomauno');
+    lines.push('[' + (m.time || '') + '] ' + who + ': ' + cleanChatDisplayText(m.text || ''));
+  });
+  return lines.filter(Boolean).join('\n');
+}
+window.exportarHistorialChat = (id) => {
+  const txt = historialChatTextoPlano(id);
+  if(!txt){ toast('No hay historial para exportar'); return; }
+  const c = chatsDB[id] || {};
+  const nombre = String(chatVisibleName(c) || 'chat').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'') || 'chat';
+  const blob = new Blob(['\ufeff' + txt], {type:'text/plain;charset=utf-8'});
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'tomauno-chat-' + nombre + '.txt';
+  document.body.appendChild(a);
+  a.click();
+  setTimeout(()=>{ URL.revokeObjectURL(a.href); a.remove(); }, 800);
+  toast('⬇️ Chat exportado en TXT', true);
+};
+window.previsualizarLinkChat = (url) => {
+  const clean = String(url||'').trim();
+  if(!/^https?:\/\//i.test(clean)){ toast('Link inválido'); return; }
+  if(/(wa\.me|api\.whatsapp\.com|whatsapp\.com|drive\.google\.com|docs\.google\.com|sheets\.google\.com|forms\.gle|instagram\.com|google\.com\/maps|maps\.app\.goo\.gl)/i.test(clean)){
+    window.open(clean, '_blank', 'noopener,noreferrer');
+    return;
+  }
+  document.getElementById('mcontent').innerHTML =
+    '<div class="mtitle">VISTA DEL LINK</div>'+
+    '<div class="web-preview-note">Algunas webs bloquean verse dentro de otra página. Si no carga, usá “Abrir en pestaña”.</div>'+
+    '<iframe class="web-preview-frame" src="'+escAttr(clean)+'" loading="lazy"></iframe>'+
+    '<a class="btn-main" href="'+escAttr(clean)+'" target="_blank" rel="noopener noreferrer" style="text-decoration:none;">Abrir en pestaña</a>'+
+    '<button class="btn-out" onclick="window.closeModal()">Cerrar</button>';
+  openModal();
 };
 
 window.editarMensajeChat = (chatId, msgId) => {
@@ -3590,9 +3869,15 @@ function renderAsistenteAdmin(){
   if(sel) sel.value = asistenteModo();
   const list = document.getElementById('ai-knowledge-list');
   if(!list) return;
-  const entries = Object.entries(asistenteDB?.knowledge || {}).sort((a,b)=>(b[1].creado||0)-(a[1].creado||0));
+  let entries = Object.entries(asistenteDB?.knowledge || {}).sort((a,b)=>(b[1].creado||0)-(a[1].creado||0));
+  const qSearch = normAI(document.getElementById('ai-knowledge-search')?.value || '');
+  if(qSearch){
+    entries = entries.filter(([id,k]) => normAI([k.titulo||'', k.command||'', k.keys||'', k.respuesta||''].join(' ')).includes(qSearch));
+  }
   if(!entries.length){
-    list.innerHTML = '<div style="color:var(--text3);font-size:13px;">Todavía no cargaste información extra. El asistente puede usar ubicación, WhatsApp, Instagram, cursos, eventos y servicios cargados.</div>';
+    list.innerHTML = qSearch
+      ? '<div style="color:var(--text3);font-size:13px;">No encontré resultados para esa búsqueda.</div>'
+      : '<div style="color:var(--text3);font-size:13px;">Todavía no cargaste información extra. El asistente puede usar ubicación, WhatsApp, Instagram, cursos, eventos y servicios cargados.</div>';
     renderQuickRepliesAdmin();
     return;
   }
@@ -3608,6 +3893,7 @@ function renderAsistenteAdmin(){
   ).join('');
   renderQuickRepliesAdmin();
 }
+window.buscarCerebroAdmin = () => renderAsistenteAdmin();
 function renderQuickRepliesAdmin(){
   const box = document.getElementById('ai-quick-list');
   if(!box) return;
@@ -3629,12 +3915,20 @@ window.toggleModoAsistenteChat = async () => {
   if (isAdminNotifier() && currentOpenChatId) setTimeout(()=>abrirChatAdmin(currentOpenChatId, true), 80);
   else if (isAdminNotifier()) setTimeout(()=>abrirPanelChatsAdmin(), 80);
 };
+
+function asistenteCommandDuplicado(command, ignoreId=''){
+  const c = normAI(command || '');
+  if(!c) return null;
+  return asistenteKnowledgeEntries().find(([id,k]) => id !== ignoreId && normAI(k.command || '') === c) || null;
+}
 window.agregarInfoAsistente = async () => {
   const titulo = document.getElementById('ai-title')?.value.trim();
   const keys = document.getElementById('ai-keys')?.value.trim();
   const command = document.getElementById('ai-command')?.value.trim();
   const respuesta = document.getElementById('ai-answer')?.value.trim();
   if(!titulo || !respuesta){ toast('⚠️ Completá título y respuesta'); return; }
+  const dup = asistenteCommandDuplicado(command);
+  if(dup){ toast('⚠️ Ese comando rápido ya está en uso: ' + command); return; }
   await push(ref(db,'tomauno/asistente/knowledge'), {titulo, keys:keys||'', command:command||'', respuesta, activo:true, creado:Date.now()});
   ['ai-title','ai-command','ai-keys','ai-answer'].forEach(id=>{const el=document.getElementById(id); if(el) el.value='';});
   toast('✅ Información agregada al asistente', true);
@@ -3644,26 +3938,30 @@ window.editarInfoAsistente = (id) => {
   document.getElementById('mcontent').innerHTML =
     '<div class="mtitle">EDITAR INFO DEL ASISTENTE</div>'+
     '<label class="flbl">Título / tema</label><input class="finput" id="eai-title" value="'+escAttr(k.titulo||'')+'"/>'+
+    '<label class="flbl">Comando rápido opcional</label><input class="finput" id="eai-command" value="'+escAttr(k.command||'')+'" placeholder="Ej: /pack15, /alias, /equipos"/>'+
     '<label class="flbl">Palabras clave</label><input class="finput" id="eai-keys" value="'+escAttr(k.keys||'')+'"/>'+
     '<label class="flbl">Respuesta</label><textarea class="finput" id="eai-answer" style="min-height:150px;">'+escHtml(k.respuesta||'')+'</textarea>'+
     '<button class="btn-main" id="eai-save">💾 Guardar</button><button class="btn-out" onclick="window.closeModal()">Cancelar</button>';
   openModal();
   document.getElementById('eai-save').onclick = async () => {
+    const newCmd = document.getElementById('eai-command')?.value.trim()||'';
+    const dup = asistenteCommandDuplicado(newCmd, id);
+    if(dup){ toast('⚠️ Ese comando rápido ya está en uso: ' + newCmd); return; }
     await update(ref(db,'tomauno/asistente/knowledge/'+id), {
       titulo:document.getElementById('eai-title')?.value.trim()||'',
       keys:document.getElementById('eai-keys')?.value.trim()||'',
-      command:document.getElementById('eai-command')?.value.trim()||'',
+      command:newCmd,
       respuesta:document.getElementById('eai-answer')?.value.trim()||'',
       actualizado:Date.now()
     });
-    closeModal(); toast('✅ Información actualizada');
+    closeModal(); toast('✅ Información actualizada', true);
   };
 };
 window.toggleInfoAsistente = async (id, activo) => { await update(ref(db,'tomauno/asistente/knowledge/'+id), {activo}); };
 window.eliminarInfoAsistente = (id) => {
   showConfirm('¿Eliminar esta información del cerebro del asistente?', async()=>{
     await remove(ref(db,'tomauno/asistente/knowledge/'+id));
-    toast('🗑️ Información eliminada');
+    toast('🗑️ Información eliminada', true);
   });
 };
 
@@ -3674,12 +3972,12 @@ window.agregarRespuestaRapidaAsistente = async () => {
   if(!label || !text){ toast('⚠️ Completá botón y respuesta'); return; }
   await push(ref(db,'tomauno/asistente/quickReplies'), {label, text, activo:true, orden:Date.now(), creado:Date.now()});
   ['aiqr-label','aiqr-text'].forEach(id=>{const el=document.getElementById(id); if(el) el.value='';});
-  toast('✅ Botón rápido agregado');
+  toast('✅ Botón rápido agregado', true);
 };
 window.eliminarRespuestaRapidaAsistente = (id) => {
   showConfirm('¿Eliminar este botón rápido?', async()=>{
     await remove(ref(db,'tomauno/asistente/quickReplies/'+id));
-    toast('🗑️ Botón rápido eliminado');
+    toast('🗑️ Botón rápido eliminado', true);
   });
 };
 
@@ -3690,9 +3988,9 @@ function aiMacheteHtml(){
     '<div class="msub" style="margin-bottom:14px;">Machete para usar el Cerebro y el chat admin.</div>'+
     '<div style="font-size:13px;color:var(--text2);line-height:1.75;background:#0d0d0d;border:1px solid var(--border);border-radius:14px;padding:14px;">'+
     '<b>Variables</b><br>{{nombre}} = nombre del contacto del chat.<br><br>'+
-    '<b>Acciones dentro de una respuesta</b><br>#cursos# · #servicios# · #eventos# · #testimonios# · #ubicacion# · #contacto#<br>Ej: “Te llevo a testimonios #testimonios#”.<br><br>'+
+    '<b>Acciones dentro de una respuesta</b><br>Ahora podés usar una sola almohadilla: #cursos · #servicios · #eventos · #testimonios · #estudio · #ubicacion · #preguntas · #contacto.<br>También acepta la forma anterior con cierre: #cursos#.<br>Ej: “Te muestro el estudio #estudio”.<br><br>'+
     '<b>Comandos en el chat admin</b><br>/? = ver esta ayuda<br>// = abrir lista de respuestas del Cerebro<br>/acciones = abrir acciones rápidas: Info / Inscribir / Ir a sección<br>/alias, /pack15, /equipos, etc. = si los configuraste en una ficha del Cerebro.<br><br>'+
-    '<b>Formato</b><br>**negrita** · _cursiva_ · links y @instagram se vuelven cliqueables.<br><br>'+
+    '<b>Formato</b><br>**negrita** · _cursiva_ · links y @instagram se vuelven cliqueables.<br>!texto! = crea un bloque con botón Copiar. Ej: Alias: !tomauno.mp!<br><br>'+
     '<b>Consejo</b><br>Para respuestas largas cargá una ficha por tema: Pack 15 años, Bodas, Alquiler de estudio, Alias de pago, Equipos.</div>'+
     '<button class="btn-out" onclick="window.closeModal()">Cerrar</button>';
 }
@@ -3704,20 +4002,38 @@ function findKnowledgeByCommand(cmd){
   const c = normAI(cmd || '');
   return asistenteKnowledgeEntries().map(([id,k])=>({id,k})).find(x => normAI(x.k.command||'') === c || String(x.k.keys||'').split(',').map(normAI).includes(c)) || null;
 }
+function chatActionTagMap(rawTag){
+  const key = normAI(String(rawTag || '')).replace(/[^a-z0-9]/g,'');
+  const map = {
+    cursos:{label:'🎓 Ver cursos', sec:'sec-cursos'}, curso:{label:'🎓 Ver cursos', sec:'sec-cursos'},
+    servicios:{label:'📷 Ver servicios', sec:'sec-servicios'}, servicio:{label:'📷 Ver servicios', sec:'sec-servicios'},
+    eventos:{label:'🎪 Ver eventos', sec:'sec-eventos'}, evento:{label:'🎪 Ver eventos', sec:'sec-eventos'},
+    testimonios:{label:'⭐ Ver testimonios', sec:'sec-testimonios'}, testimonio:{label:'⭐ Ver testimonios', sec:'sec-testimonios'}, resenas:{label:'⭐ Ver testimonios', sec:'sec-testimonios'}, reseñas:{label:'⭐ Ver testimonios', sec:'sec-testimonios'},
+    estudio:{label:'🏢 Ver estudio', sec:'sec-galeria'}, elestudio:{label:'🏢 Ver estudio', sec:'sec-galeria'},
+    ubicacion:{label:'📍 Ver ubicación', sec:'sec-ubicacion'}, ubicaciondelestudio:{label:'📍 Ver ubicación', sec:'sec-ubicacion'}, mapa:{label:'📍 Ver ubicación', sec:'sec-ubicacion'}, maps:{label:'📍 Ver ubicación', sec:'sec-ubicacion'},
+    preguntas:{label:'❓ Ver preguntas frecuentes', sec:'sec-faq'}, pregunta:{label:'❓ Ver preguntas frecuentes', sec:'sec-faq'}, frecuentes:{label:'❓ Ver preguntas frecuentes', sec:'sec-faq'}, faq:{label:'❓ Ver preguntas frecuentes', sec:'sec-faq'}
+  };
+  if(key === 'contacto' || key === 'whatsapp') return {label:'💬 WhatsApp Javier', url:'https://wa.me/5493764354522?text=Hola%20vengo%20de%20la%20web%20Tomauno%2C%20quisiera%20hacer%20una%20consulta.'};
+  return map[key] || null;
+}
+const CHAT_SECTION_TAG_RE = /#\s*(el\s*estudio|estudio|cursos?|servicios?|eventos?|testimonios?|resenas|reseñas|ubicacion|ubicación|mapa|maps|preguntas\s+frecuentes|preguntas|frecuentes|faq|contacto|whatsapp)\s*#?/gi;
 function cleanChatDisplayText(text){
-  return String(text||'').replace(/#\s*(cursos|servicios|eventos|testimonios|ubicacion|ubicación|contacto)\s*#/gi,'').replace(/#\s*(info|inscripcion|inscripción):(curso|servicio|evento):([^#]+)#/gi,'').trim();
+  return String(text||'')
+    .replace(/#\s*(info|inscripcion|inscripción):(curso|servicio|evento):([^#\n]+)#?/gi,'')
+    .replace(CHAT_SECTION_TAG_RE,'')
+    .trim();
 }
 function parseChatActions(text){
   const raw = String(text||'');
   const actions = [];
-  const pushSec = (label, sec) => { if(!actions.some(a=>a.sec===sec)) actions.push({label, sec}); };
-  if(/#\s*cursos\s*#/i.test(raw)) pushSec('🎓 Ver cursos','sec-cursos');
-  if(/#\s*servicios\s*#/i.test(raw)) pushSec('📷 Ver servicios','sec-servicios');
-  if(/#\s*eventos\s*#/i.test(raw)) pushSec('🎪 Ver eventos','sec-eventos');
-  if(/#\s*testimonios\s*#/i.test(raw)) pushSec('⭐ Ver testimonios','sec-testimonios');
-  if(/#\s*(ubicacion|ubicación)\s*#/i.test(raw)) pushSec('📍 Ver ubicación','sec-ubicacion');
-  if(/#\s*contacto\s*#/i.test(raw)) actions.push({label:'💬 WhatsApp Javier', url:'https://wa.me/5493764354522?text=Hola%20vengo%20de%20la%20web%20Tomauno%2C%20quisiera%20hacer%20una%20consulta.'});
-  raw.replace(/#\s*(info|inscripcion|inscripción):(curso|servicio|evento):([^#]+)#/gi, (m, kind, type, id) => {
+  const pushAction = (a) => {
+    if(!a) return;
+    if(a.sec && actions.some(x=>x.sec===a.sec)) return;
+    if(a.url && actions.some(x=>x.url===a.url)) return;
+    actions.push(a);
+  };
+  raw.replace(CHAT_SECTION_TAG_RE, (m, tag) => { pushAction(chatActionTagMap(tag)); return m; });
+  raw.replace(/#\s*(info|inscripcion|inscripción):(curso|servicio|evento):([^#\n]+)#?/gi, (m, kind, type, id) => {
     const k = normAI(kind).startsWith('ins') ? 'inscripcion' : 'info';
     const label = (k==='inscripcion' ? '✍️ Inscribirme' : 'ℹ️ Ver info');
     actions.push({label, fn:k, type:normAI(type), id:String(id).trim()});
@@ -3726,7 +4042,6 @@ function parseChatActions(text){
   return actions;
 }
 window.executeChatAction = (fn,type,id) => {
-  window.cerrarChatPopover && window.cerrarChatPopover();
   setTimeout(()=>{
     try{
       if(type==='curso'){
@@ -3757,10 +4072,26 @@ function maybeRunVisitorActionTags(chatId, chat){
 }
 window.mostrarSelectorCerebroChat = (chatId) => {
   const entries = asistenteKnowledgeEntries().sort((a,b)=>String(a[1].titulo||'').localeCompare(String(b[1].titulo||'')));
-  document.getElementById('mcontent').innerHTML = '<div class="mtitle">RESPUESTAS DEL CEREBRO</div><div class="msub">Elegí una respuesta para enviarla al chat.</div>'+
-    (entries.length ? entries.map(([id,k]) => '<div class="admin-ci"><div class="admin-ci-info"><div class="admin-ci-tit">'+escHtml(k.titulo||'Sin título')+'</div><div class="admin-ci-sub">'+escHtml((k.command||'') + (k.keys?(' · '+k.keys):''))+'</div></div><button class="bsm bl" onclick="window.enviarFichaCerebroChat(\''+chatId+'\',\''+id+'\')">Enviar</button></div>').join('') : '<div style="color:var(--text3);font-size:13px;">No hay fichas cargadas.</div>')+
+  const rows = entries.length ? entries.map(([id,k]) => {
+    const search = escAttr([k.titulo||'', k.command||'', k.keys||'', k.respuesta||''].join(' '));
+    return '<div class="admin-ci" data-ai-item="1" data-ai-search="'+search+'">'+
+      '<div class="admin-ci-info"><div class="admin-ci-tit">'+escHtml(k.titulo||'Sin título')+'</div><div class="admin-ci-sub">'+escHtml((k.command||'') + (k.keys?(' · '+k.keys):''))+'</div></div>'+
+      '<button class="bsm bl" onclick="window.enviarFichaCerebroChat(\''+chatId+'\',\''+id+'\')">Enviar</button></div>';
+  }).join('') : '<div style="color:var(--text3);font-size:13px;">No hay fichas cargadas.</div>';
+  document.getElementById('mcontent').innerHTML =
+    '<div class="mtitle">RESPUESTAS DEL CEREBRO</div><div class="msub">Elegí una respuesta para enviarla al chat.</div>'+
+    '<div class="ai-selector-search"><input class="finput" id="ai-selector-search" placeholder="Buscar por título, comando o palabra clave..." oninput="window.filtrarSelectorCerebro()" autocomplete="off"/></div>'+
+    '<div id="ai-selector-list">'+rows+'</div>'+
     '<button class="btn-out" onclick="window.closeModal()">Cerrar</button>';
   openModal();
+  setTimeout(()=>document.getElementById('ai-selector-search')?.focus(),80);
+};
+window.filtrarSelectorCerebro = () => {
+  const q = normAI(document.getElementById('ai-selector-search')?.value || '');
+  document.querySelectorAll('[data-ai-item="1"]').forEach(el => {
+    const txt = normAI(el.getAttribute('data-ai-search') || el.textContent || '');
+    el.style.display = (!q || txt.includes(q)) ? '' : 'none';
+  });
 };
 window.enviarFichaCerebroChat = (chatId,id) => {
   const k = asistenteDB?.knowledge?.[id]; if(!k) return;
@@ -4099,7 +4430,7 @@ function buscarRespuestaAsistente(text){
     if(b) return b;
     return '🕒 **Horarios del estudio**\nLos horarios se coordinan según sesiones, cursos y reservas.\n\nPara confirmar disponibilidad escribinos por WhatsApp: https://wa.me/5493764354522?text=Hola%20vengo%20de%20la%20web%20Tomauno%2C%20quiero%20consultar%20horarios.';
   }
-  if(/(whatsapp|telefono|teléfono|contacto|celular|numero|número)/.test(q) && !/(organizador|organiza|profesor|docente|disertante)/.test(q)){
+  if(/(whatsapp|telefono|teléfono|contacto|celular|numero|número|comunicarme|comunicar|comunicacion|comunicación|contactarme)/.test(q) && !/(organizador|organiza|profesor|docente|disertante)/.test(q)){
     return '💬 **Contacto Tomauno**\nWhatsApp: 3764354522\nLink directo: https://wa.me/5493764354522?text=Hola%20vengo%20de%20la%20web%20Tomauno%20Cursos%20y%20Capacitaciones%2C%20quisiera%20hacer%20una%20consulta.';
   }
   if(/(instagram|ig|redes)/.test(q)) return '📸 **Instagram Tomauno**\n@tomaunomodels\n@tomaunoestudio\n@tomaunocapacitaciones';
@@ -4173,9 +4504,13 @@ function buscarRespuestaAsistente(text){
       return listaCursosAI(q);
     }
   }
-  if(/(evento|eventos|organizador|organiza)/.test(q)){
+  if(/(evento|eventos|organizador|organiza|decoracion|decoración|danzaterapia|danza|taller|charla|show)/.test(q)){
     const eSpec = findEventoAI(q);
-    if(eSpec && asksSpecific){ go('sec-eventos'); return detalleEventoAI(eSpec.e); }
+    // Si el texto coincide claramente con un título de evento cargado, responder ese evento aunque no haya pedido “más info”.
+    if(eSpec && (asksSpecific || eSpec.sc >= .55 || importantTermsAI(q).length >= 2)){
+      go('sec-eventos');
+      return detalleEventoAI(eSpec.e);
+    }
     if(hasCategoryAI(q,'evento')){ go('sec-eventos'); return listaEventosAI(); }
   }
 
@@ -4204,6 +4539,96 @@ function buscarRespuestaAsistente(text){
   if(/(precio|costo|valor|cuanto|cuánto|cuota)/.test(q)) return 'Los precios dependen del curso, evento o servicio. Si me decís exactamente cuál te interesa, te paso el detalle.';
   return 'Gracias por escribirnos. Puedo ayudarte con **cursos**, **eventos**, **servicios**, **ubicación**, **WhatsApp**, **Instagram**, preguntas frecuentes y agenda activa. Si tu consulta es más específica, Javier puede responderte personalmente.';
 }
+
+function quiereHablarConJavierAI(text){
+  const q = normAI(text);
+  return /(javier|humano|persona|alguien|asesor|atencion personalizada|atención personalizada|me responda|responder personalmente|hablar con|contactarme|contacte|llame|llamar)/.test(q) && /(javier|humano|persona|alguien|asesor|responda|responder|hablar|contact|llam)/.test(q);
+}
+function esAfirmacionAI(text){
+  const q = normAI(text).replace(/[\.!,;:]+/g,'').trim();
+  return /^(si|sí|s|dale|ok|okay|bueno|perfecto|claro|por favor|quiero|quiero que si|si por favor|sí por favor|que me responda|que javier me responda)$/.test(q);
+}
+function tieneWhatsAppChat(chat){ return !!String(chat?.wp || '').replace(/\D/g,''); }
+function tieneNombreRealChat(chat){ const n = String(chat?.name || '').trim(); return !!n && !isGenericChatName(n); }
+function extraerWhatsappAI(text){
+  const digits = String(text||'').replace(/\D/g,'');
+  if(digits.length >= 8 && digits.length <= 15) return digits;
+  return '';
+}
+function extraerNombreAI(text){
+  let raw = String(text||'').trim();
+  if(!raw || extraerWhatsappAI(raw)) return '';
+  raw = raw.replace(/[.!?]+$/g,'').trim();
+  const m = raw.match(/^(?:hola\s+)?(?:soy|me llamo|mi nombre es|nombre es|soy\s+yo\s+)?\s*([a-záéíóúñü]+(?:\s+[a-záéíóúñü]+){0,3})$/i);
+  if(!m) return '';
+  let n = limpiarNombreChat(m[1]);
+  if(!n || n.length < 2) return '';
+  if(/^(si|sí|ok|dale|bueno|perfecto|claro|gracias|quiero|consulta|web|whatsapp|telefono|javier)$/i.test(n)) return '';
+  return n;
+}
+function chatEsperandoDatosHumanos(chat){
+  if(!chat) return false;
+  if(chat.humanRequested && (!tieneNombreRealChat(chat) || !tieneWhatsAppChat(chat) || !chat.temaPrincipal)) return true;
+  const last = chatMsgs(chat).slice().reverse().find(([,m]) => m && m.from === 'admin' && m.auto);
+  return !!(last && /(dejame|dejam[eé]|whatsapp|nombre|tema|consulta).*Javier|Para que pueda contactarte|Sobre qu[eé] tema/i.test(String(last.text||'')));
+}
+async function manejarDatosHumanosPendientes(chatId, chat, userText){
+  const updates = {updatedAt:Date.now(), humanRequested:true, prioridad:true, unreadAdmin:true};
+  const wp = extraerWhatsappAI(userText);
+  const name = extraerNombreAI(userText);
+  if(wp && !tieneWhatsAppChat(chat)) updates.wp = wp;
+  if(name && !tieneNombreRealChat(chat)) updates.name = name;
+  const merged = Object.assign({}, chat, updates);
+  let tema = temaDesdeHistorialAI(merged, userText) || merged.temaPrincipal || '';
+  // Si el mensaje no es solo nombre/teléfono, puede ser tema de consulta.
+  if(!name && !wp && String(userText||'').trim().length > 3) tema = detectarTemaConsulta(userText);
+  if(tema) updates.temaPrincipal = tema;
+  await update(ref(db,'tomauno/chats/'+chatId), updates);
+  const faltaNombre = !tieneNombreRealChat(merged);
+  const faltaWp = !tieneWhatsAppChat(merged);
+  const faltaTema = !tema;
+  if(faltaNombre || faltaWp || faltaTema){
+    let txt = 'Perfecto, voy dejando tu consulta marcada para Javier.';
+    if(name) txt = 'Gracias, '+name+'. Voy dejando tu consulta marcada para Javier.';
+    const faltan = [];
+    if(faltaNombre) faltan.push('tu nombre');
+    if(faltaWp) faltan.push('tu WhatsApp');
+    if(faltaTema) faltan.push('el tema puntual de tu consulta');
+    txt += '\n\nPara que pueda responderte mejor, dejame ' + faltan.join(', ').replace(/, ([^,]*)$/, ' y $1') + '.';
+    txt += '\n\nMientras tanto, el Asistente Tomauno puede adelantarte información si querés.';
+    return txt;
+  }
+  return 'Perfecto 😊 Le dejo tu consulta marcada a Javier con tus datos.\n\nTema detectado: **'+tema+'**.\n\nSi querés escribirle ahora, también podés hacerlo por WhatsApp: https://wa.me/5493764354522?text=Hola%20Javier%2C%20vengo%20de%20la%20web%20Tomauno%20y%20quiero%20continuar%20mi%20consulta.';
+}
+function temaDesdeHistorialAI(chat, actual=''){
+  const partes = [actual || '', chat?.temaPrincipal || '', chat?.lastMsg || ''];
+  try{ chatMsgs(chat).slice(-6).forEach(([,m]) => { if(m && m.text) partes.push(m.text); }); }catch(e){}
+  const q = normAI(partes.join(' '));
+  if(/modelo|modelaje|booker|casting|portfolio|book/.test(q)) return 'modelaje / books / portfolio';
+  if(/boda|casamiento|15|quince|fiesta|cumple/.test(q)) return 'eventos sociales / 15 años / bodas';
+  if(/curso|capacit|taller|workshop|clase|fotografia|fotografía/.test(q)) return 'cursos o capacitaciones';
+  if(/alquiler|estudio|equipos|fondo|luces/.test(q)) return 'alquiler del estudio';
+  if(/sesion|sesión|foto|retrato|beauty|maternidad/.test(q)) return 'sesiones fotográficas';
+  return '';
+}
+function respuestaAtencionHumanaAI(chat, userText){
+  const tema = temaDesdeHistorialAI(chat, userText) || chat?.temaPrincipal || '';
+  const faltaNombre = !tieneNombreRealChat(chat);
+  const faltaWp = !tieneWhatsAppChat(chat);
+  let txt = 'Perfecto 🙂 Puedo dejarle tu consulta marcada a Javier para que pueda responderte personalmente cuando esté disponible.';
+  if(tema) txt += '\n\nTema detectado: **' + tema + '**.';
+  if(faltaNombre || faltaWp || !tema){
+    const faltan = [];
+    if(faltaNombre) faltan.push('tu **nombre**');
+    if(faltaWp) faltan.push('tu **WhatsApp**');
+    if(!tema) faltan.push('el **tema puntual** de tu consulta');
+    txt += '\n\nPara que Javier pueda responderte mejor, dejame ' + faltan.join(', ').replace(/, ([^,]*)$/, ' y $1') + '.';
+    txt += '\n\nMientras tanto, si querés, el **Asistente Tomauno** también puede adelantarte información sobre cursos, servicios, modelaje, eventos o alquiler del estudio.';
+  }else{
+    txt += '\n\nYa tengo tus datos de contacto. También podés escribirle directo por WhatsApp: https://wa.me/5493764354522?text=Hola%20Javier%2C%20vengo%20de%20la%20web%20Tomauno%20y%20quiero%20continuar%20mi%20consulta.';
+  }
+  return txt;
+}
 async function responderAutomaticoChat(chatId, userText){
   try{
     // Leemos el modo real desde Firebase para que AUTO funcione aunque el listener local tarde en actualizar.
@@ -4223,6 +4648,46 @@ async function responderAutomaticoChat(chatId, userText){
 
     const q = normAI(userText);
     if(!q) return;
+
+    // Si el usuario ya pidió atención humana y está dejando nombre/WhatsApp/tema,
+    // no lo tratamos como una pregunta normal del asistente.
+    if(chatEsperandoDatosHumanos(chat)){
+      const respPend = await manejarDatosHumanosPendientes(chatId, chat, userText);
+      if(respPend){
+        const typingRefP = await push(ref(db,'tomauno/chats/'+chatId+'/messages'), {from:'system', text:'Tomauno está escribiendo', time:chatTime(), createdAt:Date.now(), typing:true});
+        await update(ref(db,'tomauno/chats/'+chatId), {updatedAt:Date.now(), lastMsg:'Datos para Javier', status:'abierto'});
+        await new Promise(r=>setTimeout(r, 650));
+        try{ await remove(ref(db,'tomauno/chats/'+chatId+'/messages/'+typingRefP.key)); }catch(e){}
+        await push(ref(db,'tomauno/chats/'+chatId+'/messages'), {from:'admin', text:respPend, time:chatTime(), createdAt:Date.now(), auto:true});
+        await update(ref(db,'tomauno/chats/'+chatId), {updatedAt:Date.now(), lastMsg:cleanChatDisplayText(respPend), status:'abierto-auto', unreadVisitor:true, unreadAdmin:true, humanRequested:true, prioridad:true, lastAutoUserText:userText, lastAutoAt:Date.now()});
+        return;
+      }
+    }
+
+    // Si el usuario pide atención humana o responde afirmativamente al pedido anterior,
+    // no explicamos quién es Javier: marcamos prioridad y pedimos datos si faltan.
+    const lastAutoMsgForHuman = chatMsgs(chat).slice().reverse().find(([,m]) => m && m.from === 'admin' && m.auto && /Javier|personalmente|opciones relacionadas/i.test(String(m.text||'')));
+    if(quiereHablarConJavierAI(userText) || (lastAutoMsgForHuman && esAfirmacionAI(userText))){
+      const respHum = respuestaAtencionHumanaAI(chat, userText);
+      const typingRefH = await push(ref(db,'tomauno/chats/'+chatId+'/messages'), {from:'system', text:'Tomauno está escribiendo', time:chatTime(), createdAt:Date.now(), typing:true});
+      await update(ref(db,'tomauno/chats/'+chatId), {updatedAt:Date.now(), lastMsg:'Atención humana solicitada', status:'abierto'});
+      await new Promise(r=>setTimeout(r, 750));
+      try{ await remove(ref(db,'tomauno/chats/'+chatId+'/messages/'+typingRefH.key)); }catch(e){}
+      await push(ref(db,'tomauno/chats/'+chatId+'/messages'), {from:'admin', text:respHum, time:chatTime(), createdAt:Date.now(), auto:true});
+      await update(ref(db,'tomauno/chats/'+chatId), {
+        updatedAt:Date.now(),
+        lastMsg:'⭐ Atención humana solicitada',
+        status:'abierto-auto',
+        unreadVisitor:true,
+        unreadAdmin:true,
+        humanRequested:true,
+        prioridad:true,
+        temaPrincipal: temaDesdeHistorialAI(chat, userText) || detectarTemaConsulta(userText),
+        lastAutoUserText:userText,
+        lastAutoAt:Date.now()
+      });
+      return;
+    }
 
     // Evita responder dos veces exactamente al mismo mensaje de usuario.
     if(normAI(chat.lastAutoUserText || '') === q && (Date.now() - Number(chat.lastAutoAt || 0)) < 12000) return;
@@ -4481,7 +4946,8 @@ function renderEventos() {
     const insc = inscPorEv[k] || 0;
     const full = e.cupos > 0 && insc >= e.cupos;
     const esExt = e.dniOrg && e.dniOrg !== 'tomauno';
-    return '<div class="ev-card" onclick="window.abrirDetalleEvento(\'' + k + '\')">' +
+    const evSearch = escAttr([e.titulo||'', e.desc||'', e.nombreOrg||'', e.ig||'', e.lugar||''].join(' '));
+    return '<div class="ev-card" data-search="' + evSearch + '" onclick="window.abrirDetalleEvento(\'' + k + '\')">' +
       (esExt ? '<span class="ev-badge-ext">Externo</span>' : '') +
       '<span class="ev-badge-tomauno">Plataforma Tomauno</span>' +
       '<div class="cimg">' +
@@ -5593,6 +6059,943 @@ if (window._pendingDeepLink) {
   window.abrirDetalle(window._pendingDeepLink);
   window._pendingDeepLink = null;
 }
+
+
+
+// ── PATCH V33.5: estabilidad chat, nombres, intención por entidades y layout ──
+(function(){
+  const css = document.createElement('style');
+  css.textContent = `
+    .chat-popover{min-width:380px;min-height:520px;max-width:calc(100vw - 18px);max-height:calc(100vh - 18px);}
+    .chat-popover.expanded{width:min(1180px,calc(100vw - 36px))!important;height:min(820px,calc(100vh - 58px))!important;max-height:calc(100vh - 58px)!important;}
+    .chat-popover.dragged{right:auto!important;bottom:auto!important;transform:none!important;}
+    .chat-popover.open{display:block!important;}
+    .chat-popover.resizable{resize:both;overflow:hidden;}
+    .chat-popover-inner{height:100%;display:flex;flex-direction:column;min-height:0;}
+    .chat-panel{flex:1 1 auto!important;min-height:0!important;display:flex!important;flex-direction:column!important;}
+    .chat-msgs{flex:1 1 auto!important;min-height:250px!important;max-height:none!important;overflow-y:auto!important;overflow-x:hidden!important;}
+    .chat-tools-block{flex:0 0 auto;}
+    .chat-admin-tools{flex:0 0 auto;}
+    .chat-fab{display:flex!important;}
+    @media(min-width:760px){.chat-popover:not(.expanded){height:auto}.chat-popover.expanded .chat-msgs{min-height:420px!important}}
+    @media(max-width:700px){.chat-popover{min-width:0!important;resize:none!important}.chat-popover.expanded{height:auto!important}}
+  `;
+  document.head.appendChild(css);
+})();
+
+window.cerrarChatPopover = function(){
+  const p=document.getElementById('chat-popover');
+  if(p){ p.classList.remove('open'); p.classList.remove('expanded'); p.classList.remove('dragged'); }
+  const fab=document.getElementById('chat-fab');
+  if(fab){ fab.style.display='flex'; fab.classList.remove('hidden'); }
+  currentOpenChatId='';
+};
+window.toggleChatExpanded = function(){
+  const p=document.getElementById('chat-popover');
+  if(!p) return;
+  p.classList.toggle('expanded');
+  p.classList.add('resizable');
+  if(p.classList.contains('expanded')){
+    p.classList.remove('dragged');
+    p.style.left=''; p.style.top=''; p.style.right=''; p.style.bottom=''; p.style.transform='';
+  }
+};
+enableChatWindowControls = function(){
+  const p=document.getElementById('chat-popover');
+  if(!p || p.dataset.dragReadyV335==='1') return;
+  p.dataset.dragReadyV335='1';
+  p.classList.add('resizable');
+  let dragging=false, offX=0, offY=0;
+  p.addEventListener('mousedown', function(ev){
+    if(window.innerWidth < 760) return;
+    if(ev.target.closest && ev.target.closest('button,input,textarea,a,select,.chat-msgs,.chat-row,.chat-admin-tools,.chat-tools-block')) return;
+    if(!(ev.target.closest && (ev.target.closest('.chat-head') || ev.target.closest('.chat-tabs')))) return;
+    const r=p.getBoundingClientRect();
+    dragging=true; offX=ev.clientX-r.left; offY=ev.clientY-r.top;
+    p.classList.add('dragged'); p.classList.remove('expanded');
+    p.style.width=r.width+'px'; p.style.height=r.height+'px';
+    p.style.left=r.left+'px'; p.style.top=r.top+'px'; p.style.right='auto'; p.style.bottom='auto'; p.style.transform='none';
+    ev.preventDefault();
+  });
+  document.addEventListener('mousemove', function(ev){
+    if(!dragging) return;
+    const w=p.offsetWidth||420, h=p.offsetHeight||620;
+    let l=ev.clientX-offX, t=ev.clientY-offY;
+    l=Math.max(8, Math.min(window.innerWidth-w-8, l));
+    t=Math.max(8, Math.min(window.innerHeight-h-8, t));
+    p.style.left=l+'px'; p.style.top=t+'px';
+  });
+  document.addEventListener('mouseup', function(){ dragging=false; });
+};
+
+window.chatGoToSection = function(id){
+  const aliases = {estudio:'sec-galeria','el-estudio':'sec-galeria','elestudio':'sec-galeria','sec-estudio':'sec-galeria',preguntas:'sec-faq',faq:'sec-faq',ubicacion:'sec-ubicacion',cursos:'sec-cursos',servicios:'sec-servicios',eventos:'sec-eventos',testimonios:'sec-testimonios'};
+  const key = String(id||'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/\s+/g,'').replace(/^#/, '');
+  let target = id;
+  if(aliases[key]) target = aliases[key];
+  if(key==='elestudio' || key==='estudio') target='sec-galeria';
+  const el = document.getElementById(target) || document.querySelector('[id="'+String(target).replace(/"/g,'')+'"]');
+  if(el) setTimeout(()=>el.scrollIntoView({behavior:'smooth', block:'start'}), 60);
+};
+
+chatActionTagMap = function(rawTag){
+  const key = normAI(String(rawTag || '')).replace(/[^a-z0-9]/g,'');
+  const map = {
+    cursos:{label:'🎓 Ver cursos', sec:'sec-cursos'}, curso:{label:'🎓 Ver cursos', sec:'sec-cursos'},
+    servicios:{label:'📷 Ver servicios', sec:'sec-servicios'}, servicio:{label:'📷 Ver servicios', sec:'sec-servicios'},
+    eventos:{label:'🎪 Ver eventos', sec:'sec-eventos'}, evento:{label:'🎪 Ver eventos', sec:'sec-eventos'},
+    testimonios:{label:'⭐ Ver testimonios', sec:'sec-testimonios'}, testimonio:{label:'⭐ Ver testimonios', sec:'sec-testimonios'}, resenas:{label:'⭐ Ver testimonios', sec:'sec-testimonios'}, resena:{label:'⭐ Ver testimonios', sec:'sec-testimonios'},
+    estudio:{label:'🏢 Ver estudio', sec:'sec-galeria'}, elestudio:{label:'🏢 Ver estudio', sec:'sec-galeria'},
+    ubicacion:{label:'📍 Ver ubicación', sec:'sec-ubicacion'}, mapa:{label:'📍 Ver ubicación', sec:'sec-ubicacion'}, maps:{label:'📍 Ver ubicación', sec:'sec-ubicacion'},
+    preguntas:{label:'❓ Ver preguntas frecuentes', sec:'sec-faq'}, preguntasfrecuentes:{label:'❓ Ver preguntas frecuentes', sec:'sec-faq'}, frecuentes:{label:'❓ Ver preguntas frecuentes', sec:'sec-faq'}, faq:{label:'❓ Ver preguntas frecuentes', sec:'sec-faq'}
+  };
+  if(key === 'contacto' || key === 'whatsapp') return {label:'💬 WhatsApp Javier', url:chatWhatsappUrl(chatsDB[currentOpenChatId]||{})};
+  return map[key] || null;
+};
+
+extraerNombreAI = function(text){
+  let raw = String(text||'').trim();
+  if(!raw || extraerWhatsappAI(raw)) return '';
+  raw = raw.replace(/[.!?]+$/g,'').trim();
+  let m = raw.match(/^(?:hola\s+)?(?:soy|me llamo|mi nombre es|nombre es)\s+([a-záéíóúñü]+(?:\s+[a-záéíóúñü]+){0,3})$/i);
+  if(!m && /^[A-Za-zÁÉÍÓÚÑÜáéíóúñü]{2,}(\s+[A-Za-zÁÉÍÓÚÑÜáéíóúñü]{2,}){0,2}$/.test(raw)) m = [raw, raw];
+  if(!m) return '';
+  let n = limpiarNombreChat(m[1]);
+  if(!n || n.length < 2) return '';
+  if(/^(si|sí|ok|dale|bueno|perfecto|claro|gracias|quiero|consulta|web|whatsapp|telefono|javier|hola|buenas)$/i.test(n)) return '';
+  return n.charAt(0).toUpperCase()+n.slice(1);
+};
+lastAdminAskedName = function(chat){
+  const last = chatMsgs(chat).slice().reverse().find(([,m]) => m && m.from === 'admin');
+  return !!(last && /(nombre|como\s+te\s+llamas|cómo\s+te\s+llamás|como\s+es\s+tu\s+nombre|cómo\s+es\s+tu\s+nombre|dejame\s+tu\s+nombre|deja\s+tu\s+nombre|dejá\s+tu\s+nombre)/i.test(String(last[1].text||'')));
+};
+isJustNameReply = function(text, chat){
+  const n = extraerNombreAI(text);
+  if(!n) return '';
+  const raw = String(text||'').trim();
+  if(lastAdminAskedName(chat)) return n;
+  if(/^(soy|me llamo|mi nombre es|nombre es)\s+/i.test(raw)) return n;
+  if(!tieneNombreRealChat(chat) && /^[A-Za-zÁÉÍÓÚÑÜáéíóúñü]{2,}(\s+[A-Za-zÁÉÍÓÚÑÜáéíóúñü]{2,}){0,2}$/.test(raw)) return n;
+  return '';
+};
+chatWhatsappUrl = function(chat){
+  const c = chat || chatsDB[currentOpenChatId] || {};
+  const n = chatVisibleName(c, currentOpenChatId);
+  const nombreReal = n && !/^Usuario\s+[A-Z]$/i.test(n) && !isGenericChatName(n);
+  const msg = nombreReal ? ('Hola soy ' + n + ', vengo de la web Tomauno y quiero continuar mi consulta.') : 'Hola Javier, vengo de la web Tomauno y quiero continuar mi consulta.';
+  return 'https://wa.me/5493764354522?text=' + encodeURIComponent(msg);
+};
+
+window.enviarChatVisitante = async function(id){
+  const inp = document.getElementById('chat-text');
+  const text = inp?.value.trim();
+  if(!text) return;
+  inp.value=''; inp.focus();
+  const existingChat = chatsDB?.[id] || {};
+  let fallbackName = '';
+  try{ fallbackName = sessionStorage.getItem('tomauno-chat-name') || ''; }catch(e){}
+  const detectedName = isJustNameReply(text, existingChat);
+  const repairedName = limpiarNombreChat(detectedName || existingChat.name || fallbackName || chatAnonName(id, existingChat));
+  await update(ref(db,'tomauno/chats/'+id), {name: repairedName, status:'abierto', updatedAt:Date.now(), lastMsg:text, unreadAdmin:true, userOnline:true, userLastSeen:Date.now()});
+  await push(ref(db,'tomauno/chats/'+id+'/messages'), {from:'user', text, time:chatTime(), createdAt:Date.now()});
+  await update(ref(db,'tomauno/chats/'+id), {updatedAt:Date.now(), lastMsg:text, status:'abierto', unreadAdmin:true, userOnline:true, userLastSeen:Date.now(), name:repairedName});
+  try{ if(detectedName) sessionStorage.setItem('tomauno-chat-name', detectedName); }catch(e){}
+  if(detectedName){ setTimeout(()=>abrirChatVisitante(id, true), 120); }
+  if(detectedName && lastAdminAskedName(existingChat)) return;
+  responderAutomaticoChat(id, text);
+};
+
+window.filterCursos = function(){
+  const inp = document.getElementById('course-search');
+  const q = normAI(inp?.value || '');
+  const cl = document.getElementById('search-clear');
+  const info = document.getElementById('search-info');
+  if (cl) cl.style.display = q ? 'block' : 'none';
+  let vis = 0;
+  document.querySelectorAll('.ccard').forEach(card => {
+    const txt = normAI((card.dataset.search || '') + ' ' + card.textContent);
+    const match = !q || txt.includes(q);
+    card.style.display = match ? '' : 'none';
+    if(match) vis++;
+  });
+  if(info) info.textContent = q ? (vis + ' resultado' + (vis !== 1 ? 's' : '') + ' para "' + (inp?.value || '') + '"') : '';
+};
+
+function bestPublishedTitleMatchAI(q){
+  const nq = normAI(q);
+  const terms = importantTermsAI(nq).filter(w=>w.length>2);
+  if(!terms.length) return null;
+  const items = [];
+  Object.entries(cursos||{}).forEach(([id,c])=>{ if(!c.oculto) items.push({type:'curso', id, obj:c, title:c.titulo||'', extra:[c.desc,c.ig,c.disertante,c.profesor,c.organizador,c.docente,c.wp].join(' ')}); });
+  Object.entries(serviciosDB||{}).forEach(([id,s])=>{ if(!s.oculto) items.push({type:'servicio', id, obj:s, title:s.titulo||'', extra:[s.desc,s.ig,s.wp,s.dir].join(' ')}); });
+  Object.entries(eventosDB||{}).forEach(([id,e])=>{ if(e.estado==='activo' && !e.oculto) items.push({type:'evento', id, obj:e, title:e.titulo||'', extra:[e.desc,e.ig,e.nombreOrg,e.wpOrg,e.lugar].join(' ')}); });
+  let best=null;
+  items.forEach(it=>{
+    const titleNorm = normAI(it.title);
+    const extraNorm = normAI(it.extra);
+    let titleHits=0, extraHits=0;
+    terms.forEach(t=>{ if(termHitAI(titleNorm,t)) titleHits++; else if(termHitAI(extraNorm,t)) extraHits++; });
+    let sc = titleHits*10 + extraHits*2;
+    if(/curso|cursos|taller|workshop|clase|capacit/.test(nq) && it.type==='curso') sc += 3;
+    if(/servicio|sesion|sesiones|book|portfolio|beauty/.test(nq) && it.type==='servicio') sc += 3;
+    if(/evento|eventos|charla|show|organizador|decoracion|decoración|danzaterapia/.test(nq) && it.type==='evento') sc += 4;
+    if(sc>0 && (!best || sc>best.sc)) best={...it, sc, titleHits, extraHits};
+  });
+  return best && (best.titleHits>=1 || best.sc>=8) ? best : null;
+}
+function contactoEntidadAI(match){
+  if(!match) return '';
+  const x = match.obj;
+  const titulo = x.titulo || (match.type==='curso'?'Curso':match.type==='servicio'?'Servicio':'Evento');
+  const prof = x.disertante || x.profesor || x.organizador || x.docente || x.nombreOrg || '';
+  const wp = x.wp || x.wpOrg || x.contacto || '';
+  const ig = x.ig || '';
+  let txt = '**' + titulo + '**\n';
+  if(match.type==='evento') txt += '🎪 Evento publicado\n';
+  if(prof) txt += '👤 Profesor/organizador: ' + prof + '\n';
+  if(wp) txt += '💬 WhatsApp de contacto: https://wa.me/549' + String(wp).replace(/\D/g,'') + '\n';
+  if(ig) txt += '📲 Instagram: @' + ig + '\n';
+  if(!prof && !wp && !ig) txt += 'No tengo cargado un profesor, organizador o contacto específico para esta actividad. Puedo dejar tu consulta marcada para Javier.';
+  return txt;
+}
+const __buscarRespuestaAsistente_v335 = buscarRespuestaAsistente;
+buscarRespuestaAsistente = function(text){
+  const q = normAI(text || '');
+  window._lastAiSuggestions = [];
+  window._lastAiSection = '';
+  if(!q) return '';
+  if(/(profesor|profesora|profesores|docente|docentes|disertante|organizador|organiza|quien da|quién da|quien dicta|quién dicta)/.test(q)){
+    const m = bestPublishedTitleMatchAI(q);
+    if(m){
+      if(m.type==='curso') window._lastAiSection='sec-cursos';
+      if(m.type==='servicio') window._lastAiSection='sec-servicios';
+      if(m.type==='evento') window._lastAiSection='sec-eventos';
+      return contactoEntidadAI(m);
+    }
+  }
+  const explicit = bestPublishedTitleMatchAI(q);
+  if(explicit && /(decoracion|decoración|danzaterapia|manualidades|beauty|modelo|modelaje|fotografia|fotografía|polaroid|reconecta|portfolio|book)/.test(q)){
+    if(explicit.type==='curso'){ window._lastAiSection='sec-cursos'; return detalleCursoAI(explicit.obj); }
+    if(explicit.type==='servicio'){ window._lastAiSection='sec-servicios'; return detalleServicioAI(explicit.obj); }
+    if(explicit.type==='evento'){ window._lastAiSection='sec-eventos'; return detalleEventoAI(explicit.obj); }
+  }
+  return __buscarRespuestaAsistente_v335(text);
+};
+
+
+// ── PATCH V33.6: búsqueda eventos, comandos info, layout chat y acciones ──
+(function(){
+  const css = document.createElement('style');
+  css.textContent = `
+    .chat-popover.expanded{left:50%!important;right:auto!important;top:50%!important;bottom:auto!important;transform:translate(-50%,-50%)!important;width:min(1220px,calc(100vw - 36px))!important;height:min(860px,calc(100vh - 42px))!important;max-height:calc(100vh - 42px)!important;resize:both!important;}
+    .chat-popover.expanded.dragged{transform:none!important;}
+    .chat-popover.expanded .chat-popover-inner{height:100%!important;max-height:none!important;display:flex!important;flex-direction:column!important;overflow:hidden!important;}
+    .chat-popover.expanded .chat-panel{flex:1 1 auto!important;min-height:0!important;display:flex!important;flex-direction:column!important;}
+    .chat-popover.expanded .chat-msgs{flex:1 1 auto!important;min-height:280px!important;max-height:none!important;overflow-y:auto!important;}
+    .chat-popover.expanded .chat-tools-block{max-height:150px;overflow:auto;}
+    .chat-popover.expanded ~ .chat-fab,#chat-fab{display:flex!important;}
+    @media(max-width:700px){.chat-popover.expanded{left:8px!important;right:8px!important;top:auto!important;bottom:86px!important;transform:none!important;width:auto!important;height:auto!important;max-height:calc(100vh - 106px)!important;resize:none!important}.chat-popover.expanded .chat-tools-block{max-height:140px;}}
+  `;
+  document.head.appendChild(css);
+})();
+
+// Filtrado acento-insensible también para eventos visibles cuando se busca desde Cursos.
+const __filterCursos_v336 = window.filterCursos;
+window.filterCursos = function(){
+  if(typeof __filterCursos_v336 === 'function') __filterCursos_v336();
+  const inp = document.getElementById('course-search');
+  const q = normAI(inp?.value || '');
+  let evVis = 0;
+  document.querySelectorAll('#eventos-grid .ev-card').forEach(card => {
+    const txt = normAI((card.dataset.search || '') + ' ' + card.textContent);
+    const match = !q || txt.includes(q);
+    card.style.display = match ? '' : 'none';
+    if(match) evVis++;
+  });
+  if(q){
+    const cursoVis = [...document.querySelectorAll('.ccard')].filter(c => c.style.display !== 'none').length;
+    if(cursoVis === 0 && evVis > 0){
+      setTimeout(()=>document.getElementById('sec-eventos')?.scrollIntoView({behavior:'smooth', block:'start'}), 120);
+    }
+  }
+};
+
+// Devuelve detalle con acción de Info/Inscripción cuando la entidad publicada está identificada.
+function detalleEntidadConAccionAI(match){
+  if(!match) return '';
+  let txt = '';
+  if(match.type === 'curso') txt = detalleCursoAI(match.obj) + '\n#info:curso:' + match.id + '#';
+  else if(match.type === 'servicio') txt = detalleServicioAI(match.obj) + '\n#info:servicio:' + match.id + '#';
+  else if(match.type === 'evento') txt = detalleEventoAI(match.obj) + '\n#info:evento:' + match.id + '#';
+  return txt;
+}
+const __buscarRespuestaAsistente_v336 = buscarRespuestaAsistente;
+buscarRespuestaAsistente = function(text){
+  const q = normAI(text || '');
+  window._lastAiSuggestions = [];
+  window._lastAiSection = '';
+  if(!q) return '';
+  // Contacto general: incluye "comunicarme".
+  if(/(comunicarme|comunicar|comunicacion|comunicación|contactarme|contacto|whatsapp|telefono|teléfono|celular|numero|número)/.test(q) && !/(organizador|organiza|profesor|docente|disertante)/.test(q)){
+    return '💬 **Contacto Tomauno**\nWhatsApp: 3764354522\nLink directo: ' + chatWhatsappUrl(chatsDB[currentOpenChatId] || {});
+  }
+  // Profesor/organizador de una actividad publicada.
+  if(/(profesor|profesora|profesores|docente|docentes|disertante|organizador|organiza|quien da|quién da|quien dicta|quién dicta)/.test(q)){
+    const m = bestPublishedTitleMatchAI(q);
+    if(m){
+      if(m.type==='curso') window._lastAiSection='sec-cursos';
+      if(m.type==='servicio') window._lastAiSection='sec-servicios';
+      if(m.type==='evento') window._lastAiSection='sec-eventos';
+      return contactoEntidadAI(m);
+    }
+  }
+  // Si hay una entidad publicada clara, responder esa y agregar botón Info.
+  const terms = importantTermsAI(q);
+  const m = bestPublishedTitleMatchAI(q);
+  if(m && terms.length && (m.titleHits >= 1 || m.sc >= 8)){
+    if(/(curso|cursos|capacit|taller|workshop|clase|seminario|charla)/.test(q) && m.type==='curso'){ window._lastAiSection='sec-cursos'; return detalleEntidadConAccionAI(m); }
+    if(/(servicio|servicios|sesion|sesiones|book|portfolio|beauty|alquiler|foto|fotos)/.test(q) && m.type==='servicio'){ window._lastAiSection='sec-servicios'; return detalleEntidadConAccionAI(m); }
+    if(/(evento|eventos|taller|seminario|workshop|charla|decoracion|decoración|danzaterapia|manualidades)/.test(q) && m.type==='evento'){ window._lastAiSection='sec-eventos'; return detalleEntidadConAccionAI(m); }
+    if(isPriceOrSpecificAI(q) || /info|informacion|información|datos|detalle|detalles/.test(q)){
+      window._lastAiSection = m.type==='curso'?'sec-cursos':m.type==='servicio'?'sec-servicios':'sec-eventos';
+      return detalleEntidadConAccionAI(m);
+    }
+  }
+  return __buscarRespuestaAsistente_v336(text);
+};
+
+
+// ── PATCH V33.7: estabilidad asistente, búsquedas generales y UI chat ──
+(function(){
+  const css = document.createElement('style');
+  css.textContent = `
+    .moverlay{z-index:3000!important;}
+    .chat-popover{z-index:900!important;}
+    .chat-popover.expanded{left:50%!important;right:auto!important;top:50%!important;bottom:auto!important;transform:translate(-50%,-50%)!important;width:min(1220px,calc(100vw - 32px))!important;height:min(900px,calc(100vh - 38px))!important;max-height:calc(100vh - 38px)!important;}
+    .chat-popover.expanded .chat-popover-inner{height:100%!important;max-height:none!important;display:flex!important;flex-direction:column!important;overflow:hidden!important;}
+    .chat-popover.expanded .chat-panel{height:auto!important;flex:1 1 auto!important;min-height:0!important;display:flex!important;flex-direction:column!important;}
+    .chat-popover.expanded .chat-msgs{flex:1 1 auto!important;min-height:300px!important;max-height:none!important;overflow-y:auto!important;}
+    .chat-popover.expanded .chat-tools-block{max-height:170px!important;overflow:auto!important;}
+    .chat-popover .chat-tools-block{transition:max-height .2s ease, opacity .2s ease;}
+    .chat-tools-collapsed .chat-tools-block{display:none!important;}
+    .chat-popover.expanded ~ #chat-fab{display:flex!important;}
+    .chat-action-row .chat-action-btn{white-space:nowrap;}
+    @media(max-width:700px){
+      .moverlay{z-index:3000!important;}
+      .chat-popover.expanded{left:8px!important;right:8px!important;top:auto!important;bottom:86px!important;transform:none!important;width:auto!important;height:auto!important;max-height:calc(100vh - 106px)!important;resize:none!important;}
+      .chat-popover.expanded .chat-msgs{min-height:300px!important;}
+    }
+  `;
+  document.head.appendChild(css);
+})();
+
+function meaningfulTermsAI(q){
+  const generic = new Set(['estan','están','esta','está','este','estos','estas','teniendo','tengo','tiene','tener','tenemos','dame','decime','contame','informacion','información','info','quiero','saber','sobre','puedo','puedes','pueden','tus','sus','mis','mas','más','disponible','disponibles','activo','activos','tienen','tenes','tenés','hay','alguno','alguna','algun','algún','cuales','cuáles','lista','listado','mostrar','mostrame','ver']);
+  return importantTermsAI(q).filter(w => !generic.has(w));
+}
+function isGeneralCourseQueryAI(q){
+  return /(curso|cursos|capacitacion|capacitación|capacitaciones|taller|talleres|workshop|seminario|clase|clases)/.test(q) && /(info|informacion|información|disponible|disponibles|activo|activos|tienen|tenes|tenés|hay|lista|listado|cuales|cuáles|ver|mostrar|mostrame|están|estan|teniendo)/.test(q) && meaningfulTermsAI(q).length === 0;
+}
+function isGeneralServiceQueryAI(q){
+  return /(servicio|servicios|sesion|sesión|sesiones|book|books|portfolio|trabajos|propuestas)/.test(q) && /(info|informacion|información|disponible|disponibles|tienen|tenes|tenés|hay|lista|listado|cuales|cuáles|ver|mostrar|mostrame|están|estan|teniendo)/.test(q) && meaningfulTermsAI(q).length === 0;
+}
+function isGeneralEventQueryAI(q){
+  return /(evento|eventos|agenda|actividad|actividades)/.test(q) && /(info|informacion|información|disponible|disponibles|activo|activos|tienen|tenes|tenés|hay|lista|listado|cuales|cuáles|ver|mostrar|mostrame|están|estan|teniendo)/.test(q) && meaningfulTermsAI(q).length === 0;
+}
+
+const __listaCursosAI_v337 = listaCursosAI;
+listaCursosAI = function(query){
+  const q = normAI(query || '');
+  if(!q || isGeneralCourseQueryAI(q)) return __listaCursosAI_v337('');
+  return __listaCursosAI_v337(query);
+};
+const __listaServiciosAI_v337 = listaServiciosAI;
+listaServiciosAI = function(query){
+  const q = normAI(query || '');
+  if(!q || isGeneralServiceQueryAI(q)) return __listaServiciosAI_v337('');
+  return __listaServiciosAI_v337(query);
+};
+
+const __buscarRespuestaAsistente_v337 = buscarRespuestaAsistente;
+buscarRespuestaAsistente = function(text){
+  const q = normAI(text || '');
+  window._lastAiSuggestions = [];
+  window._lastAiSection = '';
+  if(!q) return '';
+
+  // Listas generales: jamás elegir una actividad al azar si el usuario pidió “los cursos/servicios/eventos”.
+  if(isGeneralCourseQueryAI(q)){ window._lastAiSection = 'sec-cursos'; return listaCursosAI(''); }
+  if(isGeneralServiceQueryAI(q)){ window._lastAiSection = 'sec-servicios'; return listaServiciosAI(''); }
+  if(isGeneralEventQueryAI(q)){ window._lastAiSection = 'sec-eventos'; return listaEventosAI(); }
+
+  // Contacto del dueño/Javier: si pide contacto, pasar contacto; no biografía.
+  if(/(contactar|contactarme|comunicarme|comunicar|whatsapp|telefono|teléfono|numero|número)/.test(q) && /(javier|dueño|dueno|mottola|tomauno|ustedes)/.test(q)){
+    return '💬 **Contacto directo**\nPodés escribirle a Javier por WhatsApp: ' + chatWhatsappUrl(chatsDB[currentOpenChatId] || {}) + '\n\nSi querés, también puedo dejar tu consulta marcada para que Javier la revise al volver.';
+  }
+
+  // Si el usuario dice sí después de una pregunta ambigua, evitar asumir atención humana como única salida.
+  const chat = chatsDB[currentOpenChatId] || {};
+  const lastAuto = chatMsgs(chat).slice().reverse().find(([,m]) => m && m.from === 'admin' && m.auto);
+  if(/^(si|sí|dale|ok|bueno|perfecto)$/i.test(String(text||'').trim()) && lastAuto && /opciones relacionadas/i.test(String(lastAuto[1].text||''))){
+    const pend = Array.isArray(chat.pendingTopics) ? chat.pendingTopics : [];
+    if(pend.length){
+      window._lastAiSuggestions = pend;
+      return 'Perfecto. Estas son las opciones que encontré:\n\n' + pend.slice(0,4).map((t,i)=>(i+1)+'. '+(t.titulo||'Tema')).join('\n') + '\n\nEscribí el número o el nombre del tema.';
+    }
+    return 'Perfecto. Decime si preferís consultar por **cursos**, **servicios**, **eventos**, **ubicación** o **WhatsApp** y te oriento.';
+  }
+
+  return __buscarRespuestaAsistente_v337(text);
+};
+
+// Mejora de filtros: búsqueda acento-insensible y sin “arrastrar” todos los eventos si no coinciden.
+const __filterCursos_v337 = window.filterCursos;
+window.filterCursos = function(){
+  if(typeof __filterCursos_v337 === 'function') __filterCursos_v337();
+  const inp = document.getElementById('course-search');
+  const q = normAI(inp?.value || '');
+  let evVis = 0;
+  document.querySelectorAll('#eventos-grid .ev-card').forEach(card => {
+    const txt = normAI((card.dataset.search || '') + ' ' + card.textContent);
+    const match = !q || txt.includes(q);
+    card.style.display = match ? '' : 'none';
+    if(match) evVis++;
+  });
+  const info = document.getElementById('search-info');
+  const cursoVis = [...document.querySelectorAll('.ccard')].filter(c => c.style.display !== 'none').length;
+  if(info && q && cursoVis === 0 && evVis > 0) info.textContent = evVis + ' resultado' + (evVis!==1?'s':'') + ' en eventos para "' + (inp?.value || '') + '"';
+  if(q && cursoVis === 0 && evVis > 0){ setTimeout(()=>document.getElementById('sec-eventos')?.scrollIntoView({behavior:'smooth', block:'start'}), 120); }
+};
+
+
+
+// ── PATCH V33.8: operador limpio, nombres seguros y layout chat estable ──
+(function(){
+  const css = document.createElement('style');
+  css.textContent = `
+    .chat-home-actions{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:14px;}
+    .chat-empty-state{border:1px solid var(--border);background:#070707;border-radius:18px;min-height:230px;display:flex;align-items:center;justify-content:center;text-align:center;color:var(--text3);padding:24px;}
+    .chat-empty-state strong{color:#fff;display:block;font-size:18px;margin-bottom:6px;}
+    .chat-popover.expanded{display:flex!important;flex-direction:column!important;}
+    .chat-popover.expanded .chat-popover-inner{height:100%!important;min-height:0!important;display:flex!important;flex-direction:column!important;overflow:hidden!important;}
+    .chat-popover.expanded .chat-panel{flex:1 1 auto!important;min-height:0!important;display:flex!important;flex-direction:column!important;}
+    .chat-popover.expanded .chat-msgs{flex:1 1 auto!important;min-height:360px!important;max-height:none!important;}
+    .chat-popover.expanded .chat-row{flex:0 0 auto!important;}
+    .chat-popover.expanded .chat-tools-block{flex:0 0 auto!important;max-height:145px!important;overflow:auto!important;}
+    .chat-list-actions{display:flex;gap:7px;flex-wrap:wrap;margin-bottom:12px;}
+    .chat-popover:not(.expanded) .chat-msgs{min-height:310px;}
+    @media(max-width:700px){.chat-home-actions{grid-template-columns:1fr}.chat-popover.expanded .chat-msgs{min-height:300px!important}.chat-popover.expanded .chat-tools-block{max-height:130px!important}}
+  `;
+  document.head.appendChild(css);
+})();
+
+function chatFullDate(ts){
+  const n = Number(ts || 0);
+  if(!n) return '';
+  try{return new Date(n).toLocaleString('es-AR',{day:'2-digit',month:'2-digit',year:'2-digit',hour:'2-digit',minute:'2-digit'});}catch(e){return '';}
+}
+
+function extraerNombreDesdeRespuestaAmplia(text, chat){
+  const raw0 = String(text||'').trim();
+  if(!raw0 || extraerWhatsappAI(raw0)) return '';
+  let raw = raw0.replace(/[.!?]+$/g,'').trim();
+  // Si preguntamos nombre, aceptar respuestas como: “Martin, quiero saber...” o “me llamo Sofia y necesito...”
+  if(lastAdminAskedName(chat)){
+    raw = raw.replace(/^(hola|buenas|buen dia|buenas tardes|buenas noches)[,\s]+/i,'').trim();
+    raw = raw.replace(/^(soy|me llamo|mi nombre es|nombre es)\s+/i,'').trim();
+    raw = raw.split(/[,.;:!¿?]|\s+(?:y|pero|quiero|quisiera|necesito|me gustaria|me gustaría|consulta|consulto|pregunto)\b/i)[0].trim();
+    const m = raw.match(/^([a-záéíóúñü]+(?:\s+[a-záéíóúñü]+){0,2})/i);
+    if(m){
+      const n = limpiarNombreChat(m[1]);
+      if(n && n.length >= 2 && !/^(si|sí|ok|dale|bueno|perfecto|claro|gracias|quiero|consulta|web|whatsapp|telefono|javier|hola|buenas)$/i.test(n)){
+        return n.charAt(0).toUpperCase()+n.slice(1);
+      }
+    }
+  }
+  return extraerNombreAI(raw0);
+}
+
+isJustNameReply = function(text, chat){
+  const n = extraerNombreDesdeRespuestaAmplia(text, chat);
+  if(!n) return '';
+  const raw = String(text||'').trim();
+  if(lastAdminAskedName(chat)) return n;
+  if(/^(soy|me llamo|mi nombre es|nombre es)\s+/i.test(raw)) return n;
+  if(!tieneNombreRealChat(chat) && /^[A-Za-zÁÉÍÓÚÑÜáéíóúñü]{2,}(\s+[A-Za-zÁÉÍÓÚÑÜáéíóúñü]{2,}){0,2}$/.test(raw)) return n;
+  return '';
+};
+
+function esSoloRespuestaNombre(text, chat){
+  const n = isJustNameReply(text, chat);
+  if(!n || !lastAdminAskedName(chat)) return false;
+  let raw = String(text||'').trim().replace(/^(hola|buenas)[,\s]+/i,'').replace(/^(soy|me llamo|mi nombre es|nombre es)\s+/i,'').trim();
+  raw = raw.replace(/[.!?]+$/g,'').trim();
+  return normAI(raw) === normAI(n);
+}
+
+window.enviarChatVisitante = async function(id){
+  const inp = document.getElementById('chat-text');
+  const text = inp?.value.trim();
+  if(!text) return;
+  inp.value=''; inp.focus();
+  const existingChat = chatsDB?.[id] || {};
+  let fallbackName = '';
+  try{ fallbackName = sessionStorage.getItem('tomauno-chat-name') || ''; }catch(e){}
+  const detectedName = isJustNameReply(text, existingChat);
+  const repairedName = limpiarNombreChat(detectedName || existingChat.name || fallbackName || chatAnonName(id, existingChat));
+  await update(ref(db,'tomauno/chats/'+id), {name: repairedName, status:'abierto', updatedAt:Date.now(), lastMsg:text, unreadAdmin:true, userOnline:true, userLastSeen:Date.now()});
+  await push(ref(db,'tomauno/chats/'+id+'/messages'), {from:'user', text, time:chatTime(), createdAt:Date.now()});
+  await update(ref(db,'tomauno/chats/'+id), {updatedAt:Date.now(), lastMsg:text, status:'abierto', unreadAdmin:true, userOnline:true, userLastSeen:Date.now(), name:repairedName});
+  try{ if(detectedName) sessionStorage.setItem('tomauno-chat-name', detectedName); }catch(e){}
+  if(detectedName){ setTimeout(()=>abrirChatVisitante(id, true), 120); }
+  if(esSoloRespuestaNombre(text, existingChat)) return;
+  responderAutomaticoChat(id, text);
+};
+
+const __updateChatMessagesOnly_v338 = updateChatMessagesOnly;
+updateChatMessagesOnly = function(id, adminView){
+  const box=document.getElementById('chat-msgs'); if(!box) return;
+  const chat=chatsDB[id];
+  // Evita que el listener limpie la ventana si Firebase todavía no devolvió el chat o si fue cerrado/borrado.
+  if(!chat){ return; }
+  const html = renderMsgs(chat, adminView, id) + (!adminView && !isAdminOnline() ? '<div class="chat-bubble system">Si no respondo pronto, también podés escribirme por WhatsApp.<br><a class="chat-wa-soft" target="_blank" rel="noopener noreferrer" href="'+chatWhatsappUrl(chat)+'">💬 WhatsApp directo</a></div>' : '');
+  if(!html.trim() && box.innerHTML.trim()) return;
+  if(box.dataset.lastHtml !== html){ box.innerHTML=html; box.dataset.lastHtml=html; scrollChatSmart(box); }
+};
+
+window.abrirChatAdminHome = function(){
+  currentOpenChatId = '';
+  const valid = Object.entries(chatsDB || {}).filter(([,c])=>isValidChat(c));
+  const abiertos = valid.filter(([,c])=>c.status !== 'cerrado').length;
+  const nuevos = valid.filter(([,c])=>c.unreadAdmin).length;
+  setChatPopover(
+    '<div class="chat-head"><div class="chat-avatar">💬</div><div><div class="chat-title">CHAT TOMAUNO</div><div class="chat-subline">Panel de atención desde la web</div></div><div class="chat-head-actions"><button class="chat-icon-btn" title="Activar/desactivar automático" onclick="window.toggleModoAsistenteChat()">🤖</button><button class="chat-icon-btn" title="Activar notificaciones" onclick="window.pedirPermisoNotificaciones()">🔔</button></div></div>'+
+    '<div class="chat-empty-state"><div><strong>Esperando consultas</strong><div>Tenés '+abiertos+' conversación'+(abiertos!==1?'es':'')+' abierta'+(abiertos!==1?'s':'')+(nuevos?(' · '+nuevos+' nueva'+(nuevos!==1?'s':'')):'')+'.</div><div style="margin-top:8px;font-size:12px;">Abrí la bandeja cuando quieras revisar o responder.</div></div></div>'+
+    '<div class="chat-home-actions"><button class="btn-main" onclick="abrirPanelChatsAdmin()">📥 Ver bandeja</button><button class="btn-out" onclick="window.verResumenConsultasChat()">📋 Resumen</button><button class="btn-out" onclick="window.cerrarTodosChatsAbiertos()">📭 Vaciar abiertos</button><button class="btn-out" onclick="window.cerrarChatPopover()">Minimizar</button></div>'
+  );
+};
+
+window.abrirChatTomauno = function(){
+  unlockAudio();
+  const popToggle = document.getElementById('chat-popover');
+  if (popToggle && popToggle.classList.contains('open')) { window.cerrarChatPopover && window.cerrarChatPopover(); return; }
+  if (isAdminNotifier()) return window.abrirChatAdminHome();
+  document.getElementById('chat-fab')?.classList.remove('has-new');
+  if (currentVisitorChatId && chatsDB[currentVisitorChatId] && chatsDB[currentVisitorChatId].status !== 'cerrado') return abrirChatVisitante(currentVisitorChatId);
+  setChatPopover(
+    '<div class="chat-head"><div class="chat-avatar">💬</div><div><div class="chat-title">CHAT TOMAUNO</div><div class="chat-subline">Consulta directa desde la web</div></div></div>' +
+    '<div class="chat-panel"><div class="chat-msgs" id="chat-msgs">' +
+    '<div class="chat-bubble admin"><div>Hola 👋 Soy el Asistente Tomauno.</div><div class="chat-meta">Ahora</div></div>' +
+    '<div class="chat-bubble admin"><div>'+escHtml(chatGreeting())+'</div><div class="chat-meta">Ahora</div></div>' +
+    '<div class="chat-bubble system">¿Cómo es tu nombre?</div>' +
+    '</div>' +
+    '<div class="chat-name-row"><input class="finput" id="chat-name" placeholder="Tu nombre" onkeydown="if(event.key===\'Enter\')window.iniciarChatConNombre()"/><button class="chat-send" onclick="window.iniciarChatConNombre()">➜</button></div></div>'
+  );
+  setTimeout(()=>document.getElementById('chat-name')?.focus(),80);
+};
+
+window.cerrarConversacionChat = async function(id){
+  await update(ref(db,'tomauno/chats/'+id), {status:'cerrado', unreadAdmin:false, updatedAt:Date.now()});
+  toast('📭 Conversación cerrada');
+  abrirChatAdminHome();
+};
+
+window.cerrarTodosChatsAbiertos = function(){
+  const abiertos = Object.entries(chatsDB || {}).filter(([,c])=>isValidChat(c) && c.status !== 'cerrado');
+  if(!abiertos.length){ toast('No hay chats abiertos'); return; }
+  showConfirm('¿Cerrar todas las conversaciones abiertas? No se borran: quedan en Cerrados/Todos.', async ()=>{
+    await Promise.all(abiertos.map(([id])=>update(ref(db,'tomauno/chats/'+id), {status:'cerrado', unreadAdmin:false, updatedAt:Date.now()})));
+    toast('📭 Bandeja abierta vacía');
+    abrirChatAdminHome();
+  });
+};
+
+const __abrirPanelChatsAdmin_v338 = abrirPanelChatsAdmin;
+abrirPanelChatsAdmin = function(){
+  __abrirPanelChatsAdmin_v338();
+  const p = document.getElementById('chat-popover');
+  if(!p) return;
+  const firstRow = p.querySelector('.chat-filter')?.parentElement;
+  if(firstRow && !p.querySelector('[data-vaciar-abiertos]')){
+    const btn = document.createElement('button');
+    btn.className='chat-filter';
+    btn.setAttribute('data-vaciar-abiertos','1');
+    btn.textContent='📭 Vaciar abiertos';
+    btn.onclick=window.cerrarTodosChatsAbiertos;
+    firstRow.appendChild(btn);
+  }
+};
+window.abrirPanelChatsAdmin = abrirPanelChatsAdmin;
+
+const __historialChatTextoPlano_v338 = historialChatTextoPlano;
+historialChatTextoPlano = function(id){
+  const c = chatsDB[id]; if(!c) return '';
+  const lines = ['Historial chat Tomauno', 'Cliente: ' + chatVisibleName(c,id), c.wp ? ('WhatsApp: ' + c.wp) : '', 'Estado: ' + (c.status || 'abierto'), ''];
+  chatMsgs(c).forEach(([,m]) => {
+    if(!m || m.typing) return;
+    const who = m.from === 'user' ? chatVisibleName(c,id) : (m.auto ? 'Asistente Tomauno' : 'Tomauno');
+    const fecha = chatFullDate(m.createdAt) || (m.time || '');
+    lines.push('[' + fecha + '] ' + who + ': ' + cleanChatDisplayText(m.text || ''));
+  });
+  return lines.filter(Boolean).join('\n');
+};
+
+
+
+// ── PATCH V33.9: cierre de detalles chat/asistente y operación estable ──
+(function(){
+  const css = document.createElement('style');
+  css.textContent = `
+    .moverlay{z-index:5200!important;}
+    .mcard{max-width:min(760px,calc(100vw - 36px))!important;}
+    .chat-popover{z-index:950!important;}
+    .chat-popover:not(.expanded){width:min(460px,calc(100vw - 22px))!important;min-height:620px!important;}
+    .chat-popover.expanded{left:50%!important;right:auto!important;top:50%!important;bottom:auto!important;transform:translate(-50%,-50%)!important;width:min(1220px,calc(100vw - 34px))!important;height:min(900px,calc(100vh - 36px))!important;max-height:calc(100vh - 36px)!important;resize:both!important;}
+    .chat-popover.dragged{transform:none!important;}
+    .chat-popover .chat-popover-inner{height:100%!important;min-height:0!important;display:flex!important;flex-direction:column!important;overflow:hidden!important;}
+    .chat-popover .chat-panel{flex:1 1 auto!important;min-height:0!important;display:flex!important;flex-direction:column!important;}
+    .chat-popover .chat-msgs{flex:1 1 auto!important;max-height:none!important;overflow-y:auto!important;overflow-x:hidden!important;}
+    .chat-popover:not(.expanded) .chat-msgs{min-height:365px!important;}
+    .chat-popover.expanded .chat-msgs{min-height:420px!important;}
+    .chat-popover .chat-row{flex:0 0 auto!important;}
+    .chat-popover .chat-tools-block{flex:0 0 auto!important;max-height:130px!important;overflow:auto!important;}
+    .chat-tools-collapsed .chat-tools-block{display:none!important;}
+    .chat-tabs{max-width:calc(100% - 68px);}
+    .chat-head{cursor:move;}
+    .chat-home-actions{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:14px;}
+    .chat-empty-state{border:1px solid var(--border);background:#070707;border-radius:18px;min-height:260px;display:flex;align-items:center;justify-content:center;text-align:center;color:var(--text3);padding:24px;}
+    .chat-empty-state strong{color:#fff;display:block;font-size:18px;margin-bottom:6px;}
+    .chat-bubble .chat-action-row{margin-top:10px;}
+    @media(max-width:700px){
+      .chat-popover:not(.expanded){left:10px!important;right:10px!important;width:auto!important;min-height:0!important;max-height:calc(100vh - 110px)!important;bottom:90px!important;}
+      .chat-popover.expanded{left:8px!important;right:8px!important;top:auto!important;bottom:86px!important;transform:none!important;width:auto!important;height:auto!important;resize:none!important;max-height:calc(100vh - 106px)!important;}
+      .chat-popover .chat-msgs{min-height:300px!important;}
+      .chat-home-actions{grid-template-columns:1fr;}
+    }
+  `;
+  document.head.appendChild(css);
+})();
+
+function stripNameFromMessageForAI(text, name){
+  let raw = String(text || '').trim();
+  if(!name) return raw;
+  raw = raw.replace(/^(hola|buenas|buen dia|buenas tardes|buenas noches)[,\s]+/i,'').trim();
+  raw = raw.replace(/^(soy|me llamo|mi nombre es|nombre es)\s+/i,'').trim();
+  const n = String(name).trim().replace(/[.*+?^${}()|[\]\\]/g,'\\$&');
+  raw = raw.replace(new RegExp('^'+n+'\\b[,.;:\\-\\s]*','i'),'').trim();
+  return raw;
+}
+function chatHadHumanMark(chat){
+  return chatMsgs(chat).slice().reverse().some(([,m]) => m && m.from === 'admin' && /consulta marcada|marcada a Javier|le dejo tu consulta|queda marcada/i.test(String(m.text||'')));
+}
+function chatLastAutoText(chat){
+  const last = chatMsgs(chat).slice().reverse().find(([,m]) => m && m.from === 'admin' && m.auto);
+  return last ? String(last[1].text || '') : '';
+}
+function chatInferCategoryFromHistory(chat){
+  const sample = chatMsgs(chat).slice(-8).map(([,m]) => String(m?.text||'')).join(' ');
+  const q = normAI(sample);
+  if(/servicio|sesion|sesiones|book|portfolio|beauty|alquiler/.test(q)) return 'servicios';
+  if(/evento|eventos|decoracion|danzaterapia|manualidades|ciudad/.test(q)) return 'eventos';
+  if(/curso|cursos|taller|workshop|seminario|clase|capacitacion|fotografia|modelo|modelaje/.test(q)) return 'cursos';
+  return '';
+}
+
+// El basurero de la bandeja elimina directo, sin confirmación.
+window.eliminarChatDefinitivo = async function(id){
+  await remove(ref(db,'tomauno/chats/'+id));
+  try{ notifiedChatIds.delete(id); localStorage.setItem('tomauno-chat-notified', JSON.stringify([...notifiedChatIds])); }catch(e){}
+  if(currentOpenChatId === id) currentOpenChatId = '';
+  toast('🗑️ Chat eliminado');
+  abrirPanelChatsAdmin();
+};
+
+// Al cerrar todos, solo archiva/cierra. No borra historial.
+window.cerrarTodosChatsAbiertos = function(){
+  const abiertos = Object.entries(chatsDB || {}).filter(([,c])=>isValidChat(c) && c.status !== 'cerrado');
+  if(!abiertos.length){ toast('No hay chats abiertos'); return; }
+  showConfirm('¿Vaciar la bandeja de abiertos? No se borran mensajes: quedan en Cerrados/Todos.', async ()=>{
+    await Promise.all(abiertos.map(([id])=>update(ref(db,'tomauno/chats/'+id), {status:'cerrado', unreadAdmin:false, updatedAt:Date.now()})));
+    toast('📭 Bandeja abierta vacía');
+    abrirChatAdminHome();
+  });
+};
+
+// New course: insertar profesor/disertante en alta.
+(function injectProfesorCursoField(){
+  const hora = document.getElementById('nc-hora');
+  if(hora && !document.getElementById('nc-profesor')){
+    const wrap = document.createElement('div');
+    wrap.className = 'fgroup';
+    wrap.innerHTML = '<label class="flbl">Profesor / disertante / responsable</label><input class="finput" id="nc-profesor" placeholder="Ej: Javier Móttola"/>';
+    const row = hora.closest('.frow2');
+    if(row) row.insertAdjacentElement('afterend', wrap);
+  }
+})();
+
+// Reemplazo controlado para guardar curso nuevo con profesor.
+window.agregarCurso = async function(){
+  const titulo = document.getElementById('nc-titulo')?.value.trim();
+  if (!titulo) { toast('⚠️ El título es obligatorio'); return; }
+  const tipo = document.getElementById('nc-tipo')?.value || 'curso';
+  const pagoTipo = document.getElementById('nc-pago-tipo')?.value || 'unico';
+  const prof = document.getElementById('nc-profesor')?.value.trim() || '';
+  await push(ref(db, 'tomauno/cursos'), {
+    tipo, titulo,
+    desc: document.getElementById('nc-desc')?.value.trim() || '',
+    costo: parseInt(document.getElementById('nc-costo')?.value) || 0,
+    fecha: document.getElementById('nc-fecha')?.value || '',
+    hora: document.getElementById('nc-hora')?.value.trim() || '',
+    profesor: prof,
+    disertante: prof,
+    lugar: document.getElementById('nc-lugar')?.value.trim() || '',
+    ig: document.getElementById('nc-ig')?.value.trim() || '',
+    wp: document.getElementById('nc-wp')?.value.trim() || '',
+    cupos: parseInt(document.getElementById('nc-cupos')?.value) || 0,
+    pagoTipo,
+    meses: pagoTipo === 'cuotas' ? (parseInt(document.getElementById('nc-meses')?.value) || 0) : 0,
+    icon: document.getElementById('nc-icon')?.value.trim() || '📷',
+    img: document.getElementById('nc-img')?.value.trim() || '',
+    extraText: document.getElementById('nc-extra-text')?.value.trim() || '',
+    extraUrl: document.getElementById('nc-extra-url')?.value.trim() || '',
+    horaInicio: document.getElementById('nc-h-ini')?.value || '09:00',
+    horaFin: document.getElementById('nc-h-fin')?.value || '22:00',
+    descansos: document.getElementById('nc-descansos')?.value.trim() || '',
+    duracion: parseInt(document.getElementById('nc-dur')?.value) || 30,
+    grupoWA: document.getElementById('nc-grupo-wa')?.value.trim() || '',
+    camposReq: {
+      dni: document.getElementById('nc-req-dni')?.checked ?? true,
+      edad: document.getElementById('nc-req-edad')?.checked ?? true,
+      ig: document.getElementById('nc-req-ig')?.checked ?? true,
+      email: document.getElementById('nc-req-email')?.checked ?? false,
+      altura: document.getElementById('nc-req-altura')?.checked ?? false,
+      medidas: document.getElementById('nc-req-medidas')?.checked ?? false,
+    },
+    finalizado: false, oculto: false, creado: Date.now()
+  });
+  ['nc-titulo','nc-desc','nc-costo','nc-cupos','nc-fecha','nc-hora','nc-profesor','nc-lugar','nc-ig','nc-wp','nc-img','nc-extra-text','nc-extra-url','nc-meses','nc-grupo-wa','nc-icon','nc-descansos'].forEach(id => {
+    const el = document.getElementById(id); if (el) el.value = '';
+  });
+  toast('✅ Curso publicado');
+  setAtab('cursos');
+};
+
+const __editCurso_v339 = window.editCurso;
+window.editCurso = function(id){
+  __editCurso_v339(id);
+  setTimeout(()=>{
+    const desc = document.getElementById('ec-desc');
+    const c = cursos[id] || {};
+    if(desc && !document.getElementById('ec-profesor')){
+      desc.insertAdjacentHTML('afterend','<label class="flbl">Profesor / disertante / responsable</label><input class="finput" id="ec-profesor" value="'+escAttr(c.profesor || c.disertante || c.organizador || c.docente || '')+'" placeholder="Ej: Javier Móttola"/>');
+    }
+  },30);
+};
+const __guardarEdit_v339 = window.guardarEdit;
+window.guardarEdit = async function(id){
+  const prof = document.getElementById('ec-profesor')?.value.trim() || '';
+  await __guardarEdit_v339(id);
+  await update(ref(db,'tomauno/cursos/'+id), {profesor:prof, disertante:prof});
+};
+
+function isAckAI(q){ return /^(si|sí|dale|ok|oki|bueno|perfecto|genial|gracias|muchas gracias|de acuerdo|listo)$/i.test(String(q||'').trim()); }
+function hasGeneralListWords(q){ return /(tienen|tenes|tenés|hay|activos|activas|disponibles|ofrecen|cuales|cuáles|lista|listado|mostrar|mostrame|saber todos|todos los que)/.test(q); }
+function queryTermsForEntity(q){
+  const generic = new Set(['quiero','saber','sobre','tienen','tenes','hay','activos','activas','disponibles','info','informacion','todos','todas','cuales','cuáles','lista','listado','me','interesa','gustaria','gustaría','ver','mostrar','mostrame','curso','cursos','taller','talleres','workshop','seminario','clase','servicio','servicios','evento','eventos','tener','estan','están','teniendo']);
+  return importantTermsAI(q).filter(w => !generic.has(w));
+}
+function listaEventosAI_v339(){
+  const list = Object.values(eventosDB || {}).filter(e => e.estado === 'activo' && !e.oculto).sort((a,b)=>(a.fecha||'').localeCompare(b.fecha||''));
+  if(!list.length) return 'Por ahora no hay eventos activos publicados. #eventos';
+  return '🎪 **Eventos activos**\n\n' + list.slice(0,8).map((e,i)=> (i+1)+'. **'+(e.titulo||'Evento')+'**' + (e.fecha?'\n📅 '+fFecha(e.fecha):'') + (e.costo?'\n💰 '+moneyAI(e.costo):'')).join('\n\n') + '\n\n#eventos';
+}
+function listaServiciosAI_v339(){
+  const list = Object.values(serviciosDB || {}).filter(s => !s.oculto).sort((a,b)=>String(a.titulo||'').localeCompare(String(b.titulo||'')));
+  if(!list.length) return '📷 Hacemos sesiones fotográficas, books, retratos, moda y contenido para redes. Contame qué tipo de sesión buscás y te oriento. #servicios';
+  return '📷 **Servicios activos**\n\n' + list.slice(0,8).map((s,i)=> (i+1)+'. **'+(s.titulo||'Servicio')+'**' + (s.costo?'\n💰 '+moneyAI(s.costo):'') + (s.ig?'\n📲 @'+String(s.ig).replace('@',''):'')).join('\n\n') + '\n\n#servicios';
+}
+function listaCursosAI_v339(){
+  const list = Object.values(cursos || {}).filter(c => !c.oculto && !c.finalizado).sort((a,b)=>(a.fecha||'').localeCompare(b.fecha||''));
+  if(!list.length) return 'Por ahora no hay cursos activos publicados. #cursos';
+  return '🎓 **Cursos activos**\n\n' + list.slice(0,8).map((c,i)=> (i+1)+'. **'+(c.titulo||'Curso')+'**' + (c.fecha?'\n📅 '+fFecha(c.fecha):'') + (c.hora?'\n⏰ '+c.hora:'') + (c.costo?'\n💰 '+moneyAI(c.costo):'')).join('\n\n') + '\n\n#cursos';
+}
+function bestEntityAcrossPublishedAI(q){
+  const terms = queryTermsForEntity(q);
+  if(!terms.length) return null;
+  const items = [];
+  Object.entries(cursos||{}).forEach(([id,c])=>{ if(!c.oculto) items.push({type:'curso', id, obj:c, title:c.titulo||'', extra:[c.desc,c.ig,c.profesor,c.disertante,c.organizador,c.docente,c.wp].join(' ')}); });
+  Object.entries(serviciosDB||{}).forEach(([id,s])=>{ if(!s.oculto) items.push({type:'servicio', id, obj:s, title:s.titulo||'', extra:[s.desc,s.ig,s.dir,s.wp].join(' ')}); });
+  Object.entries(eventosDB||{}).forEach(([id,e])=>{ if(e.estado==='activo' && !e.oculto) items.push({type:'evento', id, obj:e, title:e.titulo||'', extra:[e.desc,e.nombreOrg,e.ig,e.lugar,e.wpOrg].join(' ')}); });
+  let best = null;
+  items.forEach(it=>{
+    const titleNorm = normAI(it.title);
+    const extraNorm = normAI(it.extra);
+    let titleHits = 0, extraHits = 0;
+    terms.forEach(t=>{ if(termHitAI(titleNorm,t)) titleHits++; else if(termHitAI(extraNorm,t)) extraHits++; });
+    let score = titleHits*10 + extraHits*2;
+    if(/curso|cursos|taller|workshop|seminario|clase/.test(q) && it.type==='curso') score += 3;
+    if(/servicio|servicios|sesion|sesiones|book|portfolio|alquiler/.test(q) && it.type==='servicio') score += 3;
+    if(/evento|eventos|decoracion|decoración|danzaterapia|manualidades/.test(q) && it.type==='evento') score += 3;
+    if(score && (!best || score > best.score)) best = {...it, score, titleHits, extraHits};
+  });
+  return best && (best.titleHits > 0 || best.score >= 8) ? best : null;
+}
+function detailEntityAI_v339(m){
+  if(!m) return '';
+  if(m.type==='curso') return detalleCursoAI(m.obj) + '\n#info:curso:' + m.id + '#';
+  if(m.type==='servicio') return detalleServicioAI(m.obj) + '\n#info:servicio:' + m.id + '#';
+  if(m.type==='evento') return detalleEventoAI(m.obj) + '\n#info:evento:' + m.id + '#';
+  return '';
+}
+
+const __buscarRespuestaAsistente_v339_base = buscarRespuestaAsistente;
+buscarRespuestaAsistente = function(text){
+  const q = normAI(text || '');
+  window._lastAiSuggestions = [];
+  window._lastAiSection = '';
+  const chat = chatsDB[currentOpenChatId] || {};
+  if(!q) return '';
+
+  if(isAckAI(text) && chatHadHumanMark(chat)){
+    return 'Perfecto 😊 Queda marcada tu consulta para que Javier la revise. Si querés agregar algo más, escribilo por acá.';
+  }
+
+  // Contacto general o con Javier/dueño: pasar WhatsApp, no pedir más vueltas.
+  if(/(comunicarme|comunicar|contactarme|contactar|contacto|whatsapp|telefono|teléfono|celular|numero|número|dueño|dueno|javier|mottola|ustedes)/.test(q) && !/(organizador|profesor|docente|disertante)/.test(q)){
+    return '💬 **Contacto directo de Tomauno**\nPodés escribirle a Javier por WhatsApp: ' + chatWhatsappUrl(chat) + '\n\nSi querés, también puedo dejar tu consulta marcada para que la revise personalmente.';
+  }
+
+  if(/(direccion|dirección|ubicacion|ubicación|donde queda|dónde queda|maps|mapa|llegar)/.test(q)){
+    window._lastAiSection = 'sec-ubicacion';
+    return '📍 **Dirección del estudio**\nPedro Méndez 2069, Posadas, Misiones.\n\n🗺️ Google Maps: Abrir Google Maps\n#ubicacion';
+  }
+
+  // Listas generales claras.
+  if(/(curso|cursos|capacitacion|capacitación|capacitaciones|taller|talleres|workshop|seminario|clase|clases)/.test(q) && (hasGeneralListWords(q) || queryTermsForEntity(q).length === 0)){
+    window._lastAiSection = 'sec-cursos';
+    return listaCursosAI_v339();
+  }
+  if(/(servicio|servicios|sesion|sesión|sesiones|book|books|portfolio|trabajos|propuestas)/.test(q) && (hasGeneralListWords(q) || queryTermsForEntity(q).length === 0)){
+    window._lastAiSection = 'sec-servicios';
+    return listaServiciosAI_v339();
+  }
+  if(/(evento|eventos|agenda|actividad|actividades)/.test(q) && (hasGeneralListWords(q) || queryTermsForEntity(q).length === 0)){
+    window._lastAiSection = 'sec-eventos';
+    return listaEventosAI_v339();
+  }
+
+  // Profesor / organizador / contacto de actividad publicada.
+  if(/(profesor|profesora|profesores|profe|profes|docente|docentes|disertante|disertantes|organizador|organiza|quien da|quién da|quien dicta|quién dicta)/.test(q)){
+    const ent = bestEntityAcrossPublishedAI(q) || bestPublishedTitleMatchAI(q);
+    if(ent){
+      window._lastAiSection = ent.type==='curso' ? 'sec-cursos' : ent.type==='servicio' ? 'sec-servicios' : 'sec-eventos';
+      return contactoEntidadAI(ent);
+    }
+    return 'Para decirte quién es el profesor u organizador necesito saber de qué curso, taller, servicio o evento me hablás. ¿Cuál te interesa?';
+  }
+
+  // Entidad puntual por título/tema.
+  const ent = bestEntityAcrossPublishedAI(q) || bestPublishedTitleMatchAI(q);
+  if(ent && queryTermsForEntity(q).length){
+    window._lastAiSection = ent.type==='curso' ? 'sec-cursos' : ent.type==='servicio' ? 'sec-servicios' : 'sec-eventos';
+    return detailEntityAI_v339(ent);
+  }
+
+  // Si dice “todos los que tienen activos” sin categoría, intentar inferir por contexto.
+  if(/(todos|todas|activos|activas|disponibles|tienen|teniendo)/.test(q)){
+    const cat = chatInferCategoryFromHistory(chat);
+    if(cat === 'servicios'){ window._lastAiSection='sec-servicios'; return listaServiciosAI_v339(); }
+    if(cat === 'eventos'){ window._lastAiSection='sec-eventos'; return listaEventosAI_v339(); }
+    if(cat === 'cursos'){ window._lastAiSection='sec-cursos'; return listaCursosAI_v339(); }
+  }
+
+  return __buscarRespuestaAsistente_v339_base(text);
+};
+
+// Evitar que la búsqueda interna confunda acentos y mover al bloque correcto.
+window.filterCursos = function(){
+  const inp = document.getElementById('course-search');
+  const q = normAI(inp?.value || '');
+  const cl = document.getElementById('search-clear');
+  const info = document.getElementById('search-info');
+  if(cl) cl.style.display = q ? 'block' : 'none';
+  let curVis = 0, evVis = 0;
+  document.querySelectorAll('.ccard').forEach(card => {
+    const txt = normAI((card.dataset.search || '') + ' ' + card.textContent);
+    const match = !q || txt.includes(q);
+    card.style.display = match ? '' : 'none';
+    if(match) curVis++;
+  });
+  document.querySelectorAll('#eventos-grid .ev-card').forEach(card => {
+    const txt = normAI((card.dataset.search || '') + ' ' + card.textContent);
+    const match = !q || txt.includes(q);
+    card.style.display = match ? '' : 'none';
+    if(match) evVis++;
+  });
+  if(info){
+    if(!q) info.textContent = '';
+    else if(curVis > 0) info.textContent = curVis + ' resultado' + (curVis!==1?'s':'') + ' en cursos para "' + (inp?.value || '') + '"';
+    else if(evVis > 0) info.textContent = evVis + ' resultado' + (evVis!==1?'s':'') + ' en eventos para "' + (inp?.value || '') + '"';
+    else info.textContent = '0 resultados para "' + (inp?.value || '') + '"';
+  }
+  if(q && curVis === 0 && evVis > 0){ setTimeout(()=>document.getElementById('sec-eventos')?.scrollIntoView({behavior:'smooth', block:'start'}), 120); }
+};
+
+// Mensaje visitante: guardar nombre si viene junto a una consulta, conservar historial y responder solo sobre la consulta real.
+window.enviarChatVisitante = async function(id){
+  const inp = document.getElementById('chat-text');
+  const text = inp?.value.trim();
+  if(!text) return;
+  inp.value=''; inp.focus();
+  const existingChat = chatsDB?.[id] || {};
+  let fallbackName = '';
+  try{ fallbackName = sessionStorage.getItem('tomauno-chat-name') || ''; }catch(e){}
+  const detectedName = isJustNameReply(text, existingChat);
+  const repairedName = limpiarNombreChat(detectedName || existingChat.name || fallbackName || chatAnonName(id, existingChat));
+  await push(ref(db,'tomauno/chats/'+id+'/messages'), {from:'user', text, time:chatTime(), createdAt:Date.now()});
+  await update(ref(db,'tomauno/chats/'+id), {name: repairedName, status:'abierto', updatedAt:Date.now(), lastMsg:text, unreadAdmin:true, userOnline:true, userLastSeen:Date.now()});
+  try{ if(detectedName) sessionStorage.setItem('tomauno-chat-name', detectedName); }catch(e){}
+  if(detectedName){ setTimeout(()=>abrirChatVisitante(id, true), 120); }
+  let queryForBot = text;
+  if(detectedName && lastAdminAskedName(existingChat)) queryForBot = stripNameFromMessageForAI(text, detectedName);
+  if(!queryForBot || esSoloRespuestaNombre(text, existingChat)) return;
+  responderAutomaticoChat(id, queryForBot);
+};
+
+// Abrir automáticamente la conversación nueva si el admin está en el home del chat.
+let __lastAutoOpenChatV339 = '';
+setInterval(()=>{
+  try{
+    if(!isAdminNotifier()) return;
+    const pop = document.getElementById('chat-popover');
+    if(!pop || !pop.classList.contains('open')) return;
+    if(currentOpenChatId) return;
+    const unread = Object.entries(chatsDB || {}).filter(([,c])=>isValidChat(c) && c.status !== 'cerrado' && c.unreadAdmin).sort((a,b)=>(b[1].updatedAt||0)-(a[1].updatedAt||0));
+    if(unread.length && __lastAutoOpenChatV339 !== unread[0][0]){
+      __lastAutoOpenChatV339 = unread[0][0];
+      abrirChatAdmin(unread[0][0]);
+    }
+  }catch(e){}
+}, 1600);
+
+// Menú admin: si hay chats cerrados pero nada abierto, mostrar home vacío limpio.
+window.abrirChatAdminHome = function(){
+  currentOpenChatId = '';
+  const valid = Object.entries(chatsDB || {}).filter(([,c])=>isValidChat(c));
+  const abiertos = valid.filter(([,c])=>c.status !== 'cerrado').length;
+  const nuevos = valid.filter(([,c])=>c.unreadAdmin).length;
+  setChatPopover(
+    '<div class="chat-head"><div class="chat-avatar">💬</div><div><div class="chat-title">CHAT TOMAUNO</div><div class="chat-subline">Panel de atención desde la web</div></div><div class="chat-head-actions"><button class="chat-icon-btn" title="Activar/desactivar automático" onclick="window.toggleModoAsistenteChat()">🤖</button><button class="chat-icon-btn" title="Activar notificaciones" onclick="window.pedirPermisoNotificaciones()">🔔</button></div></div>'+ 
+    '<div class="chat-empty-state"><div><strong>'+(abiertos?'Esperando consultas':'Bandeja limpia')+'</strong><div>'+(abiertos?'Tenés '+abiertos+' conversación'+(abiertos!==1?'es':'')+' abierta'+(abiertos!==1?'s':'')+(nuevos?(' · '+nuevos+' nueva'+(nuevos!==1?'s':'')):'')+'.':'No hay conversaciones abiertas ahora mismo.')+'</div><div style="margin-top:8px;font-size:12px;">'+(abiertos?'Abrí la bandeja cuando quieras revisar o responder.':'Cuando alguien escriba desde la web aparecerá acá.')+'</div></div></div>'+ 
+    '<div class="chat-home-actions"><button class="btn-main" onclick="abrirPanelChatsAdmin()">📥 Ver bandeja</button><button class="btn-out" onclick="window.verResumenConsultasChat()">📋 Resumen</button><button class="btn-out" onclick="window.cerrarTodosChatsAbiertos()">📭 Vaciar abiertos</button><button class="btn-out" onclick="window.cerrarChatPopover()">Minimizar</button></div>'
+  );
+};
+
+// Normalizar botón de acción de ubicación para no repetir “tocá”.
+const __chatActionButtonsForMessage_v339 = chatActionButtonsForMessage;
+chatActionButtonsForMessage = function(text){
+  return __chatActionButtonsForMessage_v339(String(text||'').replace(/También podés tocar[^\n]+/gi,''));
+};
 
 </script>
 </body>
