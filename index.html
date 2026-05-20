@@ -721,7 +721,1199 @@ button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,te
 .chat-admin-tools{display:flex;gap:7px;flex-wrap:wrap;align-items:center;margin-top:8px;}
 @media(max-width:700px){.chat-popover{resize:none;min-width:0}.chat-head{cursor:default}.chat-admin-tools{gap:6px}.chat-filter{padding:6px 9px;font-size:10px}}
 
+
+
+/* ======================================================================
+   TOMAUNO v33.13 — LIMPIEZA VISUAL DEL CHAT
+   Regla de esta versión: NO tocar Firebase ni lógica JS.
+   Objetivo: eliminar la pelea visual entre resize/expanded/sticky/max-height.
+   ====================================================================== */
+:root{
+  --chat-w: min(520px, calc(100vw - 24px));
+  --chat-w-expanded: min(1060px, calc(100vw - 32px));
+  --chat-h-expanded: min(760px, calc(100vh - 44px));
+  --chat-bottom: 96px;
+}
+
+/* Botón flotante: mantiene presencia, baja animación pesada */
+.chat-fab{
+  right:22px!important;
+  bottom:78px!important;
+  width:58px!important;
+  height:58px!important;
+  animation:none!important;
+  transition:transform .16s ease, box-shadow .16s ease, background .16s ease!important;
+}
+.chat-fab:hover{transform:translateY(-2px) scale(1.03)!important;}
+
+/* Ventana base: estable, sin resize nativo ni saltos de transform */
+.chat-popover{
+  position:fixed!important;
+  right:22px!important;
+  bottom:var(--chat-bottom)!important;
+  left:auto!important;
+  top:auto!important;
+  width:var(--chat-w)!important;
+  height:auto!important;
+  min-width:0!important;
+  min-height:0!important;
+  max-width:calc(100vw - 24px)!important;
+  max-height:calc(100vh - 118px)!important;
+  resize:none!important;
+  transform:none!important;
+  overflow:hidden!important;
+  border-radius:22px!important;
+  animation:none!important;
+  display:none;
+}
+.chat-popover.open{display:block!important;}
+.chat-popover.dragged{right:auto!important;bottom:auto!important;transform:none!important;}
+
+/* Ventana expandida: centrada y con tamaño fijo útil */
+.chat-popover.expanded{
+  left:50%!important;
+  right:auto!important;
+  bottom:22px!important;
+  top:auto!important;
+  transform:translateX(-50%)!important;
+  width:var(--chat-w-expanded)!important;
+  height:var(--chat-h-expanded)!important;
+  min-width:0!important;
+  min-height:0!important;
+  max-width:calc(100vw - 32px)!important;
+  max-height:calc(100vh - 44px)!important;
+  resize:none!important;
+}
+
+/* Contenedor interno: layout vertical único */
+.chat-popover-inner{
+  height:100%!important;
+  max-height:none!important;
+  overflow:hidden!important;
+  padding:16px!important;
+  display:flex!important;
+  flex-direction:column!important;
+  gap:10px!important;
+}
+
+/* Panel: solo estructura, sin max-height conflictivo */
+.chat-panel{
+  flex:1 1 auto!important;
+  min-height:0!important;
+  max-height:none!important;
+  overflow:hidden!important;
+  display:flex!important;
+  flex-direction:column!important;
+  gap:10px!important;
+}
+
+/* Header compacto y no draggable por defecto */
+.chat-head{
+  flex:0 0 auto!important;
+  margin:0!important;
+  cursor:default!important;
+  gap:10px!important;
+  min-height:42px!important;
+}
+.chat-avatar{width:38px!important;height:38px!important;font-size:20px!important;box-shadow:none!important;}
+.chat-title{font-size:25px!important;line-height:1!important;}
+.chat-subline,.chat-presence-text{font-size:11px!important;line-height:1.25!important;}
+.chat-head-actions{padding-right:66px!important;gap:5px!important;}
+.chat-icon-btn,.chat-max-btn,.chat-popover-close{
+  width:30px!important;height:30px!important;min-width:30px!important;
+}
+.chat-popover-close{right:12px!important;top:12px!important;}
+.chat-max-btn{right:48px!important;top:12px!important;}
+
+/* Pestañas arriba: compactas, sin generar alto excesivo */
+.chat-tabs{
+  flex:0 0 auto!important;
+  margin:0!important;
+  padding:0 0 4px!important;
+  gap:5px!important;
+  max-height:34px!important;
+  overflow-x:auto!important;
+  overflow-y:hidden!important;
+  scrollbar-width:thin!important;
+}
+.chat-tab{padding:6px 9px!important;font-size:10.5px!important;max-width:122px!important;}
+.chat-tab.unread{animation:none!important;}
+
+/* Mensajes: el único scroll real */
+.chat-msgs{
+  flex:1 1 auto!important;
+  min-height:230px!important;
+  max-height:none!important;
+  overflow-y:auto!important;
+  overflow-x:hidden!important;
+  padding:13px!important;
+  gap:9px!important;
+  border-radius:16px!important;
+  scroll-behavior:auto!important;
+}
+.chat-popover.expanded .chat-msgs{
+  min-height:0!important;
+  max-height:none!important;
+}
+.chat-bubble{
+  max-width:88%!important;
+  box-shadow:none!important;
+  animation:none!important;
+}
+.chat-bubble.user{align-self:flex-start!important;}
+.chat-bubble.admin{align-self:flex-end!important;}
+
+/* Input fijo abajo, sin empujar con márgenes raros */
+.chat-row{
+  flex:0 0 auto!important;
+  margin:0!important;
+  border-radius:18px!important;
+  padding:5px!important;
+}
+.chat-row .finput{padding:10px 12px!important;font-size:14px!important;}
+.chat-send{width:42px!important;height:42px!important;min-width:42px!important;}
+
+/* Herramientas y respuestas rápidas: compactas, sin sticky ni scroll interno vertical */
+.chat-admin-tools,
+.chat-quick-label,
+.chat-quick-wrap,
+.chat-admin-actions{
+  flex:0 0 auto!important;
+  position:static!important;
+  bottom:auto!important;
+  background:transparent!important;
+  margin:0!important;
+}
+.chat-admin-tools{gap:6px!important;}
+.chat-quick-label{font-size:10px!important;line-height:1.2!important;margin-top:0!important;}
+.chat-quick-wrap{
+  display:flex!important;
+  flex-wrap:wrap!important;
+  overflow:visible!important;
+  padding:0!important;
+  gap:6px!important;
+  max-height:none!important;
+}
+.chat-quick{
+  width:auto!important;
+  height:30px!important;
+  min-width:30px!important;
+  border-radius:999px!important;
+  padding:0 9px!important;
+  font-size:11px!important;
+  display:inline-flex!important;
+  align-items:center!important;
+  justify-content:center!important;
+}
+.chat-quick .qr-text{display:inline!important;}
+.chat-quick .qr-ico{font-size:13px!important;margin-right:4px!important;}
+.chat-admin-actions{
+  display:flex!important;
+  flex-wrap:wrap!important;
+  overflow:visible!important;
+  padding:0!important;
+  gap:6px!important;
+  justify-content:flex-start!important;
+}
+.chat-admin-actions .btn-out,
+.chat-admin-actions a.btn-out{
+  flex:0 0 auto!important;
+  width:auto!important;
+  min-width:34px!important;
+  height:34px!important;
+  border-radius:999px!important;
+  padding:0 10px!important;
+  font-size:11px!important;
+  margin:0!important;
+  display:inline-flex!important;
+  align-items:center!important;
+  justify-content:center!important;
+}
+.chat-admin-actions .btn-out .ico,
+.chat-admin-actions a.btn-out .ico{font-size:14px!important;line-height:1!important;}
+
+/* Estado plegado: si existe, respeta la intención sin romper alto */
+.chat-tools-collapsed .chat-quick-label,
+.chat-tools-collapsed .chat-quick-wrap,
+.chat-tools-collapsed .chat-admin-actions{display:none!important;}
+
+/* Mobile: chat tipo WhatsApp, sin bandejas ni ventana gigante */
+@media(max-width:700px){
+  html.chat-open-mobile, body.chat-open-mobile{overflow:hidden!important;}
+  .chat-popover,
+  .chat-popover.expanded{
+    left:8px!important;
+    right:8px!important;
+    bottom:82px!important;
+    top:auto!important;
+    width:auto!important;
+    height:calc(100dvh - 104px)!important;
+    max-height:calc(100dvh - 104px)!important;
+    min-width:0!important;
+    min-height:0!important;
+    transform:none!important;
+    border-radius:20px!important;
+  }
+  .chat-popover-inner{padding:12px!important;gap:8px!important;}
+  .chat-head{min-height:38px!important;}
+  .chat-avatar{width:34px!important;height:34px!important;font-size:18px!important;}
+  .chat-title{font-size:22px!important;}
+  .chat-head-actions{padding-right:62px!important;}
+  .chat-tabs{max-height:32px!important;}
+  .chat-msgs{min-height:0!important;padding:11px!important;}
+  .chat-bubble{max-width:94%!important;}
+  .chat-quick-wrap{display:none!important;}
+  .chat-quick-label{display:none!important;}
+  .chat-admin-actions{gap:5px!important;}
+  .chat-admin-actions .btn-out,
+  .chat-admin-actions a.btn-out{height:32px!important;min-width:32px!important;padding:0 8px!important;font-size:10px!important;}
+  .chat-fab{right:16px!important;bottom:18px!important;width:54px!important;height:54px!important;}
+}
+
+/* Reduce parpadeos visuales generales del chat */
+.chat-popover *, .chat-fab *{
+  animation-duration:.01ms!important;
+  animation-iteration-count:1!important;
+}
+
+
+/* ======================================================================
+   v33.14 — CRM estable / layout chat operador
+   Objetivo: corregir botones fuera de marco, encabezado obstruido,
+   maximizado con poco espacio útil y bandeja visible en PC.
+   No toca Firebase ni lógica JS.
+   ====================================================================== */
+:root{
+  --chat-v3314-w: min(650px, calc(100vw - 28px));
+  --chat-v3314-w-tabs: min(860px, calc(100vw - 28px));
+  --chat-v3314-expanded-w: min(1180px, calc(100vw - 36px));
+  --chat-v3314-expanded-h: min(820px, calc(100dvh - 42px));
+  --chat-v3314-sidebar: 210px;
+  --chat-v3314-bottom: 84px;
+}
+
+/* Ventana general: más cómoda en PC, sin resize nativo ni saltos */
+html body .chat-popover{
+  width:var(--chat-v3314-w)!important;
+  height:min(690px, calc(100dvh - 112px))!important;
+  max-height:calc(100dvh - 112px)!important;
+  right:22px!important;
+  bottom:var(--chat-v3314-bottom)!important;
+  left:auto!important;
+  top:auto!important;
+  resize:none!important;
+  overflow:hidden!important;
+  border-radius:22px!important;
+}
+html body .chat-popover:has(.chat-tabs){
+  width:var(--chat-v3314-w-tabs)!important;
+}
+html body .chat-popover.expanded{
+  width:var(--chat-v3314-expanded-w)!important;
+  height:var(--chat-v3314-expanded-h)!important;
+  max-width:calc(100vw - 36px)!important;
+  max-height:calc(100dvh - 42px)!important;
+  left:50%!important;
+  right:auto!important;
+  bottom:20px!important;
+  top:auto!important;
+  transform:translateX(-50%)!important;
+  resize:none!important;
+}
+
+/* Estructura principal: si hay pestañas/chats abiertos, se convierten en bandeja lateral */
+html body .chat-popover .chat-popover-inner{
+  height:100%!important;
+  max-height:none!important;
+  overflow:hidden!important;
+  padding:14px!important;
+  display:grid!important;
+  grid-template-columns:1fr!important;
+  grid-template-rows:auto minmax(0,1fr)!important;
+  gap:10px!important;
+}
+html body .chat-popover:has(.chat-tabs) .chat-popover-inner{
+  grid-template-columns:var(--chat-v3314-sidebar) minmax(0,1fr)!important;
+  grid-template-rows:auto minmax(0,1fr)!important;
+  column-gap:12px!important;
+  row-gap:10px!important;
+}
+html body .chat-popover .chat-head{
+  grid-column:1 / -1!important;
+  grid-row:1!important;
+  min-height:42px!important;
+  max-height:none!important;
+  margin:0!important;
+  padding-right:78px!important;
+  align-self:start!important;
+  overflow:hidden!important;
+}
+html body .chat-popover:has(.chat-tabs) .chat-head{
+  grid-column:2!important;
+}
+html body .chat-popover .chat-panel{
+  grid-column:1 / -1!important;
+  grid-row:2!important;
+  min-height:0!important;
+  height:100%!important;
+  max-height:none!important;
+  overflow:hidden!important;
+  display:grid!important;
+  grid-template-rows:minmax(0,1fr) auto auto auto!important;
+  gap:8px!important;
+}
+html body .chat-popover:has(.chat-tabs) .chat-panel{
+  grid-column:2!important;
+  grid-row:2!important;
+}
+
+/* Bandeja lateral: visible por defecto en PC, compacta y con indicadores claros */
+html body .chat-popover .chat-tabs{
+  grid-column:1!important;
+  grid-row:1 / 3!important;
+  width:100%!important;
+  max-width:none!important;
+  height:100%!important;
+  max-height:none!important;
+  min-height:0!important;
+  overflow-y:auto!important;
+  overflow-x:hidden!important;
+  display:flex!important;
+  flex-direction:column!important;
+  align-items:stretch!important;
+  gap:7px!important;
+  margin:0!important;
+  padding:8px!important;
+  border:1px solid rgba(255,255,255,.08)!important;
+  border-radius:18px!important;
+  background:linear-gradient(180deg,rgba(255,255,255,.045),rgba(0,0,0,.12))!important;
+  scrollbar-width:thin!important;
+}
+html body .chat-popover .chat-tabs::before{
+  content:'Bandeja';
+  display:block;
+  color:var(--text3);
+  font-size:10px;
+  text-transform:uppercase;
+  letter-spacing:.14em;
+  font-weight:900;
+  padding:2px 4px 4px;
+}
+html body .chat-popover .chat-tab{
+  width:100%!important;
+  max-width:none!important;
+  min-height:40px!important;
+  height:auto!important;
+  border-radius:13px!important;
+  justify-content:flex-start!important;
+  padding:8px 9px!important;
+  font-size:12px!important;
+  background:#101010!important;
+  border-color:rgba(255,255,255,.08)!important;
+  color:var(--text2)!important;
+  white-space:normal!important;
+}
+html body .chat-popover .chat-tab.active{
+  background:rgba(232,0,10,.16)!important;
+  border-color:rgba(232,0,10,.55)!important;
+  color:#fff!important;
+}
+html body .chat-popover .chat-tab.unread{
+  background:rgba(232,0,10,.20)!important;
+  border-color:rgba(232,0,10,.75)!important;
+  box-shadow:inset 4px 0 0 var(--red), 0 0 0 1px rgba(232,0,10,.10)!important;
+  animation:none!important;
+}
+html body .chat-popover .chat-tab.unread::before{
+  content:''!important;
+  width:9px!important;
+  height:9px!important;
+  min-width:9px!important;
+  border-radius:50%!important;
+  background:var(--red)!important;
+  box-shadow:0 0 0 5px rgba(232,0,10,.15),0 0 16px rgba(232,0,10,.65)!important;
+}
+html body .chat-popover .chat-tab-name{
+  flex:1 1 auto!important;
+  min-width:0!important;
+  overflow:hidden!important;
+  text-overflow:ellipsis!important;
+  white-space:nowrap!important;
+}
+html body .chat-popover .chat-tab-close{
+  flex:0 0 auto!important;
+}
+
+/* Mensajes: ocupan TODO el espacio útil disponible */
+html body .chat-popover .chat-msgs,
+html body .chat-popover.expanded .chat-msgs{
+  grid-row:1!important;
+  flex:none!important;
+  min-height:0!important;
+  height:100%!important;
+  max-height:none!important;
+  overflow-y:auto!important;
+  overflow-x:hidden!important;
+  padding:14px!important;
+  border-radius:16px!important;
+  scroll-behavior:auto!important;
+}
+html body .chat-popover .chat-bubble{
+  max-width:88%!important;
+  box-shadow:none!important;
+}
+
+/* Input y herramientas: siempre debajo, nunca encima del encabezado */
+html body .chat-popover .chat-row{
+  grid-row:2!important;
+  flex:none!important;
+  margin:0!important;
+  min-height:50px!important;
+  padding:5px!important;
+  border-radius:18px!important;
+}
+html body .chat-popover .chat-admin-tools{
+  grid-row:3!important;
+  flex:none!important;
+  margin:0!important;
+  padding:0!important;
+  display:flex!important;
+  flex-wrap:wrap!important;
+  gap:6px!important;
+  max-height:36px!important;
+  overflow:hidden!important;
+}
+html body .chat-popover .chat-filter,
+html body .chat-popover .chat-clean-btn,
+html body .chat-popover .chat-icon-btn{
+  flex:0 0 auto!important;
+}
+html body .chat-popover .chat-tools-block,
+html body .chat-popover.expanded .chat-tools-block{
+  grid-row:4!important;
+  flex:none!important;
+  max-height:82px!important;
+  min-height:0!important;
+  overflow-y:auto!important;
+  overflow-x:hidden!important;
+  padding:0 2px 0 0!important;
+  margin:0!important;
+  border-top:1px solid rgba(255,255,255,.06)!important;
+  padding-top:7px!important;
+}
+html body .chat-popover .chat-quick-wrap,
+html body .chat-popover.expanded .chat-quick-wrap{
+  display:flex!important;
+  flex-wrap:wrap!important;
+  overflow:visible!important;
+  max-height:none!important;
+  gap:5px!important;
+  margin:0 0 6px 0!important;
+  padding:0!important;
+}
+html body .chat-popover .chat-quick{
+  height:28px!important;
+  min-width:28px!important;
+  width:auto!important;
+  padding:0 8px!important;
+  border-radius:999px!important;
+  font-size:10.5px!important;
+}
+html body .chat-popover .chat-admin-actions,
+html body .chat-popover.expanded .chat-admin-actions{
+  display:flex!important;
+  flex-wrap:wrap!important;
+  gap:6px!important;
+  overflow:visible!important;
+  padding:0!important;
+  margin:0!important;
+  justify-content:flex-start!important;
+  background:transparent!important;
+  position:static!important;
+}
+html body .chat-popover .chat-admin-actions .btn-out,
+html body .chat-popover .chat-admin-actions a.btn-out,
+html body .chat-popover.expanded .chat-admin-actions .btn-out,
+html body .chat-popover.expanded .chat-admin-actions a.btn-out{
+  width:34px!important;
+  min-width:34px!important;
+  height:34px!important;
+  padding:0!important;
+  margin:0!important;
+  border-radius:50%!important;
+  display:inline-flex!important;
+  align-items:center!important;
+  justify-content:center!important;
+  font-size:0!important;
+}
+html body .chat-popover .chat-admin-actions .btn-out .ico,
+html body .chat-popover .chat-admin-actions a.btn-out .ico{font-size:14px!important;}
+
+/* Vista expandida: menos altura para herramientas, más para mensajes */
+html body .chat-popover.expanded .chat-tools-block{max-height:74px!important;}
+html body .chat-popover.expanded .chat-admin-tools{max-height:34px!important;}
+html body .chat-popover.expanded .chat-row{min-height:48px!important;}
+
+/* Bandeja principal: resalta chats sin leer cuando estás en la pantalla de bandeja */
+html body .chat-list-item.unread{
+  background:rgba(232,0,10,.15)!important;
+  border-color:rgba(232,0,10,.72)!important;
+  box-shadow:inset 4px 0 0 var(--red)!important;
+}
+html body .chat-list-item.unread .chat-status.new{
+  background:var(--red)!important;
+  color:#fff!important;
+}
+html body .chat-list-item:hover{transform:none!important;}
+
+/* Mobile: no lateral fijo; bandeja/tabs arriba y chat ancho */
+@media(max-width:700px){
+  html body .chat-popover,
+  html body .chat-popover:has(.chat-tabs),
+  html body .chat-popover.expanded{
+    left:8px!important;
+    right:8px!important;
+    bottom:82px!important;
+    top:auto!important;
+    width:auto!important;
+    height:calc(100dvh - 104px)!important;
+    max-height:calc(100dvh - 104px)!important;
+    transform:none!important;
+  }
+  html body .chat-popover .chat-popover-inner,
+  html body .chat-popover:has(.chat-tabs) .chat-popover-inner{
+    display:grid!important;
+    grid-template-columns:1fr!important;
+    grid-template-rows:auto auto minmax(0,1fr)!important;
+    padding:11px!important;
+    gap:8px!important;
+  }
+  html body .chat-popover .chat-tabs{
+    grid-column:1!important;
+    grid-row:1!important;
+    height:auto!important;
+    max-height:56px!important;
+    flex-direction:row!important;
+    overflow-x:auto!important;
+    overflow-y:hidden!important;
+    padding:6px!important;
+    border-radius:14px!important;
+  }
+  html body .chat-popover .chat-tabs::before{display:none!important;}
+  html body .chat-popover .chat-tab{
+    width:auto!important;
+    min-width:112px!important;
+    max-width:160px!important;
+    min-height:36px!important;
+    padding:7px 9px!important;
+  }
+  html body .chat-popover .chat-head,
+  html body .chat-popover:has(.chat-tabs) .chat-head{
+    grid-column:1!important;
+    grid-row:2!important;
+    padding-right:66px!important;
+  }
+  html body .chat-popover .chat-panel,
+  html body .chat-popover:has(.chat-tabs) .chat-panel{
+    grid-column:1!important;
+    grid-row:3!important;
+    grid-template-rows:minmax(0,1fr) auto auto!important;
+  }
+  html body .chat-popover .chat-tools-block,
+  html body .chat-popover.expanded .chat-tools-block{
+    max-height:62px!important;
+  }
+  html body .chat-popover .chat-admin-tools{max-height:32px!important;}
+  html body .chat-popover .chat-quick-wrap{display:none!important;}
+  html body .chat-popover .chat-admin-actions .btn-out,
+  html body .chat-popover .chat-admin-actions a.btn-out{width:32px!important;min-width:32px!important;height:32px!important;}
+}
+
+
+/* ======================================================================
+   v33.15 — Bandeja inteligente
+   - Bandeja visible por defecto en PC cuando se abre una conversación.
+   - Indicadores claros: esperando, prioridad, online, al día.
+   - No toca Firebase ni listeners principales.
+   ====================================================================== */
+html body .chat-popover:has(.chat-inbox-side){
+  width:min(940px, calc(100vw - 28px))!important;
+}
+html body .chat-popover.expanded:has(.chat-inbox-side){
+  width:min(1220px, calc(100vw - 36px))!important;
+}
+html body .chat-inbox-side{
+  padding:9px!important;
+  gap:8px!important;
+}
+html body .chat-inbox-side::before{
+  content:'Bandeja · actividad';
+  display:flex!important;
+  align-items:center;
+  justify-content:space-between;
+  color:var(--text3);
+  font-size:10px;
+  text-transform:uppercase;
+  letter-spacing:.12em;
+  font-weight:900;
+  padding:2px 4px 5px;
+}
+html body .chat-inbox-side .chat-tab{
+  display:grid!important;
+  grid-template-columns:12px minmax(0,1fr) 18px!important;
+  align-items:center!important;
+  column-gap:8px!important;
+  min-height:58px!important;
+  padding:8px!important;
+  text-align:left!important;
+}
+html body .chat-tab-light{
+  width:10px!important;
+  height:10px!important;
+  border-radius:50%!important;
+  display:block!important;
+  background:#4b5563!important;
+  box-shadow:0 0 0 4px rgba(255,255,255,.04)!important;
+}
+html body .chat-tab.waiting .chat-tab-light,
+html body .chat-tab.unread .chat-tab-light{
+  background:var(--red)!important;
+  box-shadow:0 0 0 5px rgba(232,0,10,.16),0 0 18px rgba(232,0,10,.75)!important;
+}
+html body .chat-tab.priority .chat-tab-light{
+  background:#f5c842!important;
+  box-shadow:0 0 0 5px rgba(245,200,66,.13),0 0 18px rgba(245,200,66,.65)!important;
+}
+html body .chat-tab.online:not(.waiting):not(.priority) .chat-tab-light{
+  background:#4caf7d!important;
+  box-shadow:0 0 0 5px rgba(76,175,125,.13),0 0 16px rgba(76,175,125,.6)!important;
+}
+html body .chat-tab-body{
+  min-width:0!important;
+  display:flex!important;
+  flex-direction:column!important;
+  gap:2px!important;
+}
+html body .chat-inbox-side .chat-tab-name{
+  font-size:12.5px!important;
+  font-weight:900!important;
+  color:#fff!important;
+  line-height:1.1!important;
+}
+html body .chat-tab-preview,
+html body .chat-tab-foot{
+  display:block!important;
+  min-width:0!important;
+  overflow:hidden!important;
+  text-overflow:ellipsis!important;
+  white-space:nowrap!important;
+}
+html body .chat-tab-preview{
+  color:var(--text2)!important;
+  font-size:10.5px!important;
+  line-height:1.15!important;
+}
+html body .chat-tab-foot{
+  color:var(--text3)!important;
+  font-size:9.5px!important;
+  line-height:1.1!important;
+  text-transform:uppercase!important;
+  letter-spacing:.04em!important;
+  font-weight:800!important;
+}
+html body .chat-tab.waiting,
+html body .chat-tab.unread{
+  background:rgba(232,0,10,.18)!important;
+  border-color:rgba(232,0,10,.72)!important;
+  box-shadow:inset 4px 0 0 var(--red)!important;
+}
+html body .chat-tab.priority:not(.unread){
+  background:rgba(245,200,66,.08)!important;
+  border-color:rgba(245,200,66,.35)!important;
+  box-shadow:inset 4px 0 0 #f5c842!important;
+}
+html body .chat-tab.answered:not(.active):not(.online){
+  opacity:.82!important;
+}
+html body .chat-tab.active{
+  opacity:1!important;
+  outline:1px solid rgba(255,255,255,.12)!important;
+}
+html body .chat-tab-close{
+  justify-self:end!important;
+}
+/* En la pantalla principal de bandeja, reforzar lectura rápida */
+html body .chat-list-item.unread,
+html body .chat-list-item.priority{
+  background:rgba(232,0,10,.14)!important;
+  border-color:rgba(232,0,10,.66)!important;
+}
+html body .chat-list-item.unread .chat-list-title,
+html body .chat-list-item.priority .chat-list-title{
+  color:#fff!important;
+  font-weight:900!important;
+}
+@media(max-width:700px){
+  html body .chat-popover:has(.chat-inbox-side){width:auto!important;}
+  html body .chat-inbox-side{
+    max-height:62px!important;
+    min-height:0!important;
+    flex-direction:row!important;
+    overflow-x:auto!important;
+    overflow-y:hidden!important;
+    padding:6px!important;
+  }
+  html body .chat-inbox-side::before{display:none!important;}
+  html body .chat-inbox-side .chat-tab{
+    grid-template-columns:10px minmax(88px,1fr) 16px!important;
+    min-width:138px!important;
+    max-width:176px!important;
+    min-height:42px!important;
+  }
+  html body .chat-tab-preview{display:none!important;}
+}
+
+
+
+/* ======================================================================
+   v33.17 — Corrección botones/header en maximizado + ADM logout
+   - Botoneras no se tapan en pantalla expandida.
+   - Respuestas rápidas sin doble icono.
+   - Header protegido y bandeja fija.
+   ====================================================================== */
+html body .chat-popover.expanded:has(.chat-inbox-side) .chat-popover-inner{
+  grid-template-columns:250px minmax(0,1fr)!important;
+  grid-template-rows:auto minmax(0,1fr)!important;
+  padding:14px!important;
+  gap:12px!important;
+}
+html body .chat-popover.expanded .chat-head{
+  min-width:0!important;
+  overflow:hidden!important;
+  padding-right:76px!important;
+  z-index:2!important;
+}
+html body .chat-popover.expanded .chat-title,
+html body .chat-popover.expanded .chat-subline{
+  max-width:100%!important;
+  overflow:hidden!important;
+  text-overflow:ellipsis!important;
+  white-space:nowrap!important;
+}
+html body .chat-popover.expanded .chat-panel{
+  min-width:0!important;
+  min-height:0!important;
+  overflow:hidden!important;
+  display:grid!important;
+  grid-template-rows:minmax(0,1fr) 50px 38px 92px!important;
+  gap:8px!important;
+}
+html body .chat-popover.expanded .chat-msgs{
+  min-height:0!important;
+  height:100%!important;
+  max-height:none!important;
+  overflow-y:auto!important;
+  overflow-x:hidden!important;
+  padding:14px!important;
+}
+html body .chat-popover.expanded .chat-row{
+  min-height:0!important;
+  height:50px!important;
+}
+html body .chat-popover.expanded .chat-admin-tools{
+  min-height:0!important;
+  height:38px!important;
+  max-height:38px!important;
+  align-content:center!important;
+  overflow:hidden!important;
+}
+html body .chat-popover.expanded .chat-tools-block{
+  min-height:0!important;
+  height:92px!important;
+  max-height:92px!important;
+  overflow:hidden!important;
+  border-top:1px solid rgba(255,255,255,.06)!important;
+  padding-top:7px!important;
+}
+html body .chat-popover.expanded .chat-quick-label{
+  display:block!important;
+  height:13px!important;
+  line-height:13px!important;
+  margin:0 0 4px 0!important;
+  overflow:hidden!important;
+}
+html body .chat-popover.expanded .chat-quick-wrap{
+  display:flex!important;
+  flex-wrap:nowrap!important;
+  overflow-x:auto!important;
+  overflow-y:hidden!important;
+  height:32px!important;
+  max-height:32px!important;
+  gap:6px!important;
+  margin:0 0 6px 0!important;
+  padding:0 0 2px 0!important;
+  scrollbar-width:thin!important;
+}
+html body .chat-popover.expanded .chat-quick{
+  flex:0 0 auto!important;
+  height:28px!important;
+  min-width:28px!important;
+  max-width:150px!important;
+  padding:0 9px!important;
+  white-space:nowrap!important;
+}
+html body .chat-popover.expanded .chat-quick .qr-ico{margin-right:5px!important;}
+html body .chat-popover.expanded .chat-quick .qr-text{
+  display:inline!important;
+  overflow:hidden!important;
+  text-overflow:ellipsis!important;
+  white-space:nowrap!important;
+}
+html body .chat-popover.expanded .chat-admin-actions{
+  display:flex!important;
+  flex-wrap:nowrap!important;
+  overflow-x:auto!important;
+  overflow-y:hidden!important;
+  height:36px!important;
+  max-height:36px!important;
+  gap:6px!important;
+  padding:0 2px 2px 0!important;
+  scrollbar-width:thin!important;
+}
+html body .chat-popover.expanded .chat-admin-actions .btn-out,
+html body .chat-popover.expanded .chat-admin-actions a.btn-out{
+  flex:0 0 34px!important;
+  width:34px!important;
+  min-width:34px!important;
+  height:34px!important;
+  max-height:34px!important;
+  padding:0!important;
+  border-radius:50%!important;
+}
+html body .chat-popover.expanded .chat-inbox-side,
+html body .chat-popover.expanded .chat-tabs{
+  min-width:0!important;
+  overflow-y:auto!important;
+  overflow-x:hidden!important;
+}
+html body .chat-tab-body,
+html body .chat-tab-name,
+html body .chat-tab-preview,
+html body .chat-tab-foot{
+  min-width:0!important;
+  max-width:100%!important;
+  overflow:hidden!important;
+  text-overflow:ellipsis!important;
+  white-space:nowrap!important;
+}
+html body .admin-live-indicator{cursor:pointer!important;}
+
+@media(max-width:700px){
+  html body .chat-popover.expanded .chat-panel,
+  html body .chat-popover .chat-panel{
+    grid-template-rows:minmax(0,1fr) 48px 36px 54px!important;
+  }
+  html body .chat-popover.expanded .chat-tools-block,
+  html body .chat-popover .chat-tools-block{
+    height:54px!important;
+    max-height:54px!important;
+  }
+  html body .chat-popover .chat-quick-label,
+  html body .chat-popover .chat-quick-wrap{display:none!important;}
+}
+
+
+
+/* =====================================================================
+   v33.18 — Toolbar unificada + Resumen WA visible + ajustes overflow
+   Objetivo: en pantalla expandida todos los botones quedan en un solo
+   renglón inferior, sin taparse. También corrige doble icono visual.
+   ===================================================================== */
+html body .chat-popover.expanded .chat-panel{
+  grid-template-rows:minmax(0,1fr) 50px 38px 46px!important;
+  gap:8px!important;
+}
+html body .chat-popover.expanded .chat-tools-block{
+  height:46px!important;
+  max-height:46px!important;
+  min-height:46px!important;
+  display:flex!important;
+  align-items:center!important;
+  gap:7px!important;
+  overflow-x:auto!important;
+  overflow-y:hidden!important;
+  padding:5px 4px 5px 0!important;
+  border-top:1px solid rgba(255,255,255,.06)!important;
+  scrollbar-width:thin!important;
+}
+html body .chat-popover.expanded .chat-tools-block::-webkit-scrollbar{height:5px!important;}
+html body .chat-popover.expanded .chat-tools-block::-webkit-scrollbar-track{background:#080808!important;border-radius:999px!important;}
+html body .chat-popover.expanded .chat-tools-block::-webkit-scrollbar-thumb{background:var(--red)!important;border-radius:999px!important;}
+html body .chat-popover.expanded .chat-quick-label{display:none!important;}
+html body .chat-popover.expanded .chat-quick-wrap,
+html body .chat-popover.expanded .chat-admin-actions{
+  flex:0 0 auto!important;
+  width:auto!important;
+  max-width:none!important;
+  height:36px!important;
+  max-height:36px!important;
+  min-height:36px!important;
+  display:flex!important;
+  flex-wrap:nowrap!important;
+  align-items:center!important;
+  gap:6px!important;
+  padding:0!important;
+  margin:0!important;
+  overflow:visible!important;
+}
+html body .chat-popover.expanded .chat-quick,
+html body .chat-popover.expanded .chat-admin-actions .btn-out,
+html body .chat-popover.expanded .chat-admin-actions a.btn-out{
+  flex:0 0 auto!important;
+  width:auto!important;
+  min-width:34px!important;
+  max-width:none!important;
+  height:34px!important;
+  min-height:34px!important;
+  padding:0 10px!important;
+  border-radius:999px!important;
+  font-size:11px!important;
+  line-height:1!important;
+  white-space:nowrap!important;
+  display:inline-flex!important;
+  align-items:center!important;
+  justify-content:center!important;
+}
+html body .chat-popover.expanded .chat-admin-actions .btn-out .ico,
+html body .chat-popover.expanded .chat-admin-actions a.btn-out .ico{
+  font-size:15px!important;
+  line-height:1!important;
+}
+html body .chat-popover.expanded .chat-admin-actions .btn-out[data-action="resumen-wa"]{
+  min-width:112px!important;
+  color:#fff!important;
+  border-color:rgba(37,211,102,.45)!important;
+  background:rgba(37,211,102,.10)!important;
+}
+html body .chat-popover.expanded .chat-admin-actions .btn-out[data-action="resumen-wa"]::after{
+  content:' Resumen WA';
+  font-size:10px;
+  font-weight:900;
+  margin-left:5px;
+}
+html body .chat-popover.expanded .chat-msgs{
+  min-height:0!important;
+  max-height:none!important;
+  overflow-y:auto!important;
+  overflow-x:hidden!important;
+}
+html body .chat-popover.expanded .chat-row{height:50px!important;min-height:50px!important;}
+html body .chat-popover.expanded .chat-admin-tools{height:38px!important;min-height:38px!important;max-height:38px!important;}
+html body .chat-popover .chat-quick .qr-text{
+  max-width:110px!important;
+  overflow:hidden!important;
+  text-overflow:ellipsis!important;
+  white-space:nowrap!important;
+}
+html body .chat-popover .chat-quick .qr-ico + .qr-text:empty{display:none!important;}
+@media(max-width:700px){
+  html body .chat-popover.expanded .chat-panel,
+  html body .chat-popover .chat-panel{grid-template-rows:minmax(0,1fr) 48px 36px 40px!important;}
+  html body .chat-popover.expanded .chat-tools-block,
+  html body .chat-popover .chat-tools-block{height:40px!important;max-height:40px!important;overflow-x:auto!important;display:flex!important;}
+  html body .chat-popover .chat-quick-wrap{display:none!important;}
+  html body .chat-popover .chat-admin-actions{display:flex!important;flex-wrap:nowrap!important;overflow:visible!important;height:34px!important;}
+  html body .chat-popover .chat-admin-actions .btn-out,
+  html body .chat-popover .chat-admin-actions a.btn-out{min-width:32px!important;height:32px!important;padding:0 8px!important;}
+}
+
 </style>
+
+<style id="patch-v33-16-layout-rigido-profesional">
+/* =====================================================================
+   v33.16 — Layout rígido profesional para chat operador
+   Objetivo: impedir que nombres largos, tabs o acciones empujen/rompan
+   el panel. Solo CSS. No toca Firebase ni JS.
+   ===================================================================== */
+
+html body .chat-popover.open{
+  resize:none!important;
+  overflow:hidden!important;
+  display:block!important;
+  width:min(860px,calc(100vw - 28px))!important;
+  min-width:min(860px,calc(100vw - 28px))!important;
+  max-width:calc(100vw - 28px)!important;
+  height:min(720px,calc(100vh - 96px))!important;
+  max-height:calc(100vh - 96px)!important;
+  right:24px!important;
+  bottom:96px!important;
+  left:auto!important;
+  top:auto!important;
+  transform:none!important;
+}
+html body .chat-popover.open.expanded{
+  width:min(1160px,calc(100vw - 42px))!important;
+  min-width:min(1160px,calc(100vw - 42px))!important;
+  height:calc(100vh - 64px)!important;
+  max-height:calc(100vh - 64px)!important;
+  left:50%!important;
+  right:auto!important;
+  top:32px!important;
+  bottom:auto!important;
+  transform:translateX(-50%)!important;
+}
+html body .chat-popover.open.dragged{right:auto!important;bottom:auto!important;transform:none!important;}
+html body .chat-popover.open .chat-popover-inner{
+  height:100%!important;
+  max-height:none!important;
+  min-height:0!important;
+  padding:18px!important;
+  overflow:hidden!important;
+  display:flex!important;
+  flex-direction:column!important;
+  gap:12px!important;
+}
+@media(min-width:761px){
+  html body .chat-popover.open:has(.chat-inbox-side) .chat-popover-inner{
+    display:grid!important;
+    grid-template-columns:240px minmax(0,1fr)!important;
+    grid-template-rows:auto minmax(0,1fr)!important;
+    column-gap:16px!important;
+    row-gap:10px!important;
+    align-items:stretch!important;
+  }
+  html body .chat-popover.open.expanded:has(.chat-inbox-side) .chat-popover-inner{grid-template-columns:260px minmax(0,1fr)!important;}
+  html body .chat-popover.open:has(.chat-inbox-side) .chat-inbox-side{
+    grid-column:1!important;
+    grid-row:1 / span 2!important;
+    width:240px!important;
+    min-width:240px!important;
+    max-width:240px!important;
+    height:100%!important;
+    min-height:0!important;
+    max-height:none!important;
+    overflow-y:auto!important;
+    overflow-x:hidden!important;
+    margin:0!important;
+    padding:12px!important;
+    border-radius:18px!important;
+    background:rgba(255,255,255,.035)!important;
+    border:1px solid rgba(255,255,255,.08)!important;
+    display:flex!important;
+    flex-direction:column!important;
+    gap:8px!important;
+  }
+  html body .chat-popover.open.expanded:has(.chat-inbox-side) .chat-inbox-side{width:260px!important;min-width:260px!important;max-width:260px!important;}
+  html body .chat-popover.open:has(.chat-inbox-side) .chat-head{
+    grid-column:2!important;
+    grid-row:1!important;
+    min-width:0!important;
+    width:100%!important;
+    margin:0!important;
+    padding-right:82px!important;
+    overflow:hidden!important;
+  }
+  html body .chat-popover.open:has(.chat-inbox-side) .chat-panel{
+    grid-column:2!important;
+    grid-row:2!important;
+    min-width:0!important;
+    min-height:0!important;
+    width:100%!important;
+    height:100%!important;
+    overflow:hidden!important;
+    display:grid!important;
+    grid-template-rows:minmax(0,1fr) auto auto auto!important;
+    gap:9px!important;
+  }
+}
+@media(max-width:760px){
+  html body .chat-popover.open{
+    left:8px!important;
+    right:8px!important;
+    top:auto!important;
+    bottom:86px!important;
+    width:auto!important;
+    min-width:0!important;
+    height:min(78vh,700px)!important;
+    max-height:calc(100vh - 104px)!important;
+    transform:none!important;
+  }
+  html body .chat-popover.open.expanded{
+    left:8px!important;
+    right:8px!important;
+    top:76px!important;
+    bottom:86px!important;
+    width:auto!important;
+    min-width:0!important;
+    height:auto!important;
+    max-height:none!important;
+    transform:none!important;
+  }
+  html body .chat-popover.open:has(.chat-inbox-side) .chat-popover-inner{display:grid!important;grid-template-rows:auto auto minmax(0,1fr)!important;gap:8px!important;}
+  html body .chat-popover.open:has(.chat-inbox-side) .chat-inbox-side{
+    order:0!important;
+    width:100%!important;
+    max-width:100%!important;
+    min-width:0!important;
+    max-height:96px!important;
+    overflow-x:auto!important;
+    overflow-y:hidden!important;
+    display:flex!important;
+    flex-direction:row!important;
+    gap:8px!important;
+    padding:8px!important;
+    margin:0!important;
+    border-radius:16px!important;
+    background:rgba(255,255,255,.035)!important;
+    border:1px solid rgba(255,255,255,.08)!important;
+  }
+  html body .chat-popover.open:has(.chat-inbox-side) .chat-head{order:1!important;margin:0!important;padding-right:76px!important;min-width:0!important;overflow:hidden!important;}
+  html body .chat-popover.open:has(.chat-inbox-side) .chat-panel{order:2!important;min-height:0!important;height:100%!important;display:grid!important;grid-template-rows:minmax(0,1fr) auto auto auto!important;gap:8px!important;overflow:hidden!important;}
+}
+html body .chat-head{min-width:0!important;width:100%!important;flex-shrink:0!important;overflow:hidden!important;}
+html body .chat-head > div:not(.chat-avatar):not(.chat-head-actions){min-width:0!important;max-width:100%!important;overflow:hidden!important;}
+html body .chat-title,html body .chat-subline{min-width:0!important;max-width:100%!important;overflow:hidden!important;text-overflow:ellipsis!important;white-space:nowrap!important;}
+html body .chat-head-actions{flex:0 0 auto!important;}
+html body .chat-inbox-side .chat-tab{
+  width:100%!important;
+  min-width:0!important;
+  max-width:100%!important;
+  height:auto!important;
+  min-height:48px!important;
+  flex:0 0 auto!important;
+  display:grid!important;
+  grid-template-columns:auto minmax(0,1fr) auto!important;
+  align-items:center!important;
+  gap:8px!important;
+  padding:9px 10px!important;
+  text-align:left!important;
+  overflow:hidden!important;
+}
+html body .chat-tab-body{min-width:0!important;max-width:100%!important;overflow:hidden!important;display:flex!important;flex-direction:column!important;gap:2px!important;}
+html body .chat-tab-name,html body .chat-tab-preview,html body .chat-tab-foot{display:block!important;min-width:0!important;max-width:100%!important;overflow:hidden!important;text-overflow:ellipsis!important;white-space:nowrap!important;}
+html body .chat-tab-name{font-size:13px!important;font-weight:900!important;}
+html body .chat-tab-preview{font-size:10.5px!important;color:rgba(255,255,255,.45)!important;}
+html body .chat-tab-foot{font-size:9.5px!important;color:rgba(255,255,255,.32)!important;}
+html body .chat-tab-close{flex:0 0 auto!important;width:20px!important;height:20px!important;}
+html body .chat-tab-light{flex:0 0 auto!important;}
+@media(max-width:760px){html body .chat-inbox-side .chat-tab{width:150px!important;min-width:150px!important;max-width:150px!important;min-height:48px!important;}}
+html body .chat-msgs{min-height:0!important;max-height:none!important;height:auto!important;overflow-y:auto!important;overflow-x:hidden!important;overscroll-behavior:contain!important;flex:1 1 auto!important;}
+html body .chat-row,html body .chat-admin-tools,html body .chat-tools-block{flex:0 0 auto!important;min-width:0!important;max-width:100%!important;width:100%!important;overflow:visible!important;}
+html body .chat-row{margin:0!important;}
+html body .chat-admin-tools{display:flex!important;flex-wrap:wrap!important;gap:6px!important;margin:0!important;padding:0!important;}
+html body .chat-tools-block{margin:0!important;padding:0!important;display:flex!important;flex-direction:column!important;gap:5px!important;}
+html body .chat-quick-label{margin:0!important;padding:0!important;line-height:1.2!important;}
+html body .chat-quick-wrap,html body .chat-admin-actions{max-width:100%!important;width:100%!important;overflow-x:auto!important;overflow-y:hidden!important;flex-wrap:nowrap!important;padding:2px 4px 4px 0!important;margin:0!important;gap:6px!important;scrollbar-width:thin!important;}
+html body .chat-quick,html body .chat-admin-actions .btn-out,html body .chat-admin-actions a.btn-out{flex:0 0 auto!important;}
+html body .chat-list-item{min-width:0!important;max-width:100%!important;overflow:hidden!important;}
+html body .chat-list-item > div{min-width:0!important;overflow:hidden!important;}
+html body .chat-list-item *{min-width:0;}
+html body .chat-max-btn,html body .chat-popover-close{z-index:10!important;}
+html body .chat-max-btn{right:48px!important;top:12px!important;}
+html body .chat-popover-close{right:12px!important;top:12px!important;}
+html body .chat-popover,html body .chat-popover *,html body .chat-tab,html body .chat-list-item{transition-property:background-color,border-color,color,opacity,box-shadow!important;animation-duration:.01ms!important;}
+</style>
+
 </head>
 <body>
 
@@ -3392,9 +4584,14 @@ function quickReplyIcon(label){
   const clean = String(label || '?').trim();
   return clean ? clean[0].toUpperCase() : '?';
 }
+function quickReplyLabelText(label){
+  // v33.17: evita doble icono en botones rápidos.
+  // Si el label ya empieza con emoji, el emoji queda en qr-ico y se quita del texto.
+  return String(label || '').replace(/^[\s\uFE0F\u200D]*[\u{1F300}-\u{1FAFF}\u{2600}-\u{27BF}][\uFE0F\u200D]*\s*/u, '').trim() || String(label || '').trim();
+}
 function quickRepliesHtml(){
   const list = chatQuickList();
-  return '<div class="chat-quick-label">Respuestas rápidas:</div><div class="chat-quick-wrap">'+list.map((q,i)=>'<button class="chat-quick" title="'+escAttr(q.label)+'" aria-label="'+escAttr(q.label)+'" onclick="window.usarRespuestaRapida('+i+')"><span class="qr-ico">'+escHtml(quickReplyIcon(q.label))+'</span><span class="qr-text">'+escHtml(q.label)+'</span></button>').join('')+'</div>';
+  return '<div class="chat-quick-label">Respuestas rápidas:</div><div class="chat-quick-wrap">'+list.map((q,i)=>'<button class="chat-quick" title="'+escAttr(q.label)+'" aria-label="'+escAttr(q.label)+'" onclick="window.usarRespuestaRapida('+i+')"><span class="qr-ico">'+escHtml(quickReplyIcon(q.label))+'</span><span class="qr-text">'+escHtml(quickReplyLabelText(q.label))+'</span></button>').join('')+'</div>';
 }
 window.usarRespuestaRapida = (idx) => {
   const q = chatQuickList()[idx]; if(!q) return;
@@ -3414,10 +4611,8 @@ window.abrirChatTomauno = () => {
   // Si este navegador quedó habilitado como administrador, el botón de chat SIEMPRE abre la bandeja admin.
   // Antes usaba solo adminOk/admin-section y al salir del panel te trataba como visitante aunque el indicador dijera ADM activo.
   if (isAdminNotifier()) {
-    const abiertos = Object.entries(chatsDB).filter(([,c]) => isValidChat(c) && c.status !== 'cerrado').sort((a,b)=>(b[1].updatedAt||0)-(a[1].updatedAt||0));
-    const unread = abiertos.filter(([,c]) => c.unreadAdmin);
-    if (unread.length === 1) return abrirChatAdmin(unread[0][0]);
-    if (abiertos.length === 1) return abrirChatAdmin(abiertos[0][0]);
+    // v33.15: el botón del operador abre la bandeja por defecto.
+    // Así siempre se ven los indicadores de actividad antes de elegir una conversación.
     return abrirPanelChatsAdmin();
   }
   document.getElementById('chat-fab')?.classList.remove('has-new');
@@ -3631,6 +4826,22 @@ function chatVisibleName(c, id){
   if(n && !isGenericChatName(n)) return n;
   return chatAnonName(id, c);
 }
+function chatLastActivityLabel(c){
+  const t = Number(c?.updatedAt || c?.createdAt || 0);
+  if(!t) return '';
+  try{ return new Date(t).toLocaleTimeString('es-AR',{hour:'2-digit',minute:'2-digit'}); }catch(e){ return ''; }
+}
+function chatNeedsReply(c){
+  if(!c) return false;
+  return !!(c.unreadAdmin || c.humanRequested);
+}
+function chatStatusLabel(c){
+  if(!c) return 'abierto';
+  if(c.unreadAdmin) return 'Esperando';
+  if(c.humanRequested) return 'Prioridad';
+  if(isChatUserOnline(c)) return 'Online';
+  return c.status === 'cerrado' ? 'Cerrado' : 'Al día';
+}
 window.editarNombreChat = (id) => {
   const c = chatsDB[id]; if(!c) return;
   document.getElementById('mcontent').innerHTML =
@@ -3696,12 +4907,32 @@ window.verResumenConsultasChat = () => {
 };
 
 function adminChatTabsHtml(activeId){
-  const abiertos = Object.entries(chatsDB).filter(([,c]) => isValidChat(c) && c.status !== 'cerrado').sort((a,b)=>(b[1].updatedAt||0)-(a[1].updatedAt||0));
-  if (abiertos.length <= 1) return '';
-  return '<div class="chat-tabs">' + abiertos.slice(0,8).map(([id,c]) =>
-    '<button class="chat-tab '+(id===activeId?'active ':'')+(c.unreadAdmin?'unread':'')+'" onclick="window.abrirChatAdmin(\''+id+'\')"><span class="chat-tab-name">'+escHtml(chatVisibleName(c,id))+'</span><span class="chat-tab-close" onclick="event.stopPropagation();window.cerrarConversacionChat(\''+id+'\')">×</span></button>'
-  ).join('') + '</div>';
+  const abiertos = Object.entries(chatsDB)
+    .filter(([,c]) => isValidChat(c) && c.status !== 'cerrado')
+    .sort((a,b)=>(b[1].updatedAt||0)-(a[1].updatedAt||0));
+  if (!abiertos.length) return '';
+  return '<div class="chat-tabs chat-inbox-side">' + abiertos.slice(0,12).map(([id,c]) => {
+    const status = chatStatusLabel(c);
+    const time = chatLastActivityLabel(c);
+    const preview = String((c.humanRequested ? 'Atención Javier · ' : '') + (c.lastMsg || '')).trim();
+    const cls = [
+      'chat-tab',
+      id===activeId ? 'active' : '',
+      c.unreadAdmin ? 'unread' : '',
+      c.humanRequested ? 'priority' : '',
+      isChatUserOnline(c) ? 'online' : '',
+      chatNeedsReply(c) ? 'waiting' : 'answered'
+    ].filter(Boolean).join(' ');
+    return '<button class="'+cls+'" onclick="window.abrirChatAdmin(\''+id+'\')">'
+      + '<span class="chat-tab-light" title="'+escAttr(status)+'"></span>'
+      + '<span class="chat-tab-body"><span class="chat-tab-name">'+escHtml(chatVisibleName(c,id))+'</span>'
+      + '<span class="chat-tab-preview">'+escHtml(preview || status)+'</span>'
+      + '<span class="chat-tab-foot">'+escHtml(status)+(time?' · '+escHtml(time):'')+'</span></span>'
+      + '<span class="chat-tab-close" title="Cerrar" onclick="event.stopPropagation();window.cerrarConversacionChat(\''+id+'\')">×</span>'
+      + '</button>';
+  }).join('') + '</div>';
 }
+
 window.eliminarChatDefinitivo = (id) => {
   const c = chatsDB[id] || {};
   showConfirm('¿Eliminar definitivamente el chat de ' + chatVisibleName(c,id) + '? Esto borra todo el historial de Firebase.', async () => {
@@ -6997,6 +8228,1121 @@ chatActionButtonsForMessage = function(text){
   return __chatActionButtonsForMessage_v339(String(text||'').replace(/También podés tocar[^\n]+/gi,''));
 };
 
+
+
+// ── PATCH V33.10: cierre fino de chat/asistente sin tocar Firebase ──
+(function(){
+  const css = document.createElement('style');
+  css.textContent = `
+    /* Botonera siempre visible y área de lectura más grande */
+    .chat-popover:not(.expanded){width:min(470px,calc(100vw - 22px))!important;min-height:650px!important;}
+    .chat-popover .chat-popover-inner{height:100%!important;min-height:0!important;display:flex!important;flex-direction:column!important;overflow:hidden!important;}
+    .chat-popover .chat-panel{flex:1 1 auto!important;min-height:0!important;display:flex!important;flex-direction:column!important;}
+    .chat-popover .chat-msgs{flex:1 1 auto!important;min-height:0!important;max-height:none!important;overflow-y:auto!important;overflow-x:hidden!important;}
+    .chat-popover:not(.expanded) .chat-msgs{min-height:390px!important;}
+    .chat-popover .chat-row{flex:0 0 auto!important;}
+    .chat-popover .chat-admin-tools{flex:0 0 auto!important;margin-top:8px!important;}
+    .chat-popover .chat-tools-block{flex:0 0 auto!important;max-height:none!important;overflow:visible!important;}
+    .chat-popover .chat-quick-wrap,.chat-popover .chat-admin-actions{overflow:visible!important;flex-wrap:wrap!important;padding-right:0!important;}
+    .chat-popover .chat-admin-actions{padding-bottom:0!important;}
+    .chat-popover.expanded{left:50%!important;right:auto!important;top:50%!important;bottom:auto!important;transform:translate(-50%,-50%)!important;width:min(1240px,calc(100vw - 28px))!important;height:min(940px,calc(100vh - 32px))!important;max-height:calc(100vh - 32px)!important;}
+    .chat-popover.expanded .chat-msgs{min-height:430px!important;}
+    .chat-popover.expanded .chat-tools-block{max-height:160px!important;overflow:visible!important;}
+    .chat-popover.expanded .chat-panel{height:auto!important;}
+    .chat-bubble .chip.prof-chip{display:inline-flex;margin-top:6px;}
+    @media(max-width:700px){
+      .chat-popover:not(.expanded){left:10px!important;right:10px!important;width:auto!important;min-height:0!important;bottom:90px!important;max-height:calc(100vh - 112px)!important;}
+      .chat-popover:not(.expanded) .chat-msgs{min-height:310px!important;}
+      .chat-popover.expanded{left:8px!important;right:8px!important;top:auto!important;bottom:86px!important;transform:none!important;width:auto!important;height:auto!important;max-height:calc(100vh - 106px)!important;}
+      .chat-popover.expanded .chat-msgs{min-height:320px!important;}
+    }
+  `;
+  document.head.appendChild(css);
+})();
+
+// Generalidad estricta: si preguntan “qué cursos/servicios/eventos tienen”, listar todo y no elegir al azar.
+function generalTermsV3310(q){
+  const drop = new Set(['quiero','saber','sobre','tienen','tenes','tenés','hay','activos','activas','disponibles','info','informacion','información','todos','todas','cuales','cuáles','lista','listado','mostrar','mostrame','ver','me','interesa','gustaria','gustaría','estan','están','teniendo','ofrecen','ofreces','estudio','tomauno','curso','cursos','capacitacion','capacitación','capacitaciones','taller','talleres','workshop','seminario','clase','clases','servicio','servicios','sesion','sesión','sesiones','evento','eventos','agenda','actividad','actividades']);
+  return importantTermsAI(q).filter(w=>!drop.has(w));
+}
+function isGeneralCourseQueryAI_v3310(q){ return /(curso|cursos|capacitacion|capacitación|capacitaciones|taller|talleres|workshop|seminario|clase|clases)/.test(q) && /(que|qué|cuales|cuáles|tienen|tenes|tenés|hay|disponibles|activos|info|informacion|información|lista|listado|todos|teniendo|ofrecen|mostrame|mostrar|ver)/.test(q) && generalTermsV3310(q).length===0; }
+function isGeneralServiceQueryAI_v3310(q){ return /(servicio|servicios|sesion|sesión|sesiones|book|books|portfolio|trabajos|propuestas)/.test(q) && /(que|qué|cuales|cuáles|tienen|tenes|tenés|hay|disponibles|activos|info|informacion|información|lista|listado|todos|teniendo|ofrecen|mostrame|mostrar|ver)/.test(q) && generalTermsV3310(q).length===0; }
+function isGeneralEventQueryAI_v3310(q){ return /(evento|eventos|agenda|actividad|actividades)/.test(q) && /(que|qué|cuales|cuáles|tienen|tenes|tenés|hay|disponibles|activos|info|informacion|información|lista|listado|todos|teniendo|ofrecen|mostrame|mostrar|ver)/.test(q) && generalTermsV3310(q).length===0; }
+
+// Botones de acción: soportar #info/#inscripción siempre, aunque el usuario cierre y vuelva a tocar.
+chatActionButtonsForMessage = function(text){
+  const t = normAI(text || '');
+  const btns = parseChatActions(text || []);
+  if(t.includes('cursos activos') || t.includes('seccion cursos') || t.includes('ver cursos')) btns.push({label:'🎓 Ver cursos', sec:'sec-cursos'});
+  if(t.includes('eventos activos') || t.includes('seccion eventos') || t.includes('ver eventos')) btns.push({label:'🎪 Ver eventos', sec:'sec-eventos'});
+  if(t.includes('servicios activos') || t.includes('servicios disponibles') || t.includes('seccion servicios') || t.includes('ver servicios')) btns.push({label:'📷 Ver servicios', sec:'sec-servicios'});
+  if(t.includes('direccion del estudio') || t.includes('pedro mendez')) btns.push({label:'📍 Ver ubicación', sec:'sec-ubicacion'});
+  const seen = new Set();
+  const clean = btns.filter(b=>{ const k = b.url || (b.fn+':'+b.type+':'+b.id) || b.sec || b.label; if(seen.has(k)) return false; seen.add(k); return true; });
+  if(!clean.length) return '';
+  return '<div class="chat-action-row">' + clean.map(b => {
+    if(b.url) return '<button class="chat-action-btn" onclick="window.open(\''+b.url+'\',\'_blank\')">'+b.label+'</button>';
+    if(b.fn) return '<button class="chat-action-btn" onclick="window.executeChatAction(\''+b.fn+'\',\''+b.type+'\',\''+String(b.id).replace(/'/g,'\\\'')+'\')">'+b.label+'</button>';
+    return '<button class="chat-action-btn" onclick="window.chatGoToSection(\''+b.sec+'\')">'+b.label+'</button>';
+  }).join('') + '</div>';
+};
+
+// Demorar acciones automáticas para que el usuario lea primero el mensaje.
+maybeRunVisitorActionTags = function(chatId, chat){
+  if(!chatId || chatId !== currentVisitorChatId || isAdminNotifier()) return;
+  const msgs = chatMsgs(chat).filter(([,m]) => m && m.from === 'admin' && !m.typing);
+  if(!msgs.length) return;
+  const [mid,last] = msgs[msgs.length-1];
+  const key = 'tomauno-action-done-' + chatId;
+  try{ if(sessionStorage.getItem(key) === mid) return; }catch(e){}
+  const actions = parseChatActions(last.text || '');
+  const auto = actions.find(a => a.sec || a.fn);
+  if(!auto) return;
+  try{ sessionStorage.setItem(key, mid); }catch(e){}
+  setTimeout(()=>{
+    if(auto.sec) navScroll(auto.sec);
+    else if(auto.fn) window.executeChatAction(auto.fn, auto.type, auto.id);
+  }, 1900);
+};
+
+// Limpiar frases innecesarias en respuestas con ubicación/acciones.
+const __cleanChatDisplayText_v3310 = cleanChatDisplayText;
+cleanChatDisplayText = function(text){
+  return __cleanChatDisplayText_v3310(String(text||'').replace(/También podés tocar[^\n]+\n?/gi,''));
+};
+
+// Ejecutar info/inscripción siempre que se toque el botón.
+executeChatAction = function(fn,type,id){
+  setTimeout(()=>{
+    try{
+      if(type==='curso'){
+        if(fn==='inscripcion' && window.abrirInscripcion) window.abrirInscripcion(id); else if(window.abrirDetalle) window.abrirDetalle(id);
+      }else if(type==='servicio'){
+        if(window.abrirServicioDB) window.abrirServicioDB(id); else if(window.abrirServicio) window.abrirServicio(id); else navScroll('sec-servicios');
+      }else if(type==='evento'){
+        if(fn==='inscripcion' && window.abrirInscEvento) window.abrirInscEvento(id); else if(window.abrirDetalleEvento) window.abrirDetalleEvento(id); else navScroll('sec-eventos');
+      }
+    }catch(e){ console.warn('executeChatAction v33.10', e); }
+  }, 60);
+};
+
+// Mostrar profesor/disertante/responsable en tarjetas y detalle del curso.
+function cursoProfesorLabelV3310(c){ return (c && (c.profesor || c.disertante || c.organizador || c.docente || c.responsable)) || ''; }
+const __renderCursos_v3310 = renderCursos;
+renderCursos = function(){
+  __renderCursos_v3310();
+  try{
+    document.querySelectorAll('.ccard[data-id]').forEach(card=>{
+      if(card.dataset.profInjected==='1') return;
+      const id = card.getAttribute('data-id'); const c = cursos?.[id]; const prof = cursoProfesorLabelV3310(c);
+      if(!prof) return;
+      const meta = card.querySelector('.cmeta'); if(!meta) return;
+      meta.insertAdjacentHTML('beforeend','<span class="chip prof-chip">👤 '+escHtml(prof)+'</span>');
+      card.dataset.profInjected='1';
+    });
+  }catch(e){}
+};
+const __abrirDetalle_v3310 = window.abrirDetalle;
+window.abrirDetalle = function(id){
+  __abrirDetalle_v3310(id);
+  try{
+    const c = cursos?.[id]; const prof = cursoProfesorLabelV3310(c); if(!prof) return;
+    const meta = document.querySelector('#mcontent .cmeta');
+    if(meta && !meta.querySelector('.prof-chip')) meta.insertAdjacentHTML('beforeend','<span class="chip prof-chip">👤 '+escHtml(prof)+'</span>');
+  }catch(e){}
+};
+
+// Respuesta asistente: prioridad a listas generales, contacto y profes antes de caer en el motor anterior.
+const __buscarRespuestaAsistente_v3310 = buscarRespuestaAsistente;
+buscarRespuestaAsistente = function(text){
+  const q = normAI(text || '');
+  window._lastAiSuggestions = [];
+  window._lastAiSection = '';
+  if(!q) return '';
+
+  if(isGeneralCourseQueryAI_v3310(q)){ window._lastAiSection='sec-cursos'; return listaCursosAI(''); }
+  if(isGeneralServiceQueryAI_v3310(q)){ window._lastAiSection='sec-servicios'; return listaServiciosAI(''); }
+  if(isGeneralEventQueryAI_v3310(q)){ window._lastAiSection='sec-eventos'; return listaEventosAI(); }
+
+  if(/(contactar|contactarme|comunicarme|comunicar|whatsapp|telefono|teléfono|numero|número)/.test(q) && /(javier|dueño|dueno|mottola|tomauno|ustedes)/.test(q)){
+    return '💬 **Contacto directo de Javier / Tomauno**\nPodés escribir por WhatsApp: ' + chatWhatsappUrl(chatsDB[currentOpenChatId] || {}) + '\n\nSi querés, dejame también el motivo de tu consulta y queda marcado para responderte mejor.';
+  }
+
+  if(/(profesor|profesora|profesores|profe|profes|docente|docentes|disertante|disertantes|responsable|organizador|organiza|quien da|quién da|quien dicta|quién dicta)/.test(q)){
+    const m = bestPublishedTitleMatchAI(q) || bestEntityAcrossPublishedAI?.(q);
+    if(m){ window._lastAiSection = m.type==='curso'?'sec-cursos':m.type==='servicio'?'sec-servicios':'sec-eventos'; return contactoEntidadAI(m); }
+    return 'Para decirte quién es el profesor, disertante u organizador necesito saber de qué curso, taller, servicio o evento me hablás. ¿Cuál te interesa?';
+  }
+
+  return __buscarRespuestaAsistente_v3310(text);
+};
+
+// Filtros de búsqueda acento-insensibles y con mensajes claros.
+const __filterCursos_v3310_prev = window.filterCursos;
+window.filterCursos = function(){
+  const inp = document.getElementById('course-search');
+  const qRaw = inp?.value || '';
+  const q = normAI(qRaw);
+  const cl = document.getElementById('search-clear');
+  const info = document.getElementById('search-info');
+  if(cl) cl.style.display = q ? 'block' : 'none';
+  let curVis=0, evVis=0;
+  document.querySelectorAll('.ccard').forEach(card=>{
+    const txt = normAI((card.dataset.search || '') + ' ' + card.textContent);
+    const match = !q || txt.includes(q);
+    card.style.display = match ? '' : 'none'; if(match) curVis++;
+  });
+  document.querySelectorAll('#eventos-grid .ev-card').forEach(card=>{
+    const txt = normAI((card.dataset.search || '') + ' ' + card.textContent);
+    const match = !q || txt.includes(q);
+    card.style.display = match ? '' : 'none'; if(match) evVis++;
+  });
+  if(info){
+    if(!q) info.textContent='';
+    else if(curVis && evVis) info.textContent=(curVis+evVis)+' resultados para "'+qRaw+'"';
+    else if(curVis) info.textContent=curVis+' resultado'+(curVis!==1?'s':'')+' en cursos para "'+qRaw+'"';
+    else if(evVis) info.textContent=evVis+' resultado'+(evVis!==1?'s':'')+' en eventos para "'+qRaw+'"';
+    else info.textContent='0 resultados para "'+qRaw+'"';
+  }
+  if(q && curVis===0 && evVis>0){ setTimeout(()=>document.getElementById('sec-eventos')?.scrollIntoView({behavior:'smooth', block:'start'}), 150); }
+};
+
+
+// ── PATCH V33.11: layout chat + prioridad de cursos/profesores sin mezclar servicios ──
+(function(){
+  const css = document.createElement('style');
+  css.textContent = `
+    /* V33.11: que la botonera no robe pantalla ni quede tapada */
+    .chat-popover.expanded{
+      width:min(1240px,calc(100vw - 28px))!important;
+      height:min(900px,calc(100vh - 28px))!important;
+      max-height:calc(100vh - 28px)!important;
+      top:50%!important;left:50%!important;right:auto!important;bottom:auto!important;
+      transform:translate(-50%,-50%)!important;
+    }
+    .chat-popover.expanded.dragged{transform:none!important;}
+    .chat-popover.expanded .chat-popover-inner{height:100%!important;max-height:none!important;overflow:hidden!important;display:flex!important;flex-direction:column!important;padding:18px!important;}
+    .chat-popover.expanded .chat-panel{flex:1 1 auto!important;min-height:0!important;height:auto!important;display:flex!important;flex-direction:column!important;overflow:hidden!important;}
+    .chat-popover.expanded .chat-msgs{flex:1 1 auto!important;min-height:0!important;max-height:none!important;overflow-y:auto!important;overflow-x:hidden!important;}
+    .chat-popover.expanded .chat-row{flex:0 0 auto!important;}
+    .chat-popover.expanded .chat-admin-tools{flex:0 0 auto!important;margin-top:8px!important;}
+    .chat-popover.expanded .chat-tools-block{flex:0 0 auto!important;max-height:118px!important;overflow-y:auto!important;overflow-x:hidden!important;padding-bottom:4px!important;}
+    .chat-popover.expanded .chat-quick-wrap,.chat-popover.expanded .chat-admin-actions{display:flex!important;flex-wrap:wrap!important;gap:7px!important;overflow:visible!important;padding:4px 0 4px!important;}
+    .chat-popover.expanded .chat-admin-actions .btn-out,.chat-popover.expanded .chat-admin-actions a.btn-out{width:38px!important;min-width:38px!important;height:38px!important;border-radius:50%!important;padding:0!important;display:inline-flex!important;align-items:center!important;justify-content:center!important;}
+    .chat-popover.expanded .chat-quick{width:34px!important;min-width:34px!important;height:34px!important;}
+    .chat-popover:not(.expanded){min-height:0!important;height:auto!important;max-height:min(86vh,760px)!important;}
+    .chat-popover:not(.expanded) .chat-msgs{min-height:300px!important;}
+    .chat-popover:not(.expanded) .chat-tools-block{max-height:126px!important;overflow-y:auto!important;overflow-x:hidden!important;}
+    @media(max-width:700px){
+      .chat-popover.expanded{left:8px!important;right:8px!important;top:auto!important;bottom:86px!important;width:auto!important;height:auto!important;max-height:calc(100vh - 106px)!important;transform:none!important;resize:none!important;}
+      .chat-popover.expanded .chat-popover-inner{max-height:calc(100vh - 126px)!important;}
+      .chat-popover.expanded .chat-msgs{min-height:0!important;}
+      .chat-popover.expanded .chat-tools-block{max-height:108px!important;}
+    }
+  `;
+  document.head.appendChild(css);
+})();
+
+function aiItemsV3311(types){
+  const allow = new Set(types || ['curso','servicio','evento']);
+  const arr = [];
+  if(allow.has('curso')) Object.entries(cursos || {}).forEach(([id,c])=>{ if(!c.oculto) arr.push({type:'curso', id, obj:c, title:c.titulo||'', extra:[c.desc,c.ig,c.profesor,c.disertante,c.organizador,c.docente,c.responsable,c.wp].join(' ')}); });
+  if(allow.has('servicio')) Object.entries(serviciosDB || {}).forEach(([id,s])=>{ if(!s.oculto) arr.push({type:'servicio', id, obj:s, title:s.titulo||'', extra:[s.desc,s.ig,s.wp,s.dir,s.responsable].join(' ')}); });
+  if(allow.has('evento')) Object.entries(eventosDB || {}).forEach(([id,e])=>{ if(e.estado==='activo' && !e.oculto) arr.push({type:'evento', id, obj:e, title:e.titulo||'', extra:[e.desc,e.nombreOrg,e.organizador,e.ig,e.lugar,e.wpOrg].join(' ')}); });
+  return arr;
+}
+function aiTermsV3311(q){
+  const stop = new Set(['quiero','quisiera','saber','sobre','tienen','tenes','tenés','hay','activos','activas','disponibles','info','informacion','información','todos','todas','cuales','cuáles','lista','listado','mostrar','mostrame','ver','me','interesa','gustaria','gustaría','estan','están','teniendo','ofrecen','ofreces','estudio','tomauno','curso','cursos','capacitacion','capacitación','capacitaciones','taller','talleres','workshop','seminario','clase','clases','servicio','servicios','sesion','sesión','sesiones','evento','eventos','agenda','actividad','actividades','profesor','profesora','profesores','profe','profes','docente','docentes','disertante','disertantes','organizador','organiza','quien','quién','dicta','da','del','de','la','el','los','las','un','una','alguno','alguna','para','con','como','cómo']);
+  return importantTermsAI(q).filter(w => w.length > 2 && !stop.has(w));
+}
+function aiBestV3311(q, types){
+  const nq = normAI(q || '');
+  const terms = aiTermsV3311(nq);
+  if(!terms.length) return null;
+  let best = null;
+  aiItemsV3311(types).forEach(it => {
+    const title = normAI(it.title);
+    const extra = normAI(it.extra);
+    let titleHits = 0, extraHits = 0;
+    terms.forEach(t => { if(termHitAI(title,t)) titleHits++; else if(termHitAI(extra,t)) extraHits++; });
+    let score = titleHits * 20 + extraHits * 4;
+    if(types && types.length === 1) score += 2;
+    if(score > 0 && (!best || score > best.score)) best = {...it, score, titleHits, extraHits, terms};
+  });
+  return best && (best.titleHits > 0 || best.score >= 8) ? best : null;
+}
+function aiProfessorMatchV3311(q){
+  const terms = aiTermsV3311(q);
+  if(!terms.length) return null;
+  let matches = [];
+  aiItemsV3311(['curso','servicio','evento']).forEach(it => {
+    const who = normAI([it.obj.profesor,it.obj.disertante,it.obj.docente,it.obj.responsable,it.obj.organizador,it.obj.nombreOrg].filter(Boolean).join(' '));
+    const all = normAI([it.title,it.extra].join(' '));
+    let whoHits = 0, allHits = 0;
+    terms.forEach(t => { if(termHitAI(who,t)) whoHits++; if(termHitAI(all,t)) allHits++; });
+    if(whoHits || allHits >= 2) matches.push({...it, score: whoHits*25 + allHits*3, whoHits, allHits});
+  });
+  matches.sort((a,b)=>b.score-a.score);
+  return matches[0] || null;
+}
+function aiDetailV3311(m){
+  if(!m) return '';
+  if(m.type === 'curso') return detalleCursoAI(m.obj) + '\n#info:curso:' + m.id + '#';
+  if(m.type === 'servicio') return detalleServicioAI(m.obj) + '\n#info:servicio:' + m.id + '#';
+  if(m.type === 'evento') return detalleEventoAI(m.obj) + '\n#info:evento:' + m.id + '#';
+  return '';
+}
+
+const __buscarRespuestaAsistente_v3311 = buscarRespuestaAsistente;
+buscarRespuestaAsistente = function(text){
+  const q = normAI(text || '');
+  window._lastAiSuggestions = [];
+  window._lastAiSection = '';
+  if(!q) return '';
+
+  // General: nunca elegir una actividad al azar si pidió lista.
+  if(/(curso|cursos|capacitacion|capacitación|capacitaciones|taller|talleres|workshop|seminario|clase|clases)/.test(q) && (hasGeneralListWords(q) || aiTermsV3311(q).length === 0)){
+    window._lastAiSection = 'sec-cursos';
+    return (typeof listaCursosAI_v339 === 'function' ? listaCursosAI_v339() : listaCursosAI(''));
+  }
+  if(/(servicio|servicios|sesion|sesión|sesiones|book|books|portfolio|trabajos|propuestas)/.test(q) && (hasGeneralListWords(q) || aiTermsV3311(q).length === 0)){
+    window._lastAiSection = 'sec-servicios';
+    return (typeof listaServiciosAI_v339 === 'function' ? listaServiciosAI_v339() : listaServiciosAI(''));
+  }
+  if(/(evento|eventos|agenda|actividad|actividades)/.test(q) && (hasGeneralListWords(q) || aiTermsV3311(q).length === 0)){
+    window._lastAiSection = 'sec-eventos';
+    return (typeof listaEventosAI_v339 === 'function' ? listaEventosAI_v339() : listaEventosAI());
+  }
+
+  // Profesor/disertante/organizador: buscar por nombre o por título en datos publicados.
+  if(/(profesor|profesora|profesores|profe|profes|docente|docentes|disertante|disertantes|responsable|organizador|organiza|quien da|quién da|quien dicta|quién dicta)/.test(q)){
+    const byPerson = aiProfessorMatchV3311(q);
+    const byTitle = aiBestV3311(q, ['curso','servicio','evento']);
+    const m = byPerson || byTitle;
+    if(m){
+      window._lastAiSection = m.type === 'curso' ? 'sec-cursos' : m.type === 'servicio' ? 'sec-servicios' : 'sec-eventos';
+      return contactoEntidadAI(m);
+    }
+    return 'Para decirte quién es el profesor, disertante u organizador necesito saber de qué curso, taller, servicio o evento me hablás. ¿Cuál te interesa?';
+  }
+
+  // Específico por tipo: si dijo curso, sólo mirar cursos; si dijo servicio, sólo servicios; si dijo evento/taller de ciudad, eventos.
+  if(/(curso|cursos|capacitacion|capacitación|capacitaciones|clase|clases)/.test(q)){
+    const m = aiBestV3311(q, ['curso']);
+    if(m){ window._lastAiSection='sec-cursos'; return aiDetailV3311(m); }
+  }
+  if(/(servicio|servicios|sesion|sesión|sesiones|book|books|portfolio|alquiler|trabajos|propuestas)/.test(q)){
+    const m = aiBestV3311(q, ['servicio']);
+    if(m){ window._lastAiSection='sec-servicios'; return aiDetailV3311(m); }
+  }
+  if(/(evento|eventos|danzaterapia|decoracion|decoración|manualidades)/.test(q)){
+    const m = aiBestV3311(q, ['evento']);
+    if(m){ window._lastAiSection='sec-eventos'; return aiDetailV3311(m); }
+  }
+
+  return __buscarRespuestaAsistente_v3311(text);
+};
+
+// Comandos rápidos recordatorio: /info fotografía, /info modelaje, /info decoración, /inscribir fotografía.
+
+
+
+// ── PATCH V33.12: cierre de ajustes chat/asistente/búsquedas ────────────────
+(function(){
+  const css = document.createElement('style');
+  css.textContent = `
+    /* Scrollbars discretas y rojas */
+    .chat-tabs,.chat-admin-actions,.chat-tools-block,.chat-msgs{scrollbar-width:thin;scrollbar-color:#e8000a #101010;}
+    .chat-tabs::-webkit-scrollbar,.chat-admin-actions::-webkit-scrollbar{height:5px!important;}
+    .chat-msgs::-webkit-scrollbar,.chat-tools-block::-webkit-scrollbar{width:6px!important;}
+    .chat-tabs::-webkit-scrollbar-track,.chat-admin-actions::-webkit-scrollbar-track,.chat-msgs::-webkit-scrollbar-track,.chat-tools-block::-webkit-scrollbar-track{background:#111;border-radius:20px;}
+    .chat-tabs::-webkit-scrollbar-thumb,.chat-admin-actions::-webkit-scrollbar-thumb,.chat-msgs::-webkit-scrollbar-thumb,.chat-tools-block::-webkit-scrollbar-thumb{background:#e8000a;border-radius:20px;}
+    /* Tabs más claras y sin encimarse */
+    .chat-tabs{max-width:calc(100% - 92px);padding-bottom:6px;margin-bottom:8px;}
+    .chat-tab{height:30px;max-width:178px;}
+    .chat-tab.active{box-shadow:0 0 0 1px rgba(232,0,10,.45) inset;}
+    .chat-tab.unread{border-color:#e8000a!important;background:rgba(232,0,10,.13)!important;animation:tabPulse 1.2s infinite;}
+    @keyframes tabPulse{0%,100%{box-shadow:0 0 0 0 rgba(232,0,10,.0)}50%{box-shadow:0 0 0 4px rgba(232,0,10,.12)}}
+    /* Chat expandido: más área útil, menos hueco abajo */
+    .chat-popover.expanded{width:min(1180px,calc(100vw - 28px))!important;height:min(880px,calc(100vh - 28px))!important;max-height:calc(100vh - 28px)!important;top:50%!important;left:50%!important;right:auto!important;bottom:auto!important;transform:translate(-50%,-50%)!important;resize:both!important;overflow:auto!important;}
+    .chat-popover.expanded.dragged{transform:none!important;}
+    .chat-popover.expanded .chat-popover-inner{height:100%!important;max-height:none!important;display:flex!important;flex-direction:column!important;overflow:hidden!important;padding:16px!important;}
+    .chat-popover.expanded .chat-panel{flex:1 1 auto!important;min-height:0!important;display:flex!important;flex-direction:column!important;overflow:hidden!important;gap:8px!important;}
+    .chat-popover.expanded .chat-msgs{flex:1 1 auto!important;min-height:0!important;max-height:none!important;overflow-y:auto!important;overflow-x:hidden!important;}
+    .chat-popover.expanded .chat-row{flex:0 0 auto!important;}
+    .chat-popover.expanded .chat-tools-block{flex:0 0 auto!important;max-height:112px!important;overflow-y:auto!important;overflow-x:hidden!important;padding-right:4px;}
+    .chat-popover.expanded .chat-admin-actions{display:flex!important;flex-wrap:wrap!important;overflow:visible!important;gap:7px!important;padding:4px 0!important;}
+    .chat-popover.expanded .chat-admin-actions .btn-out,.chat-popover.expanded .chat-admin-actions a.btn-out{width:38px!important;height:38px!important;min-width:38px!important;border-radius:50%!important;padding:0!important;display:inline-flex!important;align-items:center!important;justify-content:center!important;font-size:15px!important;}
+    .chat-popover.expanded .chat-quick{width:34px!important;height:34px!important;min-width:34px!important;border-radius:50%!important;padding:0!important;display:inline-flex!important;align-items:center!important;justify-content:center!important;font-size:15px!important;}
+    .chat-action-row{gap:6px!important;}
+    .chat-action-btn{padding:6px 10px!important;font-size:10.5px!important;}
+    .chat-bubble{overflow-wrap:anywhere;}
+    .chat-confirm-modal,.modal.confirm{z-index:99999!important;}
+    @media(max-width:700px){.chat-popover.expanded{left:8px!important;right:8px!important;top:auto!important;bottom:86px!important;transform:none!important;width:auto!important;height:auto!important;max-height:calc(100vh - 106px)!important;resize:none!important}.chat-popover.expanded .chat-popover-inner{max-height:calc(100vh - 126px)!important}.chat-tabs{max-width:calc(100% - 80px)}}
+  `;
+  document.head.appendChild(css);
+})();
+
+function aiTokensExactV3312(s){ return normAI(s).replace(/[^a-z0-9ñ ]/g,' ').split(/\s+/).filter(Boolean); }
+function aiHasTokenV3312(hay, tok){ return aiTokensExactV3312(hay).includes(normAI(tok)); }
+function aiImportantTermsV3312(q){
+  const stop = new Set(['quiero','quisiera','saber','sobre','tienen','tenes','tenes','hay','activos','activas','disponibles','info','informacion','todos','todas','cuales','lista','listado','mostrar','mostrame','ver','me','interesa','gustaria','estan','teniendo','ofrecen','ofreces','estudio','tomauno','curso','cursos','capacitacion','capacitaciones','taller','talleres','workshop','seminario','clase','clases','servicio','servicios','sesion','sesiones','evento','eventos','agenda','actividad','actividades','profesor','profesora','profesores','profe','profes','docente','docentes','disertante','disertantes','organizador','organiza','quien','dicta','da','del','de','la','el','los','las','un','una','alguno','alguna','para','con','como','donde','cuando','ustedes']);
+  return aiTokensExactV3312(q).filter(w => w.length > 2 && !stop.has(w));
+}
+function aiIsGeneralListV3312(q,type){
+  const n=normAI(q);
+  const terms=aiImportantTermsV3312(n);
+  if(type==='curso') return /(curso|cursos|capacitacion|capacitaciones|taller|talleres|workshop|seminario|clase|clases)/.test(n) && /(que|cuales|tienen|tenes|hay|disponibles|activos|info|informacion|lista|listado|todos|teniendo|ofrecen|mostrame|mostrar|ver)/.test(n) && terms.length===0;
+  if(type==='servicio') return /(servicio|servicios|sesion|sesiones|book|books|portfolio|trabajos|propuestas)/.test(n) && /(que|cuales|tienen|tenes|hay|disponibles|activos|info|informacion|lista|listado|todos|teniendo|ofrecen|mostrame|mostrar|ver)/.test(n) && terms.length===0;
+  if(type==='evento') return /(evento|eventos|agenda|actividad|actividades)/.test(n) && /(que|cuales|tienen|tenes|hay|disponibles|activos|info|informacion|lista|listado|todos|teniendo|ofrecen|mostrame|mostrar|ver)/.test(n) && terms.length===0;
+  return false;
+}
+function aiItemsV3312(types){
+  const allow=new Set(types||['curso','servicio','evento']); const arr=[];
+  if(allow.has('curso')) Object.entries(cursos||{}).forEach(([id,c])=>{ if(!c.oculto) arr.push({type:'curso',id,obj:c,title:c.titulo||'',extra:[c.desc,c.ig,c.profesor,c.disertante,c.organizador,c.docente,c.responsable,c.wp].join(' ')}); });
+  if(allow.has('servicio')) Object.entries(serviciosDB||{}).forEach(([id,s])=>{ if(!s.oculto) arr.push({type:'servicio',id,obj:s,title:s.titulo||'',extra:[s.desc,s.ig,s.wp,s.dir,s.responsable].join(' ')}); });
+  if(allow.has('evento')) Object.entries(eventosDB||{}).forEach(([id,e])=>{ if(e.estado==='activo'&&!e.oculto) arr.push({type:'evento',id,obj:e,title:e.titulo||'',extra:[e.desc,e.nombreOrg,e.organizador,e.ig,e.lugar,e.wpOrg].join(' ')}); });
+  return arr;
+}
+function aiBestV3312(q,types){
+  const n=normAI(q); const terms=aiImportantTermsV3312(n); if(!terms.length) return null;
+  let best=null;
+  aiItemsV3312(types).forEach(it=>{
+    const title=normAI(it.title), extra=normAI(it.extra);
+    let titleHits=0, extraHits=0;
+    terms.forEach(t=>{ if(termHitAI(title,t)) titleHits++; else if(termHitAI(extra,t)) extraHits++; });
+    let score=titleHits*25 + extraHits*3;
+    if(types && types.length===1) score+=2;
+    if(score>0 && (!best || score>best.score)) best={...it,score,titleHits,extraHits,terms};
+  });
+  return best && (best.titleHits>0 || best.score>=8) ? best : null;
+}
+function aiKnowledgeStrongV3312(q,mode){
+  const n=normAI(q); const terms=aiImportantTermsV3312(n);
+  let best=null;
+  asistenteKnowledgeEntries().forEach(([id,k])=>{
+    const keyText=[k.titulo||'',k.keys||'',k.command||''].join(' ');
+    const all=[keyText,k.respuesta||''].join(' ');
+    let score=0;
+    if(mode==='profes'){
+      const keyNorm=normAI(keyText);
+      const hasProf = /(^|\s)(profesor|profesora|profesores|profe|profes|docente|docentes)(\s|$)/.test(keyNorm);
+      const hasAcademia = /(^|\s)(academia|modelaje|materias)(\s|$)/.test(keyNorm) || /profesores de la academia|profes del curso de modelaje/.test(keyNorm);
+      if(hasProf) score += 40; if(hasAcademia) score += 25;
+    }
+    terms.forEach(t=>{ if(aiHasTokenV3312(keyText,t)) score+=12; else if(termHitAI(normAI(all),t)) score+=2; });
+    if(score>0 && (!best || score>best.score)) best={id,k,score};
+  });
+  return best && best.score>=25 ? best : null;
+}
+function aiDetailV3312(m){
+  if(!m) return '';
+  if(m.type==='curso') return detalleCursoAI(m.obj)+'\n#info:curso:'+m.id+'#';
+  if(m.type==='servicio') return detalleServicioAI(m.obj)+'\n#info:servicio:'+m.id+'#';
+  if(m.type==='evento') return detalleEventoAI(m.obj)+'\n#info:evento:'+m.id+'#';
+  return '';
+}
+
+// Contacto con Javier: enlace directo si piden comunicarse/contacto.
+const __buscarRespuestaAsistente_v3312_prev = buscarRespuestaAsistente;
+buscarRespuestaAsistente = function(text){
+  const q=normAI(text||''); window._lastAiSuggestions=[]; window._lastAiSection=''; if(!q) return '';
+
+  if(/(contactar|contactarme|comunicarme|comunicar|whatsapp|telefono|numero|hablar)/.test(q) && /(javier|dueno|dueño|mottola|tomauno|ustedes|contacto)/.test(q)){
+    return '💬 **Contacto directo de Javier / Tomauno**\nPodés escribir por WhatsApp: https://wa.me/5493764354522?text=Hola%20Javier%2C%20vengo%20de%20la%20web%20Tomauno%20y%20quiero%20continuar%20mi%20consulta.';
+  }
+  if(/(direccion|ubicacion|ubicación|donde queda|mapa|maps)/.test(q)){
+    window._lastAiSection='sec-ubicacion';
+    return '📍 **Dirección del estudio**\nPedro Méndez 2069, Posadas, Misiones.\n\n🗺️ Google Maps: https://www.google.com/maps/place/Estudio+Fotogr%C3%A1fico+Tomauno/@-27.3764851,-55.8976743,17z/data=!3m1!4b1!4m6!3m5!1s0x9457be494f85260f:0x9b7c2b5fd920df9f!8m2!3d-27.3764851!4d-55.8976743!16s%2Fg%2F11cmdn9j9z?entry=ttu\n#ubicacion';
+  }
+  if(aiIsGeneralListV3312(q,'curso')){ window._lastAiSection='sec-cursos'; return (typeof listaCursosAI_v339==='function'?listaCursosAI_v339():listaCursosAI('')); }
+  if(aiIsGeneralListV3312(q,'servicio')){ window._lastAiSection='sec-servicios'; return (typeof listaServiciosAI_v339==='function'?listaServiciosAI_v339():listaServiciosAI('')); }
+  if(aiIsGeneralListV3312(q,'evento')){ window._lastAiSection='sec-eventos'; return (typeof listaEventosAI_v339==='function'?listaEventosAI_v339():listaEventosAI()); }
+
+  if(/(profesor|profesora|profesores|profe|profes|docente|docentes|disertante|disertantes|responsable|organizador|organiza|quien da|quien dicta)/.test(q)){
+    const brain=aiKnowledgeStrongV3312(q,'profes');
+    if(brain) return applyAIVariables(brain.k.respuesta||'', chatsDB[currentOpenChatId]||{});
+    const ent=aiBestV3312(q,['curso','servicio','evento']);
+    if(ent){ window._lastAiSection=ent.type==='curso'?'sec-cursos':ent.type==='servicio'?'sec-servicios':'sec-eventos'; return contactoEntidadAI(ent); }
+    return 'Para decirte quién es el profesor, disertante u organizador necesito saber de qué curso, taller, servicio o evento me hablás. ¿Cuál te interesa?';
+  }
+
+  if(/(curso|cursos|capacitacion|capacitaciones|taller|talleres|workshop|seminario|clase|clases)/.test(q)){
+    const m=aiBestV3312(q,['curso']); if(m){ window._lastAiSection='sec-cursos'; return aiDetailV3312(m); }
+    window._lastAiSection='sec-cursos'; return (typeof listaCursosAI_v339==='function'?listaCursosAI_v339():listaCursosAI(''));
+  }
+  if(/(servicio|servicios|sesion|sesiones|book|books|portfolio|alquiler|trabajos|propuestas)/.test(q)){
+    const m=aiBestV3312(q,['servicio']); if(m){ window._lastAiSection='sec-servicios'; return aiDetailV3312(m); }
+    window._lastAiSection='sec-servicios'; return (typeof listaServiciosAI_v339==='function'?listaServiciosAI_v339():listaServiciosAI(''));
+  }
+  if(/(evento|eventos|danzaterapia|decoracion|manualidades)/.test(q)){
+    const m=aiBestV3312(q,['evento']); if(m){ window._lastAiSection='sec-eventos'; return aiDetailV3312(m); }
+    window._lastAiSection='sec-eventos'; return (typeof listaEventosAI_v339==='function'?listaEventosAI_v339():listaEventosAI());
+  }
+  return __buscarRespuestaAsistente_v3312_prev(text);
+};
+
+// Evitar que “quiero contactarme con el dueño” active la ruta de pedir datos: primero contestamos contacto directo.
+const __quiereHablarConJavierAI_v3312 = quiereHablarConJavierAI;
+quiereHablarConJavierAI = function(text){
+  const q=normAI(text||'');
+  if(/(contactar|contactarme|comunicarme|whatsapp|telefono|numero)/.test(q) && /(javier|dueno|dueño|mottola|tomauno|ustedes)/.test(q)) return false;
+  return __quiereHablarConJavierAI_v3312(text);
+};
+
+// Botones de acción: deduplicar por sección/tipo, y Info siempre operativo.
+chatActionButtonsForMessage = function(text){
+  const t=normAI(text||'');
+  let btns=parseChatActions(text||[]);
+  if((t.includes('cursos activos')||t.includes('seccion cursos')||t.includes('ver cursos')) && !btns.some(b=>b.sec==='sec-cursos')) btns.push({label:'🎓 Ver cursos',sec:'sec-cursos'});
+  if((t.includes('eventos activos')||t.includes('seccion eventos')||t.includes('ver eventos')) && !btns.some(b=>b.sec==='sec-eventos')) btns.push({label:'🎪 Ver eventos',sec:'sec-eventos'});
+  if((t.includes('servicios activos')||t.includes('servicios disponibles')||t.includes('seccion servicios')||t.includes('ver servicios')) && !btns.some(b=>b.sec==='sec-servicios')) btns.push({label:'📷 Ver servicios',sec:'sec-servicios'});
+  if((t.includes('direccion del estudio')||t.includes('pedro mendez')) && !btns.some(b=>b.sec==='sec-ubicacion')) btns.push({label:'📍 Ver ubicación',sec:'sec-ubicacion'});
+  const seen=new Set();
+  btns=btns.filter(b=>{const k=b.url || (b.fn+':'+b.type+':'+b.id) || b.sec || b.label; if(seen.has(k)) return false; seen.add(k); return true;});
+  if(!btns.length) return '';
+  return '<div class="chat-action-row">'+btns.map(b=>{
+    if(b.url) return '<button class="chat-action-btn" onclick="window.open(\''+b.url+'\',\'_blank\')">'+b.label+'</button>';
+    if(b.fn) return '<button class="chat-action-btn" onclick="window.executeChatAction(\''+b.fn+'\',\''+b.type+'\',\''+String(b.id).replace(/'/g,"\\'")+'\')">'+b.label+'</button>';
+    return '<button class="chat-action-btn" onclick="window.chatGoToSection(\''+b.sec+'\')">'+b.label+'</button>';
+  }).join('')+'</div>';
+};
+
+// Ejecutar Info/Inscripción con pequeña demora para que el usuario vea el mensaje primero.
+executeChatAction = function(fn,type,id){
+  setTimeout(()=>{
+    try{
+      if(type==='curso'){
+        if(fn==='inscripcion' && window.abrirInscripcion) window.abrirInscripcion(id); else if(window.abrirDetalle) window.abrirDetalle(id);
+      }else if(type==='servicio'){
+        if(window.abrirServicioDB) window.abrirServicioDB(id); else navScroll('sec-servicios');
+      }else if(type==='evento'){
+        if(fn==='inscripcion' && window.abrirInscEvento) window.abrirInscEvento(id); else if(window.abrirDetalleEvento) window.abrirDetalleEvento(id); else navScroll('sec-eventos');
+      }
+    }catch(e){console.warn('executeChatAction v33.12',e);}
+  },90);
+};
+
+// Búsqueda pública: si hay coincidencia en TÍTULO, mostrar solo títulos. Evita que “fotografía” traiga modelaje por descripción/flyer.
+window.filterCursos = function(){
+  const inp=document.getElementById('course-search'); const qRaw=inp?.value||''; const q=normAI(qRaw); const cl=document.getElementById('search-clear'); const info=document.getElementById('search-info'); if(cl) cl.style.display=q?'block':'none';
+  const cCards=[...document.querySelectorAll('.ccard')];
+  const eCards=[...document.querySelectorAll('#eventos-grid .ev-card')];
+  const cTitleMatches=cCards.filter(card=>{const id=card.dataset.id; const title=normAI(cursos?.[id]?.titulo || card.querySelector('.ctitle')?.textContent || ''); return q && title.includes(q);});
+  const eTitleMatches=eCards.filter(card=>{const title=normAI(card.querySelector('.ctitle')?.textContent || ''); return q && title.includes(q);});
+  const useTitleOnly= q && (cTitleMatches.length || eTitleMatches.length);
+  let curVis=0, evVis=0;
+  cCards.forEach(card=>{const id=card.dataset.id; const title=normAI(cursos?.[id]?.titulo || card.querySelector('.ctitle')?.textContent || ''); const txt=normAI((card.dataset.search||'')+' '+card.textContent); const match=!q || (useTitleOnly?title.includes(q):txt.includes(q)); card.style.display=match?'':'none'; if(match) curVis++;});
+  eCards.forEach(card=>{const title=normAI(card.querySelector('.ctitle')?.textContent || ''); const txt=normAI((card.dataset.search||'')+' '+card.textContent); const match=!q || (useTitleOnly?title.includes(q):txt.includes(q)); card.style.display=match?'':'none'; if(match) evVis++;});
+  if(info){ if(!q) info.textContent=''; else if(curVis&&evVis) info.textContent=(curVis+evVis)+' resultados para "'+qRaw+'"'; else if(curVis) info.textContent=curVis+' resultado'+(curVis!==1?'s':'')+' en cursos para "'+qRaw+'"'; else if(evVis) info.textContent=evVis+' resultado'+(evVis!==1?'s':'')+' en eventos para "'+qRaw+'"'; else info.textContent='0 resultados para "'+qRaw+'"'; }
+  if(q && curVis===0 && evVis>0){ setTimeout(()=>document.getElementById('sec-eventos')?.scrollIntoView({behavior:'smooth',block:'start'}),140); }
+};
+
+// Deep link: /#chat, /#consulta o /#asistente abre el chat automáticamente.
+(function(){
+  function openHashChat(){ const h=String(location.hash||'').toLowerCase(); if(h==='#chat'||h==='#consulta'||h==='#asistente') setTimeout(()=>document.getElementById('chat-fab')?.click(),900); }
+  window.addEventListener('hashchange', openHashChat); window.addEventListener('load', openHashChat); setTimeout(openHashChat,1200);
+})();
+
+
+
+/* =====================================================================
+   v33.18 — JS mínimo: Resumen WhatsApp visible, logout ADM real,
+   comandos manuales #ubicacion/#cursos/#servicios y limpieza de iconos.
+   ===================================================================== */
+(function(){
+  function stripLeadingEmojis(label){
+    return String(label||'')
+      .replace(/^(?:\s|[\uFE0F\u200D]|[\u{1F300}-\u{1FAFF}\u{2600}-\u{27BF}])+/u,'')
+      .trim() || String(label||'').trim();
+  }
+  try{
+    quickReplyLabelText = function(label){ return stripLeadingEmojis(label); };
+  }catch(e){}
+
+  function currentChatIdFromDom(){
+    return currentOpenChatId || '';
+  }
+  function fmtLine(label, value){
+    value = String(value||'').trim();
+    return value ? (label + value) : '';
+  }
+  window.generarResumenWhatsAppChat = function(id){
+    id = id || currentChatIdFromDom();
+    const c = chatsDB && chatsDB[id];
+    if(!c){ toast('No hay chat activo para resumir'); return; }
+    const msgs = chatMsgs(c).slice(-12).map(([,m]) => {
+      const who = m.from === 'user' ? 'Usuario' : (m.from === 'admin' ? 'Tomauno' : 'Sistema');
+      return '• ' + who + ': ' + String(m.text||'').replace(/\s+/g,' ').trim();
+    }).filter(Boolean);
+    const firstUser = chatMsgs(c).find(([,m]) => m.from === 'user')?.[1]?.text || '';
+    const tema = c.temaPrincipal || detectarTemaConsulta(firstUser || c.lastMsg || '');
+    const resumen = [
+      '📌 *Consulta web Tomauno*',
+      '',
+      fmtLine('👤 *Nombre:* ', chatVisibleName(c,id)),
+      fmtLine('📱 *WhatsApp:* ', c.wp || '-'),
+      fmtLine('🕒 *Última actividad:* ', chatFullDate(c.updatedAt || c.createdAt)),
+      fmtLine('📍 *Estado:* ', c.status || 'abierto'),
+      fmtLine('🎯 *Interés detectado:* ', tema || '-'),
+      fmtLine('💬 *Último mensaje:* ', c.lastMsg || '-'),
+      '',
+      '🧾 *Resumen de conversación:*',
+      msgs.join('\n') || 'Sin mensajes registrados.'
+    ].filter(x => x !== '').join('\n');
+    copiarTextoChat(resumen);
+    toast('📋 Resumen copiado para WhatsApp', true);
+    const wp = String(c.wp||'').replace(/\D/g,'');
+    if(wp){
+      showConfirm('Resumen copiado. ¿Abrir WhatsApp del contacto para pegarlo?', () => {
+        window.open('https://wa.me/549'+wp+'?text='+encodeURIComponent(resumen), '_blank');
+      });
+    }
+  };
+
+  function ensureResumenButton(){
+    const id = currentChatIdFromDom();
+    const actions = document.querySelector('#chat-popover.open .chat-admin-actions');
+    if(!actions || !id || actions.querySelector('[data-action="resumen-wa"]')) return;
+    const btn = document.createElement('button');
+    btn.className = 'btn-out';
+    btn.type = 'button';
+    btn.title = 'Resumen para WhatsApp';
+    btn.dataset.action = 'resumen-wa';
+    btn.innerHTML = '<span class="ico">🧾</span>';
+    btn.onclick = function(ev){ ev.preventDefault(); ev.stopPropagation(); window.generarResumenWhatsAppChat(id); };
+    const copyBtn = actions.querySelector('[title="Copiar conversación"]');
+    if(copyBtn && copyBtn.nextSibling) actions.insertBefore(btn, copyBtn.nextSibling); else actions.insertBefore(btn, actions.firstChild);
+  }
+
+  const __abrirChatAdmin_v3318 = window.abrirChatAdmin;
+  window.abrirChatAdmin = function(id, silent){
+    const r = __abrirChatAdmin_v3318.call(this,id,silent);
+    setTimeout(ensureResumenButton, 30);
+    setTimeout(ensureResumenButton, 180);
+    return r;
+  };
+  const __setChatPopover_v3318 = setChatPopover;
+  setChatPopover = function(html){
+    const r = __setChatPopover_v3318.apply(this, arguments);
+    setTimeout(ensureResumenButton, 40);
+    return r;
+  };
+
+  window.logoutAdminRealTomauno = async function(){
+    try{ await update(ref(db,'tomauno/status'), {adminOnline:false, adminLast:Date.now()}); }catch(e){}
+    adminOk = false;
+    window._adminWasActive = false;
+    try{ localStorage.removeItem('tomauno-admin-notify'); }catch(e){}
+    try{ document.getElementById('chat-popover')?.classList.remove('open','expanded'); }catch(e){}
+    try{ toggleAdmin(false); }catch(e){ window.cerrarAdmin && window.cerrarAdmin(); }
+    updateAdminLiveIndicator();
+    toast('🔒 Sesión admin cerrada', true);
+  };
+  function bindAdmLogout(){
+    const el = document.getElementById('admin-live-indicator');
+    if(!el || el.dataset.logoutBound) return;
+    el.dataset.logoutBound = '1';
+    el.title = 'Cerrar sesión admin';
+    el.addEventListener('click', function(ev){
+      ev.preventDefault();
+      ev.stopPropagation();
+      showConfirm('¿Cerrar sesión admin y volver a pedir PIN?', () => window.logoutAdminRealTomauno());
+    }, true);
+  }
+  bindAdmLogout();
+  setInterval(bindAdmLogout, 2000);
+
+  const commandMap = {
+    '#ubicacion':'📍 *Dirección del estudio*\nPedro Méndez 2069, Posadas, Misiones.\n\n🗺️ Google Maps: Abrir Google Maps #ubicacion#',
+    '#cursos':'🎓 En la sección CURSOS podés ver las capacitaciones disponibles. #cursos#',
+    '#servicios':'📷 En la sección SERVICIOS podés ver sesiones, books, retratos y producción. #servicios#',
+    '#instagram':'📱 Nuestros Instagram son:\n@tomaunoestudio\n@tomaunomodels\n@tomaunocapacitaciones',
+    '#whatsapp':'💬 También podés escribir directo por WhatsApp: Abrir WhatsApp'
+  };
+  const __enviarChatAdmin_v3318 = window.enviarChatAdmin;
+  window.enviarChatAdmin = function(id, presetText){
+    const inp = document.getElementById('chat-admin-text');
+    if(!presetText && inp){
+      const raw = String(inp.value||'').trim().toLowerCase();
+      if(commandMap[raw]) inp.value = commandMap[raw];
+    }
+    return __enviarChatAdmin_v3318.apply(this, arguments);
+  };
+})();
+
+
+
+/* =====================================================================
+   v33.19 — UX conversacional: confirm compacto, notificaciones por actividad,
+   nombre automático, resumen breve y lógica humana menos invasiva.
+   ===================================================================== */
+(function(){
+  // 1) Confirmaciones más chicas y con botones claros: NO / SÍ.
+  showConfirm = function(msg, onOk){
+    const box = document.getElementById('mcontent');
+    if(!box) return;
+    box.innerHTML =
+      '<div style="text-align:center;padding:2px 0 4px;max-width:360px;margin:0 auto;">' +
+      '<div style="font-size:24px;margin-bottom:8px;">⚠️</div>' +
+      '<div class="mtitle" style="font-size:20px;margin-bottom:8px;line-height:1;">Confirmar</div>' +
+      '<div style="font-size:13px;color:var(--text2);margin-bottom:16px;line-height:1.45;">' + escHtml(String(msg||'')) + '</div>' +
+      '<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">' +
+      '<button class="btn-out" onclick="window.closeModal()" style="margin:0;padding:11px 12px;">No</button>' +
+      '<button class="btn-main" id="confirm-ok-btn" style="margin:0;padding:11px 12px;">Sí</button>' +
+      '</div></div>';
+    openModal();
+    const modal = document.querySelector('#moverlay .mbox');
+    if(modal){ modal.style.maxWidth='420px'; modal.style.padding='24px 22px 26px'; }
+    const ok = document.getElementById('confirm-ok-btn');
+    if(ok) ok.onclick = () => { closeModal(); if(typeof onOk === 'function') onOk(); };
+  };
+
+  const __closeModal_v3319 = window.closeModal;
+  window.closeModal = function(){
+    try{ const modal = document.querySelector('#moverlay .mbox'); if(modal){ modal.style.maxWidth=''; modal.style.padding=''; } }catch(e){}
+    return __closeModal_v3319.apply(this, arguments);
+  };
+
+  // 2) Notificaciones por MENSAJE nuevo, no solo por chat nuevo.
+  let chatNotifyFirstLoad = true;
+  let chatNotifySeen = (()=>{ try{return JSON.parse(localStorage.getItem('tomauno-chat-activity-seen')||'{}');}catch(e){return {};}})();
+  function lastUserMessageInfo(c){
+    const users = chatMsgs(c).filter(([,m]) => m && m.from === 'user' && !m.typing);
+    if(!users.length) return {ts:Number(c?.updatedAt||0), text:String(c?.lastMsg||'')};
+    const [,m] = users[users.length-1];
+    return {ts:Number(m.createdAt || c?.updatedAt || 0), text:String(m.text || c?.lastMsg || '')};
+  }
+  onValue(ref(db,'tomauno/chats'), snap => {
+    const data = snap.exists() ? snap.val() : {};
+    const entries = Object.entries(data).filter(([,c]) => isValidChat(c));
+    const fab = document.getElementById('chat-fab');
+    const pending = entries.filter(([,c]) => c && c.status !== 'cerrado' && c.unreadAdmin);
+    if(fab) fab.classList.toggle('has-new', isAdminNotifier() && pending.length > 0);
+
+    if(chatNotifyFirstLoad){
+      entries.forEach(([id,c]) => { const info = lastUserMessageInfo(c); chatNotifySeen[id] = Math.max(Number(chatNotifySeen[id]||0), info.ts || Number(c.updatedAt||0)); });
+      try{ localStorage.setItem('tomauno-chat-activity-seen', JSON.stringify(chatNotifySeen)); }catch(e){}
+      chatNotifyFirstLoad = false;
+      return;
+    }
+    if(!isAdminNotifier()) return;
+
+    const changed = pending
+      .map(([id,c]) => ({id,c,info:lastUserMessageInfo(c)}))
+      .filter(x => x.info.ts && x.info.ts > Number(chatNotifySeen[x.id]||0))
+      .sort((a,b)=>b.info.ts-a.info.ts);
+    if(!changed.length) return;
+    const item = changed[0];
+    changed.forEach(x => { chatNotifySeen[x.id] = x.info.ts; });
+    try{ localStorage.setItem('tomauno-chat-activity-seen', JSON.stringify(chatNotifySeen)); }catch(e){}
+
+    notifyAdminChat('Nuevo mensaje web', chatVisibleName(item.c,item.id) + ': ' + (item.info.text || 'Escribió desde la web'), item.id);
+    try{
+      const pop = document.getElementById('chat-popover');
+      if(!pop || !pop.classList.contains('open')) setTimeout(()=>window.abrirPanelChatsAdmin && window.abrirPanelChatsAdmin(), 120);
+    }catch(e){}
+  });
+
+  // 3) Detección de nombre más amplia + respuesta breve de confirmación.
+  function capName(n){
+    return String(n||'').trim().replace(/\s+/g,' ').split(' ').filter(Boolean).map(p=>p.charAt(0).toUpperCase()+p.slice(1).toLowerCase()).join(' ');
+  }
+  function detectNameV3319(text){
+    const raw = String(text||'').trim().replace(/[.!?]+$/,'');
+    if(!raw || extraerWhatsappAI(raw)) return '';
+    const m = raw.match(/^(?:hola[,\s]*)?(?:mi\s+nombre\s+es|me\s+llamo|soy|me\s+dicen|nombre\s+es)\s+([a-záéíóúñü]+(?:\s+[a-záéíóúñü]+){0,3})$/i);
+    if(!m) return '';
+    const n = capName(limpiarNombreChat(m[1]));
+    if(!n || n.length < 2) return '';
+    if(/^(Si|Sí|Ok|Dale|Bueno|Perfecto|Claro|Gracias|Quiero|Consulta|Web|Whatsapp|Telefono|Javier)$/i.test(n)) return '';
+    return n;
+  }
+  extraerNombreAI = function(text){ return detectNameV3319(text); };
+
+  const __enviarChatVisitante_v3319 = window.enviarChatVisitante;
+  window.enviarChatVisitante = async function(id){
+    const inp = document.getElementById('chat-text');
+    const pendingText = String(inp?.value || '').trim();
+    const detected = detectNameV3319(pendingText);
+    const before = chatsDB?.[id] || {};
+    const hadRealName = tieneNombreRealChat(before);
+    const res = await __enviarChatVisitante_v3319.apply(this, arguments);
+    if(detected){
+      try{
+        await update(ref(db,'tomauno/chats/'+id), {name:detected, updatedAt:Date.now()});
+        try{ sessionStorage.setItem('tomauno-chat-name', detected); }catch(e){}
+        if(!hadRealName || chatVisibleName(before,id) !== detected){
+          await push(ref(db,'tomauno/chats/'+id+'/messages'), {from:'admin', text:'Genial, '+detected+' 😊 Ya agendé tu nombre.', time:chatTime(), createdAt:Date.now(), auto:true});
+          await update(ref(db,'tomauno/chats/'+id), {lastMsg:'Nombre agendado: '+detected, unreadVisitor:true, updatedAt:Date.now()});
+        }
+      }catch(e){}
+    }
+    return res;
+  };
+
+  // 4) Si el usuario pidió Javier, pero luego pregunta por servicios/cursos/etc., no insistir con datos.
+  const __manejarDatosHumanosPendientes_v3319 = manejarDatosHumanosPendientes;
+  manejarDatosHumanosPendientes = async function(chatId, chat, userText){
+    const q = normAI(userText||'');
+    if(/\b(no|no gracias|despues|más tarde|mas tarde)\b/.test(q)){
+      await update(ref(db,'tomauno/chats/'+chatId), {humanRequested:false, prioridad:false, updatedAt:Date.now()});
+      return 'Perfecto, seguimos por acá 😊 Decime si querés ver cursos, servicios, ubicación o contacto.';
+    }
+    if(/(mostra|mostrar|ver|quiero|pasame|pasar|info|informacion).*(servicio|sesion|sesiones|book|foto|fotos)/.test(q) || /\bservicios\b/.test(q)){
+      return 'Claro 😊 Te dejo la sección de servicios para que veas las opciones disponibles. #servicios#';
+    }
+    if(/(mostra|mostrar|ver|quiero|pasame|pasar|info|informacion).*(curso|cursos|capacitacion|capacitaciones|workshop|taller)/.test(q) || /\bcursos\b/.test(q)){
+      return 'Claro 😊 Te dejo la sección de cursos disponibles. #cursos#';
+    }
+    if(/(ubicacion|ubicación|direccion|dirección|donde queda|mapa)/.test(q)){
+      return '📍 Estamos en Pedro Méndez 2069, Posadas, Misiones. #ubicacion#';
+    }
+    return __manejarDatosHumanosPendientes_v3319.apply(this, arguments);
+  };
+
+  // 5) Resumen WA realmente breve: no copia toda la charla.
+  window.generarResumenWhatsAppChat = function(id){
+    id = id || currentOpenChatId || '';
+    const c = chatsDB && chatsDB[id];
+    if(!c){ toast('No hay chat activo para resumir'); return; }
+    const msgs = chatMsgs(c).filter(([,m]) => m && !m.typing);
+    const userMsgs = msgs.filter(([,m]) => m.from === 'user').map(([,m]) => String(m.text||'').trim()).filter(Boolean);
+    const firstUser = userMsgs[0] || '';
+    const lastUser = userMsgs[userMsgs.length-1] || c.lastMsg || '';
+    const tema = c.temaPrincipal || detectarTemaConsulta((firstUser + ' ' + lastUser).trim());
+    const resumenConversacion = [];
+    if(firstUser) resumenConversacion.push('• Consulta inicial: ' + firstUser.replace(/\s+/g,' ').slice(0,180));
+    if(lastUser && lastUser !== firstUser) resumenConversacion.push('• Último mensaje del usuario: ' + lastUser.replace(/\s+/g,' ').slice(0,180));
+    if(c.humanRequested) resumenConversacion.push('• Estado: requiere respuesta personal de Javier.');
+    if(!resumenConversacion.length) resumenConversacion.push('• Sin mensajes relevantes todavía.');
+    const resumen = [
+      '📌 *Consulta web Tomauno*','',
+      '👤 *Nombre:* ' + chatVisibleName(c,id),
+      '📱 *WhatsApp:* ' + (c.wp || '-'),
+      '🕒 *Última actividad:* ' + (chatFullDate(c.updatedAt || c.createdAt) || '-'),
+      '🎯 *Interés detectado:* ' + (tema || '-'),
+      '💬 *Resumen:*',
+      resumenConversacion.join('\n')
+    ].join('\n');
+    copiarTextoChat(resumen);
+    toast('📋 Resumen breve copiado', true);
+    const wp = String(c.wp||'').replace(/\D/g,'');
+    if(wp){
+      showConfirm('Resumen copiado. ¿Abrir WhatsApp del contacto?', () => window.open('https://wa.me/549'+wp+'?text='+encodeURIComponent(resumen), '_blank'));
+    }
+  };
+
+  // 6) Asegurar que el botón Resumen exista aunque el chat se re-renderice.
+  function ensureResumenBtnV3319(){
+    const id = currentOpenChatId || '';
+    const actions = document.querySelector('#chat-popover.open .chat-admin-actions');
+    if(!actions || !id || actions.querySelector('[data-action="resumen-wa"]')) return;
+    const btn = document.createElement('button');
+    btn.className = 'btn-out'; btn.type = 'button'; btn.title = 'Resumen para WhatsApp'; btn.dataset.action = 'resumen-wa';
+    btn.innerHTML = '<span class="ico">🧾</span>';
+    btn.onclick = ev => { ev.preventDefault(); ev.stopPropagation(); window.generarResumenWhatsAppChat(id); };
+    actions.insertBefore(btn, actions.children[2] || actions.firstChild);
+  }
+  setInterval(ensureResumenBtnV3319, 1200);
+  setTimeout(ensureResumenBtnV3319, 200);
+})();
+
+
+
+/* =====================================================================
+   v33.20 — Ajuste fino conversación + notificaciones + resumen útil.
+   - No toca Firebase/imports.
+   - Corrige atención humana invasiva, saludos, nombre inmediato,
+     resumen WA, notificaciones por ventana de atención y toolbar fullscreen.
+   ===================================================================== */
+(function(){
+  const TEN_MIN = 10 * 60 * 1000;
+  const nowTs = () => Date.now();
+
+  function qnorm(t){ try{return normAI(t||'');}catch(e){return String(t||'').toLowerCase();} }
+  function isSimpleGreetingV3320(text){
+    const q = qnorm(text).replace(/[!.¡¿?]+/g,'').trim();
+    return /^(hola|buen dia|buen día|buenas|buenas tardes|buenas noches|hey|holaa|hola buenas|hola buen dia|hola buen día)$/.test(q);
+  }
+  function saludoRespuestaV3320(text, chat){
+    const q = qnorm(text);
+    let saludo = 'Hola';
+    if(/buenas noches/.test(q)) saludo = 'Buenas noches';
+    else if(/buenas tardes/.test(q)) saludo = 'Buenas tardes';
+    else if(/buen dia|buen día/.test(q)) saludo = 'Buen día';
+    const n = chat && tieneNombreRealChat(chat) ? chatVisibleName(chat, currentOpenChatId || '') : '';
+    return saludo + (n ? ', ' + n : '') + ' 😊 ¿En qué puedo ayudarte?';
+  }
+  function wantsOwnerHumanV3320(text){
+    const q = qnorm(text);
+    return /(hablar|comunicarme|contactarme|contactar|escribir|consultar).{0,35}(javier|dueño|dueno|encargado|responsable de tomauno|humano|persona)/.test(q) ||
+           /(javier|dueño|dueno|encargado).{0,35}(hablar|contact|comunicar|responder)/.test(q);
+  }
+  function wantsSpecificTeacherContactV3320(text){
+    const q = qnorm(text);
+    return /(contact|hablar|comunicar|escribir|whatsapp|telefono|teléfono|numero|número).{0,45}(profesor|profesora|profe|docente|disertante|organizador|responsable)/.test(q) ||
+           /(profesor|profesora|profe|docente|disertante|organizador|responsable).{0,45}(contact|whatsapp|telefono|teléfono|numero|número|hablar|comunicar)/.test(q);
+  }
+  function cleanInvasiveHumanTextV3320(resp, userText){
+    if(wantsOwnerHumanV3320(userText)) return resp;
+    let r = String(resp||'');
+    // Si alguna respuesta vieja insiste en marcar para Javier sin que lo pidan,
+    // no la mostramos: la reemplazamos por una guía neutral.
+    if(/(voy dejando|dejo tu consulta|consulta marcada|marcada para Javier|Javier pueda responderte|dejame tu WhatsApp)/i.test(r)){
+      return 'Puedo ayudarte con cursos, servicios, eventos, ubicación, Instagram y WhatsApp 😊\n\nDecime qué querés ver y te paso la información más directa.';
+    }
+    return r;
+  }
+
+  // Contacto humano SOLO por intención explícita de hablar con Javier/dueño/encargado.
+  quiereHablarConJavierAI = function(text){ return wantsOwnerHumanV3320(text); };
+
+  const __respuestaAtencionHumana_v3320 = respuestaAtencionHumanaAI;
+  respuestaAtencionHumanaAI = function(chat, userText){
+    if(!wantsOwnerHumanV3320(userText)) return cleanInvasiveHumanTextV3320(__respuestaAtencionHumana_v3320(chat,userText), userText);
+    const tema = temaDesdeHistorialAI(chat, userText) || chat?.temaPrincipal || detectarTemaConsulta(userText) || '';
+    const faltaNombre = !tieneNombreRealChat(chat);
+    const faltaWp = !tieneWhatsAppChat(chat);
+    let txt = 'Claro 😊 ¿Querés que deje tu consulta marcada para que Javier te responda personalmente?';
+    if(tema) txt += '\n\nTema detectado: **' + tema + '**.';
+    const faltan = [];
+    if(faltaNombre) faltan.push('tu nombre');
+    if(faltaWp) faltan.push('tu WhatsApp');
+    if(faltan.length) txt += '\n\nSi respondés **Sí**, también dejame ' + faltan.join(' y ') + ' para que pueda ubicar tu consulta.';
+    txt += '\n\nPodés responder: **Sí** o **No**.';
+    return txt;
+  };
+
+  // Reemplazo controlado del automático: evita “Javier” salvo pedido explícito,
+  // entiende saludos y diferencia contacto general/profesor.
+  responderAutomaticoChat = async function(chatId, userText){
+    try{
+      let modo = asistenteModo();
+      try{ const modoSnap = await get(ref(db,'tomauno/asistente/modo')); if(modoSnap.exists()) modo = modoSnap.val(); }catch(e){}
+      if(modo !== 'automatico') return;
+
+      let chat = chatsDB?.[chatId] || {};
+      try{ const chatSnap = await get(ref(db,'tomauno/chats/'+chatId)); if(chatSnap.exists()) chat = chatSnap.val(); }catch(e){}
+
+      const q = qnorm(userText);
+      if(!q) return;
+
+      let respuesta = '';
+      let pendingTopics = [];
+
+      if(isSimpleGreetingV3320(userText)){
+        respuesta = saludoRespuestaV3320(userText, chat);
+      } else if(wantsSpecificTeacherContactV3320(userText)){
+        const match = bestPublishedTitleMatchAI(userText);
+        if(match){
+          respuesta = contactoEntidadAI(match);
+          if(match.type==='curso') window._lastAiSection='sec-cursos';
+          if(match.type==='servicio') window._lastAiSection='sec-servicios';
+          if(match.type==='evento') window._lastAiSection='sec-eventos';
+        } else {
+          respuesta = 'Claro 😊 ¿De qué curso, taller, evento o servicio querés el contacto?\n\nAsí te paso el dato correcto y no te mareo con información que no corresponde.';
+        }
+      } else if(wantsOwnerHumanV3320(userText)){
+        respuesta = respuestaAtencionHumanaAI(chat, userText);
+        await update(ref(db,'tomauno/chats/'+chatId), {
+          updatedAt:nowTs(), status:'abierto-auto', humanRequested:true, prioridad:true,
+          temaPrincipal: temaDesdeHistorialAI(chat, userText) || detectarTemaConsulta(userText)
+        });
+      } else {
+        const lastAuto = chatMsgs(chat).slice().reverse().find(([,m]) => m && m.from === 'admin' && m.auto);
+        // Si la última pregunta del asistente fue “Sí/No” para Javier y dice No, cancelamos.
+        if(lastAuto && /consulta marcada para que Javier|responder: \*\*Sí\*\* o \*\*No\*\*/i.test(String(lastAuto[1].text||'')) && /^(no|no gracias|por ahora no)$/i.test(q)){
+          await update(ref(db,'tomauno/chats/'+chatId), {humanRequested:false, prioridad:false, updatedAt:nowTs()});
+          respuesta = 'Perfecto 😊 Seguimos por acá. Decime si querés ver cursos, servicios, ubicación o contacto.';
+        } else {
+          const picked = pickPendingTopicAI(chat, q);
+          if(picked){ respuesta = picked.respuesta || ''; pendingTopics = []; }
+          else { respuesta = buscarRespuestaAsistente(userText); pendingTopics = Array.isArray(window._lastAiSuggestions) ? window._lastAiSuggestions : []; }
+          respuesta = cleanInvasiveHumanTextV3320(respuesta, userText);
+        }
+      }
+
+      if(!respuesta) return;
+      respuesta = applyAIVariables(respuesta, chat);
+
+      const lastAuto2 = chatMsgs(chat).slice().reverse().find(([,m]) => m && m.from === 'admin' && m.auto);
+      if(lastAuto2 && qnorm(lastAuto2[1].text||'') === qnorm(respuesta)){
+        respuesta = 'Ya te dejé esa información arriba 😊 ¿Querés que te muestre cursos, servicios, ubicación o contacto?';
+      }
+      if(qnorm(chat.lastAutoUserText || '') === q && (nowTs() - Number(chat.lastAutoAt || 0)) < 10000) return;
+
+      const typingRef = await push(ref(db,'tomauno/chats/'+chatId+'/messages'), {from:'system', text:'Tomauno está escribiendo', time:chatTime(), createdAt:nowTs(), typing:true});
+      await update(ref(db,'tomauno/chats/'+chatId), {updatedAt:nowTs(), lastMsg:'Tomauno está escribiendo...', status:'abierto'});
+      await new Promise(r=>setTimeout(r, Math.min(1500, Math.max(500, String(respuesta).length * 8))));
+      try{ await remove(ref(db,'tomauno/chats/'+chatId+'/messages/'+typingRef.key)); }catch(e){}
+      await push(ref(db,'tomauno/chats/'+chatId+'/messages'), {from:'admin', text:respuesta, time:chatTime(), createdAt:nowTs(), auto:true});
+      try{
+        const sec = window._lastAiSection || '';
+        window._lastAiSection = '';
+        if(sec && typeof navScroll === 'function') setTimeout(() => navScroll(sec), 450);
+      }catch(e){}
+      await update(ref(db,'tomauno/chats/'+chatId), {
+        updatedAt:nowTs(), lastMsg:cleanChatDisplayText(respuesta), status:'abierto-auto',
+        unreadVisitor:true, unreadAdmin:true, temaPrincipal:detectarTemaConsulta(userText),
+        pendingTopics, lastAutoUserText:userText, lastAutoAt:nowTs()
+      });
+    }catch(e){ console.error('Asistente automático v33.20:', e); }
+  };
+
+  // Nombre instantáneo: si dice “me llamo / mi nombre es / soy”, cambia local + Firebase + título inmediatamente.
+  function capNameV3320(n){ return String(n||'').trim().replace(/\s+/g,' ').split(' ').filter(Boolean).map(p=>p.charAt(0).toUpperCase()+p.slice(1).toLowerCase()).join(' '); }
+  function detectNameAnyV3320(text){
+    const raw = String(text||'').trim().replace(/[.!?]+$/,'');
+    if(!raw || extraerWhatsappAI(raw)) return '';
+    const m = raw.match(/^(?:hola[,\s]*)?(?:mi\s+nombre\s+es|me\s+llamo|soy|me\s+dicen|nombre\s+es)\s+([a-záéíóúñü]+(?:\s+[a-záéíóúñü]+){0,3})(?=\s*(?:,|\.|y\b|$))/i);
+    if(!m) return '';
+    const n = capNameV3320(limpiarNombreChat(m[1]));
+    if(!n || n.length < 2 || /^(Si|Sí|Ok|Dale|Bueno|Perfecto|Claro|Gracias|Quiero|Consulta|Web|Whatsapp|Telefono|Javier)$/i.test(n)) return '';
+    return n;
+  }
+  extraerNombreAI = function(text){ return detectNameAnyV3320(text); };
+
+  window.enviarChatVisitante = async function(id){
+    const inp = document.getElementById('chat-text');
+    const text = inp?.value.trim();
+    if(!text) return;
+    inp.value=''; inp.focus();
+
+    const existingChat = chatsDB?.[id] || {};
+    const detectedName = detectNameAnyV3320(text) || isJustNameReply(text, existingChat);
+    let fallbackName = '';
+    try{ fallbackName = sessionStorage.getItem('tomauno-chat-name') || ''; }catch(e){}
+    const finalName = limpiarNombreChat(detectedName || existingChat.name || fallbackName || chatAnonName(id, existingChat));
+
+    // Actualización local inmediata para que el título no espere a cerrar/reabrir.
+    try{
+      chatsDB[id] = Object.assign({}, existingChat, {name: finalName, updatedAt:nowTs(), lastMsg:text, unreadAdmin:true, userOnline:true, userLastSeen:nowTs()});
+      if(currentOpenChatId === id){
+        const t = document.querySelector('#chat-popover .chat-title');
+        if(t) t.textContent = finalName.toUpperCase();
+        const sub = document.querySelector('#chat-popover .chat-subline');
+        if(sub) sub.innerHTML = 'WhatsApp: '+(chatsDB[id].wp || '—')+' · En línea ahora';
+      }
+    }catch(e){}
+
+    await update(ref(db,'tomauno/chats/'+id), {name: finalName, status:'abierto', updatedAt:nowTs(), lastMsg:text, unreadAdmin:true, userOnline:true, userLastSeen:nowTs()});
+    await push(ref(db,'tomauno/chats/'+id+'/messages'), {from:'user', text, time:chatTime(), createdAt:nowTs()});
+    try{ if(detectedName) sessionStorage.setItem('tomauno-chat-name', detectedName); }catch(e){}
+
+    let queryForBot = text;
+    if(detectedName){
+      await push(ref(db,'tomauno/chats/'+id+'/messages'), {from:'admin', text:'Genial, '+detectedName+' 😊 Ya agendé tu nombre.', time:chatTime(), createdAt:nowTs(), auto:true});
+      await update(ref(db,'tomauno/chats/'+id), {name:detectedName, lastMsg:'Nombre agendado: '+detectedName, unreadVisitor:true, updatedAt:nowTs()});
+      queryForBot = stripNameFromMessageForAI(text, detectedName);
+      if(!queryForBot || esSoloRespuestaNombre(text, existingChat)) return;
+    }
+    responderAutomaticoChat(id, queryForBot);
+  };
+
+  // Notificaciones: no avisar cada mensaje del chat activo; sí avisar otro chat o mismo chat tras 10 min.
+  const __notifyAdminChat_v3320 = notifyAdminChat;
+  const lastNotifyByChat = {};
+  notifyAdminChat = function(title, body, chatId){
+    const pop = document.getElementById('chat-popover');
+    const isOpen = !!(pop && pop.classList.contains('open'));
+    const sameActive = isOpen && chatId && currentOpenChatId === chatId;
+    const last = Number(lastNotifyByChat[chatId || '_global'] || 0);
+    const quiet = sameActive || (chatId && (nowTs() - last < TEN_MIN));
+    if(quiet) return;
+    lastNotifyByChat[chatId || '_global'] = nowTs();
+    return __notifyAdminChat_v3320.apply(this, arguments);
+  };
+
+  let activitySeenV3320 = (()=>{ try{return JSON.parse(localStorage.getItem('tomauno-chat-activity-v3320')||'{}');}catch(e){return {};}})();
+  let firstSnapV3320 = true;
+  function lastUserTsV3320(c){
+    const users = chatMsgs(c).filter(([,m]) => m && m.from === 'user' && !m.typing);
+    if(!users.length) return Number(c?.updatedAt||0);
+    return Number(users[users.length-1][1].createdAt || c?.updatedAt || 0);
+  }
+  onValue(ref(db,'tomauno/chats'), snap => {
+    const data = snap.exists() ? snap.val() : {};
+    const entries = Object.entries(data).filter(([,c])=>isValidChat(c));
+    if(firstSnapV3320){ entries.forEach(([id,c])=>activitySeenV3320[id]=Math.max(Number(activitySeenV3320[id]||0),lastUserTsV3320(c))); firstSnapV3320=false; return; }
+    if(!isAdminNotifier()) return;
+    const changed = entries.map(([id,c])=>({id,c,ts:lastUserTsV3320(c)})).filter(x=>x.c.status!=='cerrado' && x.c.unreadAdmin && x.ts > Number(activitySeenV3320[x.id]||0)).sort((a,b)=>b.ts-a.ts);
+    if(!changed.length) return;
+    changed.forEach(x=>activitySeenV3320[x.id]=x.ts);
+    try{ localStorage.setItem('tomauno-chat-activity-v3320', JSON.stringify(activitySeenV3320)); }catch(e){}
+    const top = changed[0];
+    const pop = document.getElementById('chat-popover');
+    const closed = !pop || !pop.classList.contains('open');
+    if(closed){ setTimeout(()=>window.abrirPanelChatsAdmin && window.abrirPanelChatsAdmin(), 120); }
+    // Si el mensaje viene de otro chat, avisar aunque estés en una conversación.
+    if(closed || currentOpenChatId !== top.id || (nowTs()-Number(lastNotifyByChat[top.id]||0) > TEN_MIN)){
+      notifyAdminChat('Nuevo mensaje web', chatVisibleName(top.c,top.id)+': '+(top.c.lastMsg||'Escribió desde la web'), top.id);
+    }
+  });
+
+  // Resumen útil: tema + 3 primeros y 3 últimos mensajes del usuario.
+  window.generarResumenWhatsAppChat = function(id){
+    id = id || currentOpenChatId || '';
+    const c = chatsDB && chatsDB[id];
+    if(!c){ toast('No hay chat activo para resumir'); return; }
+    const msgs = chatMsgs(c).filter(([,m]) => m && !m.typing);
+    const userMsgs = msgs.filter(([,m]) => m.from === 'user').map(([,m]) => String(m.text||'').replace(/\s+/g,' ').trim()).filter(Boolean);
+    const first = userMsgs.slice(0,3);
+    const last = userMsgs.length > 6 ? userMsgs.slice(-3) : userMsgs.slice(3);
+    const tema = c.temaPrincipal || detectarTemaConsulta(userMsgs.join(' '));
+    const lines = [];
+    if(first.length){ lines.push('• Primeros mensajes:'); first.forEach(x=>lines.push('  - '+x.slice(0,190))); }
+    if(last.length){ lines.push('• Últimos mensajes:'); last.forEach(x=>lines.push('  - '+x.slice(0,190))); }
+    if(c.humanRequested) lines.push('• Estado: requiere respuesta personal.');
+    if(!lines.length) lines.push('• Sin mensajes relevantes todavía.');
+    const resumen = [
+      '📌 *Consulta web Tomauno*','',
+      '👤 *Nombre:* ' + chatVisibleName(c,id),
+      '📱 *WhatsApp:* ' + (c.wp || '-'),
+      '🕒 *Última actividad:* ' + (chatFullDate(c.updatedAt || c.createdAt) || '-'),
+      '🎯 *Tema detectado:* ' + (tema || '-'),
+      '💬 *Resumen:*', lines.join('\n')
+    ].join('\n');
+    copiarTextoChat(resumen);
+    toast('🧾 Resumen copiado para WhatsApp', true);
+    const wp = String(c.wp||'').replace(/\D/g,'');
+    if(wp){ showConfirm('Resumen copiado. ¿Abrir WhatsApp del contacto?', () => window.open('https://wa.me/549'+wp+'?text='+encodeURIComponent(resumen), '_blank')); }
+  };
+
+  // Botón resumen con icono distinto y siempre visible.
+  function ensureResumenBtnV3320(){
+    const id = currentOpenChatId || '';
+    const actions = document.querySelector('#chat-popover.open .chat-admin-actions');
+    if(!actions || !id) return;
+    let btn = actions.querySelector('[data-action="resumen-wa"]');
+    if(!btn){
+      btn = document.createElement('button');
+      btn.className = 'btn-out'; btn.type = 'button'; btn.dataset.action = 'resumen-wa';
+      btn.onclick = ev => { ev.preventDefault(); ev.stopPropagation(); window.generarResumenWhatsAppChat(id); };
+      actions.insertBefore(btn, actions.children[1] || actions.firstChild);
+    }
+    btn.title = 'Resumen para WhatsApp';
+    btn.innerHTML = '<span class="ico">🧾</span>';
+  }
+  setInterval(ensureResumenBtnV3320, 900);
+  setTimeout(ensureResumenBtnV3320, 120);
+
+  // Fullscreen: todos los botones en una barra visible horizontal.
+  const css = document.createElement('style');
+  css.textContent = `
+    html body .chat-popover.expanded .chat-tools-block{max-height:none!important;overflow:visible!important;display:block!important;padding-bottom:4px!important;}
+    html body .chat-popover.expanded .chat-quick-wrap,
+    html body .chat-popover.expanded .chat-admin-actions{display:flex!important;flex-wrap:nowrap!important;overflow-x:auto!important;overflow-y:hidden!important;align-items:center!important;gap:7px!important;padding:4px 4px 7px 0!important;max-width:100%!important;scrollbar-width:thin;}
+    html body .chat-popover.expanded .chat-quick,
+    html body .chat-popover.expanded .chat-admin-actions .btn-out{flex:0 0 auto!important;}
+    html body .chat-popover.expanded .chat-msgs{min-height:0!important;}
+    html body .chat-popover.expanded .chat-panel{gap:8px!important;}
+    html body .chat-popover .chat-admin-actions [data-action="resumen-wa"]{border-color:rgba(255,214,80,.45)!important;background:rgba(255,214,80,.08)!important;color:#fff!important;}
+    html body .chat-popover .chat-admin-actions [data-action="resumen-wa"]::after{content:' Resumen';font-size:10px;margin-left:4px;font-weight:900;}
+    @media(max-width:700px){html body .chat-popover.expanded .chat-quick-wrap,html body .chat-popover.expanded .chat-admin-actions{flex-wrap:nowrap!important;overflow-x:auto!important;}}
+  `;
+  document.head.appendChild(css);
+})();
 </script>
 </body>
 </html>
