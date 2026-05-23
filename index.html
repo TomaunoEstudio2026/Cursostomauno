@@ -10389,6 +10389,192 @@ window.filterCursos = function(){
   setInterval(()=>{ if(isAdminChatOpen36()) mergeAdminTools36(); syncMobileLock36(); }, 1200);
   setTimeout(()=>{ mergeAdminTools36(); refreshSidebar36(); syncMobileLock36(); }, 120);
 })();
+
+
+/* =====================================================================
+   v89 — Seguridad chat visitante + mobile sin temblores.
+   - Usuario común nunca ve bandeja/tabs admin.
+   - En celular no se reconstruye el chat mientras escribe.
+   - El input queda dentro del alto visible del teclado.
+   ===================================================================== */
+(function(){
+  const VERSION_89 = 'v89';
+  const LS_ADMIN_89 = 'tomauno-admin-notify';
+  let guardSetPopover89 = false;
+
+  function adminReal89(){
+    try{ return !!(adminOk || window._adminWasActive === true || localStorage.getItem(LS_ADMIN_89) === '1'); }
+    catch(e){ return !!(adminOk || window._adminWasActive === true); }
+  }
+  function mobile89(){ return !!(window.matchMedia && window.matchMedia('(max-width:700px)').matches); }
+  function ensureVersion89(){
+    try{
+      let tag=document.getElementById('tomauno-version-tag');
+      if(!tag){
+        const f=document.querySelector('footer .fcred')||document.querySelector('footer')||document.body;
+        tag=document.createElement('span'); tag.id='tomauno-version-tag'; tag.className='tomauno-version-tag'; f.appendChild(tag);
+      }
+      tag.textContent='Tomauno '+VERSION_89;
+    }catch(e){}
+  }
+  function setViewportVar89(){
+    try{
+      const h = (window.visualViewport && window.visualViewport.height) ? window.visualViewport.height : window.innerHeight;
+      document.documentElement.style.setProperty('--tu-vvh', Math.max(320, Math.floor(h)) + 'px');
+    }catch(e){}
+  }
+  function injectCss89(){
+    if(document.getElementById('patch-v89-chat-mobile-css')) return;
+    const st=document.createElement('style');
+    st.id='patch-v89-chat-mobile-css';
+    st.textContent = `
+      .tomauno-version-tag{display:block;margin-top:10px;font-size:10px;color:rgba(255,255,255,.28);letter-spacing:.12em;text-transform:uppercase;font-weight:800;}
+      html body .chat-popover.tu89-visitor .chat-tabs,
+      html body .chat-popover.tu89-visitor .chat-inbox-side,
+      html body .chat-popover.tu89-visitor .chat-admin-actions,
+      html body .chat-popover.tu89-visitor .chat-admin-tools,
+      html body .chat-popover.tu89-visitor .chat-head-actions{display:none!important;}
+      @media(max-width:700px){
+        html.tu89-chat-visitor-open, body.tu89-chat-visitor-open{overflow:hidden!important;overscroll-behavior:none!important;}
+        html body .chat-popover.tu89-visitor.open{
+          left:8px!important;right:8px!important;top:auto!important;bottom:max(8px,env(safe-area-inset-bottom))!important;
+          width:auto!important;height:calc(var(--tu-vvh,100dvh) - 18px)!important;max-height:calc(var(--tu-vvh,100dvh) - 18px)!important;
+          transform:none!important;resize:none!important;border-radius:18px!important;overflow:hidden!important;
+        }
+        html body .chat-popover.tu89-visitor .chat-popover-inner{height:100%!important;max-height:none!important;display:flex!important;flex-direction:column!important;overflow:hidden!important;padding:12px!important;gap:8px!important;}
+        html body .chat-popover.tu89-visitor .chat-head{flex:0 0 auto!important;margin-bottom:4px!important;}
+        html body .chat-popover.tu89-visitor .chat-panel{flex:1 1 auto!important;min-height:0!important;display:flex!important;flex-direction:column!important;gap:8px!important;}
+        html body .chat-popover.tu89-visitor .chat-msgs{flex:1 1 auto!important;min-height:0!important;max-height:none!important;overflow-y:auto!important;}
+        html body .chat-popover.tu89-visitor .chat-row{flex:0 0 auto!important;margin:0!important;}
+        html body .chat-popover.tu89-visitor .chat-name-row{flex:0 0 auto!important;margin:0!important;}
+        html body .chat-popover.tu89-visitor .chat-bubble{max-width:94%!important;}
+      }
+    `;
+    document.head.appendChild(st);
+  }
+  function adminHtml89(html){ return /chat-inbox-side|chat-tabs|BANDEJA DE CHATS|chat-admin-actions|chat-admin-tools|chat-admin-text|abrirChatAdmin\(/i.test(String(html||'')); }
+  function visitorStartHtml89(){
+    return '<div class="chat-head"><div class="chat-avatar">💬</div><div><div class="chat-title">CHAT TOMAUNO</div><div class="chat-subline">Consulta directa desde la web</div></div></div>'+
+      '<div class="chat-panel"><div class="chat-msgs" id="chat-msgs">'+
+      '<div class="chat-bubble admin"><div>Hola 😊<br/>Soy el <b>Asistente de Tomauno</b>.<br/><br/>Puedo ayudarte con cursos, eventos, sesiones fotográficas, presupuestos, alquiler del estudio, ubicación y formas de pago.<br/><br/>Mientras Javier esté ocupado, puedo responder dudas básicas o tomar tus datos para que luego se contacten con vos.<br/><br/>¿Cómo es tu nombre?</div><div class="chat-meta">Ahora</div></div>'+
+      '</div><div class="chat-name-row"><input class="finput" id="chat-name" placeholder="Tu nombre" onkeydown="if(event.key===\'Enter\')window.iniciarChatConNombre()"/><button class="chat-send" onclick="window.iniciarChatConNombre()">➜</button></div></div>';
+  }
+  function visitorChatHtml89(id){
+    try{
+      const chat = chatsDB[id] || {};
+      const inputVal = document.getElementById('chat-text')?.value || '';
+      const msgs = renderMsgs(chat, false, id);
+      return '<div class="chat-head"><div class="chat-avatar">💬</div><div><div class="chat-title">CHAT TOMAUNO</div><div class="chat-subline">'+escHtml(chatVisibleName(chat,id))+' · '+(isAdminOnline()?'🟢 Admin en línea':'⚫ Admin fuera de línea')+'</div></div></div>'+
+        '<div class="chat-panel"><div class="chat-msgs" id="chat-msgs">'+(msgs || '<div class="chat-bubble admin">Hola '+escHtml(chat.name||'')+' 👋 ¿En qué puedo ayudarte?</div>')+
+        (!isAdminOnline() ? '<div class="chat-bubble system">Si no respondo pronto, también podés escribirme por WhatsApp.<br><a class="chat-wa-soft" target="_blank" rel="noopener noreferrer" href="https://wa.me/5493764354522?text=Hola%20vengo%20de%20la%20web%20Tomauno%20Cursos%20y%20Capacitaciones%2C%20quisiera%20hacer%20una%20consulta.">💬 WhatsApp directo</a></div>' : '')+
+        '</div><div class="chat-row"><input class="finput" id="chat-text" placeholder="Escribí tu mensaje..." value="'+escAttr(inputVal)+'" onkeydown="if(event.key===\'Enter\')window.enviarChatVisitante(\''+id+'\')"/><button class="chat-send" onclick="window.enviarChatVisitante(\''+id+'\')">➜</button></div></div>';
+    }catch(e){ return visitorStartHtml89(); }
+  }
+  function safeVisitorHtml89(){
+    try{
+      if(currentVisitorChatId && chatsDB[currentVisitorChatId] && chatsDB[currentVisitorChatId].status !== 'cerrado') return visitorChatHtml89(currentVisitorChatId);
+    }catch(e){}
+    return visitorStartHtml89();
+  }
+  function markPopoverMode89(){
+    try{
+      const p=document.getElementById('chat-popover');
+      if(!p) return;
+      const isAdminDom=!!p.querySelector('.chat-inbox-side,.chat-tabs,.chat-admin-actions,.chat-admin-tools,#chat-admin-text');
+      const visitor=p.classList.contains('open') && !isAdminDom;
+      p.classList.toggle('tu89-visitor', visitor);
+      document.body.classList.toggle('tu89-chat-visitor-open', visitor && mobile89());
+      document.documentElement.classList.toggle('tu89-chat-visitor-open', visitor && mobile89());
+    }catch(e){}
+  }
+
+  const setChatPopoverOriginal89 = setChatPopover;
+  setChatPopover = function(html){
+    if(guardSetPopover89) return setChatPopoverOriginal89.apply(this, arguments);
+    if(!adminReal89() && adminHtml89(html)){
+      html = safeVisitorHtml89();
+    }
+    const r = setChatPopoverOriginal89.call(this, html);
+    setTimeout(markPopoverMode89, 0);
+    setTimeout(markPopoverMode89, 80);
+    return r;
+  };
+  window.setChatPopover = setChatPopover;
+
+  const abrirPanelChatsAdminOriginal89 = window.abrirPanelChatsAdmin;
+  window.abrirPanelChatsAdmin = abrirPanelChatsAdmin = function(){
+    if(!adminReal89()){
+      guardSetPopover89=true;
+      try{ setChatPopover(safeVisitorHtml89()); } finally { guardSetPopover89=false; }
+      setTimeout(markPopoverMode89, 0);
+      return false;
+    }
+    return abrirPanelChatsAdminOriginal89.apply(this, arguments);
+  };
+  const abrirChatAdminOriginal89 = window.abrirChatAdmin;
+  window.abrirChatAdmin = abrirChatAdmin = function(id, silent){
+    if(!adminReal89()){
+      guardSetPopover89=true;
+      try{ setChatPopover(safeVisitorHtml89()); } finally { guardSetPopover89=false; }
+      setTimeout(markPopoverMode89, 0);
+      return false;
+    }
+    return abrirChatAdminOriginal89.apply(this, arguments);
+  };
+
+  const abrirChatVisitanteOriginal89 = abrirChatVisitante;
+  abrirChatVisitante = function(id, silent){
+    const active=document.activeElement;
+    const pop=document.getElementById('chat-popover');
+    const typing=active && active.id==='chat-text' && pop && pop.classList.contains('open') && id===currentVisitorChatId;
+    if(typing){
+      try{ updateChatMessagesOnly(id, false); markPopoverMode89(); }catch(e){}
+      return;
+    }
+    const r = abrirChatVisitanteOriginal89.apply(this, arguments);
+    setTimeout(markPopoverMode89, 0);
+    return r;
+  };
+  window.abrirChatVisitante = abrirChatVisitante;
+
+  const scrollChatSmartOriginal89 = scrollChatSmart;
+  scrollChatSmart = function(box){
+    if(!box) return;
+    const active=document.activeElement;
+    const visitorTyping=active && active.id==='chat-text';
+    const distanceBottom = box.scrollHeight - box.scrollTop - box.clientHeight;
+    if(visitorTyping) return;
+    if(mobile89() && document.body.classList.contains('tu89-chat-visitor-open') && distanceBottom > 90) return;
+    return scrollChatSmartOriginal89.apply(this, arguments);
+  };
+  window.scrollChatSmart = scrollChatSmart;
+
+  const updateChatMessagesOnlyOriginal89 = updateChatMessagesOnly;
+  updateChatMessagesOnly = function(id, adminView){
+    if(!adminReal89()) adminView=false;
+    const box=document.getElementById('chat-msgs');
+    const input=document.getElementById('chat-text');
+    const wasTyping=document.activeElement===input;
+    const val=input ? input.value : '';
+    const start=input ? input.selectionStart : null;
+    const top=box ? box.scrollTop : 0;
+    const r = updateChatMessagesOnlyOriginal89.call(this, id, adminView);
+    if(wasTyping && input){
+      input.value=val;
+      try{ input.focus({preventScroll:true}); if(start!=null) input.setSelectionRange(start,start); }catch(e){ try{input.focus();}catch(_e){} }
+      if(box) box.scrollTop=top;
+    }
+    setTimeout(markPopoverMode89, 0);
+    return r;
+  };
+  window.updateChatMessagesOnly = updateChatMessagesOnly;
+
+  function init89(){ injectCss89(); ensureVersion89(); setViewportVar89(); markPopoverMode89(); }
+  if(window.visualViewport){ visualViewport.addEventListener('resize', setViewportVar89); visualViewport.addEventListener('scroll', setViewportVar89); }
+  window.addEventListener('resize', setViewportVar89);
+  if(document.readyState==='loading') document.addEventListener('DOMContentLoaded', init89, {once:true}); else init89();
+  setTimeout(init89,300); setTimeout(init89,1200); setInterval(markPopoverMode89, 1200);
+})();
 </script>
 
 
