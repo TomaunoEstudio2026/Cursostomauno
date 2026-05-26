@@ -1,113 +1,91 @@
-/* Extraído de <style id="patch-v96-chat-visitante-angosto-seguro"> */
-@media (min-width:701px){
-  /* Usuario visitante: cuando el chat está expandido, no debe ocupar casi toda la pantalla. */
-  html body #chat-popover.chat-popover.open.expanded:not(:has(.chat-admin-tools)){
-    width:min(430px, calc(100vw - 32px))!important;
-    left:auto!important;
-    right:24px!important;
-    transform:none!important;
-    bottom:92px!important;
-    max-height:82vh!important;
-  }
-  html body #chat-popover.chat-popover.open.expanded:not(:has(.chat-admin-tools)) .chat-popover-inner{
-    max-height:calc(82vh - 24px)!important;
-    overflow:hidden!important;
-  }
-  html body #chat-popover.chat-popover.open.expanded:not(:has(.chat-admin-tools)) .chat-panel{
-    height:auto!important;
-    max-height:calc(82vh - 136px)!important;
-  }
-  html body #chat-popover.chat-popover.open.expanded:not(:has(.chat-admin-tools)) .chat-msgs{
-    min-height:320px!important;
-    max-height:calc(82vh - 230px)!important;
-  }
-  /* Admin queda ancho: si hay herramientas admin no se toca. */
-  html body #chat-popover.chat-popover.open.expanded:has(.chat-admin-tools){
-    width:min(1160px,calc(100vw - 42px))!important;
-  }
-}
+/* TOMAUNO MODULAR v9 — CSS limpio chat visitante/admin
+   Reemplaza el archivo anterior completo. */
 
-/* Modular v7 — chat visitante compacto en escritorio y sin bloque gris desaprovechado */
-@media (min-width:701px){
-  html body #chat-popover.chat-popover.open.tomauno-chat-visitor,
-  html body .chat-popover.open.tomauno-chat-visitor{
-    width:min(390px, calc(100vw - 32px))!important;
-    min-width:0!important;
-    max-width:390px!important;
-    right:22px!important;
-    left:auto!important;
-    transform:none!important;
-    bottom:92px!important;
-    height:auto!important;
-    max-height:78vh!important;
-  }
-  html body #chat-popover.chat-popover.open.tomauno-chat-visitor.expanded,
-  html body .chat-popover.open.tomauno-chat-visitor.expanded{
-    width:min(430px, calc(100vw - 32px))!important;
-    max-width:430px!important;
-    right:22px!important;
-    left:auto!important;
-    transform:none!important;
-    bottom:92px!important;
-    height:auto!important;
-    max-height:82vh!important;
-  }
-  html body .chat-popover.open.tomauno-chat-visitor .chat-popover-inner{
-    padding:12px!important;
-    gap:8px!important;
-    background:#090909!important;
-  }
-  html body .chat-popover.open.tomauno-chat-visitor .chat-panel{
-    gap:8px!important;
-  }
-  html body .chat-popover.open.tomauno-chat-visitor .chat-head{
-    margin:0!important;
-    padding-right:64px!important;
-  }
-  html body .chat-popover.open.tomauno-chat-visitor .chat-msgs{
-    min-height:250px!important;
-    max-height:calc(78vh - 180px)!important;
-    padding:10px!important;
-    border-radius:14px!important;
-  }
-  html body .chat-popover.open.tomauno-chat-visitor.expanded .chat-msgs{
-    max-height:calc(82vh - 190px)!important;
-  }
-  html body .chat-popover.open.tomauno-chat-visitor .chat-bubble{
-    max-width:96%!important;
-  }
-  html body .chat-popover.open.tomauno-chat-visitor .chat-admin-tools,
-  html body .chat-popover.open.tomauno-chat-visitor .chat-tabs,
-  html body .chat-popover.open.tomauno-chat-visitor .chat-inbox-side{
-    display:none!important;
-  }
+/* Botón AUTO/MAN compacto y estable */
+html body .chat-filter.auto{
+  width:54px!important;min-width:54px!important;max-width:54px!important;
+  height:30px!important;min-height:30px!important;padding:0 4px!important;
+  border-radius:999px!important;font-size:8px!important;letter-spacing:0!important;
+  display:inline-flex!important;align-items:center!important;justify-content:center!important;gap:3px!important;
+  white-space:nowrap!important;overflow:hidden!important;line-height:1!important;
 }
+html body .chat-filter.auto .ico{font-size:7px!important;line-height:1!important;margin:0!important;}
+html body .chat-filter.auto .txt{font-size:8px!important;font-weight:900!important;line-height:1!important;margin:0!important;}
+html body .chat-admin-tools{gap:5px!important;align-items:center!important;}
+html body .chat-popover .chat-admin-actions{padding-right:0!important;}
 
-/* Modular v8 — chat visitante más alto útil, más angosto, sin bloque vacío innecesario */
+/* VISITANTE EN PC: angosto, alto útil, sin bloque muerto abajo */
 @media (min-width:701px){
   html body .chat-popover.open.tomauno-chat-visitor,
   html body #chat-popover.chat-popover.open.tomauno-chat-visitor{
-    width:min(420px,calc(100vw - 32px))!important;
-    max-width:420px!important;
-    height:min(680px,calc(100dvh - 96px))!important;
-    max-height:calc(100dvh - 96px)!important;
-    right:24px!important;
-    bottom:78px!important;
-    left:auto!important;
-    transform:none!important;
+    width:min(440px,calc(100vw - 34px))!important;
+    max-width:440px!important;min-width:0!important;
+    height:min(760px,calc(100dvh - 88px))!important;
+    max-height:calc(100dvh - 88px)!important;
+    right:24px!important;left:auto!important;bottom:76px!important;top:auto!important;
+    transform:none!important;resize:none!important;overflow:hidden!important;
   }
   html body .chat-popover.open.tomauno-chat-visitor.expanded,
   html body #chat-popover.chat-popover.open.tomauno-chat-visitor.expanded{
-    width:min(450px,calc(100vw - 32px))!important;
-    max-width:450px!important;
-    height:min(760px,calc(100dvh - 64px))!important;
-    max-height:calc(100dvh - 64px)!important;
+    width:min(460px,calc(100vw - 34px))!important;
+    max-width:460px!important;
+    height:min(820px,calc(100dvh - 54px))!important;
+    max-height:calc(100dvh - 54px)!important;
+    right:24px!important;left:auto!important;bottom:32px!important;top:auto!important;transform:none!important;
   }
-  html body .chat-popover.open.tomauno-chat-visitor .chat-popover-inner{height:100%!important;display:flex!important;flex-direction:column!important;padding:12px!important;}
-  html body .chat-popover.open.tomauno-chat-visitor .chat-panel{flex:1 1 auto!important;min-height:0!important;display:flex!important;flex-direction:column!important;}
-  html body .chat-popover.open.tomauno-chat-visitor .chat-msgs{flex:1 1 auto!important;min-height:0!important;max-height:none!important;height:auto!important;padding:10px!important;}
-  html body .chat-popover.open.tomauno-chat-visitor .chat-row{flex:0 0 auto!important;}
+  html body .chat-popover.open.tomauno-chat-visitor .chat-popover-inner{
+    height:100%!important;max-height:none!important;overflow:hidden!important;
+    display:flex!important;flex-direction:column!important;gap:10px!important;padding:14px!important;
+  }
+  html body .chat-popover.open.tomauno-chat-visitor .chat-head{
+    flex:0 0 auto!important;margin:0!important;padding-right:64px!important;min-height:40px!important;
+  }
+  html body .chat-popover.open.tomauno-chat-visitor .chat-panel{
+    flex:1 1 auto!important;min-height:0!important;display:flex!important;flex-direction:column!important;gap:10px!important;overflow:hidden!important;
+  }
+  html body .chat-popover.open.tomauno-chat-visitor .chat-msgs{
+    flex:1 1 auto!important;min-height:0!important;max-height:none!important;height:auto!important;
+    overflow-y:auto!important;overflow-x:hidden!important;padding:12px!important;border-radius:15px!important;
+    scroll-padding-bottom:96px!important;padding-bottom:96px!important;
+  }
+  html body .chat-popover.open.tomauno-chat-visitor .chat-row{
+    flex:0 0 auto!important;margin:0!important;min-height:50px!important;border-radius:18px!important;
+  }
+  html body .chat-popover.open.tomauno-chat-visitor .chat-bubble{max-width:96%!important;scroll-margin-bottom:90px!important;}
+  html body .chat-popover.open.tomauno-chat-visitor .chat-admin-tools,
+  html body .chat-popover.open.tomauno-chat-visitor .chat-tabs,
+  html body .chat-popover.open.tomauno-chat-visitor .chat-inbox-side,
+  html body .chat-popover.open.tomauno-chat-visitor .chat-tools-block{display:none!important;}
 }
-html body .chat-filter.auto{width:54px!important;min-width:54px!important;max-width:54px!important;height:30px!important;padding:0 4px!important;font-size:8px!important;letter-spacing:0!important;}
-html body .chat-filter.auto .ico{font-size:7px!important;}
-html body .chat-filter.auto .txt{font-size:8px!important;font-weight:900!important;}
+
+/* MOBILE: fullscreen controlado y teclado no tapa input */
+@media (max-width:700px){
+  html body .chat-popover.open.tomauno-chat-visitor,
+  html body .chat-popover.open.tomauno-chat-visitor.expanded{
+    left:8px!important;right:8px!important;bottom:82px!important;top:auto!important;width:auto!important;
+    height:calc(100dvh - 104px)!important;max-height:calc(100dvh - 104px)!important;transform:none!important;resize:none!important;overflow:hidden!important;
+  }
+  html body .chat-popover.open.tomauno-chat-visitor .chat-popover-inner{height:100%!important;display:flex!important;flex-direction:column!important;gap:8px!important;padding:12px!important;overflow:hidden!important;}
+  html body .chat-popover.open.tomauno-chat-visitor .chat-panel{flex:1 1 auto!important;min-height:0!important;display:flex!important;flex-direction:column!important;gap:8px!important;overflow:hidden!important;}
+  html body .chat-popover.open.tomauno-chat-visitor .chat-msgs{flex:1 1 auto!important;min-height:0!important;max-height:none!important;height:auto!important;padding-bottom:110px!important;scroll-padding-bottom:110px!important;}
+  html body .chat-popover.open.tomauno-chat-visitor .chat-bubble{max-width:94%!important;scroll-margin-bottom:96px!important;}
+  html body .chat-filter.auto{width:50px!important;min-width:50px!important;max-width:50px!important;height:28px!important;font-size:7.5px!important;}
+}
+
+/* ADMIN: abrir a bandeja, botonera compacta sin saltar de línea */
+html body .chat-popover.open.tomauno-chat-admin .chat-admin-tools{
+  display:flex!important;flex-wrap:nowrap!important;overflow:hidden!important;align-items:center!important;gap:5px!important;max-height:36px!important;
+}
+html body .chat-popover.open.tomauno-chat-admin .chat-admin-actions{
+  display:flex!important;flex-wrap:wrap!important;gap:6px!important;overflow:visible!important;padding:0!important;margin:0!important;
+}
+html body .chat-popover.open.tomauno-chat-admin .chat-admin-actions .btn-out,
+html body .chat-popover.open.tomauno-chat-admin .chat-admin-actions a.btn-out{
+  flex:0 0 34px!important;width:34px!important;min-width:34px!important;max-width:34px!important;height:34px!important;min-height:34px!important;border-radius:50%!important;padding:0!important;font-size:0!important;display:inline-flex!important;align-items:center!important;justify-content:center!important;
+}
+html body .chat-popover.open.tomauno-chat-admin .chat-admin-actions .btn-out .ico,
+html body .chat-popover.open.tomauno-chat-admin .chat-admin-actions a.btn-out .ico{font-size:14px!important;}
+
+/* El visitante no ve color AUTO en el botón flotante */
+html body:not(.admin-mode) .chat-fab.auto-on{background:radial-gradient(circle at 30% 20%,#ff3a42,var(--red) 55%,#830006)!important;}
+html body .chat-popover.open.tomauno-chat-visitor ~ .chat-fab.auto-on{background:radial-gradient(circle at 30% 20%,#ff3a42,var(--red) 55%,#830006)!important;}
