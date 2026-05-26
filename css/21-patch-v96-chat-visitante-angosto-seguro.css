@@ -26,3 +26,59 @@
     width:min(1160px,calc(100vw - 42px))!important;
   }
 }
+
+/* Modular v7 — chat visitante compacto en escritorio y sin bloque gris desaprovechado */
+@media (min-width:701px){
+  html body #chat-popover.chat-popover.open.tomauno-chat-visitor,
+  html body .chat-popover.open.tomauno-chat-visitor{
+    width:min(390px, calc(100vw - 32px))!important;
+    min-width:0!important;
+    max-width:390px!important;
+    right:22px!important;
+    left:auto!important;
+    transform:none!important;
+    bottom:92px!important;
+    height:auto!important;
+    max-height:78vh!important;
+  }
+  html body #chat-popover.chat-popover.open.tomauno-chat-visitor.expanded,
+  html body .chat-popover.open.tomauno-chat-visitor.expanded{
+    width:min(430px, calc(100vw - 32px))!important;
+    max-width:430px!important;
+    right:22px!important;
+    left:auto!important;
+    transform:none!important;
+    bottom:92px!important;
+    height:auto!important;
+    max-height:82vh!important;
+  }
+  html body .chat-popover.open.tomauno-chat-visitor .chat-popover-inner{
+    padding:12px!important;
+    gap:8px!important;
+    background:#090909!important;
+  }
+  html body .chat-popover.open.tomauno-chat-visitor .chat-panel{
+    gap:8px!important;
+  }
+  html body .chat-popover.open.tomauno-chat-visitor .chat-head{
+    margin:0!important;
+    padding-right:64px!important;
+  }
+  html body .chat-popover.open.tomauno-chat-visitor .chat-msgs{
+    min-height:250px!important;
+    max-height:calc(78vh - 180px)!important;
+    padding:10px!important;
+    border-radius:14px!important;
+  }
+  html body .chat-popover.open.tomauno-chat-visitor.expanded .chat-msgs{
+    max-height:calc(82vh - 190px)!important;
+  }
+  html body .chat-popover.open.tomauno-chat-visitor .chat-bubble{
+    max-width:96%!important;
+  }
+  html body .chat-popover.open.tomauno-chat-visitor .chat-admin-tools,
+  html body .chat-popover.open.tomauno-chat-visitor .chat-tabs,
+  html body .chat-popover.open.tomauno-chat-visitor .chat-inbox-side{
+    display:none!important;
+  }
+}
