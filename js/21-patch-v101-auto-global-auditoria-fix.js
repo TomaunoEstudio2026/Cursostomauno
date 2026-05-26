@@ -144,3 +144,101 @@
   setTimeout(function(){startAutoListener();setVersion();syncAutoUI();},600);
   setInterval(function(){setVersion();syncAutoUI();},2500);
 })();
+
+// Modular v5 — onboarding sin borrar, aviso temprano, scroll y AUTO visual compacto.
+(function(){
+  'use strict';
+  function safe(fn){try{return fn();}catch(e){try{console.warn('modular v5:',e);}catch(_){}}}
+  function esc(s){return String(s||'').replace(/[&<>"']/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];});}
+  function shortName(raw){
+    var n=String(raw||'').trim().replace(/\s+/g,' ');
+    n=n.replace(/^(hola\s+)?(soy|me llamo|mi nombre es|nombre es|buenas\s+soy)\s+/i,'').trim();
+    n=n.replace(/[¿?¡!.,;:]+$/g,'').trim();
+    if(n.length>42) n=n.slice(0,42).trim();
+    return n;
+  }
+  function isAutoOnV5(){
+    try{ if(typeof window.asistenteModo==='function') return String(window.asistenteModo()).toLowerCase()==='automatico'; }catch(e){}
+    try{ return String(window.tomaunoAutoGlobalModo||'').toLowerCase()==='automatico'; }catch(e){}
+    return false;
+  }
+  function injectCss(){safe(function(){
+    if(document.getElementById('tomauno-modular-v5-css')) return;
+    var st=document.createElement('style'); st.id='tomauno-modular-v5-css';
+    st.textContent='\n.chat-msgs{padding-bottom:96px!important;scroll-padding-bottom:96px!important;}\n.chat-bubble{scroll-margin-bottom:88px!important;}\n.chat-filter.auto{min-width:84px!important;width:auto!important;white-space:nowrap!important;overflow:hidden!important;text-overflow:ellipsis!important;font-size:10.5px!important;padding:0 9px!important;}\n.chat-filter.auto .txt{display:inline!important;}\n.chat-admin-tools{align-items:center!important;}\n.chat-popover .chat-admin-actions{padding-right:0!important;}\n.chat-popover .chat-admin-actions .btn-out,.chat-popover .chat-admin-actions a.btn-out{flex-shrink:0!important;}\n@media(max-width:700px){.chat-msgs{padding-bottom:110px!important;}.chat-bubble{scroll-margin-bottom:96px!important;}.chat-filter.auto{min-width:74px!important;font-size:10px!important;}}\n';
+    document.head.appendChild(st);
+  });}
+  function syncAutoButtonText(){safe(function(){
+    var auto=isAutoOnV5();
+    document.querySelectorAll('.chat-filter.auto').forEach(function(b){
+      b.classList.toggle('on',auto);
+      b.setAttribute('data-auto-state',auto?'on':'off');
+      b.innerHTML=auto?'<span class="ico">🟢</span> <span class="txt">AUTO ON</span>':'<span class="ico">🔴</span> <span class="txt">AUTO OFF</span>';
+      b.title=auto?'Automático global activo. Clic para apagar.':'Automático global apagado. Clic para encender.';
+    });
+  });}
+  var oldSyncTimer=null;
+  setInterval(syncAutoButtonText,1200);
+
+  // Saludo corto y sin foco automático en el input de nombre.
+  var oldAbrir=window.abrirChatTomauno;
+  window.abrirChatTomauno=function(){
+    try{
+      if(typeof window.isAdminNotifier==='function' ? window.isAdminNotifier() : false){ return oldAbrir.apply(this,arguments); }
+    }catch(e){}
+    try{
+      if(typeof unlockAudio==='function') unlockAudio();
+      var pop=document.getElementById('chat-popover');
+      if(pop&&pop.classList.contains('open')){ if(window.cerrarChatPopover) window.cerrarChatPopover(); return; }
+      if(window.currentVisitorChatId&&window.chatsDB&&window.chatsDB[window.currentVisitorChatId]&&window.chatsDB[window.currentVisitorChatId].status!=='cerrado') return window.abrirChatVisitante(window.currentVisitorChatId,true);
+      if(typeof setChatPopover==='function'){
+        setChatPopover('<div class="chat-head"><div class="chat-avatar">💬</div><div><div class="chat-title">CHAT TOMAUNO</div><div class="chat-subline">Consulta directa desde la web</div></div></div>'+
+          '<div class="chat-panel"><div class="chat-msgs" id="chat-msgs"><div class="chat-bubble admin"><div>Hola 😊<br/>¿Cómo es tu nombre?</div><div class="chat-meta">Ahora</div></div></div>'+
+          '<div class="chat-name-row"><input class="finput" id="chat-name" placeholder="Tu nombre" onkeydown="if(event.key===\'Enter\')window.iniciarChatConNombre()"/><button class="chat-send" onclick="window.iniciarChatConNombre()">➜</button></div></div>');
+      } else return oldAbrir.apply(this,arguments);
+    }catch(e){ return oldAbrir&&oldAbrir.apply?oldAbrir.apply(this,arguments):undefined; }
+  };
+
+  // Guardar nombre sin limpiar sensación de historial: crear conversación con saludo corto persistido y avisar al admin inmediatamente.
+  window.iniciarChatConNombre=async function(){
+    try{
+      var raw=(document.getElementById('chat-name')||{}).value||'';
+      var name=shortName(raw);
+      if(!name){ if(typeof toast==='function') toast('⚠️ Escribí tu nombre para iniciar'); return; }
+      if(typeof db==='undefined'||typeof ref==='undefined'||typeof push==='undefined') return;
+      var t=Date.now();
+      var chatRef=await push(ref(db,'tomauno/chats'),{name:name,wp:'',status:'abierto',createdAt:t,updatedAt:t,lastMsg:'Inició chat',unreadAdmin:true,unreadVisitor:false,userOnline:true,userLastSeen:t,nombreConfirmado:true});
+      window.currentVisitorChatId=chatRef.key;
+      try{sessionStorage.setItem('tomauno-chat-id',chatRef.key);sessionStorage.setItem('tomauno-chat-name',name);sessionStorage.setItem('tomauno-chat-name-confirmed','1');}catch(e){}
+      await push(ref(db,'tomauno/chats/'+chatRef.key+'/messages'),{from:'admin',text:'Hola '+name+' 😊\n¿En qué puedo ayudarte?',time:(typeof chatTime==='function'?chatTime():''),createdAt:t+1,auto:true});
+      safe(function(){ if(typeof notifyAdminChat==='function') notifyAdminChat('Nuevo chat web',name+' inició una consulta desde la web',chatRef.key); });
+      if(typeof window.abrirChatVisitante==='function') window.abrirChatVisitante(chatRef.key,true);
+    }catch(e){console.warn('iniciarChatConNombre v5',e);}
+  };
+
+  // Reforzar envío visitante: una vez confirmado nombre, no volver a reinterpretar mensajes posteriores como nombre.
+  var oldSend=window.enviarChatVisitante;
+  window.enviarChatVisitante=async function(id){
+    try{sessionStorage.setItem('tomauno-chat-name-confirmed','1');}catch(e){}
+    return oldSend&&oldSend.apply?oldSend.apply(this,arguments):undefined;
+  };
+
+  // Scroll: al entrar respuesta nueva, mostrar la burbuja nueva completa o su comienzo, pero nunca tapada por el input.
+  window.tomaunoScrollChatV5=function(){safe(function(){
+    var box=document.getElementById('chat-msgs'); if(!box) return;
+    var bubbles=box.querySelectorAll('.chat-bubble'); var last=bubbles[bubbles.length-1]; if(!last) return;
+    var longMsg=(last.innerText||'').length>240||last.scrollHeight>170;
+    var top=longMsg?Math.max(0,last.offsetTop-12):Math.max(0,box.scrollHeight-box.clientHeight);
+    box.scrollTop=top;
+  });};
+  var mo=null;
+  function observeMsgs(){safe(function(){
+    var box=document.getElementById('chat-msgs'); if(!box||box.dataset.v5obs) return; box.dataset.v5obs='1';
+    var timer=null;
+    new MutationObserver(function(){clearTimeout(timer);timer=setTimeout(function(){window.tomaunoScrollChatV5();},80);}).observe(box,{childList:true,subtree:true});
+    setTimeout(window.tomaunoScrollChatV5,140);
+  });}
+  setInterval(function(){injectCss();syncAutoButtonText();observeMsgs();},1000);
+  if(document.readyState==='loading') document.addEventListener('DOMContentLoaded',function(){injectCss();syncAutoButtonText();observeMsgs();});
+  else {injectCss();syncAutoButtonText();observeMsgs();}
+})();
