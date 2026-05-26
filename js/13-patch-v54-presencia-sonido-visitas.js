@@ -45,17 +45,19 @@ function tinyVisitBeep(){
     const Ctx = window.AudioContext || window.webkitAudioContext;
     if(!Ctx) return;
     const ctx = new Ctx();
-    const o = ctx.createOscillator();
-    const g = ctx.createGain();
-    o.type = 'sine';
-    o.frequency.setValueAtTime(880, ctx.currentTime);
-    o.frequency.exponentialRampToValueAtTime(1320, ctx.currentTime + 0.08);
-    g.gain.setValueAtTime(0.0001, ctx.currentTime);
-    g.gain.exponentialRampToValueAtTime(0.035, ctx.currentTime + 0.015);
-    g.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + 0.14);
-    o.connect(g); g.connect(ctx.destination);
-    o.start(); o.stop(ctx.currentTime + 0.16);
-    setTimeout(()=>ctx.close().catch(()=>{}), 300);
+    [760, 1140].forEach((freq, i) => {
+      const o = ctx.createOscillator();
+      const g = ctx.createGain();
+      o.type = 'triangle';
+      o.frequency.setValueAtTime(freq, ctx.currentTime + i * 0.13);
+      g.gain.setValueAtTime(0.0001, ctx.currentTime + i * 0.13);
+      g.gain.exponentialRampToValueAtTime(0.12, ctx.currentTime + i * 0.13 + 0.02);
+      g.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + i * 0.13 + 0.23);
+      o.connect(g); g.connect(ctx.destination);
+      o.start(ctx.currentTime + i * 0.13);
+      o.stop(ctx.currentTime + i * 0.13 + 0.25);
+    });
+    setTimeout(()=>ctx.close().catch(()=>{}), 700);
   }catch(e){}
 }
 
