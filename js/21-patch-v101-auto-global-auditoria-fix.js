@@ -1,15 +1,20 @@
-// Tomauno modular v13 — AUTO estable + transición ADM + primer aviso.
+// Tomauno modular v14 — estabilización AUTO/ADM + scroll + primer aviso.
 // Reemplaza /js/21-patch-v101-auto-global-auditoria-fix.js
+// No agrega archivos nuevos.
 (function(){
   'use strict';
-  var VERSION='Tomauno modular v13';
+  var VERSION='Tomauno modular v14';
   var modoGlobal=null;
+  var modoCargado=false;
   var listenerStarted=false;
-  var lastAppliedAuto=null;
+  var pendingApply=false;
   var lastAdminFixAt=0;
-  var lastFirstNotifyAt=0;
+  var notifiedChats={};
+  var lastToastChatId='';
+  var userReadingUntil=0;
+  var lastAutoVisual='';
 
-  function safe(fn){try{return fn();}catch(e){try{console.warn('modular v13:',e);}catch(_){}}}
+  function safe(fn){try{return fn();}catch(e){try{console.warn('modular v14:',e);}catch(_){}}}
   function normModo(v){v=String(v||'').toLowerCase().trim();return (v==='automatico'||v==='auto'||v==='on'||v==='true'||v==='1')?'automatico':'manual';}
   function isAutoOn(){
     if(modoGlobal) return modoGlobal==='automatico';
@@ -20,65 +25,96 @@
   function isAdminActive(){return safe(function(){
     return localStorage.getItem('tomauno-admin-ok')==='1' ||
            localStorage.getItem('tomauno-admin-notify')==='1' ||
-           !!document.querySelector('#admin-live-indicator.on,#admin-live-indicator.admin-on,.admin-live.on,.adm-on');
+           !!document.querySelector('#admin-section:not([style*="display: none"]),#admin-live-indicator.on,#admin-live-indicator.admin-on,.admin-live.on,.adm-on');
   })||false;}
+  function getChats(){return safe(function(){return window.chatsDB||{};})||{};}
   function hasUnread(){return safe(function(){
-    var db=window.chatsDB||{};
+    var db=getChats();
     return Object.keys(db).some(function(id){var c=db[id]||{};return c.status!=='cerrado' && (c.unreadAdmin||c.humanRequested||c.waitingHuman||c.priority);});
   })||false;}
+  function currentChatId(){return safe(function(){return window.currentOpenChatId||window.currentVisitorChatId||sessionStorage.getItem('tomauno-chat-id')||'';})||'';}
+  function getInputText(){return safe(function(){
+    var el=document.getElementById('chat-text')||document.getElementById('chat-input')||document.querySelector('.chat-row input,.chat-row textarea');
+    return String((el&&el.value)||'').trim();
+  })||'';}
   function setVersion(){safe(function(){
     var tag=document.getElementById('tomauno-version-tag');
     if(!tag){var f=document.querySelector('footer .fcred')||document.querySelector('footer')||document.body;tag=document.createElement('span');tag.id='tomauno-version-tag';tag.className='tomauno-version-tag';f.appendChild(tag);} tag.textContent=VERSION;
   });}
   function ensureCss(){safe(function(){
-    if(document.getElementById('tomauno-v13-css')) return;
-    var st=document.createElement('style'); st.id='tomauno-v13-css';
+    if(document.getElementById('tomauno-v14-css')) return;
+    var st=document.createElement('style'); st.id='tomauno-v14-css';
     st.textContent = [
-      'html body .chat-filter.auto{width:54px!important;min-width:54px!important;max-width:54px!important;height:29px!important;padding:0 5px!important;border-radius:999px!important;font-size:8px!important;line-height:1!important;display:inline-flex!important;align-items:center!important;justify-content:center!important;gap:3px!important;white-space:nowrap!important;overflow:hidden!important;}',
-      'html body .chat-filter.auto .ico{font-size:7px!important;line-height:1!important;margin:0!important;}',
+      'html body .chat-filter.auto{width:44px!important;min-width:44px!important;max-width:44px!important;height:26px!important;padding:0!important;border-radius:999px!important;font-size:8px!important;line-height:1!important;display:inline-flex!important;align-items:center!important;justify-content:center!important;gap:2px!important;white-space:nowrap!important;overflow:hidden!important;text-transform:uppercase!important;}',
+      'html body .chat-filter.auto .ico{display:none!important;}',
       'html body .chat-filter.auto .txt{font-size:8px!important;font-weight:900!important;line-height:1!important;margin:0!important;display:inline!important;}',
-      'html body .chat-admin-tools{align-items:center!important;gap:5px!important;}',
-      'html body .chat-popover.tomauno-chat-visitor{width:min(390px,calc(100vw - 20px))!important;}',
-      'html body .chat-popover.tomauno-chat-visitor .chat-msgs{min-height:360px!important;max-height:calc(100dvh - 230px)!important;}',
-      '@media(max-width:700px){html body .chat-popover.tomauno-chat-visitor{left:8px!important;right:8px!important;width:auto!important;height:calc(100dvh - 96px)!important;max-height:calc(100dvh - 96px)!important;}html body .chat-popover.tomauno-chat-visitor .chat-msgs{max-height:none!important;min-height:0!important;}}'
+      'html body .chat-filter.auto.on{background:rgba(76,175,125,.14)!important;border-color:rgba(76,175,125,.45)!important;color:#7dffa9!important;}',
+      'html body .chat-admin-tools{align-items:center!important;gap:5px!important;min-height:32px!important;}',
+      'html body .chat-popover.tomauno-chat-visitor{width:min(430px,calc(100vw - 18px))!important;max-height:calc(100dvh - 36px)!important;}',
+      'html body .chat-popover.tomauno-chat-visitor .chat-popover-inner{height:100%!important;}',
+      'html body .chat-popover.tomauno-chat-visitor .chat-panel{height:100%!important;min-height:0!important;}',
+      'html body .chat-popover.tomauno-chat-visitor .chat-msgs{min-height:420px!important;max-height:calc(100dvh - 210px)!important;scroll-behavior:auto!important;padding-bottom:18px!important;}',
+      'html body .chat-popover.tomauno-chat-visitor .chat-row{margin-top:6px!important;}',
+      'html body .chat-popover.tomauno-chat-visitor .chat-title{font-size:23px!important;}',
+      'html body .chat-popover.tomauno-chat-visitor .chat-subline{font-size:10.5px!important;}',
+      'html body .chat-fab.auto-on:not(.admin-mode){background:radial-gradient(circle at 30% 20%,#ff3a42,var(--red) 55%,#830006)!important;box-shadow:0 18px 50px rgba(232,0,10,.28)!important;}',
+      'html body .chat-fab.auto-on:not(.admin-mode)::after{display:none!important;}',
+      'html body #admin-live-indicator{transition:none!important;}',
+      '@media(max-width:700px){html body .chat-popover.tomauno-chat-visitor{left:8px!important;right:8px!important;width:auto!important;height:calc(100dvh - 96px)!important;max-height:calc(100dvh - 96px)!important;}html body .chat-popover.tomauno-chat-visitor .chat-msgs{max-height:none!important;min-height:0!important;height:auto!important;}html body .chat-popover.tomauno-chat-visitor .chat-row input,html body .chat-popover.tomauno-chat-visitor .chat-row textarea{font-size:16px!important;}}'
     ].join('\n');
     document.head.appendChild(st);
   });}
-  function applyAutoUI(force){safe(function(){
+
+  function renderAutoUI(){safe(function(){
     var auto=isAutoOn();
     var admin=isAdminActive();
+    var state=(admin?'A':'V')+'-'+(auto?'AUTO':'MAN')+'-'+(hasUnread()?'U':'N')+'-'+(modoCargado?'L':'P');
+    if(state===lastAutoVisual) return;
+    lastAutoVisual=state;
+
     var fab=document.getElementById('chat-fab');
     if(fab){
-      // En visitantes el botón NO representa AUTO; solo chat normal. En admin muestra pendientes.
       fab.classList.remove('auto-on');
+      fab.classList.toggle('admin-mode',admin);
       fab.classList.toggle('has-new', !!(admin && hasUnread()));
       fab.title = admin ? (hasUnread()?'Hay chats sin leer':'Abrir bandeja de chats') : 'Abrir chat';
     }
     document.querySelectorAll('.chat-filter.auto').forEach(function(b){
       var desired=auto?'AUTO':'MAN';
-      if(force || b.getAttribute('data-v13-state')!==desired || b.textContent.trim()!==desired){
-        b.setAttribute('data-v13-state',desired);
+      if(b.getAttribute('data-v14-state')!==desired || b.textContent.trim()!==desired){
+        b.setAttribute('data-v14-state',desired);
         b.setAttribute('data-auto-state',auto?'on':'off');
         b.classList.toggle('on',auto);
-        b.innerHTML = auto ? '<span class="ico">🟢</span><span class="txt">AUTO</span>' : '<span class="ico">🔴</span><span class="txt">MAN</span>';
+        b.innerHTML = '<span class="txt">'+desired+'</span>';
         b.title = auto ? 'Automático global activo. Clic para apagar.' : 'Manual global. Clic para activar automático.';
       }
     });
-    var live=document.getElementById('admin-live-text')||document.querySelector('#admin-live-indicator');
+    var ind=document.getElementById('admin-live-indicator');
+    var live=document.getElementById('admin-live-text')||ind;
+    if(ind){
+      ind.classList.toggle('on',admin);
+      ind.classList.remove('off');
+      ind.style.display = admin ? 'inline-flex' : '';
+    }
     if(live && admin){
       var txt=auto?'ADM · AUTO':'ADM';
       if(live.textContent!==txt) live.textContent=txt;
     }
-    lastAppliedAuto=auto;
   });}
+  function scheduleAutoUI(){
+    if(pendingApply) return;
+    pendingApply=true;
+    requestAnimationFrame(function(){pendingApply=false;renderAutoUI();markModeClass();});
+  }
   function startAutoListener(){safe(function(){
     if(listenerStarted) return;
     if(typeof db==='undefined'||typeof ref==='undefined'||typeof onValue==='undefined') return;
     listenerStarted=true;
     onValue(ref(db,'tomauno/asistente/modo'),function(snap){
       modoGlobal = snap && snap.exists && snap.exists() ? normModo(snap.val()) : 'manual';
+      modoCargado=true;
       window.tomaunoAutoGlobalModo=modoGlobal;
-      applyAutoUI(true);
+      scheduleAutoUI();
     });
   });}
 
@@ -96,58 +132,76 @@
     try{
       var actual=window.asistenteModo()==='automatico'?'automatico':'manual';
       var nuevo=actual==='automatico'?'manual':'automatico';
+      modoGlobal=nuevo; modoCargado=true; window.tomaunoAutoGlobalModo=nuevo; scheduleAutoUI();
       if(typeof db!=='undefined'&&typeof ref!=='undefined'&&typeof update!=='undefined'){
         await update(ref(db,'tomauno/asistente'),{modo:nuevo, actualizado:Date.now()});
       }else if(typeof oldToggle==='function'){
         return oldToggle.apply(this,arguments);
       }
-      modoGlobal=nuevo; window.tomaunoAutoGlobalModo=nuevo; applyAutoUI(true);
-      if(typeof toast==='function') toast(nuevo==='automatico'?'🟢 AUTO activado':'🔴 MANUAL activado',true);
-      setTimeout(function(){try{if(isAdminActive()){if(window.currentOpenChatId&&typeof window.abrirChatAdmin==='function') window.abrirChatAdmin(window.currentOpenChatId,true); else if(typeof window.abrirPanelChatsAdmin==='function') window.abrirPanelChatsAdmin();}}catch(e){}},120);
-    }catch(e){console.warn('toggle auto v13:',e); if(typeof oldToggle==='function') return oldToggle.apply(this,arguments);}
+      if(typeof toast==='function') toast(nuevo==='automatico'?'AUTO activado':'MANUAL activado',true);
+      setTimeout(function(){safe(function(){
+        if(isAdminActive()){
+          if(window.currentOpenChatId&&typeof window.abrirChatAdmin==='function') window.abrirChatAdmin(window.currentOpenChatId,true);
+          else if(typeof window.abrirPanelChatsAdmin==='function') window.abrirPanelChatsAdmin();
+        }
+      });},120);
+    }catch(e){console.warn('toggle auto v14:',e); if(typeof oldToggle==='function') return oldToggle.apply(this,arguments);}
   };
 
-  // Si el usuario estaba mirando chat visitante y entra a ADM, reconstruir UI admin sin que deba cerrar/reabrir.
+  // Si se entra en ADM con chat visitante abierto, reconstruye toolbar admin sin cerrar/reabrir manualmente.
   function forceAdminChatIfNeeded(){safe(function(){
     if(!isAdminActive()) return;
     var pop=document.getElementById('chat-popover');
     if(!pop || !pop.classList.contains('open')) return;
     var hasAdmin=!!pop.querySelector('.chat-admin-tools,.chat-admin-actions,.chat-inbox-side,.chat-tabs,#chat-admin-text');
     if(hasAdmin) return;
-    if(Date.now()-lastAdminFixAt<2500) return;
+    if(Date.now()-lastAdminFixAt<3500) return;
     lastAdminFixAt=Date.now();
     if(typeof window.abrirPanelChatsAdmin==='function') window.abrirPanelChatsAdmin();
   });}
 
-  function getInputText(){return safe(function(){
-    var el=document.getElementById('chat-text')||document.querySelector('.chat-row input,.chat-row textarea');
-    return String((el&&el.value)||'').trim();
-  })||'';}
-  function firstNotify(chatId,text){safe(function(){
-    if(!chatId || !text || Date.now()-lastFirstNotifyAt<800) return;
-    lastFirstNotifyAt=Date.now();
-    try{sessionStorage.setItem('tomauno-first-notified-'+chatId,'1');}catch(e){}
+  function updateChatUnread(chatId,text){safe(function(){
+    if(!chatId || !text) return;
     if(typeof db!=='undefined'&&typeof ref!=='undefined'&&typeof update!=='undefined'){
       update(ref(db,'tomauno/chats/'+chatId),{unreadAdmin:true,lastMsg:text,updatedAt:Date.now()}).catch(function(){});
     }
+  });}
+  function notifyFirst(chatId,text){safe(function(){
+    if(!chatId || !text) return;
+    var key='tomauno-first-notified-'+chatId;
+    if(notifiedChats[chatId] || sessionStorage.getItem(key)==='1') return;
+    notifiedChats[chatId]=1;
+    try{sessionStorage.setItem(key,'1');}catch(e){}
+    updateChatUnread(chatId,text);
     if(isAdminActive() && typeof window.notifyAdminChat==='function') window.notifyAdminChat('Nuevo mensaje web',text,chatId);
   });}
+  function retryFirstNotify(text, tries){
+    tries=tries||0;
+    setTimeout(function(){safe(function(){
+      var id=currentChatId();
+      if(id){notifyFirst(id,text);return;}
+      if(tries<12) retryFirstNotify(text,tries+1);
+    });}, tries?350:120);
+  }
 
   var oldVisitorSend=window.enviarChatVisitante;
-  window.enviarChatVisitante=async function(id){
+  window.enviarChatVisitante=async function(){
     var text=getInputText();
-    var chatId=id||window.currentVisitorChatId||sessionStorage.getItem('tomauno-chat-id')||'';
     var before=Date.now();
     var res=oldVisitorSend&&oldVisitorSend.apply?await oldVisitorSend.apply(this,arguments):undefined;
-    if(text && chatId && !sessionStorage.getItem('tomauno-first-notified-'+chatId)) firstNotify(chatId,text);
-    // Refuerzo AUTO sin duplicar si ya respondió.
+    if(text) retryFirstNotify(text,0);
+    // Si AUTO está activo, reforzamos respuesta solo si el motor viejo no respondió.
     if(text){setTimeout(async function(){safe(async function(){
       if(window.asistenteModo()!=='automatico') return;
+      var chatId=currentChatId();
       if(!chatId || typeof window.responderAutomaticoChat!=='function') return;
       var c=(window.chatsDB&&window.chatsDB[chatId])?window.chatsDB[chatId]:null, has=false;
       if(c&&c.messages){Object.keys(c.messages).forEach(function(k){var m=c.messages[k]||{}; if(m.from==='admin'&&m.auto&&Number(m.createdAt||0)>before) has=true;});}
       if(!has) await window.responderAutomaticoChat(chatId,text);
-    });},3600);}
+      softScrollNewMessage();
+    });},3200);}
+    setTimeout(softScrollNewMessage,80);
+    setTimeout(softScrollNewMessage,450);
     return res;
   };
 
@@ -155,37 +209,103 @@
   window.iniciarChatConNombre=async function(){
     var raw=safe(function(){return String((document.getElementById('chat-name')||{}).value||'').trim();})||'';
     var res=oldInitName&&oldInitName.apply?await oldInitName.apply(this,arguments):undefined;
-    setTimeout(function(){
-      var id=window.currentVisitorChatId||sessionStorage.getItem('tomauno-chat-id')||'';
-      if(id && raw) firstNotify(id,'Inició chat: '+raw);
-    },250);
+    if(raw) retryFirstNotify('Nombre: '+raw,0);
+    setTimeout(function(){syncTitleName();softScrollNewMessage();},250);
     return res;
   };
 
-  // Click en toast/notificación visual abre chat reciente si existe.
-  var lastNoticeId='';
+  // Si Javier escribe manualmente, ese chat queda marcado como humano para que AUTO no lo pise.
+  var oldAdminSend=window.enviarChatAdmin;
+  if(typeof oldAdminSend==='function'){
+    window.enviarChatAdmin=async function(){
+      var id=window.currentOpenChatId||currentChatId();
+      var res=await oldAdminSend.apply(this,arguments);
+      safe(function(){
+        if(id && typeof db!=='undefined'&&typeof ref!=='undefined'&&typeof update!=='undefined'){
+          update(ref(db,'tomauno/chats/'+id),{humanMode:true,manualUntil:Date.now()+1000*60*60,unreadAdmin:false}).catch(function(){});
+        }
+      });
+      return res;
+    };
+  }
+
+  // No responder automático si el chat fue tomado manualmente.
+  var oldResponder=window.responderAutomaticoChat;
+  if(typeof oldResponder==='function'){
+    window.responderAutomaticoChat=async function(chatId,text){
+      var c=(window.chatsDB&&window.chatsDB[chatId])?window.chatsDB[chatId]:null;
+      if(c && (c.humanMode || Number(c.manualUntil||0)>Date.now())) return;
+      return oldResponder.apply(this,arguments);
+    };
+  }
+
+  // Toast/admin notification: nunca debe quedar en visitante y click abre chat.
   var oldNotify=window.notifyAdminChat;
   window.notifyAdminChat=function(title,body,chatId){
-    if(chatId) lastNoticeId=chatId;
-    var r; try{r=oldNotify&&oldNotify.apply?oldNotify.apply(this,arguments):undefined;}catch(e){}
+    if(chatId) lastToastChatId=chatId;
+    if(!isAdminActive()) return;
+    var clean=String(body||'').replace(/\s+/g,' ').trim();
+    if(clean.length>180) clean=clean.slice(0,177)+'...';
+    var r; try{r=oldNotify&&oldNotify.apply?oldNotify.call(this,title||'Nuevo chat web',clean,chatId):undefined;}catch(e){}
     setTimeout(function(){safe(function(){
       var toastEl=document.getElementById('toast');
-      if(toastEl && lastNoticeId){toastEl.style.cursor='pointer';toastEl.onclick=function(){try{window.abrirChatAdmin&&window.abrirChatAdmin(lastNoticeId);}catch(e){}};}
+      if(toastEl && lastToastChatId){toastEl.style.cursor='pointer';toastEl.onclick=function(){try{window.abrirChatAdmin&&window.abrirChatAdmin(lastToastChatId);}catch(e){}};}
     });},60);
     return r;
   };
   try{notifyAdminChat=window.notifyAdminChat;}catch(e){}
 
-  function markVisitorClass(){safe(function(){
+  function markModeClass(){safe(function(){
     var pop=document.getElementById('chat-popover'); if(!pop) return;
     var adm=isAdminActive() && !!pop.querySelector('.chat-admin-tools,.chat-admin-actions,.chat-inbox-side,.chat-tabs,#chat-admin-text');
     pop.classList.toggle('tomauno-chat-admin',adm);
     pop.classList.toggle('tomauno-chat-visitor',!adm);
+    if(!adm){
+      var title=pop.querySelector('.chat-title'); if(title && /^(usuario|[a-zñáéíóúü ]{1,25})$/i.test(title.textContent.trim())) title.textContent='CHAT TOMAUNO';
+      var sub=pop.querySelector('.chat-subline'); if(sub && /admin|whatsapp|en línea/i.test(sub.textContent||'')) sub.textContent='Consulta directa desde la web';
+    }
   });}
 
-  function run(){ensureCss();setVersion();startAutoListener();applyAutoUI(false);forceAdminChatIfNeeded();markVisitorClass();}
-  if(document.readyState==='loading') document.addEventListener('DOMContentLoaded',run); else run();
-  setTimeout(run,600); setTimeout(run,1500);
-  setInterval(run,700);
-  safe(function(){new MutationObserver(function(){setTimeout(function(){applyAutoUI(false);forceAdminChatIfNeeded();markVisitorClass();},25);}).observe(document.documentElement,{childList:true,subtree:true,attributes:true,attributeFilter:['class','style']});});
+  function syncTitleName(){safe(function(){
+    var id=currentChatId(); if(!id) return;
+    var c=(window.chatsDB&&window.chatsDB[id])?window.chatsDB[id]:null; if(!c||!c.name) return;
+    var pop=document.getElementById('chat-popover'); if(!pop) return;
+    var adm=isAdminActive() && !!pop.querySelector('.chat-admin-tools,.chat-admin-actions,.chat-inbox-side,.chat-tabs,#chat-admin-text');
+    if(adm){var title=pop.querySelector('.chat-title'); if(title) title.textContent=String(c.name).toUpperCase();}
+  });}
+
+  function nearBottom(el){return !el || (el.scrollHeight-el.scrollTop-el.clientHeight)<90;}
+  function softScrollNewMessage(){safe(function(){
+    var box=document.querySelector('#chat-popover.open .chat-msgs'); if(!box) return;
+    if(Date.now()<userReadingUntil) return;
+    requestAnimationFrame(function(){box.scrollTop=box.scrollHeight;});
+  });}
+  function installScrollGuard(){safe(function(){
+    document.addEventListener('scroll',function(e){
+      var el=e.target;
+      if(el && el.classList && el.classList.contains('chat-msgs') && !nearBottom(el)) userReadingUntil=Date.now()+8000;
+    },true);
+    var obs=new MutationObserver(function(muts){
+      var relevant=false;
+      muts.forEach(function(m){if(m.addedNodes&&m.addedNodes.length){Array.prototype.forEach.call(m.addedNodes,function(n){if(n.nodeType===1 && (n.classList&&n.classList.contains('chat-bubble') || (n.querySelector&&n.querySelector('.chat-bubble')))) relevant=true;});}});
+      if(relevant) setTimeout(softScrollNewMessage,80);
+    });
+    obs.observe(document.documentElement,{childList:true,subtree:true});
+  });}
+
+  function shortenWelcome(){safe(function(){
+    document.querySelectorAll('.chat-bubble.admin').forEach(function(b){
+      var t=b.innerText||'';
+      if(/Soy el Asistente de Tomauno/i.test(t) && /Cómo es tu nombre/i.test(t)){
+        b.innerHTML='Hola 😊<br><strong>¿Cómo es tu nombre?</strong><div class="chat-meta">Ahora</div>';
+      }
+    });
+  });}
+
+  function run(){ensureCss();setVersion();startAutoListener();scheduleAutoUI();forceAdminChatIfNeeded();markModeClass();syncTitleName();shortenWelcome();}
+  if(document.readyState==='loading') document.addEventListener('DOMContentLoaded',function(){run();installScrollGuard();}); else {run();installScrollGuard();}
+  setTimeout(run,300); setTimeout(run,1200); setTimeout(run,2500);
+  // intervalo suave solo para corregir renders viejos, sin mutar Firebase ni parpadear visualmente
+  setInterval(function(){scheduleAutoUI();markModeClass();syncTitleName();shortenWelcome();},2500);
+  safe(function(){new MutationObserver(function(){setTimeout(function(){scheduleAutoUI();forceAdminChatIfNeeded();markModeClass();syncTitleName();shortenWelcome();},80);}).observe(document.documentElement,{childList:true,subtree:true});});
 })();
