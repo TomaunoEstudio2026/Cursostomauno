@@ -333,3 +333,126 @@
     new MutationObserver(function(){run(); setTimeout(scrollLast,80);}).observe(document.documentElement,{childList:true,subtree:true,characterData:true});
   });
 })();
+
+// Modular v8 — estabilidad chat visitante/admin: onboarding corto, notificaciones solo admin, scroll sin pelear, encabezado visitante.
+(function(){
+  'use strict';
+  function safe(fn){try{return fn();}catch(e){try{console.warn('modular v8:',e);}catch(_){}}}
+  function esc(s){return String(s||'').replace(/[&<>"']/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];});}
+  function dbReady(){return typeof db!=='undefined'&&typeof ref!=='undefined'&&typeof update!=='undefined'&&typeof push!=='undefined';}
+  function isAdminReal(){return safe(function(){return localStorage.getItem('tomauno-admin-ok')==='1'||localStorage.getItem('tomauno-admin-notify')==='1'||!!document.querySelector('#admin-live-indicator.on,#admin-live-indicator.admin-on,.admin-live.on,.adm-on');})||false;}
+  function cleanName(raw){
+    var n=String(raw||'').trim().replace(/\s+/g,' ');
+    n=n.replace(/^(hola\s+)?(soy|me llamo|mi nombre es|nombre es|buenas\s+soy|hola\s+soy)\s+/i,'').trim();
+    n=n.replace(/[¿?¡!.,;:]+$/g,'').trim();
+    if(n.length>34) n=n.slice(0,34).trim();
+    return n;
+  }
+  function lastUserText(chat){
+    var txt='',ts=0; safe(function(){var msgs=chat&&chat.messages?chat.messages:{};Object.keys(msgs).forEach(function(k){var m=msgs[k]||{};if(m.from==='user'&&!m.typing&&Number(m.createdAt||0)>=ts){ts=Number(m.createdAt||0);txt=String(m.text||'').trim();}});});
+    return txt||String((chat&&(chat.lastUserMsg||chat.lastMsg))||'').trim();
+  }
+  function chatName(chat,id){var n=String((chat&&(chat.name||chat.nombre||chat.whatsappName))||'').trim();return n||('Visitante '+String(id||'').slice(-4));}
+  function getChat(id){try{return (typeof chatsDB!=='undefined'&&chatsDB&&id)?chatsDB[id]:null;}catch(e){return null;}}
+
+  // Admin notifications: never render admin alerts inside visitor pages and never show bot/course cards.
+  window.notifyAdminChat=function(title,body,chatId){
+    safe(function(){
+      if(!isAdminReal()) return;
+      var c=getChat(chatId);
+      var q=lastUserText(c)||String(body||'').trim();
+      if(/Curso de|Fotos Polaroid|Ver cursos|Profesor\/organizador|Tomauno - Pedro|Instagram:@|Contacto:|\$\s*\d/i.test(q)) q=String(body||'Nuevo mensaje').trim();
+      q=q.replace(/\s+/g,' ').slice(0,150);
+      var name=chatName(c,chatId);
+      var cleanTitle=title||'Nuevo chat web';
+      var cleanBody=(name?name+': ':'')+(q||'Nuevo mensaje desde la web');
+      try{ if(typeof beep==='function') beep(); }catch(e){}
+      try{ if(typeof showNotif==='function') showNotif(); }catch(e){}
+      try{ if(typeof showNotifBanner==='function') showNotifBanner(cleanTitle,cleanBody); }catch(e){}
+      try{
+        if('Notification' in window && Notification.permission==='granted'){
+          var n=new Notification('💬 '+cleanTitle,{body:cleanBody,icon:'https://i.imgur.com/oZnkCPD.png',badge:'https://i.imgur.com/oZnkCPD.png',tag:chatId?'tomauno-chat-'+chatId:'tomauno-chat',renotify:true,requireInteraction:false});
+          n.onclick=function(){try{window.focus();}catch(e){} try{ if(chatId&&typeof window.abrirChatAdmin==='function') window.abrirChatAdmin(chatId); else if(typeof window.abrirPanelChatsAdmin==='function') window.abrirPanelChatsAdmin(); }catch(e){} try{n.close();}catch(e){}};
+        }
+      }catch(e){}
+    });
+  };
+  try{notifyAdminChat=window.notifyAdminChat;}catch(e){}
+
+  function visitorWelcomeHtml(){
+    return '<div class="chat-head"><div class="chat-avatar">💬</div><div><div class="chat-title">CHAT TOMAUNO</div><div class="chat-subline">Consulta directa desde la web</div></div></div>'+
+      '<div class="chat-panel"><div class="chat-msgs" id="chat-msgs"><div class="chat-bubble admin"><div>Hola 😊<br/>¿Cómo es tu nombre?</div><div class="chat-meta">Ahora</div></div></div>'+
+      '<div class="chat-name-row"><input class="finput" id="chat-name" placeholder="Tu nombre" autocomplete="name" onkeydown="if(event.key===\'Enter\')window.iniciarChatConNombre()"/><button class="chat-send" onclick="window.iniciarChatConNombre()">➜</button></div></div>';
+  }
+
+  // Open visitor chat with short welcome. Admin still opens admin flow through old handler.
+  var oldOpenVisitorEntry=window.abrirChatTomauno;
+  window.abrirChatTomauno=function(){
+    try{
+      if(isAdminReal() && !(window.currentVisitorChatId && !document.getElementById('admin-section')?.offsetParent)){
+        if(typeof window.abrirPanelChatsAdmin==='function') return window.abrirPanelChatsAdmin();
+      }
+      if(window.currentVisitorChatId&&window.chatsDB&&window.chatsDB[window.currentVisitorChatId]&&window.chatsDB[window.currentVisitorChatId].status!=='cerrado') return window.abrirChatVisitante(window.currentVisitorChatId,true);
+      if(typeof setChatPopover==='function') setChatPopover(visitorWelcomeHtml()); else if(oldOpenVisitorEntry) return oldOpenVisitorEntry.apply(this,arguments);
+    }catch(e){ if(oldOpenVisitorEntry) return oldOpenVisitorEntry.apply(this,arguments); }
+  };
+
+  // Name onboarding: no limpiar historial visualmente con saludo largo; create chat, save name, notify by Firebase state.
+  window.iniciarChatConNombre=async function(){
+    try{
+      var name=cleanName((document.getElementById('chat-name')||{}).value||'');
+      if(!name){ if(typeof toast==='function') toast('Escribí tu nombre'); return; }
+      if(!dbReady()) return;
+      var t=Date.now();
+      var chatRef=await push(ref(db,'tomauno/chats'),{name:name,wp:'',status:'abierto',createdAt:t,updatedAt:t,lastMsg:'Inició chat',unreadAdmin:true,unreadVisitor:false,userOnline:true,userLastSeen:t,nombreConfirmado:true});
+      window.currentVisitorChatId=chatRef.key;
+      try{sessionStorage.setItem('tomauno-chat-id',chatRef.key);sessionStorage.setItem('tomauno-chat-name',name);sessionStorage.setItem('tomauno-chat-name-confirmed','1');}catch(e){}
+      await push(ref(db,'tomauno/chats/'+chatRef.key+'/messages'),{from:'admin',text:'Hola '+name+' 😊 ¿En qué puedo ayudarte?',time:(typeof chatTime==='function'?chatTime():''),createdAt:t+1,auto:true});
+      await update(ref(db,'tomauno/chats/'+chatRef.key),{updatedAt:t+2,lastMsg:'Nombre agendado: '+name,unreadAdmin:true,nombreConfirmado:true});
+      // no show admin toast here if visitor page; admin listener will notify in admin window.
+      if(typeof window.abrirChatVisitante==='function') window.abrirChatVisitante(chatRef.key,true);
+    }catch(e){console.warn('iniciarChatConNombre v8',e);}
+  };
+
+  // Header: visitor sees Tomauno, not own name. Admin can keep contact name.
+  function fixVisitorHeader(){safe(function(){
+    var p=document.getElementById('chat-popover'); if(!p||!p.classList.contains('open')) return;
+    var isVisitor=!isAdminReal() || p.classList.contains('tomauno-chat-visitor');
+    if(!isVisitor) return;
+    var title=p.querySelector('.chat-title'); if(title) title.textContent='CHAT TOMAUNO';
+    var sub=p.querySelector('.chat-subline'); if(sub) sub.textContent='Consulta directa desde la web';
+    p.classList.add('tomauno-chat-visitor');
+    p.classList.remove('tomauno-chat-admin');
+    var fab=document.getElementById('chat-fab'); if(fab) fab.classList.remove('auto-on');
+  });}
+
+  // Replace long welcome wherever it appears.
+  function shortenWelcome(){safe(function(){
+    document.querySelectorAll('.chat-bubble').forEach(function(b){var t=(b.innerText||'').trim();if(t.indexOf('Soy el Asistente de Tomauno')>-1&&t.indexOf('¿Cómo es tu nombre?')>-1){b.innerHTML='<div>Hola 😊<br/>¿Cómo es tu nombre?</div><div class="chat-meta">Ahora</div>';}});
+    document.querySelectorAll('.chat-bubble.admin').forEach(function(b){var t=(b.innerText||'').trim();if(/^Gracias,\s*[^.]+\.\s*Aguard[aá]/i.test(t)){b.innerHTML='<div>Aguardá un momento por favor, voy a intentar avisarle a Javier para que te responda por acá 😊</div><div class="chat-meta">'+((typeof chatTime==='function')?chatTime():'')+'</div>';}});
+  });}
+
+  // Scroll behavior: don't fight the user if they are reading older messages. New long answer shows start of answer.
+  var userReadingUntil=0;
+  document.addEventListener('scroll',function(e){var box=e.target;if(box&&box.id==='chat-msgs'){var nearBottom=(box.scrollHeight-box.scrollTop-box.clientHeight)<80;if(!nearBottom) userReadingUntil=Date.now()+7000;}},true);
+  window.tomaunoSmartScroll=function(force){safe(function(){
+    var box=document.getElementById('chat-msgs'); if(!box) return;
+    if(!force && Date.now()<userReadingUntil) return;
+    var bubbles=box.querySelectorAll('.chat-bubble'); var last=bubbles[bubbles.length-1]; if(!last) return;
+    var longMsg=(last.innerText||'').length>220||last.offsetHeight>150;
+    box.scrollTop= longMsg ? Math.max(0,last.offsetTop-10) : Math.max(0,box.scrollHeight-box.clientHeight);
+  });};
+
+  // Auto button compact, stable, no long text.
+  function compactAuto(){safe(function(){
+    var auto=false; try{auto=String(window.asistenteModo&&window.asistenteModo()||window.tomaunoAutoGlobalModo||'').toLowerCase()==='automatico';}catch(e){}
+    document.querySelectorAll('.chat-filter.auto').forEach(function(b){b.classList.toggle('on',auto);b.innerHTML=auto?'<span class="ico">🟢</span><span class="txt">AUTO</span>':'<span class="ico">🔴</span><span class="txt">MAN</span>';b.title=auto?'Automático activo. Clic para apagar.':'Manual. Clic para activar automático.';});
+  });}
+
+  // Observe DOM without forcing repeated bottom scroll.
+  function run(){shortenWelcome();fixVisitorHeader();compactAuto();}
+  if(document.readyState==='loading') document.addEventListener('DOMContentLoaded',run); else run();
+  var t=null;
+  safe(function(){new MutationObserver(function(){clearTimeout(t);t=setTimeout(function(){run();window.tomaunoSmartScroll(false);},120);}).observe(document.documentElement,{childList:true,subtree:true});});
+  setInterval(run,1200);
+})();
