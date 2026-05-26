@@ -1,0 +1,5 @@
+/* Extraído de <style id="patch-v92-admin-master-css"> */
+.tomauno-version-tag{display:block;margin-top:10px;font-size:10px;color:rgba(255,255,255,.28);letter-spacing:.12em;text-transform:uppercase;font-weight:800;}
+  body.tu-master-admin-closed #admin-live-indicator,
+  body.tu-master-admin-closed #visit-sound-toggle{display:none!important;visibility:hidden!important;opacity:0!important;pointer-events:none!important;}
+  body.tu-master-admin-open #admin-live-indicator{display:inline-flex!important;visibility:visible!important;opacity:1!important;}

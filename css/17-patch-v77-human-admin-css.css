@@ -1,0 +1,10 @@
+/* Extraído de <style id="patch-v77-human-admin-css"> */
+.tu-human-alert-v77{
+    position:fixed;right:18px;top:82px;z-index:9999;max-width:360px;
+    background:#e8000a;color:#fff;border:1px solid rgba(255,255,255,.22);
+    border-radius:16px;padding:14px 16px;box-shadow:0 18px 60px rgba(0,0,0,.6),0 0 0 6px rgba(232,0,10,.18);
+    font-family:var(--font,Arial,sans-serif);cursor:pointer;animation:tuHumanPulse77 .9s ease-in-out infinite alternate;
+  }
+  .tu-human-alert-v77 .t{font-weight:900;font-size:13px;letter-spacing:.04em;text-transform:uppercase;margin-bottom:4px;}
+  .tu-human-alert-v77 .b{font-size:13px;line-height:1.35;opacity:.95;}
+  @keyframes tuHumanPulse77{from{transform:translateY(0);filter:brightness(1)}to{transform:translateY(2px);filter:brightness(1.22)}}

@@ -1,0 +1,103 @@
+/* Extraído de <style id="patch-v40-toolbar-admin-sin-conflictos"> */
+/* v40 — Corrige botones admin: acciones en la línea superior, respuestas rápidas abajo.
+   Evita que WhatsApp del usuario quite Sesiones y elimina el resaltado verde erróneo de Resumen. */
+html body .chat-popover.expanded .chat-panel{
+  grid-template-rows:minmax(0,1fr) 50px 42px 38px!important;
+  gap:8px!important;
+}
+html body .chat-popover.expanded .chat-admin-tools{
+  grid-row:3!important;
+  height:42px!important;
+  min-height:42px!important;
+  max-height:42px!important;
+  display:flex!important;
+  flex-wrap:nowrap!important;
+  align-items:center!important;
+  gap:7px!important;
+  overflow:hidden!important;
+  padding:0!important;
+  margin:0!important;
+}
+html body .chat-popover.expanded .chat-tools-block{
+  grid-row:4!important;
+  height:38px!important;
+  min-height:38px!important;
+  max-height:38px!important;
+  display:flex!important;
+  align-items:center!important;
+  overflow:hidden!important;
+  padding:0!important;
+  margin:0!important;
+  border-top:1px solid rgba(255,255,255,.06)!important;
+  padding-top:6px!important;
+}
+html body .chat-popover.expanded .chat-quick-label{display:none!important;}
+html body .chat-popover.expanded .chat-quick-wrap{
+  display:flex!important;
+  flex-wrap:nowrap!important;
+  align-items:center!important;
+  gap:6px!important;
+  height:32px!important;
+  max-height:32px!important;
+  overflow:hidden!important;
+  padding:0!important;
+  margin:0!important;
+}
+html body .chat-popover.expanded .chat-admin-actions{
+  display:flex!important;
+  flex-wrap:nowrap!important;
+  align-items:center!important;
+  gap:6px!important;
+  height:38px!important;
+  max-height:38px!important;
+  overflow:visible!important;
+  padding:0!important;
+  margin:0!important;
+  background:transparent!important;
+  position:static!important;
+}
+html body .chat-popover.expanded .chat-admin-actions .btn-out,
+html body .chat-popover.expanded .chat-admin-actions a.btn-out{
+  flex:0 0 36px!important;
+  width:36px!important;
+  min-width:36px!important;
+  max-width:36px!important;
+  height:36px!important;
+  min-height:36px!important;
+  max-height:36px!important;
+  padding:0!important;
+  border-radius:50%!important;
+  font-size:0!important;
+  display:inline-flex!important;
+  align-items:center!important;
+  justify-content:center!important;
+}
+html body .chat-popover.expanded .chat-admin-actions .btn-out .ico,
+html body .chat-popover.expanded .chat-admin-actions a.btn-out .ico{font-size:16px!important;line-height:1!important;margin:0!important;}
+/* Neutraliza el formato verde/texto agregado al botón Resumen. */
+html body .chat-popover.expanded .chat-admin-actions .btn-out[data-action="resumen-wa"],
+html body .chat-popover.expanded .chat-admin-actions a.btn-out[data-action="resumen-wa"]{
+  min-width:36px!important;
+  width:36px!important;
+  max-width:36px!important;
+  color:var(--text2)!important;
+  border-color:var(--border)!important;
+  background:transparent!important;
+  box-shadow:none!important;
+}
+html body .chat-popover.expanded .chat-admin-actions .btn-out[data-action="resumen-wa"]::after,
+html body .chat-popover.expanded .chat-admin-actions a.btn-out[data-action="resumen-wa"]::after{content:none!important;display:none!important;}
+html body .chat-popover.expanded .chat-admin-actions .btn-out[data-action="resumen-wa"]:hover{
+  border-color:var(--red)!important;
+  color:#fff!important;
+}
+@media(max-width:700px){
+  html body .chat-popover.expanded .chat-panel,
+  html body .chat-popover .chat-panel{grid-template-rows:minmax(0,1fr) 48px 40px 0px!important;}
+  html body .chat-popover.expanded .chat-tools-block,
+  html body .chat-popover .chat-tools-block{display:none!important;}
+  html body .chat-popover.expanded .chat-admin-tools,
+  html body .chat-popover .chat-admin-tools{height:40px!important;max-height:40px!important;overflow:hidden!important;}
+  html body .chat-popover .chat-admin-actions .btn-out,
+  html body .chat-popover .chat-admin-actions a.btn-out{width:34px!important;min-width:34px!important;height:34px!important;}
+}

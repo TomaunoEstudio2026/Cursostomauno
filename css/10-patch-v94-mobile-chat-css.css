@@ -1,0 +1,81 @@
+/* Extraído de <style id="patch-v94-mobile-chat-css"> */
+#tomauno-version-tag{display:block!important;margin-top:10px!important;font-size:10px!important;color:rgba(255,255,255,.28)!important;letter-spacing:.12em!important;text-transform:uppercase!important;font-weight:800!important;}
+
+  /* Seguridad visual: visitante nunca debe ver elementos de bandeja/admin dentro del chat. */
+  body:not(.tu-master-admin-open) #chat-popover .chat-tabs,
+  body:not(.tu-master-admin-open) #chat-popover .chat-admin-tools,
+  body:not(.tu-master-admin-open) #chat-popover .chat-admin-actions,
+  body:not(.tu-master-admin-open) #chat-popover .chat-user-list,
+  body:not(.tu-master-admin-open) #chat-popover .chat-inbox,
+  body:not(.tu-master-admin-open) #chat-popover .chat-conversation-list,
+  body:not(.tu-master-admin-open) #chat-popover [data-admin-only],
+  body:not(.tu-master-admin-open) #chat-popover .admin-only{display:none!important;visibility:hidden!important;pointer-events:none!important;}
+
+  /* Escritorio: solo chat visitante más angosto. Admin y fullscreen no se achican. */
+  @media (min-width:701px){
+    body:not(.tu-master-admin-open) #chat-popover:not(.expanded):not(.admin):not(.admin-open):not(.is-admin){
+      width:min(382px,calc(100vw - 32px))!important;
+      right:22px!important;
+      bottom:150px!important;
+    }
+    body:not(.tu-master-admin-open) #chat-popover:not(.expanded):not(.admin):not(.admin-open):not(.is-admin) .chat-msgs{
+      min-height:280px!important;
+      max-height:390px!important;
+      scroll-behavior:auto!important;
+      overflow-anchor:none!important;
+    }
+  }
+
+  /* Mobile: layout fijo, input protegido y menos saltos. */
+  @media (max-width:700px){
+    html,body{overscroll-behavior-y:none!important;}
+    body:not(.tu-master-admin-open) #chat-popover.open{
+      position:fixed!important;
+      left:8px!important;
+      right:8px!important;
+      width:auto!important;
+      top:auto!important;
+      bottom:calc(82px + env(safe-area-inset-bottom))!important;
+      max-height:calc(var(--tu-vvh,100dvh) - 104px - env(safe-area-inset-bottom))!important;
+      border-radius:22px!important;
+      overflow:hidden!important;
+      resize:none!important;
+      transform:none!important;
+      animation:none!important;
+    }
+    body:not(.tu-master-admin-open).tu-chat-input-focus #chat-popover.open{
+      bottom:calc(max(8px, var(--tu-keyboard-gap, 0px)) + env(safe-area-inset-bottom))!important;
+      max-height:calc(var(--tu-vvh,100dvh) - max(24px, var(--tu-keyboard-gap,0px)) - env(safe-area-inset-top) - env(safe-area-inset-bottom))!important;
+    }
+    body:not(.tu-master-admin-open) #chat-popover.open .chat-popover-inner,
+    body:not(.tu-master-admin-open) #chat-popover.open .chat-panel{
+      display:flex!important;
+      flex-direction:column!important;
+      min-height:0!important;
+      max-height:inherit!important;
+      overflow:hidden!important;
+    }
+    body:not(.tu-master-admin-open) #chat-popover.open .chat-msgs{
+      flex:1 1 auto!important;
+      min-height:180px!important;
+      max-height:none!important;
+      overflow-y:auto!important;
+      overscroll-behavior:contain!important;
+      -webkit-overflow-scrolling:touch!important;
+      scroll-behavior:auto!important;
+      overflow-anchor:none!important;
+    }
+    body:not(.tu-master-admin-open) #chat-popover.open .chat-row,
+    body:not(.tu-master-admin-open) #chat-popover.open .chat-name-row{
+      flex:0 0 auto!important;
+      position:relative!important;
+      z-index:5!important;
+      background:#080808!important;
+      margin-bottom:max(2px,env(safe-area-inset-bottom))!important;
+    }
+    body:not(.tu-master-admin-open) #chat-popover.open input,
+    body:not(.tu-master-admin-open) #chat-popover.open textarea,
+    body:not(.tu-master-admin-open) #chat-popover.open .finput{font-size:16px!important;line-height:1.35!important;}
+    body:not(.tu-master-admin-open).tu-chat-input-focus #chat-popover.open .chat-quick-wrap,
+    body:not(.tu-master-admin-open).tu-chat-input-focus #chat-popover.open .chat-action-row{display:none!important;}
+  }

@@ -1,0 +1,4 @@
+/* Extraído de <style id="patch-v71-admin-mute-safe-css"> */
+#admin-live-indicator.v71-off{display:none!important;}
+  #visit-sound-toggle.v71-admin-off{display:none!important;}
+  #visit-sound-toggle.off{opacity:.52!important;filter:grayscale(1)!important;}

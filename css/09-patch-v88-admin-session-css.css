@@ -1,0 +1,4 @@
+/* Extraído de <style id="patch-v88-admin-session-css"> */
+.tomauno-version-tag{display:block;margin-top:10px;font-size:10px;color:rgba(255,255,255,.28);letter-spacing:.12em;text-transform:uppercase;font-weight:800;}
+  body.tu-admin-closed #visit-sound-toggle{display:none!important;}
+  body.tu-admin-closed #admin-live-indicator{display:none!important;}

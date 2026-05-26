@@ -1,0 +1,153 @@
+/* Extraído de <style id="patch-v41-toolbar-unica-estable"> */
+/* Evita que el bloque viejo aparezca por 1 segundo a la derecha antes de reacomodarse */
+html body .chat-popover.open .chat-tools-block,
+html body .chat-popover.open.expanded .chat-tools-block{
+  display:none!important;
+  visibility:hidden!important;
+  height:0!important;
+  min-height:0!important;
+  max-height:0!important;
+  overflow:hidden!important;
+  padding:0!important;
+  margin:0!important;
+  border:0!important;
+}
+
+/* Una sola barra real para filtros + respuestas rápidas + acciones */
+html body .chat-popover.open .chat-admin-tools,
+html body .chat-popover.open.expanded .chat-admin-tools{
+  display:flex!important;
+  flex-direction:row!important;
+  align-items:center!important;
+  align-content:flex-start!important;
+  justify-content:flex-start!important;
+  flex-wrap:wrap!important;
+  gap:7px!important;
+  width:100%!important;
+  max-width:100%!important;
+  min-height:38px!important;
+  max-height:none!important;
+  height:auto!important;
+  overflow:visible!important;
+  padding:8px 0 4px!important;
+  margin:0!important;
+  background:#050505!important;
+  border-top:1px solid rgba(255,255,255,.06)!important;
+  scrollbar-width:none!important;
+}
+html body .chat-popover.open .chat-admin-tools::-webkit-scrollbar{display:none!important;}
+
+/* Los contenedores internos no ocupan una fila propia: sus botones entran en la barra principal */
+html body .chat-popover.open .chat-admin-tools .chat-quick-label{display:none!important;}
+html body .chat-popover.open .chat-admin-tools .chat-quick-wrap,
+html body .chat-popover.open .chat-admin-tools .chat-admin-actions,
+html body .chat-popover.open.expanded .chat-admin-tools .chat-quick-wrap,
+html body .chat-popover.open.expanded .chat-admin-tools .chat-admin-actions{
+  display:contents!important;
+  width:auto!important;
+  height:auto!important;
+  max-height:none!important;
+  overflow:visible!important;
+  padding:0!important;
+  margin:0!important;
+}
+
+/* Botones rápidos limpios y completos */
+html body .chat-popover.open .chat-admin-tools .chat-quick,
+html body .chat-popover.open.expanded .chat-admin-tools .chat-quick{
+  flex:0 0 auto!important;
+  display:inline-flex!important;
+  align-items:center!important;
+  justify-content:center!important;
+  width:auto!important;
+  min-width:0!important;
+  height:34px!important;
+  min-height:34px!important;
+  padding:0 12px!important;
+  margin:0!important;
+  border-radius:999px!important;
+  white-space:nowrap!important;
+  overflow:visible!important;
+  font-size:11px!important;
+  line-height:1!important;
+}
+html body .chat-popover.open .chat-admin-tools .chat-quick .qr-text{display:inline!important;margin-left:4px!important;font-size:11px!important;}
+html body .chat-popover.open .chat-admin-tools .chat-quick .qr-ico{font-size:13px!important;margin:0!important;}
+
+/* Acciones administrativas siempre icono puro, sin texto y sin borde verde/especial */
+html body .chat-popover.open .chat-admin-tools .btn-out,
+html body .chat-popover.open .chat-admin-tools a.btn-out,
+html body .chat-popover.open.expanded .chat-admin-tools .btn-out,
+html body .chat-popover.open.expanded .chat-admin-tools a.btn-out{
+  flex:0 0 auto!important;
+  width:34px!important;
+  min-width:34px!important;
+  height:34px!important;
+  min-height:34px!important;
+  padding:0!important;
+  margin:0!important;
+  border-radius:50%!important;
+  display:inline-flex!important;
+  align-items:center!important;
+  justify-content:center!important;
+  font-size:0!important;
+  line-height:1!important;
+  overflow:hidden!important;
+  text-decoration:none!important;
+  color:var(--text2)!important;
+  background:transparent!important;
+  border:1.5px solid var(--border)!important;
+  box-shadow:none!important;
+}
+html body .chat-popover.open .chat-admin-tools .btn-out:hover,
+html body .chat-popover.open .chat-admin-tools a.btn-out:hover{border-color:rgba(255,255,255,.35)!important;color:#fff!important;}
+html body .chat-popover.open .chat-admin-tools .btn-out .ico,
+html body .chat-popover.open .chat-admin-tools a.btn-out .ico{
+  display:inline-flex!important;
+  align-items:center!important;
+  justify-content:center!important;
+  font-size:15px!important;
+  line-height:1!important;
+  margin:0!important;
+}
+html body .chat-popover.open .chat-admin-tools .btn-out::after,
+html body .chat-popover.open .chat-admin-tools a.btn-out::after{display:none!important;content:none!important;}
+
+/* Botones especiales conservan color SOLO si son peligro o WhatsApp, pero no resumen verde */
+html body .chat-popover.open .chat-admin-tools .btn-out.danger{border-color:rgba(232,0,10,.55)!important;color:#ff6b6b!important;}
+html body .chat-popover.open .chat-admin-tools a.btn-out[href*="wa.me"]{border-color:rgba(37,211,102,.45)!important;color:#25d366!important;background:transparent!important;}
+html body .chat-popover.open .chat-admin-tools [data-action="resumen-wa"],
+html body .chat-popover.open .chat-admin-tools [title*="Resumen"],
+html body .chat-popover.open .chat-admin-tools [title*="resumen"]{
+  border-color:var(--border)!important;
+  color:var(--text2)!important;
+  background:transparent!important;
+  box-shadow:none!important;
+}
+
+/* El desplegable oculta/expone respuestas rápidas y acciones, no rompe la barra base */
+html body .chat-popover.open.chat-tools-collapsed .chat-admin-tools .chat-quick,
+html body .chat-popover.open.chat-tools-collapsed .chat-admin-tools .btn-out,
+html body .chat-popover.open.chat-tools-collapsed .chat-admin-tools a.btn-out{display:none!important;}
+html body .chat-popover.open.chat-tools-collapsed .chat-admin-tools .chat-filter{display:inline-flex!important;}
+
+/* Layout del panel: herramientas siempre debajo del input, sin tapar mensajes */
+html body .chat-popover.open .chat-panel,
+html body .chat-popover.open.expanded .chat-panel{
+  display:grid!important;
+  grid-template-rows:minmax(0,1fr) auto auto!important;
+  gap:8px!important;
+  overflow:hidden!important;
+  min-height:0!important;
+}
+html body .chat-popover.open .chat-msgs{grid-row:1!important;min-height:0!important;overflow-y:auto!important;}
+html body .chat-popover.open .chat-row{grid-row:2!important;}
+html body .chat-popover.open .chat-admin-tools{grid-row:3!important;}
+
+@media(max-width:700px){
+  html body .chat-popover.open .chat-admin-tools{gap:6px!important;padding-top:7px!important;max-height:none!important;overflow:visible!important;}
+  html body .chat-popover.open .chat-admin-tools .chat-filter{height:31px!important;min-height:31px!important;}
+  html body .chat-popover.open .chat-admin-tools .chat-quick{height:31px!important;min-height:31px!important;padding:0 9px!important;font-size:10px!important;}
+  html body .chat-popover.open .chat-admin-tools .btn-out,
+  html body .chat-popover.open .chat-admin-tools a.btn-out{width:31px!important;min-width:31px!important;height:31px!important;min-height:31px!important;}
+}

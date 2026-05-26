@@ -1,0 +1,5 @@
+/* Extraído de <style id="patch-v73-admin-state-css"> */
+.tomauno-version-tag{display:block;margin-top:10px;font-size:10px;color:rgba(255,255,255,.28);letter-spacing:.12em;text-transform:uppercase;font-weight:800;}
+  body.tu-admin-logged-out #admin-live-indicator,
+  body.tu-admin-logged-out #visit-sound-toggle{display:none!important;}
+  #visit-sound-toggle.tu-muted{opacity:.5!important;filter:grayscale(1)!important;}

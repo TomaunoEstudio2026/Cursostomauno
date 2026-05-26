@@ -1,0 +1,26 @@
+/* Extraído de <style id="patch-v42-estabilidad-chat-final"> */
+/* La luz solo parpadea cuando realmente está no leído. Activo/prioridad/online quedan fijos. */
+html body .chat-tab:not(.unread),
+html body .chat-list-item:not(.unread){
+  animation:none!important;
+}
+html body .chat-tab:not(.unread) .chat-tab-light,
+html body .chat-list-item:not(.unread) .chat-status,
+html body .chat-list-item:not(.unread)::before{
+  animation:none!important;
+}
+html body .chat-tab.active .chat-tab-light{
+  animation:none!important;
+}
+/* Evita movimiento suave raro dentro de la caja de mensajes */
+html body .chat-msgs{
+  scroll-behavior:auto!important;
+  overflow-anchor:none!important;
+}
+/* Mobile: el input queda siempre visible y el navegador no intenta arrastrar toda la web */
+@media(max-width:700px){
+  html,body{overscroll-behavior:none!important;}
+  html body .chat-popover.open{overscroll-behavior:contain!important;}
+  html body .chat-row{position:relative!important;z-index:5!important;}
+  html body .chat-admin-tools{position:relative!important;z-index:4!important;}
+}

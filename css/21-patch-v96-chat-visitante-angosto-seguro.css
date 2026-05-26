@@ -1,0 +1,28 @@
+/* Extraído de <style id="patch-v96-chat-visitante-angosto-seguro"> */
+@media (min-width:701px){
+  /* Usuario visitante: cuando el chat está expandido, no debe ocupar casi toda la pantalla. */
+  html body #chat-popover.chat-popover.open.expanded:not(:has(.chat-admin-tools)){
+    width:min(430px, calc(100vw - 32px))!important;
+    left:auto!important;
+    right:24px!important;
+    transform:none!important;
+    bottom:92px!important;
+    max-height:82vh!important;
+  }
+  html body #chat-popover.chat-popover.open.expanded:not(:has(.chat-admin-tools)) .chat-popover-inner{
+    max-height:calc(82vh - 24px)!important;
+    overflow:hidden!important;
+  }
+  html body #chat-popover.chat-popover.open.expanded:not(:has(.chat-admin-tools)) .chat-panel{
+    height:auto!important;
+    max-height:calc(82vh - 136px)!important;
+  }
+  html body #chat-popover.chat-popover.open.expanded:not(:has(.chat-admin-tools)) .chat-msgs{
+    min-height:320px!important;
+    max-height:calc(82vh - 230px)!important;
+  }
+  /* Admin queda ancho: si hay herramientas admin no se toca. */
+  html body #chat-popover.chat-popover.open.expanded:has(.chat-admin-tools){
+    width:min(1160px,calc(100vw - 42px))!important;
+  }
+}

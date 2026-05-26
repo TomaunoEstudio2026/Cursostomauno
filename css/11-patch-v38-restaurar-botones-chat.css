@@ -1,0 +1,149 @@
+/* Extraído de <style id="patch-v38-restaurar-botones-chat"> */
+/* V38 parte de v36 porque conectaba. Solo corrige layout visual de herramientas. */
+html body .chat-popover .chat-tools-block,
+html body .chat-popover.expanded .chat-tools-block{
+  flex:0 0 auto!important;
+  width:100%!important;
+  min-height:0!important;
+  max-height:none!important;
+  overflow:visible!important;
+  border-top:1px solid rgba(255,255,255,.06)!important;
+  padding-top:8px!important;
+  margin-top:6px!important;
+}
+
+html body .chat-popover .chat-admin-tools,
+html body .chat-popover.expanded .chat-admin-tools{
+  display:flex!important;
+  align-items:center!important;
+  gap:8px!important;
+  flex-wrap:wrap!important;
+  overflow:visible!important;
+  min-height:0!important;
+}
+
+html body .chat-popover .chat-tools-main,
+html body .chat-popover.expanded .chat-tools-main{
+  display:flex!important;
+  align-items:center!important;
+  gap:7px!important;
+  flex-wrap:wrap!important;
+  overflow:visible!important;
+}
+
+html body .chat-popover .chat-quick-label,
+html body .chat-popover.expanded .chat-quick-label{
+  width:100%!important;
+  font-size:10px!important;
+  line-height:1!important;
+  color:rgba(255,255,255,.28)!important;
+  margin:2px 0 0!important;
+}
+
+html body .chat-popover .chat-quick-wrap,
+html body .chat-popover.expanded .chat-quick-wrap{
+  display:flex!important;
+  flex-wrap:wrap!important;
+  gap:6px!important;
+  overflow:visible!important;
+  width:auto!important;
+  max-width:100%!important;
+  padding:0!important;
+  margin:0!important;
+}
+
+html body .chat-popover .chat-admin-actions,
+html body .chat-popover.expanded .chat-admin-actions{
+  display:flex!important;
+  flex-wrap:wrap!important;
+  gap:7px!important;
+  overflow:visible!important;
+  width:auto!important;
+  max-width:100%!important;
+  padding:0!important;
+  margin:0!important;
+  align-items:center!important;
+}
+
+html body .chat-popover .chat-admin-actions .btn-out,
+html body .chat-popover .chat-admin-actions a.btn-out,
+html body .chat-popover.expanded .chat-admin-actions .btn-out,
+html body .chat-popover.expanded .chat-admin-actions a.btn-out{
+  min-width:34px!important;
+  width:34px!important;
+  height:34px!important;
+  border-radius:50%!important;
+  padding:0!important;
+  margin:0!important;
+  display:inline-flex!important;
+  align-items:center!important;
+  justify-content:center!important;
+  font-size:0!important;
+  line-height:1!important;
+  overflow:hidden!important;
+  text-decoration:none!important;
+  flex:0 0 auto!important;
+}
+
+html body .chat-popover .chat-admin-actions .btn-out .ico,
+html body .chat-popover .chat-admin-actions a.btn-out .ico,
+html body .chat-popover.expanded .chat-admin-actions .btn-out .ico,
+html body .chat-popover.expanded .chat-admin-actions a.btn-out .ico{
+  display:block!important;
+  font-size:15px!important;
+  line-height:1!important;
+  margin:0!important;
+}
+
+/* En pantalla grande, las acciones quedan en la misma zona que los botones principales y no generan barra vertical. */
+@media(min-width:701px){
+  html body .chat-popover.expanded .chat-tools-block{
+    display:flex!important;
+    flex-direction:row!important;
+    align-items:center!important;
+    gap:10px!important;
+    padding-bottom:0!important;
+  }
+  html body .chat-popover.expanded .chat-admin-tools{
+    width:auto!important;
+    flex:0 0 auto!important;
+  }
+  html body .chat-popover.expanded .chat-quick-label{display:none!important;}
+  html body .chat-popover.expanded .chat-quick-wrap{flex:1 1 auto!important;}
+  html body .chat-popover.expanded .chat-admin-actions{flex:0 0 auto!important;}
+}
+
+/* Mobile: conservar comportamiento tipo v35, botones chicos y escondibles. */
+@media(max-width:700px){
+  html body .chat-popover .chat-tools-block,
+  html body .chat-popover.expanded .chat-tools-block{
+    max-height:none!important;
+    overflow:visible!important;
+  }
+  html body .chat-popover .chat-admin-tools,
+  html body .chat-popover.expanded .chat-admin-tools{
+    display:flex!important;
+    flex-wrap:wrap!important;
+  }
+  html body .chat-popover .chat-admin-actions .btn-out,
+  html body .chat-popover .chat-admin-actions a.btn-out,
+  html body .chat-popover.expanded .chat-admin-actions .btn-out,
+  html body .chat-popover.expanded .chat-admin-actions a.btn-out{
+    min-width:32px!important;
+    width:32px!important;
+    height:32px!important;
+  }
+}
+
+/* Si se usa el botón de desplegar/ocultar herramientas, que oculte realmente todo el bloque secundario. */
+html body .chat-popover.chat-tools-collapsed .chat-quick-label,
+html body .chat-popover.chat-tools-collapsed .chat-quick-wrap,
+html body .chat-popover.chat-tools-collapsed .chat-admin-actions{display:none!important;}
+
+/* Evitar temblores visuales por rebote/scroll encadenado. */
+html body .chat-popover,
+html body .chat-msgs,
+html body .chat-input-row{
+  overscroll-behavior:contain!important;
+  overflow-anchor:none!important;
+}

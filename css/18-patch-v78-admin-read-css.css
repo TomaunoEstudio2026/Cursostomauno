@@ -1,0 +1,5 @@
+/* Extraído de <style id="patch-v78-admin-read-css"> */
+.tomauno-version-tag{display:block;margin-top:10px;font-size:10px;color:rgba(255,255,255,.28);letter-spacing:.12em;text-transform:uppercase;font-weight:800;}
+  html body .chat-tab.tu-read-fix,
+  html body .chat-list-item.tu-read-fix{animation:none!important;}
+  html body .chat-tab.tu-read-fix .chat-tab-light{animation:none!important;}

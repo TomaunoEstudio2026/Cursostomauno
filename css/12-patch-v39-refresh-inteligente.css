@@ -1,0 +1,51 @@
+/* Extraído de <style id="patch-v39-refresh-inteligente"> */
+/* Ajuste suave: no modifica conexión. Solo estabiliza lectura/escritura del chat. */
+html body .chat-msgs{
+  overscroll-behavior:contain!important;
+  overflow-anchor:none!important;
+  scroll-behavior:auto!important;
+}
+html body .chat-popover,
+html body .chat-panel,
+html body .chat-row,
+html body .chat-tools-block{
+  overflow-anchor:none!important;
+}
+/* El puntito de la pestaña lateral debe ser único: luz = online, titileo = no leído. */
+html body .chat-inbox-side .chat-tab::before,
+html body .chat-tabs .chat-tab::before{
+  display:none!important;
+  content:none!important;
+}
+html body .chat-tab .chat-tab-light{
+  position:relative!important;
+  display:inline-block!important;
+  width:10px!important;
+  height:10px!important;
+  min-width:10px!important;
+  border-radius:50%!important;
+  background:#39424d!important;
+  box-shadow:none!important;
+}
+html body .chat-tab.online .chat-tab-light{background:#38d27a!important;box-shadow:0 0 0 4px rgba(56,210,122,.12)!important;}
+html body .chat-tab.unread .chat-tab-light,
+html body .chat-tab.waiting.unread .chat-tab-light{
+  background:#e8000a!important;
+  animation:chatV39Blink 1s infinite!important;
+  box-shadow:0 0 0 4px rgba(232,0,10,.14)!important;
+}
+html body .chat-tab.active .chat-tab-light{animation:none!important;}
+@keyframes chatV39Blink{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.35;transform:scale(.82)}}
+
+/* En fullscreen, mantener acciones compactas sin agregar scroll vertical inferior. */
+@media(min-width:701px){
+  html body .chat-popover.expanded .chat-tools-block{
+    max-height:none!important;
+    overflow:visible!important;
+  }
+  html body .chat-popover.expanded .chat-admin-tools,
+  html body .chat-popover.expanded .chat-quick-wrap,
+  html body .chat-popover.expanded .chat-admin-actions{
+    overflow:visible!important;
+  }
+}
