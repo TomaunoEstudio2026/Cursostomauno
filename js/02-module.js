@@ -2047,7 +2047,9 @@ function renderMsgs(chat, adminView=false, chatId=''){
     const editBtn = adminView && m.from === 'admin' ? '<button class="chat-edit-mini" title="Editar respuesta" onclick="event.stopPropagation();window.editarMensajeChat(\''+chatId+'\',\''+mid+'\')">✎</button>' : '';
     const cls = m.typing ? 'typing' : (m.from==='admin'?'admin':m.from==='system'?'system':'user');
     const actions = (!m.typing && (m.from==='admin' || m.from==='system')) ? chatActionButtonsForMessage(m.text || '') : '';
-    return '<div class="chat-bubble '+cls+'"><div>'+chatLinkify(m.text||'')+editBtn+'</div>'+actions+(m.from==='system'?'':'<div class="chat-meta">'+escHtml(m.time||'')+'</div>')+'</div>';
+    const waitStart = m.humanWait ? Number(chat?.humanWaitStartedAt || m.createdAt || 0) : 0;
+    const waitCountdown = waitStart ? '<div class="chat-human-countdown" data-human-wait-start="'+waitStart+'"><span class="chat-human-countdown-num">60</span>s para intentar conectar con Javier</div>' : '';
+    return '<div class="chat-bubble '+cls+'"><div>'+chatLinkify(m.text||'')+editBtn+'</div>'+waitCountdown+actions+(m.from==='system'?'':'<div class="chat-meta">'+escHtml(m.time||'')+'</div>')+'</div>';
   }).join('');
 }
 function scrollChatSmart(box){
@@ -7566,6 +7568,31 @@ window.filterCursos = function(){
         text-transform:uppercase;
         margin-bottom:3px;
       }
+      .chat-human-countdown{
+        margin-top:10px;
+        display:inline-flex;
+        align-items:center;
+        gap:6px;
+        border:1px solid rgba(255,255,255,.22);
+        background:rgba(0,0,0,.18);
+        color:#fff;
+        border-radius:999px;
+        padding:6px 10px;
+        font-size:11px;
+        font-weight:800;
+      }
+      .chat-human-countdown-num{
+        display:inline-flex;
+        align-items:center;
+        justify-content:center;
+        min-width:26px;
+        height:24px;
+        border-radius:50%;
+        background:#fff;
+        color:#e8000a;
+        font-size:13px;
+        font-weight:900;
+      }
       .chat-tab.typing-live .chat-tab-preview,
       .chat-list-item.typing-live .tu-live-list-preview{color:#ffe47a!important;}
       .chat-tab.typing-live .chat-tab-light{
@@ -7953,11 +7980,26 @@ window.filterCursos = function(){
     });
   }
 
+  function updateHumanCountdownFinal(){
+    document.querySelectorAll('.chat-human-countdown[data-human-wait-start]').forEach(el => {
+      const start = Number(el.getAttribute('data-human-wait-start') || 0);
+      const num = el.querySelector('.chat-human-countdown-num');
+      if(!start || !num) return;
+      const remain = Math.max(0, 60 - Math.floor((Date.now() - start) / 1000));
+      num.textContent = String(remain);
+      if(remain <= 0){
+        el.classList.add('done');
+        el.innerHTML = '<span class="chat-human-countdown-num">0</span>Javier puede responder en cualquier momento';
+      }
+    });
+  }
+
   onValue(ref(db,'tomauno/chats'), snap => {
     chatsDB = snap.exists() ? snap.val() : {};
     syncChatGlobalsFinal();
     renderLiveTypingFinal();
     decorateTypingListsFinal();
+    updateHumanCountdownFinal();
   });
 
   const prevSetChatPopoverFinal = setChatPopover;
@@ -7978,5 +8020,5 @@ window.filterCursos = function(){
 
   installFinalCss();
   syncChatGlobalsFinal();
-  setInterval(() => { renderLiveTypingFinal(); decorateTypingListsFinal(); }, 1200);
+  setInterval(() => { renderLiveTypingFinal(); decorateTypingListsFinal(); updateHumanCountdownFinal(); }, 1000);
 })();
