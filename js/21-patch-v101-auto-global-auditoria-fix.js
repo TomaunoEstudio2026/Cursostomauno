@@ -217,6 +217,7 @@
     if(!isAdminActive()) return;
     var pop=document.getElementById('chat-popover');
     if(!pop || !pop.classList.contains('open')) return;
+    if(document.activeElement && (document.activeElement.id==='chat-name' || document.activeElement.id==='chat-text')) return;
     var hasAdmin=!!pop.querySelector('.chat-admin-tools,.chat-admin-actions,.chat-inbox-side,.chat-tabs,#chat-admin-text');
     if(hasAdmin) return;
     if(Date.now()-lastAdminFixAt<3500) return;

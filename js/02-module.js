@@ -7775,6 +7775,22 @@ window.filterCursos = function(){
     decorateTypingListsFinal();
   });
 
+  const prevSetChatPopoverFinal = setChatPopover;
+  setChatPopover = function(html){
+    const active = document.activeElement;
+    const pop = document.getElementById('chat-popover');
+    const visitorInputActive = !!(
+      active &&
+      (active.id === 'chat-name' || active.id === 'chat-text') &&
+      pop &&
+      pop.classList.contains('open') &&
+      !adminActiveFinal()
+    );
+    if(visitorInputActive) return;
+    return prevSetChatPopoverFinal.apply(this, arguments);
+  };
+  window.setChatPopover = setChatPopover;
+
   installFinalCss();
   setInterval(() => { renderLiveTypingFinal(); decorateTypingListsFinal(); }, 1200);
 })();
