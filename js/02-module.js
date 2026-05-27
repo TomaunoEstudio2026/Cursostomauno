@@ -8020,8 +8020,8 @@ window.filterCursos = function(){
 
   document.addEventListener('keydown', ev => {
     if(!ev || ev.key !== 'Enter' || !ev.target || ev.target.id !== 'chat-text') return;
-    const id = visitorChatIdFinal();
-    if(!id || adminActiveFinal()) return;
+    const id = visitorChatIdFinal() || currentVisitorChatId || (() => { try{ return sessionStorage.getItem('tomauno-chat-id') || ''; }catch(e){ return ''; } })();
+    if(!id) return;
     ev.preventDefault();
     ev.stopPropagation();
     if(ev.stopImmediatePropagation) ev.stopImmediatePropagation();

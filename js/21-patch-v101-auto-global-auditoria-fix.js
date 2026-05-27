@@ -621,18 +621,9 @@
     document.addEventListener('keydown',function(e){
       if(!e || e.key!=='Enter') return;
       if(e.target && e.target.id==='chat-text'){
-        e.preventDefault();
-        e.stopPropagation();
-        if(e.stopImmediatePropagation) e.stopImmediatePropagation();
-        sendingUntil=Date.now()+1200;
-        lock.active=false;
-        var id=(window.currentOpenChatId||window.currentVisitorChatId||sessionStorage.getItem('tomauno-chat-id')||'');
-        var out=window.enviarChatVisitante&&window.enviarChatVisitante(id);
-        Promise.resolve(out).finally(function(){
-          hardClearInput('chat-text');
-          setTimeout(function(){hardClearInput('chat-text');},80);
-          setTimeout(function(){hardClearInput('chat-text');},260);
-        });
+        // El envio estable vive en 02-module.js. Este parche solo protege foco/scroll;
+        // si intercepta Enter en captura, puede bloquear el primer mensaje real.
+        return;
       }else if(e.target && e.target.id==='chat-name'){
         e.preventDefault();
         e.stopPropagation();
