@@ -571,8 +571,10 @@
     document.addEventListener('scroll',function(e){
       if(writing() && e.target && e.target.classList && e.target.classList.contains('chat-msgs')) restore();
     },true);
-    new MutationObserver(function(){if(writing()){restore();cleanVisitor();}else cleanVisitor();}).observe(document.documentElement,{childList:true,subtree:true});
-    setInterval(function(){if(writing()) restore(); cleanVisitor();},120);
+    document.addEventListener('click',function(e){
+      if(e.target && e.target.closest && e.target.closest('#chat-fab,#chat-popover')) setTimeout(cleanVisitor,80);
+    },true);
+    setInterval(function(){ if(writing()) restore(); },250);
   }
   if(document.readyState==='loading') document.addEventListener('DOMContentLoaded',install,{once:true}); else install();
 })();

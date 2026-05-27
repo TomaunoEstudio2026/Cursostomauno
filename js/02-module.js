@@ -2256,8 +2256,12 @@ window.limpiarChatsDefinitivo = () => {
 
 window.cerrarConversacionChat = async (id) => {
   await update(ref(db,'tomauno/chats/'+id), {status:'cerrado', unreadAdmin:false, updatedAt:Date.now()});
-  const abiertos = Object.entries(chatsDB).filter(([k,c]) => k!==id && c.status !== 'cerrado').sort((a,b)=>(b[1].updatedAt||0)-(a[1].updatedAt||0));
-  if (abiertos.length) abrirChatAdmin(abiertos[0][0]); else abrirPanelChatsAdmin();
+  if(currentOpenChatId && currentOpenChatId !== id && chatsDB[currentOpenChatId] && chatsDB[currentOpenChatId].status !== 'cerrado'){
+    abrirChatAdmin(currentOpenChatId, true);
+  }else{
+    currentOpenChatId = '';
+    abrirPanelChatsAdmin();
+  }
 };
 
 window.abrirChatAdmin = (id, silent=false) => {
@@ -5124,7 +5128,12 @@ window.abrirChatTomauno = function(){
 window.cerrarConversacionChat = async function(id){
   await update(ref(db,'tomauno/chats/'+id), {status:'cerrado', unreadAdmin:false, updatedAt:Date.now()});
   toast('📭 Conversación cerrada');
-  abrirChatAdminHome();
+  if(currentOpenChatId && currentOpenChatId !== id && chatsDB[currentOpenChatId] && chatsDB[currentOpenChatId].status !== 'cerrado'){
+    abrirChatAdmin(currentOpenChatId, true);
+  }else{
+    currentOpenChatId = '';
+    abrirPanelChatsAdmin();
+  }
 };
 
 window.cerrarTodosChatsAbiertos = function(){
