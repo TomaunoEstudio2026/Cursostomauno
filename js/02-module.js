@@ -4566,6 +4566,7 @@ setTimeout(() => { if (document.getElementById('agenda-preview-canvas')) window.
   window.addEventListener('resize', () => { resize(); initBlobs(); });
 })();
 
+
 // ── FLYER PANTALLA COMPLETA ───────────────────────────────────────────────────
 window.verFlyerFull = (src) => {
   const ov = document.createElement('div');
@@ -7445,205 +7446,322 @@ window.filterCursos = function(){
 
 
 /* =====================================================================
-   MODULAR v20 — Corrección real visitante/admin dentro del módulo central
-   - Reemplaza rutas locales, no solo window.*
+   v33.22 - cierre final del chat. Este bloque queda ultimo dentro del
+   modulo para que ningun parche viejo vuelva a pisar scroll, foco,
+   lectura admin, notificaciones o escritura en vivo.
    ===================================================================== */
 (function(){
-  'use strict';
-  const V20='Tomauno modular v20';
-  let lastVisitorRenderId='';
-  let lastVisitorMessagesSignature='';
-  let visitorTypingUntil=0;
-  let lastAdminOpened='';
-  function safe(fn){ try{return fn();}catch(e){ try{console.warn('v20',e);}catch(_){} } }
-  function now(){return Date.now();}
-  function isAdmin(){ return safe(()=>isAdminNotifier && isAdminNotifier()) || localStorage.getItem('tomauno-admin-ok')==='1'; }
-  function chatObj(id){ return (chatsDB && chatsDB[id]) ? chatsDB[id] : {}; }
-  function validName(raw){
-    let n=limpiarNombreChat(String(raw||'').trim());
-    if(!n || n.length<2 || n.length>40) return '';
-    if(/^(hola|buenas|ok|dale|si|sí|no|a|quiero|consulta|informacion|información)$/i.test(n)) return '';
-    if(/[?¿!¡]/.test(n)) return '';
-    return n;
-  }
-  function msgSignature(chat){
-    return chatMsgs(chat).map(([k,m])=>k+':'+(m.from||'')+':'+(m.text||'').length+':'+(m.createdAt||'')).join('|');
-  }
-  function preserveInput(fn){
-    const active=document.activeElement;
-    const input=active && active.id==='chat-text' ? active : document.getElementById('chat-text');
-    const focused=active===input;
-    const val=input ? input.value : '';
-    const sel=input ? input.selectionStart : 0;
-    const box=document.getElementById('chat-msgs');
-    const top=box ? box.scrollTop : 0;
-    const res=fn();
-    if(focused){
-      setTimeout(()=>safe(()=>{
-        const ni=document.getElementById('chat-text');
-        const nb=document.getElementById('chat-msgs');
-        if(ni){ ni.value=val; ni.focus({preventScroll:true}); try{ni.setSelectionRange(sel,sel);}catch(_){} }
-        if(nb) nb.scrollTop=top;
-      }),0);
-    }
-    return res;
-  }
-  function markVisitorLayout(){ safe(()=>{
-    const p=document.getElementById('chat-popover'); if(!p) return;
-    const adm=!!p.querySelector('#chat-admin-text,.chat-admin-tools,.chat-inbox-side,.chat-tabs');
-    p.classList.toggle('tomauno-chat-admin',adm);
-    p.classList.toggle('tomauno-chat-visitor',!adm);
-    document.body.classList.toggle('tomauno-chat-visitor-body',!adm && p.classList.contains('open'));
-    if(!adm){
-      const title=p.querySelector('.chat-title'); if(title) title.textContent='CHAT TOMAUNO';
-      const sub=p.querySelector('.chat-subline'); if(sub) sub.textContent='Consulta directa desde la web';
-    }
-  });}
-  function scrollVisitor(box, force=false){ safe(()=>{
-    if(!box) return;
-    if(now()<visitorTypingUntil && !force) return;
-    const near=(box.scrollHeight-box.scrollTop-box.clientHeight)<120;
-    if(force || near) requestAnimationFrame(()=>{box.scrollTop=box.scrollHeight;});
-  });}
-  function visitorHtml(id, chat, inputVal=''){
-    const msgs=renderMsgs(chat,false,id);
-    return '<div class="chat-head"><div class="chat-avatar">💬</div><div><div class="chat-title">CHAT TOMAUNO</div><div class="chat-subline">Consulta directa desde la web</div></div></div>'+
-      '<div class="chat-panel"><div class="chat-msgs" id="chat-msgs">'+msgs+'</div>'+
-      '<div class="chat-row"><input class="finput" id="chat-text" placeholder="Escribí tu mensaje..." value="'+escAttr(inputVal)+'" autocomplete="off" onkeydown="if(event.key===\'Enter\')window.enviarChatVisitante()"/><button class="chat-send" onclick="window.enviarChatVisitante()">➜</button></div></div>';
-  }
-  function nameStartHtml(){
-    return '<div class="chat-head"><div class="chat-avatar">💬</div><div><div class="chat-title">CHAT TOMAUNO</div><div class="chat-subline">Consulta directa desde la web</div></div></div>'+
-      '<div class="chat-panel"><div class="chat-msgs" id="chat-msgs"><div class="chat-bubble admin"><div>Hola 😊<br><strong>¿Cómo es tu nombre?</strong></div><div class="chat-meta">Ahora</div></div></div>'+
-      '<div class="chat-name-row"><input class="finput" id="chat-name" placeholder="Tu nombre" autocomplete="off" onkeydown="if(event.key===\'Enter\')window.iniciarChatConNombre()"/><button class="chat-send" onclick="window.iniciarChatConNombre()">➜</button></div></div>';
-  }
-  const oldSetChatPopoverV20=setChatPopover;
-  setChatPopover=function(html){
-    const res=oldSetChatPopoverV20.apply(this,arguments);
-    markVisitorLayout();
-    return res;
-  };
-  window.setChatPopover=setChatPopover;
+  const TYPING_MAX_AGE = 12000;
+  const VISITOR_CHAT_WIDTH = 360;
 
-  abrirChatTomauno = window.abrirChatTomauno = function(){
-    unlockAudio && unlockAudio();
-    const pop=document.getElementById('chat-popover');
-    if(pop && pop.classList.contains('open')){ window.cerrarChatPopover(); return; }
-    if(isAdmin()) return abrirPanelChatsAdmin();
-    document.getElementById('chat-fab')?.classList.remove('has-new','auto-on');
-    if(currentVisitorChatId && chatsDB[currentVisitorChatId] && chatsDB[currentVisitorChatId].status!=='cerrado') return abrirChatVisitante(currentVisitorChatId,true);
-    setChatPopover(nameStartHtml());
-    markVisitorLayout();
-    // No focus automático: en celular abría teclado y tapaba texto.
-  };
-
-  iniciarChatConNombre = window.iniciarChatConNombre = async function(){
-    const inp=document.getElementById('chat-name');
-    const raw=String(inp?.value||'').trim();
-    const name=validName(raw);
-    if(!name){ if(inp){inp.value=''; inp.placeholder='Tu nombre'; inp.focus({preventScroll:true});} toast && toast('Escribí tu nombre'); return; }
-    const t=now();
-    const chatRef=await push(ref(db,'tomauno/chats'),{name,wp:'',status:'abierto',createdAt:t,updatedAt:t,lastMsg:'Nombre: '+name,unreadAdmin:true,unreadVisitor:false});
-    currentVisitorChatId=chatRef.key;
-    try{sessionStorage.setItem('tomauno-chat-id',currentVisitorChatId);sessionStorage.setItem('tomauno-chat-name',name);}catch(_){ }
-    await push(ref(db,'tomauno/chats/'+currentVisitorChatId+'/messages'),{from:'admin',text:'Hola 😊\n¿Cómo es tu nombre?',time:chatTime(),createdAt:t-2});
-    await push(ref(db,'tomauno/chats/'+currentVisitorChatId+'/messages'),{from:'user',text:raw,time:chatTime(),createdAt:t-1});
-    await push(ref(db,'tomauno/chats/'+currentVisitorChatId+'/messages'),{from:'admin',text:'Hola '+name+' 👋 ¿En qué puedo ayudarte?',time:chatTime(),createdAt:t});
-    abrirChatVisitante(currentVisitorChatId,true);
-  };
-
-  const oldAbrirVisitanteV20=abrirChatVisitante;
-  abrirChatVisitante = window.abrirChatVisitante = function(id, silent=false){
-    currentOpenChatId=id;
-    markVisitorChatOnline(id);
-    const chat=chatObj(id);
-    const pop=document.getElementById('chat-popover');
-    const active=document.activeElement;
-    const typing=active && active.id==='chat-text';
-    const val=document.getElementById('chat-text')?.value||'';
-    const sig=msgSignature(chat);
-    if(typing){ visitorTypingUntil=now()+2500; return; }
-    if(pop && pop.classList.contains('open') && pop.classList.contains('tomauno-chat-visitor') && lastVisitorRenderId===id){
-      if(sig!==lastVisitorMessagesSignature){
-        const box=document.getElementById('chat-msgs');
-        if(box){ box.innerHTML=renderMsgs(chat,false,id); lastVisitorMessagesSignature=sig; scrollVisitor(box,true); }
+  function adminActiveFinal(){
+    try{ return isAdminNotifier(); }catch(e){ return false; }
+  }
+  function visitorTypingNow(){
+    const pop = document.getElementById('chat-popover');
+    const inp = document.getElementById('chat-text');
+    return !!(pop && pop.classList.contains('open') && inp && document.activeElement === inp && !adminActiveFinal());
+  }
+  function chatTypingText(chat){
+    const lt = chat && chat.liveTyping;
+    if(!lt || !lt.text || !lt.at || Date.now() - Number(lt.at) > TYPING_MAX_AGE) return '';
+    return String(lt.text || '').trim();
+  }
+  function visitorChatIdFinal(){
+    try{ return currentVisitorChatId || sessionStorage.getItem('tomauno-chat-id') || ''; }
+    catch(e){ return currentVisitorChatId || ''; }
+  }
+  function installFinalCss(){
+    if(document.getElementById('tu-v3322-chat-css')) return;
+    const st = document.createElement('style');
+    st.id = 'tu-v3322-chat-css';
+    st.textContent = `
+      body.tomauno-visitor-active .chat-popover.open:not(.expanded):not(:has(.chat-inbox-side)),
+      body:not(.tomauno-admin-active) .chat-popover.open:not(.expanded):not(:has(.chat-inbox-side)),
+      .chat-popover.tomauno-chat-visitor.open:not(.expanded),
+      .chat-popover.tu89-visitor.open:not(.expanded){
+        width:min(${VISITOR_CHAT_WIDTH}px, calc(100vw - 22px))!important;
+        max-width:min(${VISITOR_CHAT_WIDTH}px, calc(100vw - 22px))!important;
+        right:18px!important;
+        bottom:82px!important;
       }
-      markVisitorLayout(); return;
+      .chat-live-typing{
+        margin:8px 0 2px;
+        padding:8px 10px;
+        border:1px solid rgba(255,204,0,.32);
+        background:rgba(255,204,0,.08);
+        color:#ffe47a;
+        border-radius:10px;
+        font-size:11px;
+        line-height:1.35;
+      }
+      .chat-live-typing strong{
+        display:block;
+        color:#fff;
+        font-size:10px;
+        letter-spacing:.08em;
+        text-transform:uppercase;
+        margin-bottom:3px;
+      }
+      .chat-tab.typing-live .chat-tab-preview,
+      .chat-list-item.typing-live .tu-live-list-preview{color:#ffe47a!important;}
+      .chat-tab.typing-live .chat-tab-light{
+        background:#ffcc00!important;
+        box-shadow:0 0 0 4px rgba(255,204,0,.16),0 0 14px rgba(255,204,0,.55)!important;
+      }
+      @media(max-width:700px){
+        body.tomauno-visitor-active .chat-popover.open,
+        body:not(.tomauno-admin-active) .chat-popover.open,
+        .chat-popover.tomauno-chat-visitor.open,
+        .chat-popover.tu89-visitor.open{
+          width:auto!important;
+          left:10px!important;
+          right:10px!important;
+          height:calc(100dvh - var(--tomauno-keyboard, 0px) - 22px)!important;
+          max-height:calc(100dvh - var(--tomauno-keyboard, 0px) - 22px)!important;
+        }
+      }
+    `;
+    document.head.appendChild(st);
+  }
+  function preserveDraft(fn){
+    const inp = document.getElementById('chat-text');
+    const box = document.getElementById('chat-msgs');
+    const keep = inp ? {value:inp.value,start:inp.selectionStart,end:inp.selectionEnd,focused:document.activeElement===inp} : null;
+    const top = box ? box.scrollTop : 0;
+    const r = fn();
+    if(keep && keep.focused){
+      const next = document.getElementById('chat-text');
+      if(next){
+        next.value = keep.value;
+        try{ next.focus({preventScroll:true}); next.setSelectionRange(keep.start, keep.end); }
+        catch(e){ try{ next.focus(); }catch(_e){} }
+      }
+      const newBox = document.getElementById('chat-msgs');
+      if(newBox) newBox.scrollTop = top;
     }
-    lastVisitorRenderId=id; lastVisitorMessagesSignature=sig;
-    setChatPopover(visitorHtml(id,chat,val));
-    markVisitorLayout();
-    setTimeout(()=>scrollVisitor(document.getElementById('chat-msgs'),true),50);
-  };
+    return r;
+  }
 
-  const oldUpdateV20=updateChatMessagesOnly;
-  updateChatMessagesOnly=function(id,adminView){
-    if(!adminView && document.activeElement && document.activeElement.id==='chat-text') return;
-    if(!adminView){
-      const chat=chatObj(id); const sig=msgSignature(chat); const box=document.getElementById('chat-msgs');
-      if(box && sig!==lastVisitorMessagesSignature){ box.innerHTML=renderMsgs(chat,false,id); lastVisitorMessagesSignature=sig; scrollVisitor(box,true); }
+  const prevScrollFinal = scrollChatSmart;
+  scrollChatSmart = function(box){
+    if(visitorTypingNow()) return;
+    return prevScrollFinal.apply(this, arguments);
+  };
+  window.scrollChatSmart = scrollChatSmart;
+
+  const prevUpdateMsgsFinal = updateChatMessagesOnly;
+  updateChatMessagesOnly = function(id, adminView){
+    if(visitorTypingNow()) return preserveDraft(() => prevUpdateMsgsFinal.call(this, id, false));
+    const r = prevUpdateMsgsFinal.apply(this, arguments);
+    setTimeout(renderLiveTypingFinal, 20);
+    return r;
+  };
+  window.updateChatMessagesOnly = updateChatMessagesOnly;
+
+  const prevOpenVisitorFinal = abrirChatVisitante;
+  abrirChatVisitante = function(id, silent){
+    if(visitorTypingNow() && id === visitorChatIdFinal()){
+      updateChatMessagesOnly(id, false);
       return;
     }
-    return oldUpdateV20.apply(this,arguments);
+    return preserveDraft(() => prevOpenVisitorFinal.apply(this, arguments));
   };
-  window.updateChatMessagesOnly=updateChatMessagesOnly;
+  window.abrirChatVisitante = abrirChatVisitante;
 
-  const oldEnviarVisitanteV20=window.enviarChatVisitante;
-  window.enviarChatVisitante=async function(){
-    const inp=document.getElementById('chat-text');
-    const text=String(inp?.value||'').trim();
-    if(!text) return;
-    visitorTypingUntil=0;
-    const res=await oldEnviarVisitanteV20.apply(this,arguments);
-    setTimeout(()=>scrollVisitor(document.getElementById('chat-msgs'),true),80);
-    return res;
-  };
-
-  const oldAbrirAdminV20=window.abrirChatAdmin;
-  window.abrirChatAdmin = abrirChatAdmin = function(id,silent=false){
-    const r=oldAbrirAdminV20.apply(this,arguments);
-    lastAdminOpened=id;
-    safe(()=>update(ref(db,'tomauno/chats/'+id),{unreadAdmin:false,humanRequested:false,priority:false,waitingHuman:false,lastAdminReadAt:now()}));
-    setTimeout(()=>safe(()=>{
-      const tab=document.querySelector('.chat-tab.active,.chat-list-item.unread');
-      document.querySelectorAll('.chat-tab.active,.chat-list-item.unread').forEach(el=>el.classList.remove('unread','waiting','priority'));
-    }),80);
-    return r;
-  };
-
-  const oldNotifyV20=notifyAdminChat;
-  notifyAdminChat = window.notifyAdminChat = function(title,body,chatId){
-    if(!isAdmin()) return;
-    const clean=String(body||'Nuevo mensaje').replace(/\s+/g,' ').slice(0,160);
-    const r=oldNotifyV20.call(this,title||'Nuevo chat web',clean,chatId);
-    setTimeout(()=>safe(()=>{
-      const toastEl=document.getElementById('toast');
-      if(toastEl && chatId){ toastEl.onclick=function(){ window.abrirChatAdmin(chatId,true); }; toastEl.style.cursor='pointer'; }
-    }),50);
-    return r;
-  };
-
-  const oldCerrarAdminV20=window.cerrarAdmin;
-  if(typeof oldCerrarAdminV20==='function'){
-    window.cerrarAdmin = cerrarAdmin = function(){
-      const p=document.getElementById('chat-popover'); if(p) p.classList.remove('open','expanded');
-      currentOpenChatId='';
-      return oldCerrarAdminV20.apply(this,arguments);
-    };
-  }
-
-  function refreshLights(){ safe(()=>{
-    Object.entries(chatsDB||{}).forEach(([id,c])=>{
-      if(id===lastAdminOpened && !c.unreadAdmin){
-        document.querySelectorAll('[onclick*="'+id+'"]').forEach(el=>el.classList&&el.classList.remove('unread','waiting','priority'));
-      }
+  window.iniciarChatConNombre = async function(){
+    const rawName = (document.getElementById('chat-name')?.value || '').trim();
+    const name = limpiarNombreChat(rawName);
+    if(!name || /^(hola|buenas|ok|dale|a)$/i.test(name)){
+      toast('Escribi tu nombre para iniciar');
+      return;
+    }
+    const now = Date.now();
+    const chatRef = await push(ref(db,'tomauno/chats'), {
+      name,
+      wp:'',
+      status:'abierto',
+      createdAt:now,
+      updatedAt:now,
+      lastMsg:rawName,
+      unreadAdmin:true,
+      unreadVisitor:false,
+      userOnline:true,
+      userLastSeen:now
     });
-  });}
-  function initV20(){
-    const tag=document.getElementById('tomauno-version-tag')||document.createElement('span');
-    tag.id='tomauno-version-tag'; tag.textContent=V20;
-    if(!tag.parentElement) (document.querySelector('footer')||document.body).appendChild(tag);
-    markVisitorLayout(); refreshLights();
+    currentVisitorChatId = chatRef.key;
+    currentOpenChatId = chatRef.key;
+    try{
+      sessionStorage.setItem('tomauno-chat-id', currentVisitorChatId);
+      sessionStorage.setItem('tomauno-chat-name', name);
+    }catch(e){}
+    await push(ref(db,'tomauno/chats/'+currentVisitorChatId+'/messages'), {
+      from:'admin',
+      text:'Hola :)\\nComo es tu nombre?',
+      time:chatTime(),
+      createdAt:now - 2,
+      auto:true,
+      welcome:true
+    });
+    await push(ref(db,'tomauno/chats/'+currentVisitorChatId+'/messages'), {
+      from:'user',
+      text:rawName,
+      time:chatTime(),
+      createdAt:now - 1
+    });
+    await push(ref(db,'tomauno/chats/'+currentVisitorChatId+'/messages'), {
+      from:'admin',
+      text:'Hola '+name+' :) En que puedo ayudarte?',
+      time:chatTime(),
+      createdAt:Date.now(),
+      auto:true
+    });
+    abrirChatVisitante(currentVisitorChatId, true);
+  };
+
+  const prevOpenAdminFinal = window.abrirChatAdmin;
+  window.abrirChatAdmin = abrirChatAdmin = function(id, silent){
+    const r = prevOpenAdminFinal.apply(this, arguments);
+    if(id){
+      const readAt = Date.now();
+      update(ref(db,'tomauno/chats/'+id), {
+        unreadAdmin:false,
+        priority:false,
+        prioridad:false,
+        waitingHuman:false,
+        humanRequested:false,
+        adminReadAt:readAt
+      }).catch(()=>{});
+      try{
+        const c = chatsDB[id];
+        if(c) Object.assign(c, {
+          unreadAdmin:false,
+          priority:false,
+          prioridad:false,
+          waitingHuman:false,
+          humanRequested:false,
+          adminReadAt:readAt
+        });
+      }catch(e){}
+    }
+    setTimeout(renderLiveTypingFinal, 30);
+    setTimeout(decorateTypingListsFinal, 80);
+    return r;
+  };
+
+  notifyAdminChat = function(title, body, chatId){
+    try{ beep(); }catch(e){}
+    try{
+      showNotif();
+      showNotifBanner(title || 'Nuevo mensaje web', body || 'Nuevo mensaje', 'CHAT', () => {
+        if(chatId) window.abrirChatAdmin(chatId);
+        else window.abrirPanelChatsAdmin && window.abrirPanelChatsAdmin();
+      });
+    }catch(e){}
+    try{
+      if('Notification' in window && Notification.permission === 'granted'){
+        const n = new Notification(title || 'Nuevo mensaje web', {
+          body: body || 'Nuevo mensaje desde la web',
+          icon: 'https://i.imgur.com/oZnkCPD.png',
+          badge: 'https://i.imgur.com/oZnkCPD.png',
+          tag: chatId ? 'tomauno-chat-' + chatId : 'tomauno-chat',
+          renotify:true,
+          requireInteraction:false
+        });
+        n.onclick = () => {
+          try{ window.focus(); }catch(e){}
+          if(chatId) window.abrirChatAdmin(chatId);
+          else window.abrirPanelChatsAdmin && window.abrirPanelChatsAdmin();
+          n.close();
+        };
+      }
+    }catch(e){}
+    setTimeout(() => {
+      const t = document.getElementById('toast');
+      if(t && chatId){
+        t.style.cursor = 'pointer';
+        t.onclick = () => window.abrirChatAdmin(chatId);
+      }
+    }, 30);
+  };
+  window.notifyAdminChat = notifyAdminChat;
+
+  let typingTimerFinal = 0;
+  let lastTypingSentFinal = '';
+  function sendTypingFinal(forceClear=false){
+    const id = visitorChatIdFinal();
+    if(!id || adminActiveFinal()) return;
+    const inp = document.getElementById('chat-text');
+    const text = forceClear ? '' : String(inp?.value || '').trim();
+    if(text === lastTypingSentFinal && !forceClear) return;
+    lastTypingSentFinal = text;
+    update(ref(db,'tomauno/chats/'+id+'/liveTyping'), {text, at:Date.now()}).catch(()=>{});
   }
-  if(document.readyState==='loading') document.addEventListener('DOMContentLoaded',initV20); else initV20();
-  setInterval(()=>{ markVisitorLayout(); refreshLights(); },1500);
+  document.addEventListener('input', ev => {
+    if(!ev.target || ev.target.id !== 'chat-text') return;
+    clearTimeout(typingTimerFinal);
+    typingTimerFinal = setTimeout(() => sendTypingFinal(false), 180);
+  }, true);
+  document.addEventListener('blur', ev => {
+    if(ev.target && ev.target.id === 'chat-text') setTimeout(() => sendTypingFinal(true), 2500);
+  }, true);
+
+  const prevVisitorSendFinal = window.enviarChatVisitante;
+  window.enviarChatVisitante = async function(id){
+    await update(ref(db,'tomauno/chats/'+id+'/liveTyping'), {text:'', at:Date.now()}).catch(()=>{});
+    lastTypingSentFinal = '';
+    return prevVisitorSendFinal.apply(this, arguments);
+  };
+
+  function renderLiveTypingFinal(){
+    if(!adminActiveFinal()) return;
+    const pop = document.getElementById('chat-popover');
+    if(!pop || !pop.classList.contains('open')) return;
+    const id = currentOpenChatId;
+    if(!id || !chatsDB[id]) return;
+    const text = chatTypingText(chatsDB[id]);
+    let box = pop.querySelector('.chat-live-typing');
+    if(!text){
+      if(box) box.remove();
+      return;
+    }
+    if(!box){
+      box = document.createElement('div');
+      box.className = 'chat-live-typing';
+      const row = pop.querySelector('.chat-row');
+      if(row && row.parentNode) row.parentNode.insertBefore(box, row);
+    }
+    box.innerHTML = '<strong>Escribiendo ahora</strong>' + escHtml(text);
+  }
+
+  function decorateTypingListsFinal(){
+    if(!adminActiveFinal()) return;
+    document.querySelectorAll('.chat-list-item,.chat-tab').forEach(el => el.classList.remove('typing-live'));
+    Object.entries(chatsDB || {}).forEach(([id,c]) => {
+      const text = chatTypingText(c);
+      if(!text) return;
+      document.querySelectorAll('[onclick*="abrirChatAdmin(\\''+id+'\\')"]').forEach(el => {
+        el.classList.add('typing-live');
+        const prev = el.querySelector('.chat-tab-preview');
+        if(prev) prev.textContent = 'Escribiendo: ' + text;
+        if(el.classList.contains('chat-list-item') && !el.querySelector('.tu-live-list-preview')){
+          const line = document.createElement('div');
+          line.className = 'tu-live-list-preview';
+          line.style.cssText = 'font-size:11px;margin-top:2px;max-width:245px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;';
+          line.textContent = 'Escribiendo: ' + text;
+          const body = el.querySelector('div[style*="flex:1"]') || el.firstElementChild;
+          if(body) body.appendChild(line);
+        }
+      });
+    });
+  }
+
+  onValue(ref(db,'tomauno/chats'), snap => {
+    chatsDB = snap.exists() ? snap.val() : {};
+    renderLiveTypingFinal();
+    decorateTypingListsFinal();
+  });
+
+  installFinalCss();
+  setInterval(() => { renderLiveTypingFinal(); decorateTypingListsFinal(); }, 1200);
 })();
