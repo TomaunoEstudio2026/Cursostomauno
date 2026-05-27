@@ -4566,7 +4566,6 @@ setTimeout(() => { if (document.getElementById('agenda-preview-canvas')) window.
   window.addEventListener('resize', () => { resize(); initBlobs(); });
 })();
 
-
 // ── FLYER PANTALLA COMPLETA ───────────────────────────────────────────────────
 window.verFlyerFull = (src) => {
   const ov = document.createElement('div');
@@ -7620,7 +7619,7 @@ window.filterCursos = function(){
   };
 
   const prevOpenAdminFinal = window.abrirChatAdmin;
-  window.abrirChatAdmin = abrirChatAdmin = function(id, silent){
+  window.abrirChatAdmin = function(id, silent){
     const r = prevOpenAdminFinal.apply(this, arguments);
     if(id){
       const readAt = Date.now();
@@ -7649,6 +7648,7 @@ window.filterCursos = function(){
     return r;
   };
 
+  const prevNotifyFinal = notifyAdminChat;
   notifyAdminChat = function(title, body, chatId){
     try{ beep(); }catch(e){}
     try{
@@ -7657,7 +7657,9 @@ window.filterCursos = function(){
         if(chatId) window.abrirChatAdmin(chatId);
         else window.abrirPanelChatsAdmin && window.abrirPanelChatsAdmin();
       });
-    }catch(e){}
+    }catch(e){
+      try{ prevNotifyFinal.apply(this, arguments); }catch(_e){}
+    }
     try{
       if('Notification' in window && Notification.permission === 'granted'){
         const n = new Notification(title || 'Nuevo mensaje web', {
@@ -7740,7 +7742,9 @@ window.filterCursos = function(){
     Object.entries(chatsDB || {}).forEach(([id,c]) => {
       const text = chatTypingText(c);
       if(!text) return;
-      document.querySelectorAll('[onclick*="abrirChatAdmin(\\''+id+'\\')"]').forEach(el => {
+      document.querySelectorAll('.chat-list-item,.chat-tab').forEach(el => {
+        const onclick = el.getAttribute('onclick') || '';
+        if(!onclick.includes("abrirChatAdmin('"+id+"')")) return;
         el.classList.add('typing-live');
         const prev = el.querySelector('.chat-tab-preview');
         if(prev) prev.textContent = 'Escribiendo: ' + text;
