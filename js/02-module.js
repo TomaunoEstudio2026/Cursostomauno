@@ -2179,7 +2179,7 @@ function abrirPanelChatsAdmin(){
     '<button class="chat-filter" onclick="window.verResumenConsultasChat()">📋 Resumen</button>' +
     '<button class="chat-clean-btn" onclick="window.limpiarChatsDefinitivo()">🧹 Limpiar chats</button>' +
     '</div>' +
-    (lista.length ? lista.map(([id,c]) => '<div class="chat-list-item '+(c.unreadAdmin?'unread':'')+'" onclick="window.abrirChatAdmin(\''+id+'\')"><div style="flex:1;min-width:0;"><div style="font-weight:800;font-size:14px;">'+(c.humanRequested?'⭐ ':'')+(c.updatedAt && c.createdAt && (c.updatedAt-c.createdAt)>60000?'🔁 ':'')+escHtml(chatVisibleName(c,id))+'</div><div style="font-size:11px;color:var(--text3);margin-top:2px;max-width:245px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">'+escHtml((c.humanRequested?'Atención Javier · ':'')+(c.lastMsg||''))+'</div>'+(c.wp?'<div style="font-size:11px;color:#25d366;margin-top:2px;">WP: '+escHtml(c.wp)+'</div>':'')+'</div><span class="chat-status '+(c.unreadAdmin?'new':c.status==='abierto'?'on':'')+'">'+(c.unreadAdmin?'Nuevo':escHtml(c.status||'abierto'))+'</span><button class="chat-trash" title="Eliminar chat" onclick="event.stopPropagation();window.eliminarChatDefinitivo(\''+id+'\')">🗑️</button></div>').join('') : '<div style="color:var(--text3);font-size:13px;padding:20px;text-align:center;">Sin chats en este filtro</div>')
+    (lista.length ? lista.map(([id,c]) => '<div class="chat-list-item '+(c.unreadAdmin?'unread ':'')+((c.humanRequested||c.prioridad||c.awaitingHumanContact)?'priority':'')+'" onclick="window.abrirChatAdmin(\''+id+'\')"><div style="flex:1;min-width:0;"><div style="font-weight:800;font-size:14px;">'+((c.humanRequested||c.prioridad||c.awaitingHumanContact)?'⭐ ':'')+(c.updatedAt && c.createdAt && (c.updatedAt-c.createdAt)>60000?'🔁 ':'')+escHtml(chatVisibleName(c,id))+'</div><div style="font-size:11px;color:var(--text3);margin-top:2px;max-width:245px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">'+escHtml(((c.humanRequested||c.prioridad||c.awaitingHumanContact)?'Atención Javier · ':'')+(c.lastMsg||''))+'</div>'+(c.wp?'<div style="font-size:11px;color:#25d366;margin-top:2px;">WP: '+escHtml(c.wp)+'</div>':'')+'</div><span class="chat-status '+(c.unreadAdmin?'new':c.status==='abierto'?'on':'')+'">'+(c.unreadAdmin?'Nuevo':escHtml(c.status||'abierto'))+'</span><button class="chat-trash" title="Eliminar chat" onclick="event.stopPropagation();window.eliminarChatDefinitivo(\''+id+'\')">🗑️</button></div>').join('') : '<div style="color:var(--text3);font-size:13px;padding:20px;text-align:center;">Sin chats en este filtro</div>')
   );
 }
 window.setChatListFilter = (f) => { chatListFilter = f || 'abiertos'; abrirPanelChatsAdmin(); };
@@ -7110,6 +7110,22 @@ window.filterCursos = function(){
     return /(hablar|comunicarme|contactarme|contactar|escribir|consultar|atender|atencion|atención).{0,45}(javier|dueño|dueno|encargado|responsable|humano|persona)/.test(q) ||
            /(javier|dueño|dueno|encargado|responsable).{0,45}(hablar|contact|comunicar|responder|atender)/.test(q);
   }
+  function exactKnowledge52(text){
+    const q = typeof normAI === 'function' ? normAI(text || '') : String(text || '').toLowerCase().trim();
+    if(!q) return null;
+    try{
+      if(typeof findKnowledgeByCommand === 'function'){
+        const byCmd = findKnowledgeByCommand(text);
+        if(byCmd && byCmd.k) return byCmd.k;
+      }
+      const entries = typeof asistenteKnowledgeEntries === 'function' ? asistenteKnowledgeEntries() : [];
+      for(const [,k] of entries){
+        const values = [k.titulo || '', k.command || ''].concat(String(k.keys || '').split(','));
+        if(values.some(v => normAI(v) === q)) return k;
+      }
+    }catch(e){}
+    return null;
+  }
   function chatName52(chat,id){
     try{ return tieneNombreRealChat(chat) ? chatVisibleName(chat,id||'') : ''; }catch(e){ return (chat&&chat.name)||''; }
   }
@@ -7161,6 +7177,12 @@ window.filterCursos = function(){
       if(modo !== 'automatico') return;
       let chat = chatsDB?.[chatId] || {};
       try{ const chatSnap = await get(ref(db,'tomauno/chats/'+chatId)); if(chatSnap.exists()) chat = chatSnap.val(); }catch(e){}
+
+      const exact = exactKnowledge52(userText);
+      if(exact && exact.respuesta){
+        await pushBot52(chatId, applyAIVariables(exact.respuesta || '', chat), {knowledge:true});
+        return;
+      }
 
       if(humanWanted52(userText)){
         const hasName = !!chatName52(chat, chatId);
@@ -7453,7 +7475,7 @@ window.filterCursos = function(){
    ===================================================================== */
 (function(){
   const TYPING_MAX_AGE = 12000;
-  const VISITOR_CHAT_WIDTH = 380;
+  const VISITOR_CHAT_WIDTH = 330;
 
   function adminActiveFinal(){
     try{
@@ -7499,6 +7521,30 @@ window.filterCursos = function(){
       if(deletions.length) await Promise.all(deletions);
     }catch(e){}
   }
+  function beepStrongFinal(){
+    beepStrongFinal();
+    try{
+      const Ctx = window.AudioContext || window.webkitAudioContext;
+      if(!Ctx) return;
+      const ctx = new Ctx();
+      if(ctx.state === 'suspended') ctx.resume();
+      const now = ctx.currentTime;
+      [660, 920, 1180].forEach((freq, i) => {
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        osc.type = 'square';
+        osc.frequency.setValueAtTime(freq, now + i * 0.11);
+        gain.gain.setValueAtTime(0.0001, now + i * 0.11);
+        gain.gain.exponentialRampToValueAtTime(0.32, now + i * 0.11 + 0.018);
+        gain.gain.exponentialRampToValueAtTime(0.0001, now + i * 0.11 + 0.16);
+        osc.connect(gain);
+        gain.connect(ctx.destination);
+        osc.start(now + i * 0.11);
+        osc.stop(now + i * 0.11 + 0.18);
+      });
+      setTimeout(() => { try{ ctx.close(); }catch(e){} }, 900);
+    }catch(e){}
+  }
   function visitorChatIdFinal(){
     try{ return currentVisitorChatId || sessionStorage.getItem('tomauno-chat-id') || ''; }
     catch(e){ return currentVisitorChatId || ''; }
@@ -7539,13 +7585,25 @@ window.filterCursos = function(){
         width:min(${VISITOR_CHAT_WIDTH}px, calc(100vw - 22px))!important;
         max-width:min(${VISITOR_CHAT_WIDTH}px, calc(100vw - 22px))!important;
         right:16px!important;
-        height:min(62vh, 560px)!important;
-        max-height:min(62vh, 560px)!important;
+        height:min(58vh, 520px)!important;
+        max-height:min(58vh, 520px)!important;
       }
       html body.tomauno-visitor-active #chat-popover.open .chat-msgs,
       html body:not(.tomauno-admin-active) #chat-popover.open:not(:has(.chat-inbox-side)) .chat-msgs{
         min-height:0!important;
         padding-bottom:8px!important;
+      }
+      html body #chat-popover.open:has(.chat-list-item) .chat-popover-inner{
+        max-height:calc(100vh - 82px)!important;
+        overflow-y:auto!important;
+        padding-right:10px!important;
+      }
+      html body #chat-popover.open:has(.chat-list-item){
+        max-height:calc(100vh - 42px)!important;
+      }
+      html body #chat-popover.open .chat-list-item.priority{
+        border-color:rgba(255,214,80,.55)!important;
+        box-shadow:inset 3px 0 0 rgba(255,214,80,.95)!important;
       }
       #notif-banner{
         z-index:99999!important;
@@ -7728,20 +7786,12 @@ window.filterCursos = function(){
       const readAt = Date.now();
       update(ref(db,'tomauno/chats/'+id), {
         unreadAdmin:false,
-        priority:false,
-        prioridad:false,
-        waitingHuman:false,
-        humanRequested:false,
         adminReadAt:readAt
       }).catch(()=>{});
       try{
         const c = chatsDB[id];
         if(c) Object.assign(c, {
           unreadAdmin:false,
-          priority:false,
-          prioridad:false,
-          waitingHuman:false,
-          humanRequested:false,
           adminReadAt:readAt
         });
       }catch(e){}
@@ -7801,6 +7851,7 @@ window.filterCursos = function(){
 
   window.tomaunoHumanAlarm = function(chatId, body){
     if(!adminActiveFinal() || adminViewingChatFinal(chatId)) return;
+    beepStrongFinal();
     try{ notifyAdminChat('Atención humana solicitada', body || 'Hay una persona esperando a Javier', chatId); }catch(e){}
   };
 
@@ -7903,22 +7954,50 @@ window.filterCursos = function(){
   document.addEventListener('input', ev => {
     if(!ev.target || ev.target.id !== 'chat-text') return;
     clearTimeout(typingTimerFinal);
-    typingTimerFinal = setTimeout(() => sendTypingFinal(false), 45);
+    typingTimerFinal = setTimeout(() => sendTypingFinal(false), 15);
   }, true);
   document.addEventListener('blur', ev => {
     if(ev.target && ev.target.id === 'chat-text') setTimeout(() => sendTypingFinal(true), 2500);
   }, true);
 
+  let lastDirectVisitorSendFinal = {id:'', text:'', at:0};
   const prevVisitorSendFinal = window.enviarChatVisitante;
   window.enviarChatVisitante = async function(id){
     id = id || visitorChatIdFinal();
     if(!id) return;
+    const inp = document.getElementById('chat-text');
+    const text = String(inp?.value || '').trim();
+    if(!text) return;
+    if(lastDirectVisitorSendFinal.id === id && lastDirectVisitorSendFinal.text === text && Date.now() - lastDirectVisitorSendFinal.at < 1200) return;
+    lastDirectVisitorSendFinal = {id, text, at:Date.now()};
+    if(inp){ inp.value = ''; try{ inp.focus({preventScroll:true}); }catch(e){ inp.focus(); } }
     await update(ref(db,'tomauno/chats/'+id+'/liveTyping'), {text:'', at:Date.now()}).catch(()=>{});
     lastTypingSentFinal = '';
-    const r = await prevVisitorSendFinal.apply(this, arguments);
-    const inp = document.getElementById('chat-text');
-    if(inp) inp.value = '';
-    return r;
+    let existingChat = chatsDB?.[id] || {};
+    try{
+      const snap = await get(ref(db,'tomauno/chats/'+id));
+      if(snap.exists()) existingChat = snap.val() || existingChat;
+    }catch(e){}
+    let fallbackName = '';
+    try{ fallbackName = sessionStorage.getItem('tomauno-chat-name') || ''; }catch(e){}
+    const detectedName = isJustNameReply(text, existingChat);
+    const repairedName = limpiarNombreChat(detectedName || existingChat.name || fallbackName || chatAnonName(id, existingChat));
+    const now = Date.now();
+    await update(ref(db,'tomauno/chats/'+id), {
+      name:repairedName,
+      status:'abierto',
+      updatedAt:now,
+      lastMsg:text,
+      unreadAdmin:true,
+      userOnline:true,
+      userLastSeen:now
+    });
+    await push(ref(db,'tomauno/chats/'+id+'/messages'), {from:'user', text, time:chatTime(), createdAt:Date.now()});
+    await update(ref(db,'tomauno/chats/'+id), {updatedAt:Date.now(), lastMsg:text, status:'abierto', unreadAdmin:true, userOnline:true, userLastSeen:Date.now(), name:repairedName});
+    try{ if(detectedName) sessionStorage.setItem('tomauno-chat-name', detectedName); }catch(e){}
+    try{ updateChatMessagesOnly(id, false); }catch(e){}
+    if(detectedName && lastAdminAskedName(existingChat)) return;
+    responderAutomaticoChat(id, text);
   };
 
   document.addEventListener('keydown', ev => {
