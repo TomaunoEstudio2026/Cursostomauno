@@ -551,9 +551,14 @@
       if(name==='enviarChatVisitante'){
         sendingUntil=Date.now()+1200;
         lock.active=false;
-        var active=document.activeElement;
-        if(active && active.id==='chat-text') active.value='';
-        return old.apply(this,arguments);
+        var out=old.apply(this,arguments);
+        Promise.resolve(out).finally(function(){
+          lock.active=false;
+          var inp=document.getElementById('chat-text');
+          if(inp) inp.value='';
+          sendingUntil=Date.now()+300;
+        });
+        return out;
       }
       if(was && name==='scrollChatSmart') return;
       if(was) capture();
@@ -574,6 +579,24 @@
     wrap('abrirChatVisitante');
     wrap('scrollChatSmart');
     wrap('enviarChatVisitante');
+    document.addEventListener('keydown',function(e){
+      if(!e || e.key!=='Enter') return;
+      if(e.target && e.target.id==='chat-text'){
+        e.preventDefault();
+        e.stopPropagation();
+        if(e.stopImmediatePropagation) e.stopImmediatePropagation();
+        sendingUntil=Date.now()+1200;
+        lock.active=false;
+        var id=(window.currentOpenChatId||window.currentVisitorChatId||sessionStorage.getItem('tomauno-chat-id')||'');
+        var out=window.enviarChatVisitante&&window.enviarChatVisitante(id);
+        Promise.resolve(out).finally(function(){
+          lock.active=false;
+          var inp=document.getElementById('chat-text');
+          if(inp) inp.value='';
+          sendingUntil=Date.now()+300;
+        });
+      }
+    },true);
     document.addEventListener('focusin',function(e){
       if(e.target&&(e.target.id==='chat-text'||e.target.id==='chat-name')){document.body.classList.add('tu-visitor-writing');capture();}
     },true);

@@ -7487,6 +7487,8 @@ window.filterCursos = function(){
   }
   function looksLikeRealNameFinal(text){
     const raw = String(text || '').trim();
+    const clean = limpiarNombreChat(raw.replace(/^(me llamo|mi nombre es|soy)\s+/i,'').trim());
+    if(clean && clean !== raw) return looksLikeRealNameFinal(clean);
     if(!raw || raw.length < 2 || raw.length > 36) return false;
     if(/[?¿!¡@#:/\\0-9]/.test(raw)) return false;
     if(/\b(info|curso|cursos|precio|precios|manualidades|quiero|consulta|consultar|hola|buenas|turno|inscribir|inscripcion|whatsapp|telefono|donde|ubicacion|servicio|servicios)\b/i.test(raw)) return false;
@@ -7599,6 +7601,11 @@ window.filterCursos = function(){
   window.abrirChatVisitante = abrirChatVisitante;
 
   window.iniciarChatConNombre = async function(){
+    if(currentVisitorChatId && chatsDB[currentVisitorChatId] && chatsDB[currentVisitorChatId].status !== 'cerrado'){
+      const txt = document.getElementById('chat-text');
+      if(txt && String(txt.value||'').trim()) return window.enviarChatVisitante(currentVisitorChatId);
+      return abrirChatVisitante(currentVisitorChatId, true);
+    }
     const rawName = (document.getElementById('chat-name')?.value || '').trim();
     const name = limpiarNombreChat(rawName);
     if(!looksLikeRealNameFinal(name)){
