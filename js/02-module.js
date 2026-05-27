@@ -7479,6 +7479,13 @@ window.filterCursos = function(){
     try{ return currentVisitorChatId || sessionStorage.getItem('tomauno-chat-id') || ''; }
     catch(e){ return currentVisitorChatId || ''; }
   }
+  function looksLikeRealNameFinal(text){
+    const raw = String(text || '').trim();
+    if(!raw || raw.length < 2 || raw.length > 36) return false;
+    if(/[?¿!¡@#:/\\0-9]/.test(raw)) return false;
+    if(/\b(info|curso|cursos|precio|precios|manualidades|quiero|consulta|consultar|hola|buenas|turno|inscribir|inscripcion|whatsapp|telefono|donde|ubicacion|servicio|servicios)\b/i.test(raw)) return false;
+    return /^[A-Za-zÁÉÍÓÚÑÜáéíóúñü]+(?:\s+[A-Za-zÁÉÍÓÚÑÜáéíóúñü]+){0,2}$/.test(raw);
+  }
   function installFinalCss(){
     if(document.getElementById('tu-v3322-chat-css')) return;
     const st = document.createElement('style');
@@ -7492,6 +7499,14 @@ window.filterCursos = function(){
         max-width:min(${VISITOR_CHAT_WIDTH}px, calc(100vw - 22px))!important;
         right:18px!important;
         bottom:82px!important;
+      }
+      html body #chat-popover.open.tomauno-chat-visitor,
+      html body #chat-popover.open.tu89-visitor,
+      html body.tomauno-visitor-active #chat-popover.open,
+      html body:not(.tomauno-admin-active) #chat-popover.open:not(:has(.chat-inbox-side)){
+        width:min(340px, calc(100vw - 22px))!important;
+        max-width:min(340px, calc(100vw - 22px))!important;
+        right:16px!important;
       }
       .chat-live-typing{
         margin:8px 0 2px;
@@ -7580,8 +7595,10 @@ window.filterCursos = function(){
   window.iniciarChatConNombre = async function(){
     const rawName = (document.getElementById('chat-name')?.value || '').trim();
     const name = limpiarNombreChat(rawName);
-    if(!name || /^(hola|buenas|ok|dale|a)$/i.test(name)){
-      toast('Escribi tu nombre para iniciar');
+    if(!looksLikeRealNameFinal(name)){
+      toast('Escribi solo tu nombre para iniciar');
+      const inp = document.getElementById('chat-name');
+      if(inp){ inp.value=''; try{inp.focus({preventScroll:true});}catch(e){inp.focus();} }
       return;
     }
     const now = Date.now();
@@ -7721,7 +7738,10 @@ window.filterCursos = function(){
   window.enviarChatVisitante = async function(id){
     await update(ref(db,'tomauno/chats/'+id+'/liveTyping'), {text:'', at:Date.now()}).catch(()=>{});
     lastTypingSentFinal = '';
-    return prevVisitorSendFinal.apply(this, arguments);
+    const r = await prevVisitorSendFinal.apply(this, arguments);
+    const inp = document.getElementById('chat-text');
+    if(inp) inp.value = '';
+    return r;
   };
 
   function renderLiveTypingFinal(){

@@ -491,6 +491,7 @@
     return !!(el && document.activeElement===el);
   }
   var lock={active:false,value:'',start:0,end:0,top:0,until:0};
+  var sendingUntil=0;
   function capture(){
     var el=input();
     if(!el) return;
@@ -504,6 +505,7 @@
     if(box) box.setAttribute('data-tu-lock-top',String(lock.top));
   }
   function restore(){
+    if(Date.now()<sendingUntil) return;
     if(!lock.active || Date.now()>lock.until) return;
     var el=input();
     if(!el) return;
@@ -531,6 +533,7 @@
     st.id='tu-v191-visitor-lock-css';
     st.textContent=[
       'html body:not(.tomauno-admin-active) #chat-popover.open:not(:has(.chat-inbox-side)),html body.tomauno-visitor-active #chat-popover.open:not(:has(.chat-inbox-side)){width:min(340px,calc(100vw - 22px))!important;max-width:min(340px,calc(100vw - 22px))!important;right:16px!important;bottom:84px!important;height:min(70vh,620px)!important;max-height:min(70vh,620px)!important;}',
+      'html body #chat-popover.open.tomauno-chat-visitor,html body #chat-popover.open.tu89-visitor,html body.tomauno-visitor-active #chat-popover.open,html body:not(.tomauno-admin-active) #chat-popover.open:not(:has(.chat-inbox-side)){width:min(340px,calc(100vw - 22px))!important;max-width:min(340px,calc(100vw - 22px))!important;right:16px!important;}',
       'html body:not(.tomauno-admin-active) #chat-popover.open .chat-popover-inner,html body.tomauno-visitor-active #chat-popover.open .chat-popover-inner{height:100%!important;overflow:hidden!important;}',
       'html body:not(.tomauno-admin-active) #chat-popover.open .chat-panel,html body.tomauno-visitor-active #chat-popover.open .chat-panel{height:100%!important;min-height:0!important;display:flex!important;flex-direction:column!important;overflow:hidden!important;}',
       'html body:not(.tomauno-admin-active) #chat-popover.open .chat-msgs,html body.tomauno-visitor-active #chat-popover.open .chat-msgs{flex:1 1 auto!important;min-height:0!important;max-height:none!important;scroll-behavior:auto!important;overscroll-behavior:contain!important;}',
@@ -545,6 +548,13 @@
     if(typeof old!=='function' || old.__tuVisitorLock) return;
     var wrapped=function(){
       var was=writing();
+      if(name==='enviarChatVisitante'||name==='iniciarChatConNombre'){
+        sendingUntil=Date.now()+1200;
+        lock.active=false;
+        var active=document.activeElement;
+        if(active && (active.id==='chat-text'||active.id==='chat-name')) active.value='';
+        return old.apply(this,arguments);
+      }
       if(was && name==='scrollChatSmart') return;
       if(was) capture();
       var out=old.apply(this,arguments);
@@ -563,6 +573,8 @@
     wrap('updateChatMessagesOnly');
     wrap('abrirChatVisitante');
     wrap('scrollChatSmart');
+    wrap('enviarChatVisitante');
+    wrap('iniciarChatConNombre');
     document.addEventListener('focusin',function(e){
       if(e.target&&(e.target.id==='chat-text'||e.target.id==='chat-name')){document.body.classList.add('tu-visitor-writing');capture();}
     },true);
