@@ -65,3 +65,64 @@
     font-size:16px!important;
   }
 }
+
+
+/* Modular v16 — teclado móvil, alertas solo admin y layout visitante */
+body.tomauno-visitor-active #toast,
+body.tomauno-visitor-active .admin-toast,
+body.tomauno-visitor-active .admin-alert,
+body.tomauno-visitor-active .human-alert,
+body.tomauno-visitor-active [class*="human-alert"],
+body.tomauno-visitor-active [id*="human-alert"]{
+  display:none!important;
+  visibility:hidden!important;
+  pointer-events:none!important;
+}
+@media (min-width:701px){
+  body.tomauno-visitor-active .chat-popover.open:not(.expanded):not(:has(.chat-inbox-side)){
+    width:min(420px, calc(100vw - 30px))!important;
+    max-width:min(420px, calc(100vw - 30px))!important;
+    height:min(72vh, 660px)!important;
+    max-height:min(72vh, 660px)!important;
+    right:22px!important;
+    bottom:84px!important;
+  }
+  body.tomauno-visitor-active .chat-popover.open:not(.expanded):not(:has(.chat-inbox-side)) .chat-popover-inner,
+  body.tomauno-visitor-active .chat-popover.open:not(.expanded):not(:has(.chat-inbox-side)) .chat-panel{
+    height:100%!important;
+    min-height:0!important;
+  }
+  body.tomauno-visitor-active .chat-popover.open:not(.expanded):not(:has(.chat-inbox-side)) .chat-msgs{
+    flex:1 1 auto!important;
+    min-height:0!important;
+    max-height:none!important;
+    height:auto!important;
+  }
+}
+@media (max-width:700px){
+  html,body{touch-action:auto!important;overscroll-behavior-y:auto!important;}
+  body.chat-open-mobile{overflow:auto!important;position:static!important;touch-action:auto!important;}
+  .chat-popover.open,
+  .chat-popover.open.expanded{
+    position:fixed!important;
+    left:8px!important;
+    right:8px!important;
+    width:auto!important;
+    top:auto!important;
+    bottom:calc(var(--tomauno-keyboard, 0px) + 10px + env(safe-area-inset-bottom))!important;
+    height:calc(100dvh - var(--tomauno-keyboard, 0px) - 26px)!important;
+    max-height:calc(100dvh - var(--tomauno-keyboard, 0px) - 26px)!important;
+    min-height:320px!important;
+    transform:none!important;
+    touch-action:auto!important;
+  }
+  .chat-popover.open:focus-within,
+  .chat-popover.open.keyboard-open{
+    bottom:calc(var(--tomauno-keyboard, 0px) + 10px + env(safe-area-inset-bottom))!important;
+    height:calc(100dvh - var(--tomauno-keyboard, 0px) - 26px)!important;
+    max-height:calc(100dvh - var(--tomauno-keyboard, 0px) - 26px)!important;
+  }
+  .chat-popover-inner,.chat-panel{height:100%!important;min-height:0!important;overflow:hidden!important;touch-action:auto!important;}
+  .chat-msgs{flex:1 1 auto!important;min-height:0!important;max-height:none!important;overflow-y:auto!important;-webkit-overflow-scrolling:touch!important;touch-action:pan-y!important;}
+  .chat-row{flex:0 0 auto!important;}
+}

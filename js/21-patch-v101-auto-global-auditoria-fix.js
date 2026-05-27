@@ -3,7 +3,7 @@
 // No agrega archivos nuevos.
 (function(){
   'use strict';
-  var VERSION='Tomauno modular v14';
+  var VERSION='Tomauno modular v17';
   var modoGlobal=null;
   var modoCargado=false;
   var listenerStarted=false;
@@ -37,6 +37,40 @@
     var el=document.getElementById('chat-text')||document.getElementById('chat-input')||document.querySelector('.chat-row input,.chat-row textarea');
     return String((el&&el.value)||'').trim();
   })||'';}
+
+  function isTypingNow(){return safe(function(){
+    var a=document.activeElement;
+    return !!(a && (a.tagName==='INPUT'||a.tagName==='TEXTAREA'||a.isContentEditable));
+  })||false;}
+  function setBodyModeClasses(){safe(function(){
+    var adm=isAdminActive();
+    document.body.classList.toggle('tomauno-admin-active',adm);
+    document.body.classList.toggle('tomauno-visitor-active',!adm);
+  });}
+  function hideVisitorAdminAlerts(){safe(function(){
+    if(isAdminActive()) return;
+    Array.prototype.forEach.call(document.querySelectorAll('body *'),function(el){
+      var txt=(el.innerText||'').trim();
+      var cls=(el.className||'')+''; var id=(el.id||'')+'';
+      if((/ATENCI[ÓO]N HUMANA|NUEVO CHAT WEB|Nuevo chat web|Nuevo mensaje web/i.test(txt) || /human|admin-alert|notify-admin/i.test(cls+' '+id)) && txt.length<350){
+        if(!el.closest('.chat-popover')) el.style.display='none';
+      }
+    });
+  });}
+  function setupVisualViewport(){safe(function(){
+    if(window.__tomaunoVV16) return; window.__tomaunoVV16=1;
+    function upd(){
+      var vv=window.visualViewport;
+      var k=0;
+      if(vv){ k=Math.max(0, window.innerHeight - vv.height - vv.offsetTop); }
+      document.documentElement.style.setProperty('--tomauno-keyboard', Math.round(k)+'px');
+      document.body.classList.toggle('tomauno-keyboard-open', k>80);
+    }
+    upd();
+    if(window.visualViewport){visualViewport.addEventListener('resize',upd);visualViewport.addEventListener('scroll',upd);}
+    window.addEventListener('orientationchange',function(){setTimeout(upd,250);});
+  });}
+
   function setVersion(){safe(function(){
     var tag=document.getElementById('tomauno-version-tag');
     if(!tag){var f=document.querySelector('footer .fcred')||document.querySelector('footer')||document.body;tag=document.createElement('span');tag.id='tomauno-version-tag';tag.className='tomauno-version-tag';f.appendChild(tag);} tag.textContent=VERSION;
@@ -66,6 +100,7 @@
   });}
 
   function renderAutoUI(){safe(function(){
+    setBodyModeClasses();
     var auto=isAutoOn();
     var admin=isAdminActive();
     var state=(admin?'A':'V')+'-'+(auto?'AUTO':'MAN')+'-'+(hasUnread()?'U':'N')+'-'+(modoCargado?'L':'P');
@@ -173,6 +208,7 @@
     notifiedChats[chatId]=1;
     try{sessionStorage.setItem(key,'1');}catch(e){}
     updateChatUnread(chatId,text);
+    // La notificación visible solo se dispara en pestañas ADM. El visitante solo marca el chat en Firebase.
     if(isAdminActive() && typeof window.notifyAdminChat==='function') window.notifyAdminChat('Nuevo mensaje web',text,chatId);
   });}
   function retryFirstNotify(text, tries){
@@ -239,6 +275,42 @@
     };
   }
 
+
+  var adminSeenMsgs={};
+  function latestUserText(c){
+    var best=null, bt=0;
+    if(c&&c.messages){Object.keys(c.messages).forEach(function(k){var m=c.messages[k]||{}; var t=Number(m.createdAt||m.ts||0); if((m.from==='user'||m.role==='user'||m.sender==='user') && t>=bt){bt=t; best=String(m.text||m.msg||m.body||'').trim();}});}
+    return best || String((c&&(c.lastUserMsg||c.lastMsg||c.preview))||'').trim();
+  }
+  function pollAdminUnread(){safe(function(){
+    if(!isAdminActive()) return;
+    var dbs=getChats();
+    Object.keys(dbs).forEach(function(id){
+      var c=dbs[id]||{};
+      if(c.status==='cerrado') return;
+      var txt=latestUserText(c);
+      var stamp=String(c.updatedAt||c.lastAt||c.createdAt||'')+'|'+txt;
+      if(!txt || adminSeenMsgs[id]===stamp) return;
+      if(c.unreadAdmin||c.humanRequested||c.waitingHuman||c.priority){
+        adminSeenMsgs[id]=stamp;
+        if(typeof window.notifyAdminChat==='function') window.notifyAdminChat(c.humanRequested?'Atención humana':'Nuevo chat web',txt,id);
+      }
+    });
+  });}
+
+
+  var oldAbrirChatAdmin=window.abrirChatAdmin;
+  if(typeof oldAbrirChatAdmin==='function'){
+    window.abrirChatAdmin=function(chatId){
+      var r=oldAbrirChatAdmin.apply(this,arguments);
+      safe(function(){
+        if(chatId && typeof db!=='undefined'&&typeof ref!=='undefined'&&typeof update!=='undefined') update(ref(db,'tomauno/chats/'+chatId),{unreadAdmin:false}).catch(function(){});
+        setTimeout(syncTitleName,80); setTimeout(renderAutoUI,120);
+      });
+      return r;
+    };
+  }
+
   // Toast/admin notification: nunca debe quedar en visitante y click abre chat.
   var oldNotify=window.notifyAdminChat;
   window.notifyAdminChat=function(title,body,chatId){
@@ -247,6 +319,7 @@
     var clean=String(body||'').replace(/\s+/g,' ').trim();
     if(clean.length>180) clean=clean.slice(0,177)+'...';
     var r; try{r=oldNotify&&oldNotify.apply?oldNotify.call(this,title||'Nuevo chat web',clean,chatId):undefined;}catch(e){}
+    setTimeout(hideVisitorAdminAlerts,30);
     setTimeout(function(){safe(function(){
       var toastEl=document.getElementById('toast');
       if(toastEl && lastToastChatId){toastEl.style.cursor='pointer';toastEl.onclick=function(){try{window.abrirChatAdmin&&window.abrirChatAdmin(lastToastChatId);}catch(e){}};}
@@ -296,16 +369,42 @@
   function shortenWelcome(){safe(function(){
     document.querySelectorAll('.chat-bubble.admin').forEach(function(b){
       var t=b.innerText||'';
-      if(/Soy el Asistente de Tomauno/i.test(t) && /Cómo es tu nombre/i.test(t)){
+      if(/Soy el Asistente de Tomauno/i.test(t) && /Cómo es tu nombre/i.test(t) && !b.getAttribute('data-short-v16')){
+        b.setAttribute('data-short-v16','1');
         b.innerHTML='Hola 😊<br><strong>¿Cómo es tu nombre?</strong><div class="chat-meta">Ahora</div>';
       }
     });
   });}
 
-  function run(){ensureCss();setVersion();startAutoListener();scheduleAutoUI();forceAdminChatIfNeeded();markModeClass();syncTitleName();shortenWelcome();}
+
+
+  // v17: al cerrar sesión ADM, cerrar la ventana actual del chat para evitar mezclar UI admin/visitante.
+  function closeChatWindowForAdminLogout(){safe(function(){
+    var pop=document.getElementById('chat-popover');
+    if(pop){
+      pop.classList.remove('open','expanded','tomauno-chat-admin');
+      pop.classList.add('tomauno-chat-visitor');
+      pop.style.display='';
+    }
+    document.body.classList.remove('chat-open-mobile');
+    document.documentElement.classList.remove('chat-open-mobile');
+    if(typeof window.currentOpenChatId!=='undefined') window.currentOpenChatId='';
+  });}
+  var oldCerrarAdmin=window.cerrarAdmin;
+  if(typeof oldCerrarAdmin==='function'){
+    window.cerrarAdmin=function(){
+      closeChatWindowForAdminLogout();
+      var r=oldCerrarAdmin.apply(this,arguments);
+      setTimeout(function(){closeChatWindowForAdminLogout(); scheduleAutoUI(); markModeClass();},120);
+      return r;
+    };
+    try{cerrarAdmin=window.cerrarAdmin;}catch(e){}
+  }
+
+  function run(){ensureCss();setVersion();setupVisualViewport();startAutoListener();scheduleAutoUI();forceAdminChatIfNeeded();markModeClass();syncTitleName();shortenWelcome();hideVisitorAdminAlerts();pollAdminUnread();}
   if(document.readyState==='loading') document.addEventListener('DOMContentLoaded',function(){run();installScrollGuard();}); else {run();installScrollGuard();}
   setTimeout(run,300); setTimeout(run,1200); setTimeout(run,2500);
   // intervalo suave solo para corregir renders viejos, sin mutar Firebase ni parpadear visualmente
-  setInterval(function(){scheduleAutoUI();markModeClass();syncTitleName();shortenWelcome();},2500);
-  safe(function(){new MutationObserver(function(){setTimeout(function(){scheduleAutoUI();forceAdminChatIfNeeded();markModeClass();syncTitleName();shortenWelcome();},80);}).observe(document.documentElement,{childList:true,subtree:true});});
+  setInterval(function(){scheduleAutoUI();markModeClass();syncTitleName();if(!isTypingNow()) shortenWelcome();hideVisitorAdminAlerts();pollAdminUnread();},2200);
+  safe(function(){new MutationObserver(function(){setTimeout(function(){scheduleAutoUI();forceAdminChatIfNeeded();markModeClass();syncTitleName();if(!isTypingNow()) shortenWelcome();hideVisitorAdminAlerts();},80);}).observe(document.documentElement,{childList:true,subtree:true});});
 })();
