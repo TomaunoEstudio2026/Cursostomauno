@@ -194,6 +194,9 @@
   var oldToggle=window.toggleModoAsistenteChat;
   window.toggleModoAsistenteChat=async function(){
     try{
+      if(window.currentOpenChatId && typeof window.tomaunoToggleModoChatActual==='function' && document.querySelector('#chat-popover.open #chat-admin-text')){
+        return window.tomaunoToggleModoChatActual(window.currentOpenChatId);
+      }
       var actual=window.asistenteModo()==='automatico'?'automatico':'manual';
       var nuevo=actual==='automatico'?'manual':'automatico';
       modoGlobal=nuevo; modoCargado=true; window.tomaunoAutoGlobalModo=nuevo; scheduleAutoUI();
@@ -560,8 +563,9 @@
     var st=document.createElement('style');
     st.id='tu-v191-visitor-lock-css';
     st.textContent=[
-      'html body:not(.tomauno-admin-active) #chat-popover.open:not(:has(.chat-inbox-side)),html body.tomauno-visitor-active #chat-popover.open:not(:has(.chat-inbox-side)){width:min(340px,calc(100vw - 22px))!important;max-width:min(340px,calc(100vw - 22px))!important;right:16px!important;bottom:84px!important;height:min(70vh,620px)!important;max-height:min(70vh,620px)!important;}',
-      'html body #chat-popover.open.tomauno-chat-visitor,html body #chat-popover.open.tu89-visitor,html body.tomauno-visitor-active #chat-popover.open,html body:not(.tomauno-admin-active) #chat-popover.open:not(:has(.chat-inbox-side)){width:min(340px,calc(100vw - 22px))!important;max-width:min(340px,calc(100vw - 22px))!important;right:16px!important;}',
+      'html body:not(.tomauno-admin-active) #chat-popover.open:not(:has(.chat-inbox-side)),html body.tomauno-visitor-active #chat-popover.open:not(:has(.chat-inbox-side)){width:min(430px,calc(100vw - 22px))!important;max-width:min(430px,calc(100vw - 22px))!important;right:16px!important;bottom:84px!important;height:min(70vh,620px)!important;max-height:min(70vh,620px)!important;}',
+      'html body #chat-popover.open.tomauno-chat-visitor,html body #chat-popover.open.tu89-visitor,html body.tomauno-visitor-active #chat-popover.open,html body:not(.tomauno-admin-active) #chat-popover.open:not(:has(.chat-inbox-side)){width:min(430px,calc(100vw - 22px))!important;max-width:min(430px,calc(100vw - 22px))!important;right:16px!important;}',
+      'html body #notif-banner{z-index:99999!important;}',
       'html body:not(.tomauno-admin-active) #chat-popover.open .chat-popover-inner,html body.tomauno-visitor-active #chat-popover.open .chat-popover-inner{height:100%!important;overflow:hidden!important;}',
       'html body:not(.tomauno-admin-active) #chat-popover.open .chat-panel,html body.tomauno-visitor-active #chat-popover.open .chat-panel{height:100%!important;min-height:0!important;display:flex!important;flex-direction:column!important;overflow:hidden!important;}',
       'html body:not(.tomauno-admin-active) #chat-popover.open .chat-msgs,html body.tomauno-visitor-active #chat-popover.open .chat-msgs{flex:1 1 auto!important;min-height:0!important;max-height:none!important;scroll-behavior:auto!important;overscroll-behavior:contain!important;}',

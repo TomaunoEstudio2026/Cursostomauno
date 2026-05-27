@@ -7466,7 +7466,7 @@ window.filterCursos = function(){
    ===================================================================== */
 (function(){
   const TYPING_MAX_AGE = 12000;
-  const VISITOR_CHAT_WIDTH = 360;
+  const VISITOR_CHAT_WIDTH = 430;
 
   function adminActiveFinal(){
     try{ return isAdminNotifier(); }catch(e){ return false; }
@@ -7481,9 +7481,27 @@ window.filterCursos = function(){
     if(!lt || !lt.text || !lt.at || Date.now() - Number(lt.at) > TYPING_MAX_AGE) return '';
     return String(lt.text || '').trim();
   }
+  function chatIsHumanFinal(chat){
+    return !!(chat && (chat.humanMode || Number(chat.manualUntil || 0) > Date.now()));
+  }
+  function applyChatModeButtonFinal(id){
+    const chat = chatsDB && chatsDB[id];
+    const btn = document.querySelector('#chat-popover.open .chat-admin-tools .chat-filter.auto');
+    if(!btn || !chat) return;
+    const human = chatIsHumanFinal(chat);
+    btn.classList.toggle('on', !human);
+    btn.textContent = human ? '👤 HUMANO' : '🤖 AUTO';
+    btn.title = human ? 'Este chat está en atención humana. Clic para volver a automático.' : 'Este chat está en automático. Clic para tomarlo manualmente.';
+  }
   function visitorChatIdFinal(){
     try{ return currentVisitorChatId || sessionStorage.getItem('tomauno-chat-id') || ''; }
     catch(e){ return currentVisitorChatId || ''; }
+  }
+  function syncChatGlobalsFinal(){
+    try{
+      window.currentVisitorChatId = currentVisitorChatId || '';
+      window.currentOpenChatId = currentOpenChatId || '';
+    }catch(e){}
   }
   function looksLikeRealNameFinal(text){
     const raw = String(text || '').trim();
@@ -7512,9 +7530,12 @@ window.filterCursos = function(){
       html body #chat-popover.open.tu89-visitor,
       html body.tomauno-visitor-active #chat-popover.open,
       html body:not(.tomauno-admin-active) #chat-popover.open:not(:has(.chat-inbox-side)){
-        width:min(340px, calc(100vw - 22px))!important;
-        max-width:min(340px, calc(100vw - 22px))!important;
+        width:min(${VISITOR_CHAT_WIDTH}px, calc(100vw - 22px))!important;
+        max-width:min(${VISITOR_CHAT_WIDTH}px, calc(100vw - 22px))!important;
         right:16px!important;
+      }
+      #notif-banner{
+        z-index:99999!important;
       }
       .chat-live-typing{
         margin:8px 0 2px;
@@ -7577,7 +7598,17 @@ window.filterCursos = function(){
   const prevScrollFinal = scrollChatSmart;
   scrollChatSmart = function(box){
     if(visitorTypingNow()) return;
-    return prevScrollFinal.apply(this, arguments);
+    const r = prevScrollFinal.apply(this, arguments);
+    if(box && box.id === 'chat-msgs' && !adminActiveFinal()){
+      requestAnimationFrame(() => {
+        const last = box.querySelector('.chat-bubble:last-child');
+        const txt = last ? String(last.innerText || '') : '';
+        if(last && (txt.length > 260 || last.offsetHeight > 180)){
+          box.scrollTop = Math.max(0, last.offsetTop - 10);
+        }
+      });
+    }
+    return r;
   };
   window.scrollChatSmart = scrollChatSmart;
 
@@ -7592,6 +7623,8 @@ window.filterCursos = function(){
 
   const prevOpenVisitorFinal = abrirChatVisitante;
   abrirChatVisitante = function(id, silent){
+    currentVisitorChatId = id || currentVisitorChatId;
+    syncChatGlobalsFinal();
     if(visitorTypingNow() && id === visitorChatIdFinal()){
       updateChatMessagesOnly(id, false);
       return;
@@ -7629,6 +7662,7 @@ window.filterCursos = function(){
     });
     currentVisitorChatId = chatRef.key;
     currentOpenChatId = chatRef.key;
+    syncChatGlobalsFinal();
     try{
       sessionStorage.setItem('tomauno-chat-id', currentVisitorChatId);
       sessionStorage.setItem('tomauno-chat-name', name);
@@ -7659,6 +7693,8 @@ window.filterCursos = function(){
 
   const prevOpenAdminFinal = window.abrirChatAdmin;
   window.abrirChatAdmin = function(id, silent){
+    currentOpenChatId = id || currentOpenChatId;
+    syncChatGlobalsFinal();
     const r = prevOpenAdminFinal.apply(this, arguments);
     if(id){
       const readAt = Date.now();
@@ -7684,6 +7720,7 @@ window.filterCursos = function(){
     }
     setTimeout(renderLiveTypingFinal, 30);
     setTimeout(decorateTypingListsFinal, 80);
+    setTimeout(() => applyChatModeButtonFinal(id), 90);
     return r;
   };
 
@@ -7727,6 +7764,80 @@ window.filterCursos = function(){
   };
   window.notifyAdminChat = notifyAdminChat;
 
+  window.tomaunoToggleModoChatActual = async function(id){
+    const chatId = id || currentOpenChatId;
+    if(!chatId) return window.toggleModoAsistenteChat && window.toggleModoAsistenteChat();
+    const c = (chatsDB && chatsDB[chatId]) || {};
+    const toAuto = chatIsHumanFinal(c);
+    if(toAuto){
+      await update(ref(db,'tomauno/chats/'+chatId), {
+        humanMode:false,
+        manualUntil:0,
+        waitingHuman:false,
+        humanRequested:false,
+        unreadAdmin:false
+      }).catch(()=>{});
+      await update(ref(db,'tomauno/asistente'), {modo:'automatico'}).catch(()=>{});
+      try{ Object.assign(chatsDB[chatId] || {}, {humanMode:false, manualUntil:0, waitingHuman:false, humanRequested:false, unreadAdmin:false}); }catch(e){}
+      toast('🤖 Este chat vuelve a automático', true);
+    }else{
+      await update(ref(db,'tomauno/chats/'+chatId), {
+        humanMode:true,
+        manualUntil:0,
+        waitingHuman:false,
+        humanRequested:false,
+        unreadAdmin:false
+      }).catch(()=>{});
+      try{ Object.assign(chatsDB[chatId] || {}, {humanMode:true, manualUntil:0, waitingHuman:false, humanRequested:false, unreadAdmin:false}); }catch(e){}
+      toast('👤 Este chat queda en humano', true);
+    }
+    applyChatModeButtonFinal(chatId);
+    setTimeout(() => window.abrirChatAdmin && window.abrirChatAdmin(chatId, true), 80);
+  };
+
+  const prevToggleModeFinal = window.toggleModoAsistenteChat;
+  window.toggleModoAsistenteChat = function(){
+    if(isAdminNotifier() && currentOpenChatId && document.querySelector('#chat-popover.open #chat-admin-text')){
+      return window.tomaunoToggleModoChatActual(currentOpenChatId);
+    }
+    return prevToggleModeFinal.apply(this, arguments);
+  };
+
+  const prevAdminSendFinal = window.enviarChatAdmin;
+  window.enviarChatAdmin = async function(id, presetText=''){
+    const chatId = id || currentOpenChatId;
+    const r = await prevAdminSendFinal.apply(this, arguments);
+    if(chatId){
+      const manualUntil = Date.now() + 1000 * 60 * 60;
+      await update(ref(db,'tomauno/chats/'+chatId), {
+        humanMode:true,
+        manualUntil,
+        unreadAdmin:false,
+        waitingHuman:false,
+        humanRequested:false
+      }).catch(()=>{});
+      try{
+        if(chatsDB[chatId]) Object.assign(chatsDB[chatId], {
+          humanMode:true,
+          manualUntil,
+          unreadAdmin:false,
+          waitingHuman:false,
+          humanRequested:false
+        });
+      }catch(e){}
+    }
+    return r;
+  };
+
+  const prevAutoResponderFinal = window.responderAutomaticoChat;
+  if(typeof prevAutoResponderFinal === 'function'){
+    window.responderAutomaticoChat = async function(chatId, text){
+      const c = chatsDB && chatsDB[chatId];
+      if(c && (c.humanMode || Number(c.manualUntil || 0) > Date.now())) return;
+      return prevAutoResponderFinal.apply(this, arguments);
+    };
+  }
+
   let typingTimerFinal = 0;
   let lastTypingSentFinal = '';
   function sendTypingFinal(forceClear=false){
@@ -7749,6 +7860,8 @@ window.filterCursos = function(){
 
   const prevVisitorSendFinal = window.enviarChatVisitante;
   window.enviarChatVisitante = async function(id){
+    id = id || visitorChatIdFinal();
+    if(!id) return;
     await update(ref(db,'tomauno/chats/'+id+'/liveTyping'), {text:'', at:Date.now()}).catch(()=>{});
     lastTypingSentFinal = '';
     const r = await prevVisitorSendFinal.apply(this, arguments);
@@ -7756,6 +7869,19 @@ window.filterCursos = function(){
     if(inp) inp.value = '';
     return r;
   };
+
+  document.addEventListener('keydown', ev => {
+    if(!ev || ev.key !== 'Enter' || !ev.target || ev.target.id !== 'chat-text') return;
+    const id = visitorChatIdFinal();
+    if(!id || adminActiveFinal()) return;
+    ev.preventDefault();
+    ev.stopPropagation();
+    if(ev.stopImmediatePropagation) ev.stopImmediatePropagation();
+    window.enviarChatVisitante(id).finally(() => {
+      const inp = document.getElementById('chat-text');
+      if(inp) inp.value = '';
+    });
+  }, true);
 
   function renderLiveTypingFinal(){
     if(!adminActiveFinal()) return;
@@ -7805,6 +7931,7 @@ window.filterCursos = function(){
 
   onValue(ref(db,'tomauno/chats'), snap => {
     chatsDB = snap.exists() ? snap.val() : {};
+    syncChatGlobalsFinal();
     renderLiveTypingFinal();
     decorateTypingListsFinal();
   });
@@ -7826,5 +7953,6 @@ window.filterCursos = function(){
   window.setChatPopover = setChatPopover;
 
   installFinalCss();
+  syncChatGlobalsFinal();
   setInterval(() => { renderLiveTypingFinal(); decorateTypingListsFinal(); }, 1200);
 })();
