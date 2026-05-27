@@ -7162,7 +7162,7 @@ window.filterCursos = function(){
         try{ window.tomaunoHumanAlarm && window.tomaunoHumanAlarm(chatId, (chatVisibleName(c,chatId)||'Visitante')+': sigue esperando a Javier después de 60 segundos'); }catch(e){}
         try{ notifyAdminChat && notifyAdminChat('Atención humana pendiente', (chatVisibleName(c,chatId)||'Visitante')+': sigue esperando a Javier', chatId); }catch(e){}
         await pushBot52(chatId, humanFallbackText52(), {humanFallback:true});
-        await update(ref(db,'tomauno/chats/'+chatId), {humanFallbackSent:true, prioridad:true, updatedAt:Date.now()});
+        await update(ref(db,'tomauno/chats/'+chatId), {humanFallbackSent:true, awaitingHumanContact:true, prioridad:true, updatedAt:Date.now()});
       }catch(e){ console.warn('Fallback humano v52:', e); }
     }, HUMAN_FALLBACK_MS);
   }
@@ -7207,6 +7207,16 @@ window.filterCursos = function(){
 
       // Si ya se derivó a Javier y el usuario acepta dejar una consulta,
       // no buscamos en Cerebro: pedimos consulta + WhatsApp.
+      if(chat && chat.humanRequested && chat.humanFallbackSent && !chat.awaitingHumanName){
+        const hasPhone = /(?:\+?54)?\s*(?:9\s*)?(?:\d[\s\-\.]*){8,}/.test(String(userText||''));
+        const thanksText = hasPhone
+          ? 'Gracias 😊 Ya quedó registrada tu consulta para Javier. Apenas pueda la revisa y te responde.'
+          : 'Gracias 😊 Ya dejé registrada tu consulta para Javier. Si querés, pasame también tu WhatsApp para que pueda responderte más fácil.';
+        await pushBot52(chatId, thanksText, {humanCollectAck:true});
+        await update(ref(db,'tomauno/chats/'+chatId), {updatedAt:Date.now(), lastMsg:'⭐ Consulta para Javier recibida', unreadVisitor:true, unreadAdmin:true, humanRequested:true, prioridad:true, awaitingHumanContact:!hasPhone});
+        try{ window.tomaunoHumanAlarm && window.tomaunoHumanAlarm(chatId, (chatVisibleName(chat,chatId)||'Visitante')+': dejó una consulta para Javier'); }catch(e){}
+        return;
+      }
       if(chat && chat.humanRequested && !chat.awaitingHumanName){
         const qLeave = (typeof normAI === 'function' ? normAI(userText||'') : String(userText||'').toLowerCase());
         const wantsLeave = /(quiero|quisiera|puedo|voy a|dejo|dejar|mandar|enviar|hacer|hacerles|hacerte).{0,40}(consulta|mensaje|pregunta|dato|datos)/.test(qLeave) || /(dejar|dejo).{0,30}(consulta|mensaje)/.test(qLeave);
@@ -7945,7 +7955,7 @@ window.filterCursos = function(){
     const last = notifySeenFinal.get(sig) || 0;
     if(Date.now() - last < 6000) return;
     notifySeenFinal.set(sig, Date.now());
-    try{ beep(); }catch(e){}
+    try{ beepStrongFinal(); }catch(e){ try{ beep(); }catch(_e){} }
     try{
       showNotif();
       showNotifBanner(title || 'Nuevo mensaje web', body || 'Nuevo mensaje', 'CHAT', () => {
@@ -7984,8 +7994,9 @@ window.filterCursos = function(){
   window.notifyAdminChat = notifyAdminChat;
 
   window.tomaunoHumanAlarm = function(chatId, body){
-    if(!adminActiveFinal() || adminViewingChatFinal(chatId)) return;
+    if(!adminActiveFinal()) return;
     beepStrongFinal();
+    if(adminViewingChatFinal(chatId)) return;
     try{ notifyAdminChat('Atención humana solicitada', body || 'Hay una persona esperando a Javier', chatId); }catch(e){}
   };
 
@@ -8141,6 +8152,18 @@ window.filterCursos = function(){
     const keepName = hasRealVisitorNameFinal(existingChat) ? limpiarNombreChat(existingChat.name || '') : '';
     const repairedName = limpiarNombreChat(keepName || detectedName || fallbackName || chatAnonName(id, existingChat));
     const now = Date.now();
+    try{
+      await push(ref(db,'tomauno/chats/'+id+'/messages'), {from:'user', text, time:chatTime(), createdAt:Date.now()});
+    }catch(saveErr){
+      await new Promise(resolve => setTimeout(resolve, 260));
+      try{
+        await push(ref(db,'tomauno/chats/'+id+'/messages'), {from:'user', text, time:chatTime(), createdAt:Date.now()});
+      }catch(saveErr2){
+        const retryInput = document.getElementById('chat-text');
+        if(retryInput) retryInput.value = text;
+        throw saveErr2;
+      }
+    }
     await update(ref(db,'tomauno/chats/'+id), {
       name:repairedName,
       status:'abierto',
@@ -8150,7 +8173,6 @@ window.filterCursos = function(){
       userOnline:true,
       userLastSeen:now
     });
-    await push(ref(db,'tomauno/chats/'+id+'/messages'), {from:'user', text, time:chatTime(), createdAt:Date.now()});
     await update(ref(db,'tomauno/chats/'+id), {updatedAt:Date.now(), lastMsg:text, status:'abierto', unreadAdmin:true, userOnline:true, userLastSeen:Date.now(), name:repairedName});
     try{ if(detectedName && !keepName) sessionStorage.setItem('tomauno-chat-name', detectedName); }catch(e){}
     try{ updateChatMessagesOnly(id, false); }catch(e){}
@@ -8227,6 +8249,12 @@ window.filterCursos = function(){
   }
 
   function decorateTypingListsFinal(){
+    if(adminActiveFinal()){
+      document.querySelectorAll('.chat-list-item,.chat-tab').forEach(el => {
+        el.classList.remove('typing-live');
+        el.querySelectorAll('.tu-live-list-preview').forEach(n => n.remove());
+      });
+    }
     return;
     if(!adminActiveFinal()) return;
     document.querySelectorAll('.chat-list-item,.chat-tab').forEach(el => el.classList.remove('typing-live'));
