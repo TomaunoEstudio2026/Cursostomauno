@@ -1916,23 +1916,27 @@ window.abrirChatTomauno = () => {
   setChatPopover(
     '<div class="chat-head"><div class="chat-avatar">💬</div><div><div class="chat-title">CHAT TOMAUNO</div><div class="chat-subline">Consulta directa desde la web</div></div></div>' +
     '<div class="chat-panel"><div class="chat-msgs" id="chat-msgs">' +
-    '<div class="chat-bubble admin"><div>Hola 😊<br/>Soy el <b>Asistente de Tomauno</b>.<br/><br/>Puedo ayudarte con cursos, eventos, sesiones fotográficas, presupuestos, alquiler del estudio, ubicación y formas de pago.<br/><br/>Mientras Javier esté ocupado, puedo responder dudas básicas o tomar tus datos para que luego se contacten con vos.<br/><br/>¿Cómo es tu nombre?</div><div class="chat-meta">Ahora</div></div>' +
+    '<div class="chat-bubble admin"><div>Hola 😊<br/><b>¿Cómo es tu nombre?</b></div><div class="chat-meta">Ahora</div></div>' +
     '</div>' +
     '<div class="chat-name-row"><input class="finput" id="chat-name" placeholder="Tu nombre" onkeydown="if(event.key===\'Enter\')window.iniciarChatConNombre()"/><button class="chat-send" onclick="window.iniciarChatConNombre()">➜</button></div></div>'
   );
-  setTimeout(()=>document.getElementById('chat-name')?.focus(),80);
+  // v19: no auto-focus; evita que el teclado móvil abra y mueva el chat.
 };
 
 window.iniciarChatConNombre = async () => {
-  const rawName = document.getElementById('chat-name')?.value.trim();
+  const rawName = (document.getElementById('chat-name')?.value || '').trim();
   const name = limpiarNombreChat(rawName);
-  if(!name){ toast('⚠️ Escribí tu nombre para iniciar'); return; }
-  const chatRef = await push(ref(db,'tomauno/chats'), {name, wp:'', status:'abierto', createdAt:Date.now(), updatedAt:Date.now(), lastMsg:'Esperando mensaje', unreadAdmin:false, unreadVisitor:false});
+  if(!name || /^(hola|buenas|ok|dale|a)$/i.test(name)){ toast('⚠️ Escribí tu nombre para iniciar'); return; }
+  const now = Date.now();
+  const chatRef = await push(ref(db,'tomauno/chats'), {name, wp:'', status:'abierto', createdAt:now, updatedAt:now, lastMsg:rawName, unreadAdmin:true, unreadVisitor:false, userOnline:true, userLastSeen:now});
   currentVisitorChatId = chatRef.key;
   try{
     sessionStorage.setItem('tomauno-chat-id', currentVisitorChatId);
     sessionStorage.setItem('tomauno-chat-name', name);
   }catch(e){}
+  // v19: guardar el nombre como primer mensaje real, para que el admin reciba aviso desde el inicio.
+  try{ await push(ref(db,'tomauno/chats/'+currentVisitorChatId+'/messages'), {from:'user', text:rawName, time:chatTime(), createdAt:now}); }catch(e){}
+  try{ await push(ref(db,'tomauno/chats/'+currentVisitorChatId+'/messages'), {from:'admin', text:'Hola '+name+' 👋 ¿En qué puedo ayudarte?', time:chatTime(), createdAt:Date.now(), auto:true}); }catch(e){}
   abrirChatVisitante(currentVisitorChatId);
 };
 
@@ -5104,17 +5108,17 @@ window.abrirChatTomauno = function(){
   unlockAudio();
   const popToggle = document.getElementById('chat-popover');
   if (popToggle && popToggle.classList.contains('open')) { window.cerrarChatPopover && window.cerrarChatPopover(); return; }
-  if (isAdminNotifier()) return window.abrirChatAdminHome();
+  if (isAdminNotifier()) return window.abrirPanelChatsAdmin();
   document.getElementById('chat-fab')?.classList.remove('has-new');
   if (currentVisitorChatId && chatsDB[currentVisitorChatId] && chatsDB[currentVisitorChatId].status !== 'cerrado') return abrirChatVisitante(currentVisitorChatId);
   setChatPopover(
     '<div class="chat-head"><div class="chat-avatar">💬</div><div><div class="chat-title">CHAT TOMAUNO</div><div class="chat-subline">Consulta directa desde la web</div></div></div>' +
     '<div class="chat-panel"><div class="chat-msgs" id="chat-msgs">' +
-    '<div class="chat-bubble admin"><div>Hola 😊<br/>Soy el <b>Asistente de Tomauno</b>.<br/><br/>Puedo ayudarte con cursos, eventos, sesiones fotográficas, presupuestos, alquiler del estudio, ubicación y formas de pago.<br/><br/>Mientras Javier esté ocupado, puedo responder dudas básicas o tomar tus datos para que luego se contacten con vos.<br/><br/>¿Cómo es tu nombre?</div><div class="chat-meta">Ahora</div></div>' +
+    '<div class="chat-bubble admin"><div>Hola 😊<br/><b>¿Cómo es tu nombre?</b></div><div class="chat-meta">Ahora</div></div>' +
     '</div>' +
     '<div class="chat-name-row"><input class="finput" id="chat-name" placeholder="Tu nombre" onkeydown="if(event.key===\'Enter\')window.iniciarChatConNombre()"/><button class="chat-send" onclick="window.iniciarChatConNombre()">➜</button></div></div>'
   );
-  setTimeout(()=>document.getElementById('chat-name')?.focus(),80);
+  // v19: no auto-focus; evita que el teclado móvil abra y mueva el chat.
 };
 
 window.cerrarConversacionChat = async function(id){
@@ -7319,7 +7323,7 @@ window.filterCursos = function(){
   function visitorStartHtml89(){
     return '<div class="chat-head"><div class="chat-avatar">💬</div><div><div class="chat-title">CHAT TOMAUNO</div><div class="chat-subline">Consulta directa desde la web</div></div></div>'+
       '<div class="chat-panel"><div class="chat-msgs" id="chat-msgs">'+
-      '<div class="chat-bubble admin"><div>Hola 😊<br/>Soy el <b>Asistente de Tomauno</b>.<br/><br/>Puedo ayudarte con cursos, eventos, sesiones fotográficas, presupuestos, alquiler del estudio, ubicación y formas de pago.<br/><br/>Mientras Javier esté ocupado, puedo responder dudas básicas o tomar tus datos para que luego se contacten con vos.<br/><br/>¿Cómo es tu nombre?</div><div class="chat-meta">Ahora</div></div>'+
+      '<div class="chat-bubble admin"><div>Hola 😊<br/><b>¿Cómo es tu nombre?</b></div><div class="chat-meta">Ahora</div></div>'+
       '</div><div class="chat-name-row"><input class="finput" id="chat-name" placeholder="Tu nombre" onkeydown="if(event.key===\'Enter\')window.iniciarChatConNombre()"/><button class="chat-send" onclick="window.iniciarChatConNombre()">➜</button></div></div>';
   }
   function visitorChatHtml89(id){
