@@ -2059,7 +2059,7 @@ function scrollChatSmart(box){
 function updateChatMessagesOnly(id, adminView){
   const box=document.getElementById('chat-msgs'); if(!box) return;
   const chat=chatsDB[id]||{};
-  const html = renderMsgs(chat, adminView, id) + (!adminView && !isAdminOnline() ? '<div class="chat-bubble system">Si no respondo pronto, también podés escribirme por WhatsApp.<br><a class="chat-wa-soft" target="_blank" rel="noopener noreferrer" href="https://wa.me/5493764354522?text=Hola%20vengo%20de%20la%20web%20Tomauno%20Cursos%20y%20Capacitaciones%2C%20quisiera%20hacer%20una%20consulta.">💬 WhatsApp directo</a></div>' : '');
+  const html = renderMsgs(chat, adminView, id);
   if(box.dataset.lastHtml !== html){ box.innerHTML=html; box.dataset.lastHtml=html; scrollChatSmart(box); }
 }
 
@@ -2073,7 +2073,7 @@ function abrirChatVisitante(id, silent=false){
   setChatPopover(
     '<div class="chat-head"><div class="chat-avatar">💬</div><div><div class="chat-title">CHAT TOMAUNO</div><div class="chat-subline">'+escHtml(chatVisibleName(chat,id))+' · '+(isAdminOnline()?'🟢 Admin en línea':'⚫ Admin fuera de línea')+'</div></div></div>' +
     '<div class="chat-panel"><div class="chat-msgs" id="chat-msgs">' + (msgs || '<div class="chat-bubble admin">Hola '+escHtml(chat.name||'')+' 👋 ¿En qué puedo ayudarte?</div>') +
-    (!isAdminOnline() ? '<div class="chat-bubble system">Si no respondo pronto, también podés escribirme por WhatsApp.<br><a class="chat-wa-soft" target="_blank" rel="noopener noreferrer" href="https://wa.me/5493764354522?text=Hola%20vengo%20de%20la%20web%20Tomauno%20Cursos%20y%20Capacitaciones%2C%20quisiera%20hacer%20una%20consulta.">💬 WhatsApp directo</a></div>' : '') +
+    '' +
     '</div>' +
     '<div class="chat-row"><input class="finput" id="chat-text" placeholder="Escribí tu mensaje..." value="'+escAttr(inputVal)+'" onkeydown="if(event.key===\'Enter\')window.enviarChatVisitante(\''+id+'\')"/><button class="chat-send" onclick="window.enviarChatVisitante(\''+id+'\')">➜</button></div>' +
     '</div>'
@@ -5087,7 +5087,7 @@ updateChatMessagesOnly = function(id, adminView){
   const chat=chatsDB[id];
   // Evita que el listener limpie la ventana si Firebase todavía no devolvió el chat o si fue cerrado/borrado.
   if(!chat){ return; }
-  const html = renderMsgs(chat, adminView, id) + (!adminView && !isAdminOnline() ? '<div class="chat-bubble system">Si no respondo pronto, también podés escribirme por WhatsApp.<br><a class="chat-wa-soft" target="_blank" rel="noopener noreferrer" href="'+chatWhatsappUrl(chat)+'">💬 WhatsApp directo</a></div>' : '');
+  const html = renderMsgs(chat, adminView, id);
   if(!html.trim() && box.innerHTML.trim()) return;
   if(box.dataset.lastHtml !== html){ box.innerHTML=html; box.dataset.lastHtml=html; scrollChatSmart(box); }
 };
@@ -7333,7 +7333,7 @@ window.filterCursos = function(){
       const msgs = renderMsgs(chat, false, id);
       return '<div class="chat-head"><div class="chat-avatar">💬</div><div><div class="chat-title">CHAT TOMAUNO</div><div class="chat-subline">'+escHtml(chatVisibleName(chat,id))+' · '+(isAdminOnline()?'🟢 Admin en línea':'⚫ Admin fuera de línea')+'</div></div></div>'+
         '<div class="chat-panel"><div class="chat-msgs" id="chat-msgs">'+(msgs || '<div class="chat-bubble admin">Hola '+escHtml(chat.name||'')+' 👋 ¿En qué puedo ayudarte?</div>')+
-        (!isAdminOnline() ? '<div class="chat-bubble system">Si no respondo pronto, también podés escribirme por WhatsApp.<br><a class="chat-wa-soft" target="_blank" rel="noopener noreferrer" href="https://wa.me/5493764354522?text=Hola%20vengo%20de%20la%20web%20Tomauno%20Cursos%20y%20Capacitaciones%2C%20quisiera%20hacer%20una%20consulta.">💬 WhatsApp directo</a></div>' : '')+
+        ''+
         '</div><div class="chat-row"><input class="finput" id="chat-text" placeholder="Escribí tu mensaje..." value="'+escAttr(inputVal)+'" onkeydown="if(event.key===\'Enter\')window.enviarChatVisitante(\''+id+'\')"/><button class="chat-send" onclick="window.enviarChatVisitante(\''+id+'\')">➜</button></div></div>';
     }catch(e){ return visitorStartHtml89(); }
   }
@@ -7702,7 +7702,7 @@ window.filterCursos = function(){
   document.addEventListener('input', ev => {
     if(!ev.target || ev.target.id !== 'chat-text') return;
     clearTimeout(typingTimerFinal);
-    typingTimerFinal = setTimeout(() => sendTypingFinal(false), 180);
+    typingTimerFinal = setTimeout(() => sendTypingFinal(false), 45);
   }, true);
   document.addEventListener('blur', ev => {
     if(ev.target && ev.target.id === 'chat-text') setTimeout(() => sendTypingFinal(true), 2500);
@@ -7722,6 +7722,7 @@ window.filterCursos = function(){
     const id = currentOpenChatId;
     if(!id || !chatsDB[id]) return;
     const text = chatTypingText(chatsDB[id]);
+    const msgs = pop.querySelector('.chat-msgs');
     let box = pop.querySelector('.chat-live-typing');
     if(!text){
       if(box) box.remove();
@@ -7729,9 +7730,8 @@ window.filterCursos = function(){
     }
     if(!box){
       box = document.createElement('div');
-      box.className = 'chat-live-typing';
-      const row = pop.querySelector('.chat-row');
-      if(row && row.parentNode) row.parentNode.insertBefore(box, row);
+      box.className = 'chat-live-typing chat-bubble user';
+      if(msgs) msgs.appendChild(box);
     }
     box.innerHTML = '<strong>Escribiendo ahora</strong>' + escHtml(text);
   }

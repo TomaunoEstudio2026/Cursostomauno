@@ -458,17 +458,121 @@
   safe(function(){new MutationObserver(function(){setTimeout(function(){scheduleAutoUI();forceAdminChatIfNeeded();markModeClass();syncTitleName();if(!isTypingNow()) shortenWelcome();hideVisitorAdminAlerts();},80);}).observe(document.documentElement,{childList:true,subtree:true});});
 })();
 
-
-/* MODULAR v20 final stabilizer loaded last */
+/* v19.1 - cierre real visitante: congela foco/scroll mientras escribe. */
 (function(){
   'use strict';
-  function safe(fn){try{return fn();}catch(e){}}
-  function isAdmin(){return safe(()=>localStorage.getItem('tomauno-admin-ok')==='1'||localStorage.getItem('tomauno-admin-notify')==='1')||false;}
-  function mark(){safe(()=>{const p=document.getElementById('chat-popover');if(!p)return;const adm=!!p.querySelector('#chat-admin-text,.chat-admin-tools,.chat-inbox-side,.chat-tabs');p.classList.toggle('tomauno-chat-admin',adm);p.classList.toggle('tomauno-chat-visitor',!adm);if(!adm){const t=p.querySelector('.chat-title');if(t)t.textContent='CHAT TOMAUNO';const s=p.querySelector('.chat-subline');if(s)s.textContent='Consulta directa desde la web';}})}
-  document.addEventListener('input',e=>{if(e.target&&e.target.id==='chat-text') window.__tomaunoTypingUntil=Date.now()+3000;},true);
-  const oldSet=window.setChatPopover;
-  if(typeof oldSet==='function') window.setChatPopover=function(){ if(Date.now()<(window.__tomaunoTypingUntil||0) && document.activeElement&&document.activeElement.id==='chat-text') return; const r=oldSet.apply(this,arguments); setTimeout(mark,0); return r; };
-  const oldCerrar=window.cerrarAdmin;
-  if(typeof oldCerrar==='function') window.cerrarAdmin=function(){safe(()=>document.getElementById('chat-popover')?.classList.remove('open','expanded')); return oldCerrar.apply(this,arguments);};
-  setInterval(mark,1000); setTimeout(mark,200); setTimeout(mark,1000);
+  function safe(fn){try{return fn();}catch(e){try{console.warn('visitor lock v19.1:',e);}catch(_){}}}
+  function isAdmin(){
+    return safe(function(){
+      return localStorage.getItem('tomauno-admin-ok')==='1' ||
+        localStorage.getItem('tomauno-admin-notify')==='1' ||
+        !!document.querySelector('#chat-popover.open #chat-admin-text,#chat-popover.open .chat-inbox-side,#chat-popover.open .chat-admin-tools');
+    })||false;
+  }
+  function autoOn(){
+    return safe(function(){
+      if(typeof window.asistenteModo==='function') return window.asistenteModo()==='automatico';
+      return String(window.tomaunoAutoGlobalModo||'').toLowerCase()==='automatico';
+    })||false;
+  }
+  function input(){
+    return safe(function(){
+      if(isAdmin()) return null;
+      var pop=document.getElementById('chat-popover');
+      var el=document.getElementById('chat-text')||document.querySelector('#chat-popover.open .chat-row input,#chat-popover.open .chat-row textarea');
+      return pop&&pop.classList.contains('open')&&el ? el : null;
+    })||null;
+  }
+  function writing(){
+    var el=input();
+    return !!(el && document.activeElement===el);
+  }
+  var lock={active:false,value:'',start:0,end:0,top:0,until:0};
+  function capture(){
+    var el=input();
+    if(!el) return;
+    var box=document.querySelector('#chat-popover.open .chat-msgs');
+    lock.active=true;
+    lock.value=el.value||'';
+    lock.start=el.selectionStart||0;
+    lock.end=el.selectionEnd||lock.start;
+    lock.top=box?box.scrollTop:0;
+    lock.until=Date.now()+2500;
+    if(box) box.setAttribute('data-tu-lock-top',String(lock.top));
+  }
+  function restore(){
+    if(!lock.active || Date.now()>lock.until) return;
+    var el=input();
+    if(!el) return;
+    if((el.value||'')!==lock.value) el.value=lock.value;
+    try{el.focus({preventScroll:true});el.setSelectionRange(lock.start,lock.end);}catch(e){try{el.focus();}catch(_e){}}
+    var box=document.querySelector('#chat-popover.open .chat-msgs');
+    if(box) box.scrollTop=lock.top;
+  }
+  function cleanVisitor(){
+    safe(function(){
+      if(isAdmin()) return;
+      document.querySelectorAll('#chat-popover.open .chat-bubble.system').forEach(function(b){
+        if(/Si no respondo pronto|WhatsApp directo/i.test(b.innerText||'')) b.remove();
+      });
+      var title=document.querySelector('#chat-popover.open .chat-title');
+      if(title) title.textContent=autoOn()?'CHAT TOMAUNO':'JAVIER';
+      var sub=document.querySelector('#chat-popover.open .chat-subline');
+      if(sub) sub.textContent=autoOn()?'Consulta directa desde la web':'Javier esta respondiendo';
+    });
+  }
+  function css(){
+    if(document.getElementById('tu-v191-visitor-lock-css')) return;
+    var st=document.createElement('style');
+    st.id='tu-v191-visitor-lock-css';
+    st.textContent=[
+      'html body:not(.tomauno-admin-active) #chat-popover.open:not(:has(.chat-inbox-side)),html body.tomauno-visitor-active #chat-popover.open:not(:has(.chat-inbox-side)){width:min(340px,calc(100vw - 22px))!important;max-width:min(340px,calc(100vw - 22px))!important;right:16px!important;bottom:84px!important;height:min(70vh,620px)!important;max-height:min(70vh,620px)!important;}',
+      'html body:not(.tomauno-admin-active) #chat-popover.open .chat-popover-inner,html body.tomauno-visitor-active #chat-popover.open .chat-popover-inner{height:100%!important;overflow:hidden!important;}',
+      'html body:not(.tomauno-admin-active) #chat-popover.open .chat-panel,html body.tomauno-visitor-active #chat-popover.open .chat-panel{height:100%!important;min-height:0!important;display:flex!important;flex-direction:column!important;overflow:hidden!important;}',
+      'html body:not(.tomauno-admin-active) #chat-popover.open .chat-msgs,html body.tomauno-visitor-active #chat-popover.open .chat-msgs{flex:1 1 auto!important;min-height:0!important;max-height:none!important;scroll-behavior:auto!important;overscroll-behavior:contain!important;}',
+      'html body:not(.tomauno-admin-active) #chat-popover.open .chat-row,html body.tomauno-visitor-active #chat-popover.open .chat-row{flex:0 0 auto!important;margin-top:8px!important;}',
+      'html body.tu-visitor-writing #chat-popover.open,html body.tu-visitor-writing #chat-popover.open *{transition:none!important;animation:none!important;}',
+      '@media(max-width:700px){html body:not(.tomauno-admin-active) #chat-popover.open,html body.tomauno-visitor-active #chat-popover.open{left:10px!important;right:10px!important;width:auto!important;height:calc(100dvh - var(--tomauno-keyboard,0px) - 22px)!important;max-height:calc(100dvh - var(--tomauno-keyboard,0px) - 22px)!important;bottom:calc(var(--tomauno-keyboard,0px) + 8px)!important;}}'
+    ].join('\n');
+    document.head.appendChild(st);
+  }
+  function wrap(name){
+    var old=window[name];
+    if(typeof old!=='function' || old.__tuVisitorLock) return;
+    var wrapped=function(){
+      var was=writing();
+      if(was) capture();
+      var out=old.apply(this,arguments);
+      if(was){setTimeout(restore,0);setTimeout(restore,30);setTimeout(cleanVisitor,35);}
+      else setTimeout(cleanVisitor,30);
+      return out;
+    };
+    wrapped.__tuVisitorLock=1;
+    window[name]=wrapped;
+    try{ if(name==='updateChatMessagesOnly') updateChatMessagesOnly=wrapped; }catch(e){}
+    try{ if(name==='abrirChatVisitante') abrirChatVisitante=wrapped; }catch(e){}
+    try{ if(name==='scrollChatSmart') scrollChatSmart=wrapped; }catch(e){}
+  }
+  function install(){
+    css();
+    wrap('updateChatMessagesOnly');
+    wrap('abrirChatVisitante');
+    wrap('scrollChatSmart');
+    wrap('enviarChatVisitante');
+    document.addEventListener('focusin',function(e){
+      if(e.target&&e.target.id==='chat-text'){document.body.classList.add('tu-visitor-writing');capture();cleanVisitor();}
+    },true);
+    document.addEventListener('input',function(e){
+      if(e.target&&e.target.id==='chat-text'){capture();restore();cleanVisitor();}
+    },true);
+    document.addEventListener('focusout',function(e){
+      if(e.target&&e.target.id==='chat-text') setTimeout(function(){document.body.classList.remove('tu-visitor-writing');lock.active=false;},800);
+    },true);
+    document.addEventListener('scroll',function(e){
+      if(writing() && e.target && e.target.classList && e.target.classList.contains('chat-msgs')) restore();
+    },true);
+    new MutationObserver(function(){if(writing()){restore();cleanVisitor();}else cleanVisitor();}).observe(document.documentElement,{childList:true,subtree:true});
+    setInterval(function(){if(writing()) restore(); cleanVisitor();},120);
+  }
+  if(document.readyState==='loading') document.addEventListener('DOMContentLoaded',install,{once:true}); else install();
 })();
