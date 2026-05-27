@@ -163,7 +163,7 @@
       var txt=auto?'ADM · AUTO':'ADM';
       if(live.textContent!==txt) live.textContent=txt;
     }
-    if(isTypingNow()) setTimeout(restoreTyping,30);
+    if(isTypingNow() && isAdminActive()) setTimeout(restoreTyping,30);
   });}
   function scheduleAutoUI(){
     if(pendingApply) return;
@@ -479,7 +479,9 @@
     return safe(function(){
       if(isAdmin()) return null;
       var pop=document.getElementById('chat-popover');
-      var el=document.getElementById('chat-text')||document.querySelector('#chat-popover.open .chat-row input,#chat-popover.open .chat-row textarea');
+      var el=document.getElementById('chat-name')||
+        document.getElementById('chat-text')||
+        document.querySelector('#chat-popover.open .chat-name-row input,#chat-popover.open .chat-row input,#chat-popover.open .chat-row textarea');
       return pop&&pop.classList.contains('open')&&el ? el : null;
     })||null;
   }
@@ -512,6 +514,7 @@
   function cleanVisitor(){
     safe(function(){
       if(isAdmin()) return;
+      if(writing()) return;
       document.querySelectorAll('#chat-popover.open .chat-bubble.system').forEach(function(b){
         if(/Si no respondo pronto|WhatsApp directo/i.test(b.innerText||'')) b.remove();
       });
@@ -541,6 +544,7 @@
     if(typeof old!=='function' || old.__tuVisitorLock) return;
     var wrapped=function(){
       var was=writing();
+      if(was && name==='scrollChatSmart') return;
       if(was) capture();
       var out=old.apply(this,arguments);
       if(was){setTimeout(restore,0);setTimeout(restore,30);setTimeout(cleanVisitor,35);}
@@ -558,15 +562,14 @@
     wrap('updateChatMessagesOnly');
     wrap('abrirChatVisitante');
     wrap('scrollChatSmart');
-    wrap('enviarChatVisitante');
     document.addEventListener('focusin',function(e){
-      if(e.target&&e.target.id==='chat-text'){document.body.classList.add('tu-visitor-writing');capture();cleanVisitor();}
+      if(e.target&&(e.target.id==='chat-text'||e.target.id==='chat-name')){document.body.classList.add('tu-visitor-writing');capture();}
     },true);
     document.addEventListener('input',function(e){
-      if(e.target&&e.target.id==='chat-text'){capture();restore();cleanVisitor();}
+      if(e.target&&(e.target.id==='chat-text'||e.target.id==='chat-name')){capture();restore();}
     },true);
     document.addEventListener('focusout',function(e){
-      if(e.target&&e.target.id==='chat-text') setTimeout(function(){document.body.classList.remove('tu-visitor-writing');lock.active=false;},800);
+      if(e.target&&(e.target.id==='chat-text'||e.target.id==='chat-name')) setTimeout(function(){document.body.classList.remove('tu-visitor-writing');lock.active=false;cleanVisitor();},800);
     },true);
     document.addEventListener('scroll',function(e){
       if(writing() && e.target && e.target.classList && e.target.classList.contains('chat-msgs')) restore();

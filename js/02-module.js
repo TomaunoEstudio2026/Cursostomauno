@@ -6245,7 +6245,7 @@ window.filterCursos = function(){
     notifyAdminChat('Nuevo mensaje web', chatVisibleName(item.c,item.id) + ': ' + (item.info.text || 'Escribió desde la web'), item.id);
     try{
       const pop = document.getElementById('chat-popover');
-      if(!pop || !pop.classList.contains('open')) setTimeout(()=>window.abrirPanelChatsAdmin && window.abrirPanelChatsAdmin(), 120);
+      if(!pop || !pop.classList.contains('open')) setTimeout(()=>window.abrirChatAdmin && window.abrirChatAdmin(item.id), 120);
     }catch(e){}
   });
 
@@ -6578,7 +6578,7 @@ window.filterCursos = function(){
     const top = changed[0];
     const pop = document.getElementById('chat-popover');
     const closed = !pop || !pop.classList.contains('open');
-    if(closed){ setTimeout(()=>window.abrirPanelChatsAdmin && window.abrirPanelChatsAdmin(), 120); }
+    if(closed){ setTimeout(()=>window.abrirChatAdmin && window.abrirChatAdmin(top.id), 120); }
     // Si el mensaje viene de otro chat, avisar aunque estés en una conversación.
     if(closed || currentOpenChatId !== top.id || (nowTs()-Number(lastNotifyByChat[top.id]||0) > TEN_MIN)){
       notifyAdminChat('Nuevo mensaje web', chatVisibleName(top.c,top.id)+': '+(top.c.lastMsg||'Escribió desde la web'), top.id);
@@ -7605,7 +7605,7 @@ window.filterCursos = function(){
     }catch(e){}
     await push(ref(db,'tomauno/chats/'+currentVisitorChatId+'/messages'), {
       from:'admin',
-      text:'Hola :)\\nComo es tu nombre?',
+      text:'Hola 😊\n¿Cómo es tu nombre?',
       time:chatTime(),
       createdAt:now - 2,
       auto:true,
@@ -7619,7 +7619,7 @@ window.filterCursos = function(){
     });
     await push(ref(db,'tomauno/chats/'+currentVisitorChatId+'/messages'), {
       from:'admin',
-      text:'Hola '+name+' :) En que puedo ayudarte?',
+      text:'Hola '+name+' 😊 ¿En qué puedo ayudarte?',
       time:chatTime(),
       createdAt:Date.now(),
       auto:true
