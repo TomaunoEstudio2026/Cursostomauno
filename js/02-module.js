@@ -7522,7 +7522,7 @@ window.filterCursos = function(){
     }catch(e){}
   }
   function beepStrongFinal(){
-    beepStrongFinal();
+    try{ beep(); }catch(e){}
     try{
       const Ctx = window.AudioContext || window.webkitAudioContext;
       if(!Ctx) return;
@@ -7563,6 +7563,23 @@ window.filterCursos = function(){
     if(/[?¿!¡@#:/\\0-9]/.test(raw)) return false;
     if(/\b(info|curso|cursos|precio|precios|manualidades|quiero|consulta|consultar|hola|buenas|turno|inscribir|inscripcion|whatsapp|telefono|donde|ubicacion|servicio|servicios)\b/i.test(raw)) return false;
     return /^[A-Za-zÁÉÍÓÚÑÜáéíóúñü]+(?:\s+[A-Za-zÁÉÍÓÚÑÜáéíóúñü]+){0,2}$/.test(raw);
+  }
+  function hasRealVisitorNameFinal(chat){
+    try{ return tieneNombreRealChat(chat); }
+    catch(e){
+      const n = String(chat && chat.name || '').trim();
+      return !!(n && !/^Usuario\s+[A-Z]$/i.test(n) && !/consulta web|visitante|sin nombre/i.test(n));
+    }
+  }
+  function safeDetectedNameFinal(text, chat){
+    const raw = String(text || '').trim();
+    if(!raw || /[?Â¿!Â¡@#:/\\0-9]/.test(raw)) return '';
+    if(/\b(info|curso|cursos|precio|precios|manualidades|quiero|consulta|consultar|contacto|javier|servicio|servicios|ubicacion|telefono|whatsapp|donde|cuando|cuanto|pasas|tenes|hola|buenas)\b/i.test(raw)) return '';
+    const explicit = /^(soy|me llamo|mi nombre es|nombre es)\s+/i.test(raw);
+    const asked = lastAdminAskedName(chat);
+    if(!explicit && !asked) return '';
+    const n = isJustNameReply(text, chat);
+    return looksLikeRealNameFinal(n) ? limpiarNombreChat(n) : '';
   }
   function installFinalCss(){
     if(document.getElementById('tu-v3322-chat-css')) return;
@@ -7980,8 +7997,9 @@ window.filterCursos = function(){
     }catch(e){}
     let fallbackName = '';
     try{ fallbackName = sessionStorage.getItem('tomauno-chat-name') || ''; }catch(e){}
-    const detectedName = isJustNameReply(text, existingChat);
-    const repairedName = limpiarNombreChat(detectedName || existingChat.name || fallbackName || chatAnonName(id, existingChat));
+    const detectedName = safeDetectedNameFinal(text, existingChat);
+    const keepName = hasRealVisitorNameFinal(existingChat) ? limpiarNombreChat(existingChat.name || '') : '';
+    const repairedName = limpiarNombreChat(keepName || detectedName || fallbackName || chatAnonName(id, existingChat));
     const now = Date.now();
     await update(ref(db,'tomauno/chats/'+id), {
       name:repairedName,
@@ -7994,7 +8012,7 @@ window.filterCursos = function(){
     });
     await push(ref(db,'tomauno/chats/'+id+'/messages'), {from:'user', text, time:chatTime(), createdAt:Date.now()});
     await update(ref(db,'tomauno/chats/'+id), {updatedAt:Date.now(), lastMsg:text, status:'abierto', unreadAdmin:true, userOnline:true, userLastSeen:Date.now(), name:repairedName});
-    try{ if(detectedName) sessionStorage.setItem('tomauno-chat-name', detectedName); }catch(e){}
+    try{ if(detectedName && !keepName) sessionStorage.setItem('tomauno-chat-name', detectedName); }catch(e){}
     try{ updateChatMessagesOnly(id, false); }catch(e){}
     if(detectedName && lastAdminAskedName(existingChat)) return;
     responderAutomaticoChat(id, text);
