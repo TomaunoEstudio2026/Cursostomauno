@@ -1920,7 +1920,10 @@ window.abrirChatTomauno = () => {
     '</div>' +
     '<div class="chat-name-row"><input class="finput" id="chat-name" placeholder="Tu nombre" onkeydown="if(event.key===\'Enter\')window.iniciarChatConNombre()"/><button class="chat-send" onclick="window.iniciarChatConNombre()">➜</button></div></div>'
   );
-  // v19: no auto-focus; evita que el teclado móvil abra y mueva el chat.
+  setTimeout(()=>{
+    const inp = document.getElementById('chat-name');
+    if(inp){ try{ inp.focus({preventScroll:true}); }catch(e){ inp.focus(); } }
+  }, 80);
 };
 
 window.iniciarChatConNombre = async () => {
@@ -5122,7 +5125,10 @@ window.abrirChatTomauno = function(){
     '</div>' +
     '<div class="chat-name-row"><input class="finput" id="chat-name" placeholder="Tu nombre" onkeydown="if(event.key===\'Enter\')window.iniciarChatConNombre()"/><button class="chat-send" onclick="window.iniciarChatConNombre()">➜</button></div></div>'
   );
-  // v19: no auto-focus; evita que el teclado móvil abra y mueva el chat.
+  setTimeout(()=>{
+    const inp = document.getElementById('chat-name');
+    if(inp){ try{ inp.focus({preventScroll:true}); }catch(e){ inp.focus(); } }
+  }, 80);
 };
 
 window.cerrarConversacionChat = async function(id){

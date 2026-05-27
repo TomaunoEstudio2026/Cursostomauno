@@ -548,11 +548,11 @@
     if(typeof old!=='function' || old.__tuVisitorLock) return;
     var wrapped=function(){
       var was=writing();
-      if(name==='enviarChatVisitante'||name==='iniciarChatConNombre'){
+      if(name==='enviarChatVisitante'){
         sendingUntil=Date.now()+1200;
         lock.active=false;
         var active=document.activeElement;
-        if(active && (active.id==='chat-text'||active.id==='chat-name')) active.value='';
+        if(active && active.id==='chat-text') active.value='';
         return old.apply(this,arguments);
       }
       if(was && name==='scrollChatSmart') return;
@@ -574,7 +574,6 @@
     wrap('abrirChatVisitante');
     wrap('scrollChatSmart');
     wrap('enviarChatVisitante');
-    wrap('iniciarChatConNombre');
     document.addEventListener('focusin',function(e){
       if(e.target&&(e.target.id==='chat-text'||e.target.id==='chat-name')){document.body.classList.add('tu-visitor-writing');capture();}
     },true);
