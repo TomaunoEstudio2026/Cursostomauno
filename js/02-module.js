@@ -7779,6 +7779,7 @@ window.filterCursos = function(){
   }
 
   function decorateTypingListsFinal(){
+    return;
     if(!adminActiveFinal()) return;
     document.querySelectorAll('.chat-list-item,.chat-tab').forEach(el => el.classList.remove('typing-live'));
     Object.entries(chatsDB || {}).forEach(([id,c]) => {
