@@ -3301,7 +3301,7 @@ window.closeModal = () => {
 };
 document.addEventListener('keydown', e => { if (e.key === 'Escape') closeModal(); });
 
-window.toast = (msg, autohide = false) => {
+window.toast = (msg, autohide = true) => {
   const t = document.getElementById('toast');
   t.onclick = () => t.classList.remove('show');
   t.textContent = msg + '  ✕';
@@ -7625,23 +7625,43 @@ window.filterCursos = function(){
     st.id = 'tu-v3322-chat-css';
     st.textContent = `
       body.tomauno-visitor-active .chat-popover.open:not(.expanded):not(:has(.chat-inbox-side)),
+      body.tomauno-visitor-active .chat-popover.open.expanded:not(:has(.chat-inbox-side)),
       body:not(.tomauno-admin-active) .chat-popover.open:not(.expanded):not(:has(.chat-inbox-side)),
+      body:not(.tomauno-admin-active) .chat-popover.open.expanded:not(:has(.chat-inbox-side)),
       .chat-popover.tomauno-chat-visitor.open:not(.expanded),
-      .chat-popover.tu89-visitor.open:not(.expanded){
+      .chat-popover.tomauno-chat-visitor.open.expanded,
+      .chat-popover.tu89-visitor.open:not(.expanded),
+      .chat-popover.tu89-visitor.open.expanded{
+        left:auto!important;
+        top:auto!important;
+        transform:none!important;
         width:min(${VISITOR_CHAT_WIDTH}px, calc(100vw - 22px))!important;
         max-width:min(${VISITOR_CHAT_WIDTH}px, calc(100vw - 22px))!important;
+        min-width:0!important;
         right:18px!important;
         bottom:82px!important;
+        resize:none!important;
       }
       html body #chat-popover.open.tomauno-chat-visitor,
+      html body #chat-popover.open.tomauno-chat-visitor.expanded,
       html body #chat-popover.open.tu89-visitor,
+      html body #chat-popover.open.tu89-visitor.expanded,
       html body.tomauno-visitor-active #chat-popover.open,
-      html body:not(.tomauno-admin-active) #chat-popover.open:not(:has(.chat-inbox-side)){
+      html body.tomauno-visitor-active #chat-popover.open.expanded,
+      html body:not(.tomauno-admin-active) #chat-popover.open:not(:has(.chat-inbox-side)),
+      html body:not(.tomauno-admin-active) #chat-popover.open.expanded:not(:has(.chat-inbox-side)){
+        left:auto!important;
+        top:auto!important;
+        transform:none!important;
         width:min(${VISITOR_CHAT_WIDTH}px, calc(100vw - 22px))!important;
         max-width:min(${VISITOR_CHAT_WIDTH}px, calc(100vw - 22px))!important;
+        min-width:0!important;
         right:16px!important;
+        bottom:82px!important;
         height:min(58vh, 520px)!important;
         max-height:min(58vh, 520px)!important;
+        min-height:0!important;
+        resize:none!important;
       }
       html body.tomauno-visitor-active #chat-popover.open .chat-msgs,
       html body:not(.tomauno-admin-active) #chat-popover.open:not(:has(.chat-inbox-side)) .chat-msgs{
@@ -7742,6 +7762,7 @@ window.filterCursos = function(){
     const keep = inp ? {value:inp.value,start:inp.selectionStart,end:inp.selectionEnd,focused:document.activeElement===inp} : null;
     const top = box ? box.scrollTop : 0;
     const r = fn();
+    if(Date.now() < (window.__tomaunoVisitorSendingUntil || 0)) return r;
     if(keep && keep.focused){
       const next = document.getElementById('chat-text');
       if(next){
@@ -7785,6 +7806,11 @@ window.filterCursos = function(){
   abrirChatVisitante = function(id, silent){
     currentVisitorChatId = id || currentVisitorChatId;
     syncChatGlobalsFinal();
+    setTimeout(() => {
+      if(adminActiveFinal()) return;
+      const pop = document.getElementById('chat-popover');
+      if(pop) pop.classList.remove('expanded', 'resizable', 'dragged');
+    }, 0);
     if(visitorTypingNow() && id === visitorChatIdFinal()){
       updateChatMessagesOnly(id, false);
       return;
@@ -7809,6 +7835,9 @@ window.filterCursos = function(){
       if(inp){ inp.value=''; try{inp.focus({preventScroll:true});}catch(e){inp.focus();} }
       return;
     }
+    window.__tomaunoVisitorSendingUntil = Date.now() + 1800;
+    const nameInput = document.getElementById('chat-name');
+    if(nameInput) nameInput.value = '';
     const now = Date.now();
     const chatRef = await push(ref(db,'tomauno/chats'), {
       name,
@@ -7851,6 +7880,12 @@ window.filterCursos = function(){
       auto:true
     });
     abrirChatVisitante(currentVisitorChatId, true);
+    [40, 160, 420].forEach(ms => setTimeout(() => {
+      const txt = document.getElementById('chat-text');
+      const nam = document.getElementById('chat-name');
+      if(txt) txt.value = '';
+      if(nam) nam.value = '';
+    }, ms));
   };
 
   const prevOpenAdminFinal = window.abrirChatAdmin;
@@ -8087,7 +8122,12 @@ window.filterCursos = function(){
     if(!text) return;
     if(lastDirectVisitorSendFinal.id === id && lastDirectVisitorSendFinal.text === text && Date.now() - lastDirectVisitorSendFinal.at < 1200) return;
     lastDirectVisitorSendFinal = {id, text, at:Date.now()};
+    window.__tomaunoVisitorSendingUntil = Date.now() + 1800;
     if(inp){ inp.value = ''; try{ inp.focus({preventScroll:true}); }catch(e){ inp.focus(); } }
+    [30, 140, 360, 800].forEach(ms => setTimeout(() => {
+      const next = document.getElementById('chat-text');
+      if(next) next.value = '';
+    }, ms));
     await update(ref(db,'tomauno/chats/'+id+'/liveTyping'), {text:'', at:Date.now()}).catch(()=>{});
     lastTypingSentFinal = '';
     let existingChat = chatsDB?.[id] || {};
@@ -8114,6 +8154,11 @@ window.filterCursos = function(){
     await update(ref(db,'tomauno/chats/'+id), {updatedAt:Date.now(), lastMsg:text, status:'abierto', unreadAdmin:true, userOnline:true, userLastSeen:Date.now(), name:repairedName});
     try{ if(detectedName && !keepName) sessionStorage.setItem('tomauno-chat-name', detectedName); }catch(e){}
     try{ updateChatMessagesOnly(id, false); }catch(e){}
+    window.__tomaunoVisitorSendingUntil = Date.now() + 900;
+    [20, 180].forEach(ms => setTimeout(() => {
+      const next = document.getElementById('chat-text');
+      if(next) next.value = '';
+    }, ms));
     if(detectedName && lastAdminAskedName(existingChat)) return;
     responderAutomaticoChat(id, text);
   }

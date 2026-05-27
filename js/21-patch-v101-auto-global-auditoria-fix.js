@@ -550,10 +550,11 @@
     if(!lock.active || Date.now()>lock.until) return;
     var el=input();
     if(!el) return;
-    if((el.value||'')!==lock.value) el.value=lock.value;
-    try{el.focus({preventScroll:true});el.setSelectionRange(lock.start,lock.end);}catch(e){try{el.focus();}catch(_e){}}
-    var box=document.querySelector('#chat-popover.open .chat-msgs');
-    if(box) box.scrollTop=lock.top;
+    // No restaurar valor, seleccion ni scroll: eso pegaba textos viejos
+    // y desmarcaba lo que el visitante intentaba borrar.
+    if(document.activeElement !== el){
+      try{el.focus({preventScroll:true});}catch(e){}
+    }
   }
   function cleanVisitor(){
     safe(function(){
@@ -640,18 +641,18 @@
       if(e.target&&(e.target.id==='chat-text'||e.target.id==='chat-name')){document.body.classList.add('tu-visitor-writing');capture();}
     },true);
     document.addEventListener('input',function(e){
-      if(e.target&&(e.target.id==='chat-text'||e.target.id==='chat-name')){capture();restore();}
+      if(e.target&&(e.target.id==='chat-text'||e.target.id==='chat-name')) capture();
     },true);
     document.addEventListener('focusout',function(e){
       if(e.target&&(e.target.id==='chat-text'||e.target.id==='chat-name')) setTimeout(function(){document.body.classList.remove('tu-visitor-writing');lock.active=false;cleanVisitor();},800);
     },true);
     document.addEventListener('scroll',function(e){
-      if(writing() && e.target && e.target.classList && e.target.classList.contains('chat-msgs')) restore();
+      if(writing() && e.target && e.target.classList && e.target.classList.contains('chat-msgs')) capture();
     },true);
     document.addEventListener('click',function(e){
       if(e.target && e.target.closest && e.target.closest('#chat-fab,#chat-popover')) setTimeout(cleanVisitor,80);
     },true);
-    setInterval(function(){ if(writing()) restore(); },250);
+    setInterval(function(){ if(writing()) cleanVisitor(); },250);
   }
   if(document.readyState==='loading') document.addEventListener('DOMContentLoaded',install,{once:true}); else install();
 
