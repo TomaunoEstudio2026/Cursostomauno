@@ -8185,6 +8185,7 @@ window.filterCursos = function(){
     responderAutomaticoChat(id, text);
   }
   window.enviarChatVisitante = sendVisitorDirectFinal;
+  window.tomaunoEnviarVisitanteDirecto = sendVisitorDirectFinal;
 
   window.addEventListener('keydown', ev => {
     if(ev && ev.key === 'Enter' && ev.target && ev.target.id === 'chat-name'){
@@ -8253,6 +8254,8 @@ window.filterCursos = function(){
       document.querySelectorAll('.chat-list-item,.chat-tab').forEach(el => {
         el.classList.remove('typing-live');
         el.querySelectorAll('.tu-live-list-preview').forEach(n => n.remove());
+        const prev = el.querySelector('.chat-tab-preview');
+        if(prev && /^Escribiendo\s*:/i.test(prev.textContent || '')) prev.textContent = '';
       });
     }
     return;

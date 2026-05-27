@@ -664,4 +664,62 @@
     };
     try{notifyAdminChat=window.notifyAdminChat;}catch(e){}
   }
+
+  // Cierre de control: este parche carga ultimo, asi que asegura Enter/envio,
+  // sonido admin y limpieza del typing en bandeja sin depender de wrappers viejos.
+  (function finalControl(){
+    var seenAlarm=Object.create(null);
+    function directVisitorSend(){
+      var fn=window.tomaunoEnviarVisitanteDirecto || window.enviarChatVisitante;
+      if(typeof fn!=='function') return;
+      var id=currentChatId();
+      if(!id){try{id=sessionStorage.getItem('tomauno-chat-id')||'';}catch(e){}}
+      return fn(id);
+    }
+    window.addEventListener('keydown',function(e){
+      if(!e || e.key!=='Enter' || !e.target || e.target.id!=='chat-text') return;
+      e.preventDefault(); e.stopPropagation(); if(e.stopImmediatePropagation) e.stopImmediatePropagation();
+      Promise.resolve(directVisitorSend()).catch(function(){});
+    },true);
+    window.addEventListener('click',function(e){
+      var btn=e.target&&e.target.closest&&e.target.closest('#chat-popover.open .chat-row .chat-send');
+      if(!btn) return;
+      e.preventDefault(); e.stopPropagation(); if(e.stopImmediatePropagation) e.stopImmediatePropagation();
+      Promise.resolve(directVisitorSend()).catch(function(){});
+    },true);
+    function cleanTypingPreviews(){
+      safe(function(){
+        document.querySelectorAll('.tu-live-list-preview').forEach(function(n){n.remove();});
+        document.querySelectorAll('.chat-tab.typing-live,.chat-list-item.typing-live').forEach(function(el){el.classList.remove('typing-live');});
+        document.querySelectorAll('.chat-tab-preview').forEach(function(el){
+          if(/^Escribiendo\s*:/i.test(el.textContent||'')) el.textContent='';
+        });
+      });
+    }
+    function latestUserStamp(c){
+      var best=0;
+      if(c&&c.messages){Object.keys(c.messages).forEach(function(k){var m=c.messages[k]||{}; if(m.from==='user'&&!m.typing) best=Math.max(best,Number(m.createdAt||0));});}
+      return best || Number((c&&c.updatedAt)||0);
+    }
+    function alarmUnread(){
+      safe(function(){
+        if(!isAdmin()) return;
+        var dbs=getChats();
+        Object.keys(dbs||{}).forEach(function(id){
+          var c=dbs[id]||{};
+          if(!c || c.status==='cerrado' || !c.unreadAdmin) return;
+          var stamp=latestUserStamp(c);
+          if(!stamp) return;
+          var key=id+'|'+stamp;
+          if(seenAlarm[key]) return;
+          seenAlarm[key]=1;
+          beepAdmin();
+        });
+      });
+    }
+    setInterval(cleanTypingPreviews,700);
+    setInterval(alarmUnread,1200);
+    setTimeout(cleanTypingPreviews,200);
+    setTimeout(alarmUnread,1500);
+  })();
 })();
