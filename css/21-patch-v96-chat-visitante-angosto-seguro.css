@@ -1,8 +1,8 @@
 /* Modular v15 — mobile teclado + scroll táctil + chat visitante */
 @media (min-width: 701px){
   body:not(.tomauno-admin-active) .chat-popover.open:not(.expanded):not(:has(.chat-inbox-side)){
-    width:min(430px, calc(100vw - 28px))!important;
-    max-width:min(430px, calc(100vw - 28px))!important;
+    width:min(330px, calc(100vw - 28px))!important;
+    max-width:min(330px, calc(100vw - 28px))!important;
     right:22px!important;
     bottom:86px!important;
   }
@@ -80,10 +80,10 @@ body.tomauno-visitor-active [id*="human-alert"]{
 }
 @media (min-width:701px){
   body.tomauno-visitor-active .chat-popover.open:not(.expanded):not(:has(.chat-inbox-side)){
-    width:min(420px, calc(100vw - 30px))!important;
-    max-width:min(420px, calc(100vw - 30px))!important;
-    height:min(72vh, 660px)!important;
-    max-height:min(72vh, 660px)!important;
+    width:min(330px, calc(100vw - 30px))!important;
+    max-width:min(330px, calc(100vw - 30px))!important;
+    height:min(58vh, 520px)!important;
+    max-height:min(58vh, 520px)!important;
     right:22px!important;
     bottom:84px!important;
   }
@@ -129,10 +129,10 @@ body.tomauno-visitor-active [id*="human-alert"]{
 
 /* Modular v18 — visitante compacto real + teclado sin perder foco */
 body.tomauno-visitor-active .chat-popover.open:not(.expanded):not(:has(.chat-inbox-side)){
-  width:min(410px, calc(100vw - 18px))!important;
-  max-width:min(410px, calc(100vw - 18px))!important;
-  height:min(78vh, 720px)!important;
-  max-height:min(78vh, 720px)!important;
+  width:min(330px, calc(100vw - 18px))!important;
+  max-width:min(330px, calc(100vw - 18px))!important;
+  height:min(58vh, 520px)!important;
+  max-height:min(58vh, 520px)!important;
   right:18px!important;
   bottom:78px!important;
 }
@@ -145,6 +145,23 @@ body.tomauno-visitor-active .chat-popover.open:not(.expanded):not(:has(.chat-inb
 }
 body.tomauno-visitor-active .chat-popover.open:not(.expanded):not(:has(.chat-inbox-side)) .chat-row{
   flex:0 0 auto!important;margin-top:8px!important;
+}
+body.tomauno-visitor-active .chat-popover.open.expanded:not(:has(.chat-inbox-side)),
+body:not(.tomauno-admin-active) .chat-popover.open.expanded:not(:has(.chat-inbox-side)),
+body.tomauno-visitor-active .chat-popover.open:not(:has(.chat-inbox-side)),
+body:not(.tomauno-admin-active) .chat-popover.open:not(:has(.chat-inbox-side)){
+  left:auto!important;
+  top:auto!important;
+  transform:none!important;
+  width:min(330px, calc(100vw - 22px))!important;
+  max-width:min(330px, calc(100vw - 22px))!important;
+  min-width:0!important;
+  right:16px!important;
+  bottom:84px!important;
+  height:min(58vh, 520px)!important;
+  max-height:min(58vh, 520px)!important;
+  min-height:0!important;
+  resize:none!important;
 }
 body.tomauno-visitor-active #toast,
 body.tomauno-visitor-active [class*="human-alert"],
@@ -167,33 +184,4 @@ body.tomauno-visitor-active [id*="admin-alert"]{
   body.tomauno-visitor-active .chat-row input,
   body.tomauno-visitor-active .chat-row textarea,
   body.tomauno-visitor-active .chat-row .finput{font-size:16px!important;}
-}
-
-
-/* MODULAR v20 — layout visitante compacto y estable */
-body.tomauno-chat-visitor-body .chat-popover.open,
-html body .chat-popover.open.tomauno-chat-visitor{
-  width:min(420px,calc(100vw - 18px))!important;
-  height:min(760px,calc(100dvh - 28px))!important;
-  max-height:calc(100dvh - 28px)!important;
-  right:16px!important;
-  bottom:76px!important;
-  resize:none!important;
-}
-html body .chat-popover.open.tomauno-chat-visitor .chat-popover-inner{height:100%!important;display:flex!important;flex-direction:column!important;padding:12px!important;gap:8px!important;}
-html body .chat-popover.open.tomauno-chat-visitor .chat-head{flex:0 0 auto!important;margin:0!important;min-height:38px!important;}
-html body .chat-popover.open.tomauno-chat-visitor .chat-panel{flex:1 1 auto!important;min-height:0!important;display:flex!important;flex-direction:column!important;gap:8px!important;}
-html body .chat-popover.open.tomauno-chat-visitor .chat-msgs{flex:1 1 auto!important;min-height:0!important;max-height:none!important;height:auto!important;overflow-y:auto!important;padding:10px!important;}
-html body .chat-popover.open.tomauno-chat-visitor .chat-row,
-html body .chat-popover.open.tomauno-chat-visitor .chat-name-row{flex:0 0 auto!important;margin:0!important;}
-html body .chat-popover.open.tomauno-chat-visitor .chat-bubble{max-width:92%!important;}
-html body .chat-popover.open.tomauno-chat-visitor .chat-title{font-size:22px!important;}
-html body .chat-popover.open.tomauno-chat-visitor .chat-subline{font-size:10px!important;}
-@media(max-width:700px){
-  body.tomauno-chat-visitor-body .chat-popover.open,
-  html body .chat-popover.open.tomauno-chat-visitor{
-    left:8px!important;right:8px!important;width:auto!important;bottom:70px!important;height:calc(100dvh - 84px)!important;max-height:calc(100dvh - 84px)!important;
-  }
-  html body .chat-popover.open.tomauno-chat-visitor .chat-row input,
-  html body .chat-popover.open.tomauno-chat-visitor .chat-name-row input{font-size:16px!important;}
 }
