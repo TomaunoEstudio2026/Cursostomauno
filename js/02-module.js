@@ -7581,6 +7581,44 @@ window.filterCursos = function(){
     const n = isJustNameReply(text, chat);
     return looksLikeRealNameFinal(n) ? limpiarNombreChat(n) : '';
   }
+  function activityItemsFinal(){
+    const arr = [];
+    try{ Object.entries(cursos || {}).forEach(([id,c]) => { if(!c.oculto) arr.push({type:'curso', id, obj:c, title:c.titulo||'', extra:[c.desc,c.profesor,c.disertante,c.organizador,c.docente,c.responsable,c.nombreOrg,c.ig,c.wp].join(' ')}); }); }catch(e){}
+    try{ Object.entries(eventosDB || {}).forEach(([id,e]) => { if(e.estado === 'activo' && !e.oculto) arr.push({type:'evento', id, obj:e, title:e.titulo||'', extra:[e.desc,e.nombreOrg,e.organizador,e.ig,e.wpOrg,e.lugar].join(' ')}); }); }catch(e){}
+    try{ Object.entries(serviciosDB || {}).forEach(([id,s]) => { if(!s.oculto) arr.push({type:'servicio', id, obj:s, title:s.titulo||'', extra:[s.desc,s.profesor,s.disertante,s.organizador,s.responsable,s.ig,s.wp].join(' ')}); }); }catch(e){}
+    return arr;
+  }
+  function bestActivityByTitleFinal(text){
+    const q = normAI(text || '');
+    const stop = new Set(['quien','quién','es','el','la','los','las','del','de','curso','taller','evento','servicio','profesor','profesora','profe','docente','disertante','organizador','organiza','responsable','dueño','dueno','academia','tomauno','nivel','principiante']);
+    const qTerms = q.split(/\s+/).filter(w => w.length > 2 && !stop.has(w));
+    let best = null;
+    activityItemsFinal().forEach(it => {
+      const title = normAI(it.title);
+      const extra = normAI(it.extra);
+      let score = 0;
+      qTerms.forEach(t => {
+        if(title.includes(t)) score += 4;
+        else if(extra.includes(t)) score += 1;
+      });
+      if(title && q.includes(title)) score += 12;
+      if(/fotograf/.test(q) && /fotograf/.test(title)) score += 5;
+      if(/danzaterapia|danza/.test(q) && /danzaterapia|danza/.test(title + ' ' + extra)) score += 7;
+      if(score > 0 && (!best || score > best.score)) best = Object.assign({score}, it);
+    });
+    return best && best.score >= 5 ? best : null;
+  }
+  function activityProfessorAnswerFinal(item){
+    const o = item && item.obj || {};
+    const who = o.profesor || o.disertante || o.docente || o.responsable || o.organizador || o.nombreOrg || '';
+    const wp = o.wp || o.wpOrg || o.contacto || '';
+    if(who || wp){
+      return '**' + (item.title || 'Actividad') + '**\n' +
+        (who ? '👤 Profesor/organizador: ' + who + '\n' : '') +
+        (wp ? '💬 Contacto: https://wa.me/549' + String(wp).replace(/\D/g,'') : '');
+    }
+    return 'Para **' + (item.title || 'esa actividad') + '** no tengo cargado todavía el profesor u organizador. Puedo dejar tu consulta marcada para Javier.';
+  }
   function installFinalCss(){
     if(document.getElementById('tu-v3322-chat-css')) return;
     const st = document.createElement('style');
@@ -7621,6 +7659,15 @@ window.filterCursos = function(){
       html body #chat-popover.open .chat-list-item.priority{
         border-color:rgba(255,214,80,.55)!important;
         box-shadow:inset 3px 0 0 rgba(255,214,80,.95)!important;
+      }
+      html body #chat-popover.open.tu-human-chat,
+      html body #chat-popover.open.tu-human-chat .chat-popover-inner{
+        border-color:rgba(255,0,10,.85)!important;
+        box-shadow:0 0 0 1px rgba(255,0,10,.45),0 0 24px rgba(255,0,10,.35)!important;
+      }
+      html body #chat-popover.open.tu-auto-chat,
+      html body #chat-popover.open.tu-auto-chat .chat-popover-inner{
+        border-color:rgba(255,255,255,.16)!important;
       }
       #notif-banner{
         z-index:99999!important;
@@ -7707,6 +7754,16 @@ window.filterCursos = function(){
     }
     return r;
   }
+  function updateVisitorModeChromeFinal(id){
+    const pop = document.getElementById('chat-popover');
+    if(!pop || !pop.classList.contains('open') || adminActiveFinal()) return;
+    const chat = chatsDB && chatsDB[id || visitorChatIdFinal()];
+    const human = chatIsHumanFinal(chat);
+    pop.classList.toggle('tu-human-chat', human);
+    pop.classList.toggle('tu-auto-chat', !human);
+    const sub = pop.querySelector('.chat-subline');
+    if(sub) sub.textContent = human ? 'Javier está respondiendo' : 'Asistente Tomauno';
+  }
 
   const prevScrollFinal = scrollChatSmart;
   scrollChatSmart = function(box){
@@ -7732,7 +7789,9 @@ window.filterCursos = function(){
       updateChatMessagesOnly(id, false);
       return;
     }
-    return preserveDraft(() => prevOpenVisitorFinal.apply(this, arguments));
+    const r = preserveDraft(() => prevOpenVisitorFinal.apply(this, arguments));
+    setTimeout(() => updateVisitorModeChromeFinal(id), 40);
+    return r;
   };
   window.abrirChatVisitante = abrirChatVisitante;
 
@@ -7821,6 +7880,29 @@ window.filterCursos = function(){
 
   const prevNotifyFinal = notifyAdminChat;
   const notifySeenFinal = new Map();
+  const prevShowNotifBannerFinal = showNotifBanner;
+  showNotifBanner = function(titulo, detalle, icono='CHAT', onClick=null){
+    prevShowNotifBannerFinal.call(this, titulo, detalle, icono, onClick);
+    setTimeout(() => {
+      const banner = document.getElementById('notif-banner');
+      if(!banner || banner.querySelector('.notif-close-x')) return;
+      const x = document.createElement('button');
+      x.className = 'notif-close-x';
+      x.type = 'button';
+      x.textContent = '×';
+      x.title = 'Cerrar notificación';
+      x.style.cssText = 'position:absolute;top:7px;right:8px;width:24px;height:24px;border:0;border-radius:50%;background:rgba(255,255,255,.16);color:#fff;font-size:17px;font-weight:900;cursor:pointer;line-height:22px;';
+      x.onclick = ev => {
+        ev.preventDefault();
+        ev.stopPropagation();
+        if(ev.stopImmediatePropagation) ev.stopImmediatePropagation();
+        banner.style.transform = 'translateX(340px)';
+      };
+      banner.style.position = 'fixed';
+      banner.appendChild(x);
+    }, 0);
+  };
+  window.showNotifBanner = showNotifBanner;
   notifyAdminChat = function(title, body, chatId){
     if(!adminActiveFinal()) return;
     if(adminViewingChatFinal(chatId)) return;
@@ -7957,6 +8039,24 @@ window.filterCursos = function(){
     window.responderAutomaticoChat = guardedAutoResponderFinal;
   }
 
+  const prevBuscarRespuestaFinal = buscarRespuestaAsistente;
+  buscarRespuestaAsistente = function(text){
+    const q = normAI(text || '');
+    if(/(quien|quién|profesor|profesora|profe|docente|disertante|organizador|organiza|responsable).{0,80}(curso|taller|evento|servicio|fotograf|danzaterapia|danza)|((curso|taller|evento|servicio|fotograf|danzaterapia|danza).{0,80}(quien|quién|profesor|profesora|profe|docente|disertante|organizador|organiza|responsable))/.test(q)){
+      const item = bestActivityByTitleFinal(text);
+      if(item) return activityProfessorAnswerFinal(item);
+    }
+    if(/(quien|quién).{0,30}(dueno|dueño|javier|fundador|director)|((dueno|dueño|javier|fundador|director).{0,30}(tomauno|academia|estudio))/.test(q)){
+      try{
+        const matches = knowledgeMatchesAI(q);
+        const good = matches.find(m => /javier|dueñ|duen|fundador|director|tomauno/i.test([m.k.titulo||'',m.k.keys||'',m.k.command||''].join(' ')));
+        if(good && good.k && good.k.respuesta) return good.k.respuesta;
+      }catch(e){}
+      return 'Tomauno está dirigido por Javier. Si querés, también puedo pasarte su contacto directo.';
+    }
+    return prevBuscarRespuestaFinal.apply(this, arguments);
+  };
+
   let typingTimerFinal = 0;
   let lastTypingSentFinal = '';
   function sendTypingFinal(forceClear=false){
@@ -7979,7 +8079,7 @@ window.filterCursos = function(){
 
   let lastDirectVisitorSendFinal = {id:'', text:'', at:0};
   const prevVisitorSendFinal = window.enviarChatVisitante;
-  window.enviarChatVisitante = async function(id){
+  async function sendVisitorDirectFinal(id){
     id = id || visitorChatIdFinal();
     if(!id) return;
     const inp = document.getElementById('chat-text');
@@ -8016,19 +8116,48 @@ window.filterCursos = function(){
     try{ updateChatMessagesOnly(id, false); }catch(e){}
     if(detectedName && lastAdminAskedName(existingChat)) return;
     responderAutomaticoChat(id, text);
-  };
+  }
+  window.enviarChatVisitante = sendVisitorDirectFinal;
 
-  document.addEventListener('keydown', ev => {
+  window.addEventListener('keydown', ev => {
+    if(ev && ev.key === 'Enter' && ev.target && ev.target.id === 'chat-name'){
+      ev.preventDefault();
+      ev.stopPropagation();
+      if(ev.stopImmediatePropagation) ev.stopImmediatePropagation();
+      window.iniciarChatConNombre();
+      return;
+    }
     if(!ev || ev.key !== 'Enter' || !ev.target || ev.target.id !== 'chat-text') return;
     const id = visitorChatIdFinal() || currentVisitorChatId || (() => { try{ return sessionStorage.getItem('tomauno-chat-id') || ''; }catch(e){ return ''; } })();
     if(!id) return;
     ev.preventDefault();
     ev.stopPropagation();
     if(ev.stopImmediatePropagation) ev.stopImmediatePropagation();
-    window.enviarChatVisitante(id).finally(() => {
+    sendVisitorDirectFinal(id).finally(() => {
       const inp = document.getElementById('chat-text');
       if(inp) inp.value = '';
     });
+  }, true);
+
+  window.addEventListener('click', ev => {
+    const btn = ev.target && ev.target.closest && ev.target.closest('#chat-popover.open .chat-name-row .chat-send');
+    if(!btn) return;
+    ev.preventDefault();
+    ev.stopPropagation();
+    if(ev.stopImmediatePropagation) ev.stopImmediatePropagation();
+    window.iniciarChatConNombre();
+  }, true);
+
+  window.addEventListener('click', ev => {
+    const btn = ev.target && ev.target.closest && ev.target.closest('#chat-popover.open .chat-send');
+    const inp = document.getElementById('chat-text');
+    if(!btn || !inp || !btn.closest('.chat-row')) return;
+    const id = visitorChatIdFinal() || currentVisitorChatId || (() => { try{ return sessionStorage.getItem('tomauno-chat-id') || ''; }catch(e){ return ''; } })();
+    if(!id) return;
+    ev.preventDefault();
+    ev.stopPropagation();
+    if(ev.stopImmediatePropagation) ev.stopImmediatePropagation();
+    sendVisitorDirectFinal(id);
   }, true);
 
   function renderLiveTypingFinal(){
@@ -8097,6 +8226,7 @@ window.filterCursos = function(){
     renderLiveTypingFinal();
     decorateTypingListsFinal();
     updateHumanCountdownFinal();
+    updateVisitorModeChromeFinal(visitorChatIdFinal());
   });
 
   const prevSetChatPopoverFinal = setChatPopover;
