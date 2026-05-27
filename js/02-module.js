@@ -7442,3 +7442,208 @@ window.filterCursos = function(){
   if(document.readyState==='loading') document.addEventListener('DOMContentLoaded', init89, {once:true}); else init89();
   setTimeout(init89,300); setTimeout(init89,1200); setInterval(markPopoverMode89, 1200);
 })();
+
+
+/* =====================================================================
+   MODULAR v20 — Corrección real visitante/admin dentro del módulo central
+   - Reemplaza rutas locales, no solo window.*
+   ===================================================================== */
+(function(){
+  'use strict';
+  const V20='Tomauno modular v20';
+  let lastVisitorRenderId='';
+  let lastVisitorMessagesSignature='';
+  let visitorTypingUntil=0;
+  let lastAdminOpened='';
+  function safe(fn){ try{return fn();}catch(e){ try{console.warn('v20',e);}catch(_){} } }
+  function now(){return Date.now();}
+  function isAdmin(){ return safe(()=>isAdminNotifier && isAdminNotifier()) || localStorage.getItem('tomauno-admin-ok')==='1'; }
+  function chatObj(id){ return (chatsDB && chatsDB[id]) ? chatsDB[id] : {}; }
+  function validName(raw){
+    let n=limpiarNombreChat(String(raw||'').trim());
+    if(!n || n.length<2 || n.length>40) return '';
+    if(/^(hola|buenas|ok|dale|si|sí|no|a|quiero|consulta|informacion|información)$/i.test(n)) return '';
+    if(/[?¿!¡]/.test(n)) return '';
+    return n;
+  }
+  function msgSignature(chat){
+    return chatMsgs(chat).map(([k,m])=>k+':'+(m.from||'')+':'+(m.text||'').length+':'+(m.createdAt||'')).join('|');
+  }
+  function preserveInput(fn){
+    const active=document.activeElement;
+    const input=active && active.id==='chat-text' ? active : document.getElementById('chat-text');
+    const focused=active===input;
+    const val=input ? input.value : '';
+    const sel=input ? input.selectionStart : 0;
+    const box=document.getElementById('chat-msgs');
+    const top=box ? box.scrollTop : 0;
+    const res=fn();
+    if(focused){
+      setTimeout(()=>safe(()=>{
+        const ni=document.getElementById('chat-text');
+        const nb=document.getElementById('chat-msgs');
+        if(ni){ ni.value=val; ni.focus({preventScroll:true}); try{ni.setSelectionRange(sel,sel);}catch(_){} }
+        if(nb) nb.scrollTop=top;
+      }),0);
+    }
+    return res;
+  }
+  function markVisitorLayout(){ safe(()=>{
+    const p=document.getElementById('chat-popover'); if(!p) return;
+    const adm=!!p.querySelector('#chat-admin-text,.chat-admin-tools,.chat-inbox-side,.chat-tabs');
+    p.classList.toggle('tomauno-chat-admin',adm);
+    p.classList.toggle('tomauno-chat-visitor',!adm);
+    document.body.classList.toggle('tomauno-chat-visitor-body',!adm && p.classList.contains('open'));
+    if(!adm){
+      const title=p.querySelector('.chat-title'); if(title) title.textContent='CHAT TOMAUNO';
+      const sub=p.querySelector('.chat-subline'); if(sub) sub.textContent='Consulta directa desde la web';
+    }
+  });}
+  function scrollVisitor(box, force=false){ safe(()=>{
+    if(!box) return;
+    if(now()<visitorTypingUntil && !force) return;
+    const near=(box.scrollHeight-box.scrollTop-box.clientHeight)<120;
+    if(force || near) requestAnimationFrame(()=>{box.scrollTop=box.scrollHeight;});
+  });}
+  function visitorHtml(id, chat, inputVal=''){
+    const msgs=renderMsgs(chat,false,id);
+    return '<div class="chat-head"><div class="chat-avatar">💬</div><div><div class="chat-title">CHAT TOMAUNO</div><div class="chat-subline">Consulta directa desde la web</div></div></div>'+
+      '<div class="chat-panel"><div class="chat-msgs" id="chat-msgs">'+msgs+'</div>'+
+      '<div class="chat-row"><input class="finput" id="chat-text" placeholder="Escribí tu mensaje..." value="'+escAttr(inputVal)+'" autocomplete="off" onkeydown="if(event.key===\'Enter\')window.enviarChatVisitante()"/><button class="chat-send" onclick="window.enviarChatVisitante()">➜</button></div></div>';
+  }
+  function nameStartHtml(){
+    return '<div class="chat-head"><div class="chat-avatar">💬</div><div><div class="chat-title">CHAT TOMAUNO</div><div class="chat-subline">Consulta directa desde la web</div></div></div>'+
+      '<div class="chat-panel"><div class="chat-msgs" id="chat-msgs"><div class="chat-bubble admin"><div>Hola 😊<br><strong>¿Cómo es tu nombre?</strong></div><div class="chat-meta">Ahora</div></div></div>'+
+      '<div class="chat-name-row"><input class="finput" id="chat-name" placeholder="Tu nombre" autocomplete="off" onkeydown="if(event.key===\'Enter\')window.iniciarChatConNombre()"/><button class="chat-send" onclick="window.iniciarChatConNombre()">➜</button></div></div>';
+  }
+  const oldSetChatPopoverV20=setChatPopover;
+  setChatPopover=function(html){
+    const res=oldSetChatPopoverV20.apply(this,arguments);
+    markVisitorLayout();
+    return res;
+  };
+  window.setChatPopover=setChatPopover;
+
+  abrirChatTomauno = window.abrirChatTomauno = function(){
+    unlockAudio && unlockAudio();
+    const pop=document.getElementById('chat-popover');
+    if(pop && pop.classList.contains('open')){ window.cerrarChatPopover(); return; }
+    if(isAdmin()) return abrirPanelChatsAdmin();
+    document.getElementById('chat-fab')?.classList.remove('has-new','auto-on');
+    if(currentVisitorChatId && chatsDB[currentVisitorChatId] && chatsDB[currentVisitorChatId].status!=='cerrado') return abrirChatVisitante(currentVisitorChatId,true);
+    setChatPopover(nameStartHtml());
+    markVisitorLayout();
+    // No focus automático: en celular abría teclado y tapaba texto.
+  };
+
+  iniciarChatConNombre = window.iniciarChatConNombre = async function(){
+    const inp=document.getElementById('chat-name');
+    const raw=String(inp?.value||'').trim();
+    const name=validName(raw);
+    if(!name){ if(inp){inp.value=''; inp.placeholder='Tu nombre'; inp.focus({preventScroll:true});} toast && toast('Escribí tu nombre'); return; }
+    const t=now();
+    const chatRef=await push(ref(db,'tomauno/chats'),{name,wp:'',status:'abierto',createdAt:t,updatedAt:t,lastMsg:'Nombre: '+name,unreadAdmin:true,unreadVisitor:false});
+    currentVisitorChatId=chatRef.key;
+    try{sessionStorage.setItem('tomauno-chat-id',currentVisitorChatId);sessionStorage.setItem('tomauno-chat-name',name);}catch(_){ }
+    await push(ref(db,'tomauno/chats/'+currentVisitorChatId+'/messages'),{from:'admin',text:'Hola 😊\n¿Cómo es tu nombre?',time:chatTime(),createdAt:t-2});
+    await push(ref(db,'tomauno/chats/'+currentVisitorChatId+'/messages'),{from:'user',text:raw,time:chatTime(),createdAt:t-1});
+    await push(ref(db,'tomauno/chats/'+currentVisitorChatId+'/messages'),{from:'admin',text:'Hola '+name+' 👋 ¿En qué puedo ayudarte?',time:chatTime(),createdAt:t});
+    abrirChatVisitante(currentVisitorChatId,true);
+  };
+
+  const oldAbrirVisitanteV20=abrirChatVisitante;
+  abrirChatVisitante = window.abrirChatVisitante = function(id, silent=false){
+    currentOpenChatId=id;
+    markVisitorChatOnline(id);
+    const chat=chatObj(id);
+    const pop=document.getElementById('chat-popover');
+    const active=document.activeElement;
+    const typing=active && active.id==='chat-text';
+    const val=document.getElementById('chat-text')?.value||'';
+    const sig=msgSignature(chat);
+    if(typing){ visitorTypingUntil=now()+2500; return; }
+    if(pop && pop.classList.contains('open') && pop.classList.contains('tomauno-chat-visitor') && lastVisitorRenderId===id){
+      if(sig!==lastVisitorMessagesSignature){
+        const box=document.getElementById('chat-msgs');
+        if(box){ box.innerHTML=renderMsgs(chat,false,id); lastVisitorMessagesSignature=sig; scrollVisitor(box,true); }
+      }
+      markVisitorLayout(); return;
+    }
+    lastVisitorRenderId=id; lastVisitorMessagesSignature=sig;
+    setChatPopover(visitorHtml(id,chat,val));
+    markVisitorLayout();
+    setTimeout(()=>scrollVisitor(document.getElementById('chat-msgs'),true),50);
+  };
+
+  const oldUpdateV20=updateChatMessagesOnly;
+  updateChatMessagesOnly=function(id,adminView){
+    if(!adminView && document.activeElement && document.activeElement.id==='chat-text') return;
+    if(!adminView){
+      const chat=chatObj(id); const sig=msgSignature(chat); const box=document.getElementById('chat-msgs');
+      if(box && sig!==lastVisitorMessagesSignature){ box.innerHTML=renderMsgs(chat,false,id); lastVisitorMessagesSignature=sig; scrollVisitor(box,true); }
+      return;
+    }
+    return oldUpdateV20.apply(this,arguments);
+  };
+  window.updateChatMessagesOnly=updateChatMessagesOnly;
+
+  const oldEnviarVisitanteV20=window.enviarChatVisitante;
+  window.enviarChatVisitante=async function(){
+    const inp=document.getElementById('chat-text');
+    const text=String(inp?.value||'').trim();
+    if(!text) return;
+    visitorTypingUntil=0;
+    const res=await oldEnviarVisitanteV20.apply(this,arguments);
+    setTimeout(()=>scrollVisitor(document.getElementById('chat-msgs'),true),80);
+    return res;
+  };
+
+  const oldAbrirAdminV20=window.abrirChatAdmin;
+  window.abrirChatAdmin = abrirChatAdmin = function(id,silent=false){
+    const r=oldAbrirAdminV20.apply(this,arguments);
+    lastAdminOpened=id;
+    safe(()=>update(ref(db,'tomauno/chats/'+id),{unreadAdmin:false,humanRequested:false,priority:false,waitingHuman:false,lastAdminReadAt:now()}));
+    setTimeout(()=>safe(()=>{
+      const tab=document.querySelector('.chat-tab.active,.chat-list-item.unread');
+      document.querySelectorAll('.chat-tab.active,.chat-list-item.unread').forEach(el=>el.classList.remove('unread','waiting','priority'));
+    }),80);
+    return r;
+  };
+
+  const oldNotifyV20=notifyAdminChat;
+  notifyAdminChat = window.notifyAdminChat = function(title,body,chatId){
+    if(!isAdmin()) return;
+    const clean=String(body||'Nuevo mensaje').replace(/\s+/g,' ').slice(0,160);
+    const r=oldNotifyV20.call(this,title||'Nuevo chat web',clean,chatId);
+    setTimeout(()=>safe(()=>{
+      const toastEl=document.getElementById('toast');
+      if(toastEl && chatId){ toastEl.onclick=function(){ window.abrirChatAdmin(chatId,true); }; toastEl.style.cursor='pointer'; }
+    }),50);
+    return r;
+  };
+
+  const oldCerrarAdminV20=window.cerrarAdmin;
+  if(typeof oldCerrarAdminV20==='function'){
+    window.cerrarAdmin = cerrarAdmin = function(){
+      const p=document.getElementById('chat-popover'); if(p) p.classList.remove('open','expanded');
+      currentOpenChatId='';
+      return oldCerrarAdminV20.apply(this,arguments);
+    };
+  }
+
+  function refreshLights(){ safe(()=>{
+    Object.entries(chatsDB||{}).forEach(([id,c])=>{
+      if(id===lastAdminOpened && !c.unreadAdmin){
+        document.querySelectorAll('[onclick*="'+id+'"]').forEach(el=>el.classList&&el.classList.remove('unread','waiting','priority'));
+      }
+    });
+  });}
+  function initV20(){
+    const tag=document.getElementById('tomauno-version-tag')||document.createElement('span');
+    tag.id='tomauno-version-tag'; tag.textContent=V20;
+    if(!tag.parentElement) (document.querySelector('footer')||document.body).appendChild(tag);
+    markVisitorLayout(); refreshLights();
+  }
+  if(document.readyState==='loading') document.addEventListener('DOMContentLoaded',initV20); else initV20();
+  setInterval(()=>{ markVisitorLayout(); refreshLights(); },1500);
+})();

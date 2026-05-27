@@ -168,3 +168,32 @@ body.tomauno-visitor-active [id*="admin-alert"]{
   body.tomauno-visitor-active .chat-row textarea,
   body.tomauno-visitor-active .chat-row .finput{font-size:16px!important;}
 }
+
+
+/* MODULAR v20 — layout visitante compacto y estable */
+body.tomauno-chat-visitor-body .chat-popover.open,
+html body .chat-popover.open.tomauno-chat-visitor{
+  width:min(420px,calc(100vw - 18px))!important;
+  height:min(760px,calc(100dvh - 28px))!important;
+  max-height:calc(100dvh - 28px)!important;
+  right:16px!important;
+  bottom:76px!important;
+  resize:none!important;
+}
+html body .chat-popover.open.tomauno-chat-visitor .chat-popover-inner{height:100%!important;display:flex!important;flex-direction:column!important;padding:12px!important;gap:8px!important;}
+html body .chat-popover.open.tomauno-chat-visitor .chat-head{flex:0 0 auto!important;margin:0!important;min-height:38px!important;}
+html body .chat-popover.open.tomauno-chat-visitor .chat-panel{flex:1 1 auto!important;min-height:0!important;display:flex!important;flex-direction:column!important;gap:8px!important;}
+html body .chat-popover.open.tomauno-chat-visitor .chat-msgs{flex:1 1 auto!important;min-height:0!important;max-height:none!important;height:auto!important;overflow-y:auto!important;padding:10px!important;}
+html body .chat-popover.open.tomauno-chat-visitor .chat-row,
+html body .chat-popover.open.tomauno-chat-visitor .chat-name-row{flex:0 0 auto!important;margin:0!important;}
+html body .chat-popover.open.tomauno-chat-visitor .chat-bubble{max-width:92%!important;}
+html body .chat-popover.open.tomauno-chat-visitor .chat-title{font-size:22px!important;}
+html body .chat-popover.open.tomauno-chat-visitor .chat-subline{font-size:10px!important;}
+@media(max-width:700px){
+  body.tomauno-chat-visitor-body .chat-popover.open,
+  html body .chat-popover.open.tomauno-chat-visitor{
+    left:8px!important;right:8px!important;width:auto!important;bottom:70px!important;height:calc(100dvh - 84px)!important;max-height:calc(100dvh - 84px)!important;
+  }
+  html body .chat-popover.open.tomauno-chat-visitor .chat-row input,
+  html body .chat-popover.open.tomauno-chat-visitor .chat-name-row input{font-size:16px!important;}
+}

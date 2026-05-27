@@ -457,3 +457,18 @@
   setInterval(function(){scheduleAutoUI();markModeClass();syncTitleName();if(!isTypingNow()) shortenWelcome();hideVisitorAdminAlerts();pollAdminUnread();},2200);
   safe(function(){new MutationObserver(function(){setTimeout(function(){scheduleAutoUI();forceAdminChatIfNeeded();markModeClass();syncTitleName();if(!isTypingNow()) shortenWelcome();hideVisitorAdminAlerts();},80);}).observe(document.documentElement,{childList:true,subtree:true});});
 })();
+
+
+/* MODULAR v20 final stabilizer loaded last */
+(function(){
+  'use strict';
+  function safe(fn){try{return fn();}catch(e){}}
+  function isAdmin(){return safe(()=>localStorage.getItem('tomauno-admin-ok')==='1'||localStorage.getItem('tomauno-admin-notify')==='1')||false;}
+  function mark(){safe(()=>{const p=document.getElementById('chat-popover');if(!p)return;const adm=!!p.querySelector('#chat-admin-text,.chat-admin-tools,.chat-inbox-side,.chat-tabs');p.classList.toggle('tomauno-chat-admin',adm);p.classList.toggle('tomauno-chat-visitor',!adm);if(!adm){const t=p.querySelector('.chat-title');if(t)t.textContent='CHAT TOMAUNO';const s=p.querySelector('.chat-subline');if(s)s.textContent='Consulta directa desde la web';}})}
+  document.addEventListener('input',e=>{if(e.target&&e.target.id==='chat-text') window.__tomaunoTypingUntil=Date.now()+3000;},true);
+  const oldSet=window.setChatPopover;
+  if(typeof oldSet==='function') window.setChatPopover=function(){ if(Date.now()<(window.__tomaunoTypingUntil||0) && document.activeElement&&document.activeElement.id==='chat-text') return; const r=oldSet.apply(this,arguments); setTimeout(mark,0); return r; };
+  const oldCerrar=window.cerrarAdmin;
+  if(typeof oldCerrar==='function') window.cerrarAdmin=function(){safe(()=>document.getElementById('chat-popover')?.classList.remove('open','expanded')); return oldCerrar.apply(this,arguments);};
+  setInterval(mark,1000); setTimeout(mark,200); setTimeout(mark,1000);
+})();
