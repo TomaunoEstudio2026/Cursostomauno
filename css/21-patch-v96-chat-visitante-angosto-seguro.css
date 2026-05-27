@@ -126,3 +126,45 @@ body.tomauno-visitor-active [id*="human-alert"]{
   .chat-msgs{flex:1 1 auto!important;min-height:0!important;max-height:none!important;overflow-y:auto!important;-webkit-overflow-scrolling:touch!important;touch-action:pan-y!important;}
   .chat-row{flex:0 0 auto!important;}
 }
+
+/* Modular v18 — visitante compacto real + teclado sin perder foco */
+body.tomauno-visitor-active .chat-popover.open:not(.expanded):not(:has(.chat-inbox-side)){
+  width:min(410px, calc(100vw - 18px))!important;
+  max-width:min(410px, calc(100vw - 18px))!important;
+  height:min(78vh, 720px)!important;
+  max-height:min(78vh, 720px)!important;
+  right:18px!important;
+  bottom:78px!important;
+}
+body.tomauno-visitor-active .chat-popover.open:not(.expanded):not(:has(.chat-inbox-side)) .chat-popover-inner,
+body.tomauno-visitor-active .chat-popover.open:not(.expanded):not(:has(.chat-inbox-side)) .chat-panel{
+  height:100%!important;min-height:0!important;display:flex!important;flex-direction:column!important;overflow:hidden!important;
+}
+body.tomauno-visitor-active .chat-popover.open:not(.expanded):not(:has(.chat-inbox-side)) .chat-msgs{
+  flex:1 1 auto!important;min-height:0!important;max-height:none!important;height:auto!important;padding-bottom:10px!important;
+}
+body.tomauno-visitor-active .chat-popover.open:not(.expanded):not(:has(.chat-inbox-side)) .chat-row{
+  flex:0 0 auto!important;margin-top:8px!important;
+}
+body.tomauno-visitor-active #toast,
+body.tomauno-visitor-active [class*="human-alert"],
+body.tomauno-visitor-active [class*="admin-alert"],
+body.tomauno-visitor-active [id*="human-alert"],
+body.tomauno-visitor-active [id*="admin-alert"]{
+  display:none!important;visibility:hidden!important;pointer-events:none!important;
+}
+@media(max-width:700px){
+  html,body{touch-action:auto!important;overscroll-behavior-y:auto!important;}
+  body.chat-open-mobile{overflow:auto!important;position:static!important;}
+  body.tomauno-visitor-active .chat-popover.open,
+  body.tomauno-visitor-active .chat-popover.open.expanded{
+    left:8px!important;right:8px!important;width:auto!important;top:auto!important;
+    bottom:calc(var(--tomauno-keyboard, 0px) + 8px + env(safe-area-inset-bottom))!important;
+    height:calc(100dvh - var(--tomauno-keyboard, 0px) - 18px)!important;
+    max-height:calc(100dvh - var(--tomauno-keyboard, 0px) - 18px)!important;
+    min-height:260px!important;transform:none!important;
+  }
+  body.tomauno-visitor-active .chat-row input,
+  body.tomauno-visitor-active .chat-row textarea,
+  body.tomauno-visitor-active .chat-row .finput{font-size:16px!important;}
+}

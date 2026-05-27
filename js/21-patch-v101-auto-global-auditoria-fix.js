@@ -3,7 +3,7 @@
 // No agrega archivos nuevos.
 (function(){
   'use strict';
-  var VERSION='Tomauno modular v17';
+  var VERSION='Tomauno modular v18';
   var modoGlobal=null;
   var modoCargado=false;
   var listenerStarted=false;
@@ -38,6 +38,24 @@
     return String((el&&el.value)||'').trim();
   })||'';}
 
+  var typingKeep={el:null,value:'',sel:0,at:0};
+  function rememberTyping(){safe(function(){
+    var a=document.activeElement;
+    if(a && a.closest && a.closest('#chat-popover') && (a.tagName==='INPUT'||a.tagName==='TEXTAREA')){
+      typingKeep={el:a,value:a.value||'',sel:a.selectionStart||0,at:Date.now()};
+    }
+  });}
+  function restoreTyping(){safe(function(){
+    if(!typingKeep.el || Date.now()-typingKeep.at>2500) return;
+    var el=typingKeep.el;
+    if(!document.body.contains(el)){
+      el=document.querySelector('#chat-popover.open .chat-row input,#chat-popover.open .chat-row textarea,#chat-popover.open .chat-row .finput');
+    }
+    if(!el) return;
+    if((el.value||'')!==typingKeep.value) el.value=typingKeep.value;
+    el.focus({preventScroll:true});
+    try{el.setSelectionRange(typingKeep.sel,typingKeep.sel);}catch(_){ }
+  });}
   function isTypingNow(){return safe(function(){
     var a=document.activeElement;
     return !!(a && (a.tagName==='INPUT'||a.tagName==='TEXTAREA'||a.isContentEditable));
@@ -52,8 +70,10 @@
     Array.prototype.forEach.call(document.querySelectorAll('body *'),function(el){
       var txt=(el.innerText||'').trim();
       var cls=(el.className||'')+''; var id=(el.id||'')+'';
-      if((/ATENCI[ÓO]N HUMANA|NUEVO CHAT WEB|Nuevo chat web|Nuevo mensaje web/i.test(txt) || /human|admin-alert|notify-admin/i.test(cls+' '+id)) && txt.length<350){
-        if(!el.closest('.chat-popover')) el.style.display='none';
+      if((/ATENCI[ÓO]N HUMANA|NUEVO CHAT WEB|Nuevo chat web|Nuevo mensaje web|a:\s*quiero hablar/i.test(txt) || /human|admin-alert|notify-admin|toast/i.test(cls+' '+id)) && txt.length<500){
+        el.style.display='none';
+        el.style.visibility='hidden';
+        el.style.pointerEvents='none';
       }
     });
   });}
@@ -99,7 +119,15 @@
     document.head.appendChild(st);
   });}
 
+  function ensureCssV18(){safe(function(){
+    if(document.getElementById('tomauno-v18-css')) return;
+    var st=document.createElement('style'); st.id='tomauno-v18-css';
+    st.textContent='body.tomauno-visitor-active .chat-popover.open{width:min(410px,calc(100vw - 18px))!important;height:min(78vh,720px)!important;max-height:min(78vh,720px)!important;}body.tomauno-visitor-active .chat-popover.open .chat-panel{height:100%!important;min-height:0!important;display:flex!important;flex-direction:column!important;}body.tomauno-visitor-active .chat-popover.open .chat-msgs{flex:1 1 auto!important;min-height:0!important;max-height:none!important;height:auto!important;padding-bottom:8px!important;}body.tomauno-visitor-active .chat-popover.open .chat-row{flex:0 0 auto!important;margin-top:8px!important;}body.tomauno-visitor-active #toast,body.tomauno-visitor-active [class*=human],body.tomauno-visitor-active [class*=admin-alert]{display:none!important;visibility:hidden!important;pointer-events:none!important;}@media(max-width:700px){body.tomauno-visitor-active .chat-popover.open{left:8px!important;right:8px!important;width:auto!important;bottom:calc(var(--tomauno-keyboard,0px) + 8px)!important;height:calc(100dvh - var(--tomauno-keyboard,0px) - 18px)!important;max-height:calc(100dvh - var(--tomauno-keyboard,0px) - 18px)!important;min-height:260px!important;}body.tomauno-visitor-active .chat-popover.open .chat-row input,body.tomauno-visitor-active .chat-popover.open .chat-row textarea{font-size:16px!important;}}';
+    document.head.appendChild(st);
+  });}
+
   function renderAutoUI(){safe(function(){
+    rememberTyping();
     setBodyModeClasses();
     var auto=isAutoOn();
     var admin=isAdminActive();
@@ -135,6 +163,7 @@
       var txt=auto?'ADM · AUTO':'ADM';
       if(live.textContent!==txt) live.textContent=txt;
     }
+    if(isTypingNow()) setTimeout(restoreTyping,30);
   });}
   function scheduleAutoUI(){
     if(pendingApply) return;
@@ -244,6 +273,16 @@
   var oldInitName=window.iniciarChatConNombre;
   window.iniciarChatConNombre=async function(){
     var raw=safe(function(){return String((document.getElementById('chat-name')||{}).value||'').trim();})||'';
+    var invalid=/^(hola|buenas|buen dia|buenas tardes|buenas noches|ok|si|sí|no|a|.)$/i.test(raw) || raw.length<2 || raw.length>45;
+    if(invalid){
+      safe(function(){
+        var inp=document.getElementById('chat-name'); if(inp){inp.value=''; inp.placeholder='Tu nombre'; inp.focus({preventScroll:true});}
+        var box=document.querySelector('#chat-popover.open .chat-msgs');
+        if(box && !box.querySelector('[data-v18-askname]')){var b=document.createElement('div'); b.className='chat-bubble admin'; b.setAttribute('data-v18-askname','1'); b.innerHTML='¿Cómo es tu nombre? 😊<div class="chat-meta">Ahora</div>'; box.appendChild(b); box.scrollTop=box.scrollHeight;}
+      });
+      retryFirstNotify(raw||'Nuevo chat',0);
+      return;
+    }
     var res=oldInitName&&oldInitName.apply?await oldInitName.apply(this,arguments):undefined;
     if(raw) retryFirstNotify('Nombre: '+raw,0);
     setTimeout(function(){syncTitleName();softScrollNewMessage();},250);
@@ -304,7 +343,7 @@
     window.abrirChatAdmin=function(chatId){
       var r=oldAbrirChatAdmin.apply(this,arguments);
       safe(function(){
-        if(chatId && typeof db!=='undefined'&&typeof ref!=='undefined'&&typeof update!=='undefined') update(ref(db,'tomauno/chats/'+chatId),{unreadAdmin:false}).catch(function(){});
+        if(chatId && typeof db!=='undefined'&&typeof ref!=='undefined'&&typeof update!=='undefined') update(ref(db,'tomauno/chats/'+chatId),{unreadAdmin:false,priority:false,waitingHuman:false,humanRequested:false}).catch(function(){});
         setTimeout(syncTitleName,80); setTimeout(renderAutoUI,120);
       });
       return r;
@@ -367,11 +406,15 @@
   });}
 
   function shortenWelcome(){safe(function(){
+    if(isTypingNow()) return;
     document.querySelectorAll('.chat-bubble.admin').forEach(function(b){
       var t=b.innerText||'';
-      if(/Soy el Asistente de Tomauno/i.test(t) && /Cómo es tu nombre/i.test(t) && !b.getAttribute('data-short-v16')){
+      if(/Cómo es tu nombre/i.test(t) && (t.length>45 || /Asistente de Tomauno|Puedo ayudarte|Mientras Javier/i.test(t)) && !b.getAttribute('data-short-v16')){
         b.setAttribute('data-short-v16','1');
         b.innerHTML='Hola 😊<br><strong>¿Cómo es tu nombre?</strong><div class="chat-meta">Ahora</div>';
+      }
+      if(/Gracias,\s*[^.]+\.\s*Aguard/i.test(t)){
+        b.innerHTML=b.innerHTML.replace(/Gracias,\s*[^.]+\.\s*/i,'');
       }
     });
   });}
@@ -401,7 +444,13 @@
     try{cerrarAdmin=window.cerrarAdmin;}catch(e){}
   }
 
-  function run(){ensureCss();setVersion();setupVisualViewport();startAutoListener();scheduleAutoUI();forceAdminChatIfNeeded();markModeClass();syncTitleName();shortenWelcome();hideVisitorAdminAlerts();pollAdminUnread();}
+  var lastAdminState=isAdminActive();
+  function watchAdminTransition(){safe(function(){
+    var now=isAdminActive();
+    if(lastAdminState && !now) closeChatWindowForAdminLogout();
+    lastAdminState=now;
+  });}
+  function run(){ensureCss();ensureCssV18();setVersion();setupVisualViewport();startAutoListener();scheduleAutoUI();forceAdminChatIfNeeded();watchAdminTransition();markModeClass();syncTitleName();shortenWelcome();hideVisitorAdminAlerts();pollAdminUnread();}
   if(document.readyState==='loading') document.addEventListener('DOMContentLoaded',function(){run();installScrollGuard();}); else {run();installScrollGuard();}
   setTimeout(run,300); setTimeout(run,1200); setTimeout(run,2500);
   // intervalo suave solo para corregir renders viejos, sin mutar Firebase ni parpadear visualmente
