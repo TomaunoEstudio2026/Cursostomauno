@@ -2055,9 +2055,7 @@ function scrollChatSmart(box){
   const bubbles = box.querySelectorAll('.chat-bubble');
   const last = bubbles[bubbles.length - 1];
   if(!last){ box.scrollTop = box.scrollHeight; return; }
-  const longMsg = (last.innerText || '').length > 260 || last.scrollHeight > 180;
-  if(longMsg) box.scrollTop = Math.max(0, last.offsetTop - 10);
-  else box.scrollTop = box.scrollHeight;
+  box.scrollTop = box.scrollHeight;
 }
 function updateChatMessagesOnly(id, adminView){
   const box=document.getElementById('chat-msgs'); if(!box) return;
@@ -7075,13 +7073,6 @@ window.filterCursos = function(){
       const distanceBottom = box.scrollHeight - box.scrollTop - box.clientHeight;
       if(isMobile36() && isChatOpen36() && isTyping) return;
       if(isMobile36() && isChatOpen36() && distanceBottom > 160) return;
-      const bubbles = box.querySelectorAll('.chat-bubble');
-      const last = bubbles[bubbles.length-1];
-      const txt = last ? String(last.textContent || '') : '';
-      if(isMobile36() && last && txt.length > 520){
-        box.scrollTop = Math.max(0, last.offsetTop - 10);
-        return;
-      }
       return __scrollChatSmart36.apply(this, arguments);
     };
     window.scrollChatSmart = scrollChatSmart;
@@ -7098,12 +7089,6 @@ window.filterCursos = function(){
       const userTyping = active && (active.id === 'chat-text' || active.id === 'chat-admin-text');
       const r = __updateChatMessagesOnly36.apply(this, arguments);
       if(box && isMobile36() && isChatOpen36() && userTyping){ box.scrollTop = beforeTop; return r; }
-      if(box && isMobile36() && isChatOpen36() && box.dataset.lastHtml !== beforeHtml){
-        const bubbles = box.querySelectorAll('.chat-bubble');
-        const last = bubbles[bubbles.length-1];
-        const txt = last ? String(last.textContent || '') : '';
-        if(last && txt.length > 520) box.scrollTop = Math.max(0, last.offsetTop - 10);
-      }
       return r;
     };
   }
@@ -7466,10 +7451,15 @@ window.filterCursos = function(){
    ===================================================================== */
 (function(){
   const TYPING_MAX_AGE = 12000;
-  const VISITOR_CHAT_WIDTH = 430;
+  const VISITOR_CHAT_WIDTH = 380;
 
   function adminActiveFinal(){
-    try{ return isAdminNotifier(); }catch(e){ return false; }
+    try{
+      const pop = document.getElementById('chat-popover');
+      const adminUi = !!(pop && pop.querySelector('#chat-admin-text,.chat-inbox-side,.chat-admin-tools'));
+      if(document.body.classList.contains('tomauno-visitor-active') && !adminUi) return false;
+      return isAdminNotifier();
+    }catch(e){ return false; }
   }
   function visitorTypingNow(){
     const pop = document.getElementById('chat-popover');
@@ -7492,6 +7482,20 @@ window.filterCursos = function(){
     btn.classList.toggle('on', !human);
     btn.textContent = human ? '👤 HUMANO' : '🤖 AUTO';
     btn.title = human ? 'Este chat está en atención humana. Clic para volver a automático.' : 'Este chat está en automático. Clic para tomarlo manualmente.';
+  }
+  function adminViewingChatFinal(chatId){
+    const pop = document.getElementById('chat-popover');
+    return !!(chatId && pop && pop.classList.contains('open') && currentOpenChatId === chatId && pop.querySelector('#chat-admin-text,.chat-inbox-side'));
+  }
+  async function clearTypingMessagesFinal(chatId){
+    try{
+      const c = chatsDB && chatsDB[chatId];
+      if(!c || !c.messages) return;
+      const deletions = Object.entries(c.messages)
+        .filter(([,m]) => m && m.typing)
+        .map(([mid]) => remove(ref(db,'tomauno/chats/'+chatId+'/messages/'+mid)).catch(()=>{}));
+      if(deletions.length) await Promise.all(deletions);
+    }catch(e){}
   }
   function visitorChatIdFinal(){
     try{ return currentVisitorChatId || sessionStorage.getItem('tomauno-chat-id') || ''; }
@@ -7533,6 +7537,13 @@ window.filterCursos = function(){
         width:min(${VISITOR_CHAT_WIDTH}px, calc(100vw - 22px))!important;
         max-width:min(${VISITOR_CHAT_WIDTH}px, calc(100vw - 22px))!important;
         right:16px!important;
+        height:min(62vh, 560px)!important;
+        max-height:min(62vh, 560px)!important;
+      }
+      html body.tomauno-visitor-active #chat-popover.open .chat-msgs,
+      html body:not(.tomauno-admin-active) #chat-popover.open:not(:has(.chat-inbox-side)) .chat-msgs{
+        min-height:0!important;
+        padding-bottom:8px!important;
       }
       #notif-banner{
         z-index:99999!important;
@@ -7598,17 +7609,7 @@ window.filterCursos = function(){
   const prevScrollFinal = scrollChatSmart;
   scrollChatSmart = function(box){
     if(visitorTypingNow()) return;
-    const r = prevScrollFinal.apply(this, arguments);
-    if(box && box.id === 'chat-msgs' && !adminActiveFinal()){
-      requestAnimationFrame(() => {
-        const last = box.querySelector('.chat-bubble:last-child');
-        const txt = last ? String(last.innerText || '') : '';
-        if(last && (txt.length > 260 || last.offsetHeight > 180)){
-          box.scrollTop = Math.max(0, last.offsetTop - 10);
-        }
-      });
-    }
-    return r;
+    return prevScrollFinal.apply(this, arguments);
   };
   window.scrollChatSmart = scrollChatSmart;
 
@@ -7725,7 +7726,14 @@ window.filterCursos = function(){
   };
 
   const prevNotifyFinal = notifyAdminChat;
+  const notifySeenFinal = new Map();
   notifyAdminChat = function(title, body, chatId){
+    if(!adminActiveFinal()) return;
+    if(adminViewingChatFinal(chatId)) return;
+    const sig = String(chatId || '') + '|' + String(title || '') + '|' + String(body || '').slice(0,90);
+    const last = notifySeenFinal.get(sig) || 0;
+    if(Date.now() - last < 6000) return;
+    notifySeenFinal.set(sig, Date.now());
     try{ beep(); }catch(e){}
     try{
       showNotif();
@@ -7764,6 +7772,11 @@ window.filterCursos = function(){
   };
   window.notifyAdminChat = notifyAdminChat;
 
+  window.tomaunoHumanAlarm = function(chatId, body){
+    if(!adminActiveFinal() || adminViewingChatFinal(chatId)) return;
+    try{ notifyAdminChat('Atención humana solicitada', body || 'Hay una persona esperando a Javier', chatId); }catch(e){}
+  };
+
   window.tomaunoToggleModoChatActual = async function(id){
     const chatId = id || currentOpenChatId;
     if(!chatId) return window.toggleModoAsistenteChat && window.toggleModoAsistenteChat();
@@ -7789,6 +7802,7 @@ window.filterCursos = function(){
         unreadAdmin:false
       }).catch(()=>{});
       try{ Object.assign(chatsDB[chatId] || {}, {humanMode:true, manualUntil:0, waitingHuman:false, humanRequested:false, unreadAdmin:false}); }catch(e){}
+      await clearTypingMessagesFinal(chatId);
       toast('👤 Este chat queda en humano', true);
     }
     applyChatModeButtonFinal(chatId);
@@ -7825,17 +7839,27 @@ window.filterCursos = function(){
           humanRequested:false
         });
       }catch(e){}
+      await clearTypingMessagesFinal(chatId);
     }
     return r;
   };
 
-  const prevAutoResponderFinal = window.responderAutomaticoChat;
+  const prevAutoResponderFinal = responderAutomaticoChat || window.responderAutomaticoChat;
   if(typeof prevAutoResponderFinal === 'function'){
-    window.responderAutomaticoChat = async function(chatId, text){
+    const guardedAutoResponderFinal = async function(chatId, text){
       const c = chatsDB && chatsDB[chatId];
       if(c && (c.humanMode || Number(c.manualUntil || 0) > Date.now())) return;
+      try{
+        const snap = await get(ref(db,'tomauno/chats/'+chatId));
+        if(snap.exists()){
+          const fresh = snap.val() || {};
+          if(fresh.humanMode || Number(fresh.manualUntil || 0) > Date.now()) return;
+        }
+      }catch(e){}
       return prevAutoResponderFinal.apply(this, arguments);
     };
+    responderAutomaticoChat = guardedAutoResponderFinal;
+    window.responderAutomaticoChat = guardedAutoResponderFinal;
   }
 
   let typingTimerFinal = 0;
