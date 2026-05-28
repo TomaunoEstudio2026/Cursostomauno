@@ -164,3 +164,15 @@
   if(document.readyState==='loading') document.addEventListener('DOMContentLoaded',css,{once:true});
   else css();
 })();
+
+/* Tomauno v28d patch mínimo: llamada humana con contador. */
+(function(){
+  function css(){
+    if(document.getElementById('tomauno-v28d-patch-css')) return;
+    var st=document.createElement('style');
+    st.id='tomauno-v28d-patch-css';
+    st.textContent='.tu-v28d-sound-unlock{position:fixed!important;right:18px!important;bottom:18px!important;z-index:100003!important;background:#e8000a!important;color:#fff!important;border-radius:999px!important;padding:11px 15px!important;font-size:12px!important;font-weight:900!important}.chat-bubble.admin{white-space:pre-line}';
+    document.head.appendChild(st);
+  }
+  if(document.readyState==='loading') document.addEventListener('DOMContentLoaded',css,{once:true}); else css();
+})();

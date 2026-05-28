@@ -10556,3 +10556,227 @@ window.filterCursos = function(){
   setInterval(scanHumanRequests, 1200);
   setInterval(updateVisitorOnlineLabel, 1000);
 })();
+
+
+// ── TOMAUNO v28d HUMAN CALL FULL FLOW + FIRST MESSAGE SOUND ────────────────
+(function(){
+  'use strict';
+  function safe(fn){ try{return fn();}catch(e){ try{console.warn('tomauno v28d:', e);}catch(_){} } }
+  function now(){ return Date.now(); }
+  function norm(s){ return String(s||'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^a-z0-9ñ\s]/g,' ').replace(/\s+/g,' ').trim(); }
+  function isAdmin(){ return safe(function(){ return localStorage.getItem('tomauno-admin-ok')==='1' || localStorage.getItem('tomauno-admin-notify')==='1' || !!document.querySelector('#chat-popover.open #chat-admin-text,#chat-popover.open .chat-inbox-side,#chat-popover.open .chat-admin-tools'); }) || false; }
+  function chats(){ return safe(function(){ return window.chatsDB || {}; }) || {}; }
+  function currentAdminChat(){ return safe(function(){ return window.currentOpenChatId || ''; }) || ''; }
+  function currentVisitorChat(){ return safe(function(){ return window.currentVisitorChatId || sessionStorage.getItem('tomauno-chat-id') || ''; }) || ''; }
+
+  var audioCtx=null, audioUnlocked=false, ringTimers={}, openedByAdmin={}, answeredByAdmin={}, seenFirstMsg=Object.create(null), callMsgPushed=Object.create(null);
+
+  function getAudio(){
+    var AC=window.AudioContext||window.webkitAudioContext;
+    if(!AC) return null;
+    if(!audioCtx) audioCtx=new AC();
+    if(audioCtx.state==='suspended') audioCtx.resume().catch(function(){});
+    return audioCtx;
+  }
+  function silentUnlock(){
+    safe(function(){
+      var ctx=getAudio(); if(!ctx) return;
+      var osc=ctx.createOscillator(), gain=ctx.createGain();
+      gain.gain.value=.00001; osc.connect(gain); gain.connect(ctx.destination);
+      osc.start(); osc.stop(ctx.currentTime+.025);
+      audioUnlocked=true; try{sessionStorage.setItem('tu-audio-unlocked','1');}catch(e){}
+      var btn=document.querySelector('.tu-v28d-sound-unlock'); if(btn) btn.remove();
+    });
+  }
+  document.addEventListener('click',silentUnlock,true);
+  document.addEventListener('keydown',silentUnlock,true);
+
+  function showUnlockButton(){
+    safe(function(){
+      if(!isAdmin()) return;
+      if(audioUnlocked || sessionStorage.getItem('tu-audio-unlocked')==='1') return;
+      if(document.querySelector('.tu-v28d-sound-unlock')) return;
+      var btn=document.createElement('button');
+      btn.className='tu-v28d-sound-unlock';
+      btn.textContent='🔊 Activar alertas';
+      btn.onclick=function(){ silentUnlock(); beepNotice('human'); };
+      document.body.appendChild(btn);
+    });
+  }
+
+  function beepNotice(kind){
+    safe(function(){
+      var ctx=getAudio(); if(!ctx){showUnlockButton();return;}
+      var t=ctx.currentTime+.02, freqs=kind==='human'?[720,920,1160,920]:[880,1120];
+      freqs.forEach(function(freq,i){
+        var osc=ctx.createOscillator(), gain=ctx.createGain();
+        osc.type='sine'; osc.frequency.setValueAtTime(freq,t+i*.15);
+        gain.gain.setValueAtTime(.0001,t+i*.15);
+        gain.gain.exponentialRampToValueAtTime(kind==='human'?.32:.20,t+i*.15+.028);
+        gain.gain.exponentialRampToValueAtTime(.0001,t+i*.15+.13);
+        osc.connect(gain); gain.connect(ctx.destination);
+        osc.start(t+i*.15); osc.stop(t+i*.15+.14);
+      });
+    });
+  }
+  function callRing(){ beepNotice('human'); setTimeout(function(){beepNotice('human');},420); }
+
+  function isHumanRequest(text){
+    var q=norm(text);
+    return ['pasame con javier','quiero hablar con javier','quiero hablar con el dueno','quiero hablar con el dueño','pasame con el dueno','pasame con el dueño','quiero consultar a javier','javier se encuentra','me puedo comunicar con javier','con el dueno','con el dueño','puedo hablar con el fotografo','puedo hablar con el fotógrafo','me pasas con el fotografo','me pasas con el fotógrafo','atencion humana','atención humana','humano','hablar con una persona'].map(norm).some(function(p){return q.includes(p);});
+  }
+  function callText(sec){
+    sec=Math.max(0,Number(sec||0));
+    return '📞 Llamando a Javier... '+String(sec).padStart(2,'0')+'s\n\nSi no llega a responder en este momento, dejame tu WhatsApp y tu consulta para que pueda responderte apenas quede libre.';
+  }
+  function updateChat(chatId,data){
+    if(!chatId || typeof db==='undefined'||typeof ref==='undefined'||typeof update==='undefined') return;
+    return update(ref(db,'tomauno/chats/'+chatId),data).catch(function(){});
+  }
+  function pushAdminMessage(chatId,text,extra){
+    if(!chatId || typeof db==='undefined'||typeof ref==='undefined'||typeof push==='undefined') return;
+    var payload=Object.assign({from:'admin',auto:true,text:text,time:(typeof chatTime==='function'?chatTime():''),createdAt:Date.now()},extra||{});
+    return push(ref(db,'tomauno/chats/'+chatId+'/messages'),payload).catch(function(){});
+  }
+
+  function startVisualCall(chatId){
+    if(!chatId) return;
+    var start=now();
+    updateChat(chatId,{humanRequested:true,waitingHuman:true,priority:true,callStartedAt:start,callUntil:start+60000,javierOnline:false,unreadAdmin:true,updatedAt:start});
+    if(!callMsgPushed[chatId]){
+      callMsgPushed[chatId]=1;
+      pushAdminMessage(chatId,callText(60),{systemCall:true,callStartedAt:start,callUntil:start+60000});
+    }
+  }
+  function startRinging(chatId){
+    if(!chatId || ringTimers[chatId] || openedByAdmin[chatId] || answeredByAdmin[chatId]) return;
+    var started=now();
+    function tick(){
+      if(openedByAdmin[chatId] || answeredByAdmin[chatId] || now()-started>60000){ stopRinging(chatId); return; }
+      callRing(); ringTimers[chatId]=setTimeout(tick,2800);
+    }
+    tick();
+  }
+  function stopRinging(chatId){ if(ringTimers[chatId]) clearTimeout(ringTimers[chatId]); delete ringTimers[chatId]; }
+
+  var oldResponder=window.responderAutomaticoChat;
+  if(typeof oldResponder==='function' && !oldResponder.__tuV28dHumanCall){
+    var wrappedResponder=async function(chatId,text){
+      if(isHumanRequest(text)){ startVisualCall(chatId); if(isAdmin()) startRinging(chatId); return; }
+      return oldResponder.apply(this,arguments);
+    };
+    wrappedResponder.__tuV28dHumanCall=1;
+    window.responderAutomaticoChat=wrappedResponder; try{responderAutomaticoChat=wrappedResponder;}catch(e){}
+  }
+
+  function scanHumanForCall(){
+    safe(function(){
+      var dbs=chats();
+      Object.keys(dbs||{}).forEach(function(id){
+        var c=dbs[id]||{};
+        if(!(c.humanRequested||c.waitingHuman||c.priority)) return;
+        if(c.javierOnline||answeredByAdmin[id]||openedByAdmin[id]) return;
+        if(!c.callStartedAt) startVisualCall(id);
+        if(isAdmin()){
+          var age=now()-Number(c.updatedAt||c.lastUserAt||c.createdAt||0);
+          if(age<300000) startRinging(id);
+        }
+      });
+    });
+  }
+
+  function updateCallCountdownDom(){
+    safe(function(){
+      var p=document.getElementById('chat-popover');
+      if(!p||!p.classList.contains('open')) return;
+      var id=isAdmin()?currentAdminChat():currentVisitorChat();
+      var c=chats()[id]; if(!c||!c.callUntil||c.javierOnline) return;
+      var left=Math.max(0,Math.ceil((Number(c.callUntil)-now())/1000));
+      p.querySelectorAll('.chat-bubble.admin').forEach(function(b){
+        if(/Llamando a Javier/i.test(b.innerText||'')) b.innerHTML=callText(left).replace(/\n/g,'<br>')+'<div class="chat-meta">Ahora</div>';
+      });
+    });
+  }
+
+  var oldAbrir=window.abrirChatAdmin;
+  if(typeof oldAbrir==='function' && !oldAbrir.__tuV28dOpen){
+    var wrappedOpen=function(chatId){
+      openedByAdmin[chatId]=true; stopRinging(chatId);
+      var r=oldAbrir.apply(this,arguments);
+      updateChat(chatId,{adminViewing:true,adminViewingAt:Date.now(),javierOnline:true,javierOnlineAt:Date.now(),unreadAdmin:false,readByAdminAt:Date.now()});
+      pushAdminMessage(chatId,'🟢 Javier ya está en línea.',{systemOnline:true});
+      return r;
+    };
+    wrappedOpen.__tuV28dOpen=1;
+    window.abrirChatAdmin=wrappedOpen; try{abrirChatAdmin=wrappedOpen;}catch(e){}
+  }
+
+  var oldSendAdmin=window.enviarChatAdmin;
+  if(typeof oldSendAdmin==='function' && !oldSendAdmin.__tuV28dAnswer){
+    var wrappedSend=async function(){
+      var id=currentAdminChat();
+      var r=await oldSendAdmin.apply(this,arguments);
+      if(id){
+        answeredByAdmin[id]=true; stopRinging(id);
+        updateChat(id,{humanRequested:false,waitingHuman:false,priority:false,unreadAdmin:false,humanMode:true,manualUntil:Date.now()+3600000,javierOnline:true,javierOnlineAt:Date.now(),readByAdminAt:Date.now()});
+      }
+      return r;
+    };
+    wrappedSend.__tuV28dAnswer=1;
+    window.enviarChatAdmin=wrappedSend; try{enviarChatAdmin=wrappedSend;}catch(e){}
+  }
+
+  function latestUserMessage(c){
+    var best=null, ms=c&&c.messages?c.messages:{};
+    Object.keys(ms||{}).forEach(function(k){
+      var m=ms[k]||{};
+      if(m.from==='user'&&!m.typing&&String(m.text||'').trim()){
+        if(!best||Number(m.createdAt||0)>Number(best.createdAt||0)) best=m;
+      }
+    });
+    return best;
+  }
+  function scanFirstMessageSound(){
+    safe(function(){
+      if(!isAdmin()) return;
+      var dbs=chats();
+      Object.keys(dbs||{}).forEach(function(id){
+        var c=dbs[id]||{}, m=latestUserMessage(c);
+        if(!m) return;
+        if(now()-Number(m.createdAt||0)>240000) return;
+        var key=id+'|'+String(m.createdAt||'')+'|'+String(m.text||'').slice(0,80);
+        if(seenFirstMsg[key]) return;
+        seenFirstMsg[key]=1;
+        beepNotice(c.humanRequested||c.waitingHuman||c.priority?'human':'normal');
+      });
+    });
+  }
+
+  function updateVisitorOnlineLabel(){
+    safe(function(){
+      if(isAdmin()) return;
+      var id=currentVisitorChat(); if(!id) return;
+      var c=chats()[id]; if(!c) return;
+      var online=!!(c.javierOnline&&Number(c.javierOnlineAt||0)&&now()-Number(c.javierOnlineAt||0)<900000);
+      if(!online) return;
+      var title=document.querySelector('#chat-popover.open .chat-title'), sub=document.querySelector('#chat-popover.open .chat-subline');
+      if(title) title.textContent='JAVIER';
+      if(sub) sub.textContent='🟢 Javier en línea';
+    });
+  }
+
+  function css(){
+    if(document.getElementById('tomauno-v28d-css')) return;
+    var st=document.createElement('style');
+    st.id='tomauno-v28d-css';
+    st.textContent='.tu-v28d-sound-unlock{position:fixed!important;right:18px!important;bottom:18px!important;z-index:100003!important;border:1px solid rgba(255,255,255,.22)!important;background:linear-gradient(135deg,#e8000a,#810006)!important;color:#fff!important;border-radius:999px!important;padding:11px 15px!important;font-size:12px!important;font-weight:900!important;cursor:pointer!important;box-shadow:0 14px 40px rgba(232,0,10,.35),0 8px 24px rgba(0,0,0,.35)!important}.chat-bubble.admin{white-space:pre-line}.tu-state-human{animation:tuHumanCallPulse .9s infinite alternate!important}@keyframes tuHumanCallPulse{from{filter:brightness(1);box-shadow:0 0 0 1px rgba(255,54,54,.35),0 0 14px rgba(255,54,54,.14)}to{filter:brightness(1.12);box-shadow:0 0 0 1px rgba(255,54,54,.75),0 0 28px rgba(255,54,54,.34)}}';
+    document.head.appendChild(st);
+  }
+
+  css(); showUnlockButton();
+  setInterval(showUnlockButton,4000);
+  setInterval(scanHumanForCall,900);
+  setInterval(updateCallCountdownDom,1000);
+  setInterval(scanFirstMessageSound,650);
+  setInterval(updateVisitorOnlineLabel,800);
+})();
