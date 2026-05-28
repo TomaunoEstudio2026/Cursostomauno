@@ -8327,7 +8327,337 @@ window.filterCursos = function(){
 })();
 
 
-// v22 chat speed tweaks
-window.TOMAUNO_TYPING_DELAY = 350;
-window.TOMAUNO_REPLY_DELAY = 650;
+/* =====================================================================
+   v23 - hotfix final: envio visitante, maximizar, eventos link,
+   typing admin y notificaciones solo de usuario.
+   Este bloque queda al final para pisar parches viejos sin tocar Firebase.
+   ===================================================================== */
+(function(){
+  'use strict';
 
+  const V23='Tomauno v23 hotfix chat estable';
+  let sendingV23=false;
+  let lastSentV23={id:'', text:'', at:0};
+  let expandedWantedV23=false;
+  let typingTimerV23=0;
+  let lastTypingV23='';
+  const notifSeenV23=new Map();
+
+  function safe(fn, fb){ try{return fn();}catch(e){try{console.warn('v23', e);}catch(_){ } return fb;} }
+  function now(){ return Date.now(); }
+  function adminActive(){ return safe(()=>!!(isAdminNotifier && isAdminNotifier()) || localStorage.getItem('tomauno-admin-notify')==='1' || !!document.querySelector('#chat-popover.open #chat-admin-text,#chat-popover.open .chat-inbox-side,#chat-popover.open .chat-admin-tools'), false); }
+  function visitorId(){
+    return safe(()=> currentVisitorChatId || window.currentVisitorChatId || sessionStorage.getItem('tomauno-chat-id') || '', '') || '';
+  }
+  function setVisitorId(id){
+    if(!id) return;
+    try{ currentVisitorChatId=id; currentOpenChatId=id; }catch(e){}
+    try{ window.currentVisitorChatId=id; window.currentOpenChatId=id; }catch(e){}
+    try{ sessionStorage.setItem('tomauno-chat-id', id); }catch(e){}
+  }
+  function inputText(){ return document.getElementById('chat-text'); }
+  function chatBox(){ return document.querySelector('#chat-popover.open .chat-msgs,#chat-msgs'); }
+  function scrollBottom(ms=40){
+    setTimeout(()=>safe(()=>{ const b=chatBox(); if(b) b.scrollTop=b.scrollHeight; }), ms);
+  }
+  function lastUserMessage(chat){
+    let best=null;
+    Object.values((chat&&chat.messages)||{}).forEach(m=>{
+      if(!m || m.typing || m.from!=='user') return;
+      if(!best || Number(m.createdAt||0)>Number(best.createdAt||0)) best=m;
+    });
+    return best;
+  }
+  function forceExpandedSoon(){
+    if(!expandedWantedV23) return;
+    [0,30,90,220,520].forEach(ms=>setTimeout(()=>safe(()=>{
+      const p=document.getElementById('chat-popover');
+      if(!p || !p.classList.contains('open')) return;
+      p.classList.add('expanded');
+      p.classList.remove('dragged');
+      const b=p.querySelector('.chat-msgs');
+      if(b) b.scrollTop=b.scrollHeight;
+    }),ms));
+  }
+
+  // Maximizar estable: antes el render visitante borraba .expanded, por eso no agrandaba y temblaba.
+  window.toggleChatExpanded=function(){
+    const p=document.getElementById('chat-popover');
+    if(!p) return;
+    expandedWantedV23=!p.classList.contains('expanded');
+    p.classList.toggle('expanded', expandedWantedV23);
+    p.classList.remove('dragged');
+    forceExpandedSoon();
+  };
+  document.addEventListener('click', ev=>{
+    const btn=ev.target && ev.target.closest && ev.target.closest('.chat-max-btn');
+    if(!btn) return;
+    ev.preventDefault(); ev.stopPropagation(); if(ev.stopImmediatePropagation) ev.stopImmediatePropagation();
+    window.toggleChatExpanded();
+  }, true);
+
+  // CSS final de visitante / expandido. Evita que el patch externo deje el chat chico.
+  (function cssV23(){
+    if(document.getElementById('tomauno-v23-css')) return;
+    const st=document.createElement('style'); st.id='tomauno-v23-css';
+    st.textContent=`
+      html body #chat-popover.open.expanded{left:50%!important;right:auto!important;top:50%!important;bottom:auto!important;transform:translate(-50%,-50%)!important;width:min(980px,calc(100vw - 26px))!important;height:min(780px,calc(100vh - 34px))!important;max-height:calc(100vh - 34px)!important;resize:none!important;}
+      html body #chat-popover.open.expanded .chat-popover-inner{height:100%!important;display:flex!important;flex-direction:column!important;overflow:hidden!important;}
+      html body #chat-popover.open.expanded .chat-panel{flex:1 1 auto!important;min-height:0!important;display:flex!important;flex-direction:column!important;overflow:hidden!important;}
+      html body #chat-popover.open.expanded .chat-msgs{flex:1 1 auto!important;min-height:0!important;max-height:none!important;overflow-y:auto!important;scroll-behavior:auto!important;}
+      html body #chat-popover.open.expanded .chat-row{flex:0 0 auto!important;}
+      html body .chat-list-item.human-needed, html body .chat-tab.human-needed{outline:2px solid rgba(255,80,80,.75)!important;box-shadow:0 0 0 3px rgba(255,80,80,.12)!important;}
+      html body .tu-event-link-v23{border:1px solid rgba(90,160,255,.35)!important;color:#9cc7ff!important;background:rgba(90,160,255,.08)!important;}
+      @media(max-width:700px){html body #chat-popover.open.expanded{left:8px!important;right:8px!important;top:auto!important;bottom:86px!important;transform:none!important;width:auto!important;height:calc(100dvh - 106px)!important;max-height:calc(100dvh - 106px)!important;}}
+    `;
+    document.head.appendChild(st);
+  })();
+
+  // Abrir visitante sin destruir maximizado.
+  const prevAbrirVisitanteV23 = window.abrirChatVisitante || (typeof abrirChatVisitante==='function' ? abrirChatVisitante : null);
+  if(typeof prevAbrirVisitanteV23==='function'){
+    const openV23=function(id, silent){
+      setVisitorId(id || visitorId());
+      const r=prevAbrirVisitanteV23.apply(this, arguments);
+      forceExpandedSoon();
+      setTimeout(()=>updateVisitorLabelV23(),80);
+      return r;
+    };
+    window.abrirChatVisitante=openV23;
+    try{ abrirChatVisitante=openV23; }catch(e){}
+  }
+
+  // Scroll: no forzar abajo mientras el usuario está escribiendo o leyendo arriba.
+  const prevScrollV23 = window.scrollChatSmart || (typeof scrollChatSmart==='function' ? scrollChatSmart : null);
+  const scrollSmartV23=function(box){
+    if(!box) return;
+    const active=document.activeElement;
+    if(active && active.id==='chat-text') return;
+    const dist=box.scrollHeight-box.scrollTop-box.clientHeight;
+    if(dist>120 && !sendingV23) return;
+    box.scrollTop=box.scrollHeight;
+  };
+  window.scrollChatSmart=scrollSmartV23;
+  try{ scrollChatSmart=scrollSmartV23; }catch(e){}
+
+  async function ensureChatExistsV23(id, text){
+    id = id || visitorId();
+    if(id){ setVisitorId(id); return id; }
+    // Fallback extremo: si por alguna carrera no hay chatId, creamos uno mínimo.
+    const name=safe(()=>sessionStorage.getItem('tomauno-chat-name') || 'Visitante', 'Visitante') || 'Visitante';
+    const t=now();
+    const chatRef=await push(ref(db,'tomauno/chats'), {name, wp:'', status:'abierto', createdAt:t, updatedAt:t, lastMsg:text||'', unreadAdmin:false, unreadVisitor:false, userOnline:true, userLastSeen:t});
+    id=chatRef.key;
+    setVisitorId(id);
+    return id;
+  }
+
+  // Envío visitante estable: no limpia input hasta que el mensaje ya quedó guardado.
+  async function enviarVisitanteV23(id){
+    if(sendingV23) return;
+    const inp=inputText();
+    const text=String(inp && inp.value || '').trim();
+    if(!text) return;
+    id = await ensureChatExistsV23(id, text);
+    if(!id) return;
+    if(lastSentV23.id===id && lastSentV23.text===text && now()-lastSentV23.at<1000) return;
+    sendingV23=true;
+    lastSentV23={id,text,at:now()};
+    try{
+      await update(ref(db,'tomauno/chats/'+id+'/liveTyping'), {text:'', at:now()}).catch(()=>{});
+      const existing = safe(()=>chatsDB && chatsDB[id] || {}, {}) || {};
+      let fallbackName=safe(()=>sessionStorage.getItem('tomauno-chat-name') || '', '') || '';
+      let detected='';
+      try{ detected = typeof safeDetectedNameFinal==='function' ? safeDetectedNameFinal(text, existing) : (typeof isJustNameReply==='function' ? isJustNameReply(text, existing) : ''); }catch(e){}
+      const currentName = safe(()=> typeof hasRealVisitorNameFinal==='function' && hasRealVisitorNameFinal(existing) ? limpiarNombreChat(existing.name || '') : '', '') || '';
+      const repairedName = safe(()=>limpiarNombreChat(currentName || detected || fallbackName || (typeof chatAnonName==='function' ? chatAnonName(id, existing) : 'Visitante')), currentName || detected || fallbackName || 'Visitante');
+      const t=now();
+      await update(ref(db,'tomauno/chats/'+id), {name:repairedName,status:'abierto',updatedAt:t,lastMsg:text,unreadAdmin:true,userOnline:true,userLastSeen:t}).catch(()=>{});
+      await push(ref(db,'tomauno/chats/'+id+'/messages'), {from:'user', text, time:chatTime(), createdAt:now()});
+      if(inp){ inp.value=''; try{inp.focus({preventScroll:true});}catch(e){inp.focus();} }
+      try{ lastTypingV23=''; }catch(e){}
+      try{ updateChatMessagesOnly(id, false); }catch(e){}
+      scrollBottom(60);
+      if(detected && !currentName){ try{ sessionStorage.setItem('tomauno-chat-name', detected); }catch(e){} }
+      // Primera consulta después del saludo: responder sí o sí, sin quedarse esperando otro intento.
+      try{ await Promise.resolve(responderAutomaticoChat(id, text)); }catch(e){ console.error('v23 responderAutomaticoChat', e); }
+      scrollBottom(240);
+    }catch(e){
+      console.error('v23 enviarChatVisitante error', e);
+      const retry=inputText(); if(retry && !retry.value) retry.value=text;
+      try{ toast('No se pudo enviar. Probá de nuevo.'); }catch(_e){}
+    }finally{
+      sendingV23=false;
+    }
+  }
+  window.enviarChatVisitante=enviarVisitanteV23;
+  window.tomaunoEnviarVisitanteDirecto=enviarVisitanteV23;
+  try{ enviarChatVisitante=enviarVisitanteV23; }catch(e){}
+
+  // Un solo handler final para Enter/click, en burbuja; no captura agresiva.
+  document.addEventListener('keydown', ev=>{
+    if(!ev || ev.key!=='Enter' || !ev.target) return;
+    if(ev.target.id==='chat-name'){
+      ev.preventDefault(); ev.stopPropagation(); if(ev.stopImmediatePropagation) ev.stopImmediatePropagation();
+      window.iniciarChatConNombre && window.iniciarChatConNombre();
+      return;
+    }
+    if(ev.target.id!=='chat-text') return;
+    ev.preventDefault(); ev.stopPropagation(); if(ev.stopImmediatePropagation) ev.stopImmediatePropagation();
+    enviarVisitanteV23(visitorId());
+  }, true);
+  document.addEventListener('click', ev=>{
+    const btn=ev.target && ev.target.closest && ev.target.closest('#chat-popover.open .chat-row .chat-send');
+    if(!btn) return;
+    ev.preventDefault(); ev.stopPropagation(); if(ev.stopImmediatePropagation) ev.stopImmediatePropagation();
+    enviarVisitanteV23(visitorId());
+  }, true);
+
+  // Typing real: 120ms, y render propio en admin aunque otro bloque haya desactivado la lista.
+  function sendTypingV23(clear=false){
+    const id=visitorId(); if(!id || adminActive()) return;
+    const text=clear ? '' : String(inputText()?.value || '').trim();
+    if(text===lastTypingV23 && !clear) return;
+    lastTypingV23=text;
+    update(ref(db,'tomauno/chats/'+id+'/liveTyping'), {text, at:now()}).catch(()=>{});
+  }
+  document.addEventListener('input', ev=>{
+    if(!ev.target || ev.target.id!=='chat-text') return;
+    clearTimeout(typingTimerV23);
+    typingTimerV23=setTimeout(()=>sendTypingV23(false),120);
+  }, true);
+  document.addEventListener('blur', ev=>{ if(ev.target && ev.target.id==='chat-text') setTimeout(()=>sendTypingV23(true),1200); }, true);
+
+  function typingText(chat){
+    const lt=chat && chat.liveTyping;
+    const text=String((lt && lt.text) || '').trim();
+    if(!text || !lt || now()-Number(lt.at||0)>12000) return '';
+    return text;
+  }
+  function renderTypingAdminV23(){
+    if(!adminActive()) return;
+    const id=safe(()=>currentOpenChatId || window.currentOpenChatId || '', '') || '';
+    const chat=id && safe(()=>chatsDB && chatsDB[id], null);
+    const text=typingText(chat);
+    const pop=document.getElementById('chat-popover');
+    if(pop && pop.classList.contains('open') && id){
+      const msgs=pop.querySelector('.chat-msgs');
+      let box=pop.querySelector('.chat-live-typing-v23');
+      if(!text){ if(box) box.remove(); }
+      else{
+        if(!box){ box=document.createElement('div'); box.className='chat-live-typing-v23 chat-bubble user'; if(msgs) msgs.appendChild(box); }
+        box.innerHTML='<strong>Escribiendo ahora</strong><br>'+escHtml(text);
+      }
+    }
+    document.querySelectorAll('.chat-list-item,.chat-tab').forEach(el=>{
+      el.classList.remove('typing-live');
+      el.querySelectorAll('.tu-live-list-preview-v23').forEach(n=>n.remove());
+    });
+    Object.entries(safe(()=>chatsDB || {}, {}) || {}).forEach(([cid,c])=>{
+      const tx=typingText(c); if(!tx) return;
+      document.querySelectorAll('.chat-list-item,.chat-tab').forEach(el=>{
+        const oc=el.getAttribute('onclick') || '';
+        if(!oc.includes(cid)) return;
+        el.classList.add('typing-live');
+        if(!el.querySelector('.tu-live-list-preview-v23')){
+          const line=document.createElement('div'); line.className='tu-live-list-preview-v23';
+          line.style.cssText='font-size:11px;margin-top:2px;max-width:250px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:#ffe47a;';
+          line.textContent='Escribiendo: '+tx;
+          (el.querySelector('div[style*="flex:1"]') || el).appendChild(line);
+        }
+      });
+    });
+  }
+  setInterval(renderTypingAdminV23, 350);
+
+  // Notificaciones: usar solo último mensaje del usuario; nunca mensaje del asistente.
+  const prevNotifyV23=window.notifyAdminChat || (typeof notifyAdminChat==='function' ? notifyAdminChat : null);
+  function beepHuman(){ try{ beepStrongFinal ? beepStrongFinal() : beep(); setTimeout(()=>{try{beep();}catch(e){}},230); setTimeout(()=>{try{beep();}catch(e){}},520); }catch(e){} }
+  window.notifyAdminChat=function(title, body, chatId){
+    if(!adminActive()) return;
+    const c=chatId && safe(()=>chatsDB && chatsDB[chatId], null);
+    const last=lastUserMessage(c);
+    if(last && (!body || /tomauno|javier responder|en que puedo ayudarte|cursos activos|ver cursos|ver info|perfecto|gracias/i.test(String(body)))) body=last.text;
+    if(!last && chatId && body && /tomauno|javier responder|en que puedo ayudarte|cursos activos|ver cursos|perfecto|gracias/i.test(String(body))) return;
+    const sig=String(chatId||'')+'|'+String(title||'')+'|'+String(body||'').slice(0,120);
+    if(now()-(notifSeenV23.get(sig)||0)<7000) return;
+    notifSeenV23.set(sig, now());
+    if(c && (c.humanRequested || c.awaitingHumanContact || c.prioridad)) beepHuman();
+    else { try{ beep(); }catch(e){} }
+    if(typeof prevNotifyV23==='function'){
+      try{ return prevNotifyV23.call(this, title || 'Nuevo mensaje web', body || 'Nuevo mensaje', chatId); }catch(e){}
+    }
+  };
+  try{ notifyAdminChat=window.notifyAdminChat; }catch(e){}
+
+  // Human flow: textos simples y requisito WhatsApp.
+  function rewriteHumanTextV23(){
+    safe(()=>{
+      document.querySelectorAll('.chat-bubble.admin').forEach(b=>{
+        const t=b.innerText || '';
+        if(/Javier puede estar ocupado|dej[eé] registrada tu consulta|Si quer[eé]s, pasame tambi[eé]n tu WhatsApp|Te dejo el WhatsApp directo|dej[aá] tu consulta/i.test(t)){
+          b.innerHTML='🟢 Javier responderá personalmente.<br><br>📱 Para dejar tu consulta necesito que me pases tu WhatsApp y el mensaje para Javier.<div class="chat-meta">Ahora</div>';
+        }
+      });
+    });
+  }
+  setInterval(rewriteHumanTextV23, 900);
+
+  function updateVisitorLabelV23(){
+    safe(()=>{
+      const id=visitorId(); const c=id && chatsDB && chatsDB[id];
+      const sub=document.querySelector('#chat-popover.open .chat-subline');
+      if(!sub || adminActive()) return;
+      if(c && (c.humanMode || Number(c.manualUntil||0)>now())) sub.textContent='🟢 Javier en línea';
+      else if(c && (c.humanRequested || c.awaitingHumanContact || c.prioridad)) sub.textContent='📱 Dejá tu WhatsApp para Javier';
+    });
+  }
+  setInterval(updateVisitorLabelV23, 1000);
+
+  // Link para eventos en el admin: mismo comportamiento que cursos.
+  window.copiarLinkEvento = function(id){
+    const url=window.location.origin + window.location.pathname + '#evento-' + id;
+    try{ navigator.clipboard.writeText(url).then(()=>toast('🔗 Link de evento copiado')); }
+    catch(e){ prompt('Copiá el link del evento:', url); }
+  };
+  function addEventLinkButtonsV23(){
+    safe(()=>{
+      const w=document.getElementById('admin-eventos-list'); if(!w) return;
+      Object.keys(eventosDB || {}).forEach(id=>{
+        const btns=[...w.querySelectorAll('button')];
+        const row=btns.find(b=>(b.getAttribute('onclick')||'').includes("editarEvento('"+id+"')"))?.closest('.admin-ci');
+        if(!row || row.querySelector('[data-tu-event-link="'+id+'"]')) return;
+        const actions=row.querySelector('div[style*="justify-content:flex-end"]') || row.lastElementChild;
+        if(!actions) return;
+        const b=document.createElement('button'); b.className='bsm bl tu-event-link-v23'; b.type='button'; b.dataset.tuEventLink=id; b.textContent='🔗 Link';
+        b.onclick=function(ev){ ev.preventDefault(); ev.stopPropagation(); window.copiarLinkEvento(id); };
+        actions.insertBefore(b, actions.firstChild);
+      });
+    });
+  }
+  setInterval(addEventLinkButtonsV23, 1200);
+  setTimeout(addEventLinkButtonsV23, 500);
+
+  // Marca visual de humanos pendientes en bandeja/lista.
+  function markHumanNeededV23(){
+    safe(()=>{
+      Object.entries(chatsDB || {}).forEach(([id,c])=>{
+        const human=c && (c.humanRequested || c.awaitingHumanContact || c.prioridad);
+        document.querySelectorAll('.chat-list-item,.chat-tab').forEach(el=>{
+          const oc=el.getAttribute('onclick') || '';
+          if(!oc.includes(id)) return;
+          el.classList.toggle('human-needed', !!human);
+          if(human && !el.querySelector('.tu-human-badge-v23')){
+            const badge=document.createElement('span'); badge.className='tu-human-badge-v23'; badge.textContent=' ⚠ HUMANO';
+            badge.style.cssText='color:#ff6969;font-size:10px;font-weight:900;margin-left:5px;';
+            (el.querySelector('.chat-tab-name') || el.firstElementChild || el).appendChild(badge);
+          }
+        });
+      });
+    });
+  }
+  setInterval(markHumanNeededV23, 900);
+
+  // Actualizar versión visual si existe.
+  safe(()=>{ const tag=document.getElementById('tomauno-version-tag'); if(tag) tag.textContent=V23; });
+})();
