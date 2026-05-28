@@ -152,12 +152,12 @@
 })();
 
 
-/* Tomauno v28b final CSS respaldo */
+/* Tomauno v28b final2 CSS respaldo */
 (function(){
   function css(){
-    if(document.getElementById('tu-v28b-final-patch-css')) return;
+    if(document.getElementById('tu-final2-patch-css')) return;
     var st=document.createElement('style');
-    st.id='tu-v28b-final-patch-css';
+    st.id='tu-final2-patch-css';
     st.textContent='@media(min-width:701px){body:not(.tomauno-admin-active) #chat-popover.open{height:min(80vh,740px)!important;max-height:min(80vh,740px)!important;width:min(420px,calc(100vw - 24px))!important;max-width:min(420px,calc(100vw - 24px))!important}}#chat-popover.open .chat-msgs{scroll-behavior:auto!important;overscroll-behavior:contain!important;}';
     document.head.appendChild(st);
   }
