@@ -8887,3 +8887,362 @@ window.filterCursos = function(){
   setInterval(centerAdminFullscreen, 500);
   setTimeout(function(){ applyAdminStates(); ensureVisitorQuickButtons(); centerAdminFullscreen(); }, 600);
 })();
+
+
+// ── TOMAUNO v26 HOTFIX FINAL ────────────────────────────────────────────────
+// Ajustes: scroll visitante al recibir respuesta, chat más alto, botones compactos,
+// búsqueda profesor en cursos/eventos/servicios, sonido desbloqueable y más confiable.
+(function(){
+  'use strict';
+
+  function safe(fn){ try{return fn();}catch(e){ try{console.warn('tomauno v26:', e);}catch(_){} } }
+  function ts(){ return Date.now(); }
+
+  function isAdmin(){
+    return safe(function(){
+      return localStorage.getItem('tomauno-admin-ok') === '1' ||
+             localStorage.getItem('tomauno-admin-notify') === '1' ||
+             !!document.querySelector('#chat-popover.open #chat-admin-text,#chat-popover.open .chat-inbox-side,#chat-popover.open .chat-admin-tools');
+    }) || false;
+  }
+
+  function pop(){ return document.getElementById('chat-popover'); }
+  function msgBox(){ return document.querySelector('#chat-popover.open .chat-msgs'); }
+
+  function currentChatIdAny(){
+    return safe(function(){
+      return window.currentOpenChatId || window.currentVisitorChatId || sessionStorage.getItem('tomauno-chat-id') || '';
+    }) || '';
+  }
+
+  // ── 1) SCROLL VISITANTE CUANDO RESPONDE ADM / IA ─────────────────────────
+  let lastVisitorScrollKey = '';
+  function scrollVisitorBottom(force){
+    safe(function(){
+      if(isAdmin()) return;
+      const box = msgBox();
+      if(!box) return;
+      const active = document.activeElement;
+      const writing = active && (active.id === 'chat-text' || active.id === 'chat-name');
+      // Si está escribiendo, solo bajamos si force=true o si ya estaba cerca del fondo.
+      const nearBottom = (box.scrollHeight - box.scrollTop - box.clientHeight) < 210;
+      if(force || !writing || nearBottom){
+        requestAnimationFrame(function(){
+          box.scrollTop = box.scrollHeight;
+          setTimeout(function(){ box.scrollTop = box.scrollHeight; }, 80);
+        });
+      }
+    });
+  }
+
+  function lastVisibleMessageKey(){
+    return safe(function(){
+      const bubbles = Array.from(document.querySelectorAll('#chat-popover.open .chat-bubble'));
+      if(!bubbles.length) return '';
+      const b = bubbles[bubbles.length - 1];
+      return (b.className || '') + '|' + (b.textContent || '').slice(-160);
+    }) || '';
+  }
+
+  function watchVisitorMessages(){
+    if(isAdmin()) return;
+    const key = lastVisibleMessageKey();
+    if(key && key !== lastVisitorScrollKey){
+      lastVisitorScrollKey = key;
+      // Si aparece una respuesta admin/auto o cambia el contenido, bajamos.
+      scrollVisitorBottom(true);
+    }
+  }
+
+  // Al tocar botones rápidos, bajar también.
+  document.addEventListener('click', function(ev){
+    if(ev.target && ev.target.closest && ev.target.closest('.tu-quick-btn')){
+      setTimeout(function(){ scrollVisitorBottom(true); }, 120);
+      setTimeout(function(){ scrollVisitorBottom(true); }, 700);
+    }
+  }, true);
+
+  // ── 2) BOTONES VISITANTE MÁS COMPACTOS ───────────────────────────────────
+  function compactQuickButtons(){
+    safe(function(){
+      if(isAdmin()) return;
+      const wrap = document.querySelector('#chat-popover.open .tu-quick-actions');
+      if(!wrap) return;
+      const map = [
+        ['Cursos activos', '🎓', 'Cursos'],
+        ['Eventos activos', '📅', 'Eventos'],
+        ['Servicios disponibles', '🛠️', 'Servicios'],
+        ['Ubicación', '📍', ''],
+        ['Quiero hablar con Javier', '👤', '']
+      ];
+      wrap.innerHTML = map.map(function(x){
+        return '<button type="button" class="tu-quick-btn tu-quick-compact" title="'+x[2]+'" data-tu-msg="'+x[0]+'"><span>'+x[1]+'</span>'+(x[2] ? '<em>'+x[2]+'</em>' : '')+'</button>';
+      }).join('');
+    });
+  }
+
+  // ── 3) CHAT PC MÁS ALTO ──────────────────────────────────────────────────
+  function css(){
+    if(document.getElementById('tomauno-v26-css')) return;
+    const st = document.createElement('style');
+    st.id = 'tomauno-v26-css';
+    st.textContent = `
+      @media(min-width:701px){
+        html body.tomauno-visitor-active #chat-popover.open,
+        html body:not(.tomauno-admin-active) #chat-popover.open:not(:has(.chat-inbox-side)){
+          height:min(72vh,660px)!important;
+          max-height:min(72vh,660px)!important;
+          width:min(360px,calc(100vw - 22px))!important;
+          max-width:min(360px,calc(100vw - 22px))!important;
+        }
+        html body.tomauno-visitor-active #chat-popover.open.expanded,
+        html body.tomauno-visitor-active #chat-popover.open.tomauno-expanded{
+          width:min(720px,calc(100vw - 28px))!important;
+          height:min(82vh,760px)!important;
+          max-height:min(82vh,760px)!important;
+        }
+      }
+
+      #chat-popover.open .tu-quick-actions{
+        display:flex!important;
+        flex-wrap:nowrap!important;
+        gap:5px!important;
+        padding:4px 2px 7px!important;
+        overflow-x:auto!important;
+        scrollbar-width:none!important;
+      }
+      #chat-popover.open .tu-quick-actions::-webkit-scrollbar{display:none!important;}
+      #chat-popover.open .tu-quick-btn.tu-quick-compact{
+        min-width:auto!important;
+        height:31px!important;
+        display:inline-flex!important;
+        align-items:center!important;
+        justify-content:center!important;
+        gap:4px!important;
+        padding:6px 8px!important;
+        border-radius:999px!important;
+        white-space:nowrap!important;
+        flex:0 0 auto!important;
+      }
+      #chat-popover.open .tu-quick-btn.tu-quick-compact span{font-size:14px!important;line-height:1!important;}
+      #chat-popover.open .tu-quick-btn.tu-quick-compact em{
+        font-style:normal!important;
+        font-size:10px!important;
+        font-weight:900!important;
+      }
+      #chat-popover.open .chat-msgs{
+        scroll-behavior:auto!important;
+        padding-bottom:26px!important;
+      }
+      #chat-popover.open .chat-row{
+        flex-shrink:0!important;
+      }
+      .tu-sound-unlock{
+        position:fixed;
+        right:18px;
+        bottom:18px;
+        z-index:100000;
+        border:1px solid rgba(255,255,255,.18);
+        background:rgba(20,20,20,.94);
+        color:#fff;
+        border-radius:999px;
+        padding:9px 12px;
+        font-size:12px;
+        font-weight:900;
+        box-shadow:0 12px 30px rgba(0,0,0,.32);
+        cursor:pointer;
+      }
+    `;
+    document.head.appendChild(st);
+  }
+
+  // ── 4) BUSCAR PROFESOR / ORGANIZADOR EN EVENTOS Y SERVICIOS SIN DECIR "CURSO" ──
+  function normalize(s){
+    try{ if(typeof normAI === 'function') return normAI(s); }catch(e){}
+    return String(s||'').toLowerCase()
+      .normalize('NFD').replace(/[\u0300-\u036f]/g,'')
+      .replace(/[^a-z0-9ñ\s]/g,' ')
+      .replace(/\s+/g,' ')
+      .trim();
+  }
+
+  function impTerms(q){
+    const stop = new Set('quien quien es cual cual es como donde curso cursos evento eventos servicio servicios profe profesor profesora docente disertante organizador organiza la el de del en un una para por con y o a los las me podes puedes decir contar informar sobre'.split(' '));
+    return normalize(q).split(/\s+/).filter(w => w.length > 2 && !stop.has(w));
+  }
+
+  const oldBestPublishedTitleMatchAI = (typeof bestPublishedTitleMatchAI === 'function') ? bestPublishedTitleMatchAI : null;
+  bestPublishedTitleMatchAI = function(q){
+    const old = oldBestPublishedTitleMatchAI ? oldBestPublishedTitleMatchAI(q) : null;
+    if(old) return old;
+
+    const nq = normalize(q);
+    const terms = impTerms(q);
+    if(!terms.length) return null;
+
+    const items = [];
+    try{
+      Object.entries(cursos || {}).forEach(([id,c]) => {
+        if(!c || c.oculto) return;
+        items.push({type:'curso', id, obj:c, title:c.titulo||'', extra:[c.desc,c.ig,c.disertante,c.profesor,c.organizador,c.docente,c.wp].join(' ')});
+      });
+      Object.entries(serviciosDB || {}).forEach(([id,s]) => {
+        if(!s || s.oculto) return;
+        items.push({type:'servicio', id, obj:s, title:s.titulo||'', extra:[s.desc,s.ig,s.wp,s.dir,s.profesor,s.docente,s.organizador].join(' ')});
+      });
+      Object.entries(eventosDB || {}).forEach(([id,e]) => {
+        if(!e || e.oculto) return;
+        // No exigimos estado activo porque algunos eventos cargados usan otros estados.
+        items.push({type:'evento', id, obj:e, title:e.titulo||'', extra:[e.desc,e.ig,e.nombreOrg,e.wpOrg,e.lugar,e.profesor,e.docente,e.disertante,e.organizador].join(' ')});
+      });
+    }catch(e){}
+
+    let best = null;
+    items.forEach(it => {
+      const hay = normalize([it.title, it.extra].join(' '));
+      let hits = 0;
+      terms.forEach(t => {
+        if(hay.includes(t)) hits += 1;
+      });
+      if(!hits) return;
+      let score = hits * 10;
+      if(normalize(it.title).includes(terms.join(' '))) score += 20;
+      if(/profesor|profesora|profe|docente|disertante|organizador|quien|quién/.test(nq)) score += 6;
+      if(/evento|casting|beauty|ciudad/.test(nq) && it.type === 'evento') score += 6;
+      if(/servicio|book|portfolio|sesion|sesiones/.test(nq) && it.type === 'servicio') score += 5;
+      if(!best || score > best.sc) best = Object.assign({}, it, {sc:score, titleHits:hits, extraHits:0});
+    });
+
+    return best && best.sc >= 10 ? best : null;
+  };
+
+  // Override puntual: si pregunta "quién/profe/docente/organizador" intenta match global primero.
+  const oldBuscarRespuestaAsistenteV26 = (typeof buscarRespuestaAsistente === 'function') ? buscarRespuestaAsistente : null;
+  buscarRespuestaAsistente = function(text){
+    const q = normalize(text);
+    if(/(quien|quién|profe|profesor|profesora|docente|disertante|organizador|organiza|quien da|quien dicta)/.test(q)){
+      const m = bestPublishedTitleMatchAI(text);
+      if(m && typeof contactoEntidadAI === 'function'){
+        if(m.type === 'curso') window._lastAiSection = 'sec-cursos';
+        if(m.type === 'servicio') window._lastAiSection = 'sec-servicios';
+        if(m.type === 'evento') window._lastAiSection = 'sec-eventos';
+        return contactoEntidadAI(m);
+      }
+    }
+    return oldBuscarRespuestaAsistenteV26 ? oldBuscarRespuestaAsistenteV26(text) : '';
+  };
+
+  // ── 5) SONIDO: DESBLOQUEO + FALLBACK MÁS FUERTE ─────────────────────────
+  let audioUnlocked = false;
+  let audioCtx = null;
+
+  function unlockAudio(showButton){
+    safe(function(){
+      const AC = window.AudioContext || window.webkitAudioContext;
+      if(!AC) return;
+      if(!audioCtx) audioCtx = new AC();
+      if(audioCtx.state === 'suspended') audioCtx.resume();
+      const osc = audioCtx.createOscillator();
+      const gain = audioCtx.createGain();
+      gain.gain.value = 0.00001;
+      osc.connect(gain); gain.connect(audioCtx.destination);
+      osc.start();
+      osc.stop(audioCtx.currentTime + 0.03);
+      audioUnlocked = true;
+      const btn = document.querySelector('.tu-sound-unlock');
+      if(btn) btn.remove();
+    });
+  }
+
+  function showSoundUnlock(){
+    safe(function(){
+      if(!isAdmin() || audioUnlocked || document.querySelector('.tu-sound-unlock')) return;
+      const btn = document.createElement('button');
+      btn.className = 'tu-sound-unlock';
+      btn.textContent = '🔊 Activar sonido';
+      btn.onclick = function(){ unlockAudio(false); tuBeepV26('normal'); };
+      document.body.appendChild(btn);
+    });
+  }
+
+  function tuBeepV26(kind){
+    safe(function(){
+      const AC = window.AudioContext || window.webkitAudioContext;
+      if(!AC) return;
+      if(!audioCtx) audioCtx = new AC();
+      if(audioCtx.state === 'suspended'){
+        showSoundUnlock();
+        audioCtx.resume().catch(()=>{});
+      }
+
+      const start = audioCtx.currentTime + 0.02;
+      const freqs = kind === 'human' ? [720, 920, 1160, 920] : [880, 1120, 880];
+      freqs.forEach(function(freq, i){
+        const osc = audioCtx.createOscillator();
+        const gain = audioCtx.createGain();
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(freq, start + i * .16);
+        gain.gain.setValueAtTime(.0001, start + i * .16);
+        gain.gain.exponentialRampToValueAtTime(kind === 'human' ? .28 : .20, start + i * .16 + .025);
+        gain.gain.exponentialRampToValueAtTime(.0001, start + i * .16 + .13);
+        osc.connect(gain);
+        gain.connect(audioCtx.destination);
+        osc.start(start + i * .16);
+        osc.stop(start + i * .16 + .15);
+      });
+    });
+  }
+
+  document.addEventListener('click', function(){ unlockAudio(false); }, true);
+  document.addEventListener('keydown', function(){ unlockAudio(false); }, true);
+
+  // Refuerzo: cuando entra notificación propia, sonar también por función vieja.
+  const oldNotifyV26 = window.notifyAdminChat;
+  if(typeof oldNotifyV26 === 'function' && !oldNotifyV26.__tuV26Sound){
+    const wrappedNotify = function(title, body, chatId){
+      const r = oldNotifyV26.apply(this, arguments);
+      safe(function(){
+        if(isAdmin()) tuBeepV26(/humano|atencion|atención/i.test(String(title||'') + ' ' + String(body||'')) ? 'human' : 'normal');
+      });
+      return r;
+    };
+    wrappedNotify.__tuV26Sound = 1;
+    window.notifyAdminChat = wrappedNotify;
+    try{ notifyAdminChat = wrappedNotify; }catch(e){}
+  }
+
+  // Refuerzo por Firebase: suena ante último mensaje real de usuario reciente.
+  const heard = Object.create(null);
+  function soundRecentUserMessage(){
+    safe(function(){
+      if(!isAdmin()) return;
+      const dbs = window.chatsDB || {};
+      Object.keys(dbs).forEach(function(id){
+        const c = dbs[id] || {};
+        const ms = c.messages || {};
+        let best = null;
+        Object.keys(ms).forEach(function(k){
+          const m = ms[k] || {};
+          if(m.from === 'user' && !m.typing && String(m.text||'').trim()){
+            if(!best || Number(m.createdAt||0) > Number(best.createdAt||0)) best = m;
+          }
+        });
+        if(!best) return;
+        const age = ts() - Number(best.createdAt || 0);
+        if(age > 1000 * 60 * 4) return;
+        const key = id + '|' + String(best.createdAt||'') + '|' + String(best.text||'').slice(0,80);
+        if(heard[key]) return;
+        heard[key] = 1;
+        tuBeepV26((c.humanRequested || c.waitingHuman || c.priority) ? 'human' : 'normal');
+      });
+    });
+  }
+
+  css();
+  compactQuickButtons();
+  scrollVisitorBottom(false);
+  setInterval(watchVisitorMessages, 350);
+  setInterval(compactQuickButtons, 1300);
+  setInterval(showSoundUnlock, 2500);
+  setInterval(soundRecentUserMessage, 900);
+})();

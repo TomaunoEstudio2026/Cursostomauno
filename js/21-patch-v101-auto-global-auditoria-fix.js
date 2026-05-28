@@ -82,3 +82,22 @@
   if(document.readyState==='loading') document.addEventListener('DOMContentLoaded',css,{once:true});
   else css();
 })();
+
+
+/* Tomauno v26 patch mínimo: altura visitante y botones compactos. */
+(function(){
+  function css(){
+    if(document.getElementById('tomauno-v26-patch-css')) return;
+    var st=document.createElement('style');
+    st.id='tomauno-v26-patch-css';
+    st.textContent=[
+      '@media(min-width:701px){html body.tomauno-visitor-active #chat-popover.open{height:min(72vh,660px)!important;max-height:min(72vh,660px)!important;width:min(360px,calc(100vw - 22px))!important;max-width:min(360px,calc(100vw - 22px))!important;}}',
+      'html body #chat-popover.open .chat-msgs{scroll-behavior:auto!important;overscroll-behavior:contain!important;padding-bottom:26px!important;}',
+      'html body #chat-popover.open .tu-quick-actions{flex-wrap:nowrap!important;overflow-x:auto!important;scrollbar-width:none!important;}',
+      'html body #chat-popover.open .tu-quick-actions::-webkit-scrollbar{display:none!important;}'
+    ].join('\n');
+    document.head.appendChild(st);
+  }
+  if(document.readyState==='loading') document.addEventListener('DOMContentLoaded',css,{once:true});
+  else css();
+})();
