@@ -8524,3 +8524,366 @@ window.filterCursos = function(){
   setInterval(cleanTypingList, 500);
   setInterval(cleanOldTypingBubbles, 900);
 })();
+
+
+// ── TOMAUNO v25 HOTFIX FINAL ────────────────────────────────────────────────
+// Sonido primer mensaje, estados visuales, typing visible, fullscreen admin centrado,
+// y botones rápidos visitante. No reemplaza funciones core: actúa como capa segura.
+(function(){
+  'use strict';
+
+  function safe(fn){ try{return fn();}catch(e){ try{console.warn('tomauno v25:', e);}catch(_){} } }
+  function now(){ return Date.now(); }
+
+  function isAdmin(){
+    return safe(function(){
+      return localStorage.getItem('tomauno-admin-ok') === '1' ||
+             localStorage.getItem('tomauno-admin-notify') === '1' ||
+             !!document.querySelector('#chat-popover.open #chat-admin-text,#chat-popover.open .chat-inbox-side,#chat-popover.open .chat-admin-tools');
+    }) || false;
+  }
+
+  function currentOpenId(){
+    return safe(function(){
+      return window.currentOpenChatId || window.currentVisitorChatId || sessionStorage.getItem('tomauno-chat-id') || '';
+    }) || '';
+  }
+
+  function chats(){
+    return safe(function(){ return window.chatsDB || {}; }) || {};
+  }
+
+  function lastUserMsg(c){
+    let best = null;
+    const ms = c && c.messages ? c.messages : {};
+    Object.keys(ms || {}).forEach(k => {
+      const m = ms[k] || {};
+      if(m.from === 'user' && !m.typing && String(m.text || '').trim()){
+        if(!best || Number(m.createdAt || 0) > Number(best.createdAt || 0)) best = m;
+      }
+    });
+    return best;
+  }
+
+  // Sonido propio, no depende de beep() viejo.
+  function tuBeep(level){
+    safe(function(){
+      const AC = window.AudioContext || window.webkitAudioContext;
+      if(!AC) return;
+      const ctx = new AC();
+      const t = ctx.currentTime;
+      const pattern = level === 'human' ? [760, 980, 1180] : [860, 1040];
+      pattern.forEach((freq, i) => {
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(freq, t + i * .18);
+        gain.gain.setValueAtTime(.0001, t + i * .18);
+        gain.gain.exponentialRampToValueAtTime(level === 'human' ? .22 : .14, t + i * .18 + .025);
+        gain.gain.exponentialRampToValueAtTime(.0001, t + i * .18 + .15);
+        osc.connect(gain);
+        gain.connect(ctx.destination);
+        osc.start(t + i * .18);
+        osc.stop(t + i * .18 + .17);
+      });
+      setTimeout(() => safe(() => ctx.close()), 900);
+    });
+  }
+
+  const seenUserSound = Object.create(null);
+  const seenHumanSound = Object.create(null);
+
+  // Sonar por mensaje real del usuario, incluyendo el nombre inicial.
+  function soundForRealUserMessages(){
+    safe(function(){
+      if(!isAdmin()) return;
+      const dbs = chats();
+      Object.keys(dbs || {}).forEach(id => {
+        const c = dbs[id] || {};
+        if(c.status === 'cerrado') return;
+
+        const m = lastUserMsg(c);
+        if(!m) return;
+
+        const stamp = id + '|' + String(m.createdAt || '') + '|' + String(m.text || '').slice(0,60);
+        if(seenUserSound[stamp]) return;
+
+        // Evita sonar por historial viejo al abrir la página.
+        const age = now() - Number(m.createdAt || 0);
+        if(age > 1000 * 60 * 3){
+          seenUserSound[stamp] = 1;
+          return;
+        }
+
+        seenUserSound[stamp] = 1;
+        tuBeep(c.humanRequested || c.waitingHuman || c.priority ? 'human' : 'normal');
+      });
+    });
+  }
+
+  // Sonido fuerte cuando el usuario pidió humano.
+  function soundForHumanRequest(){
+    safe(function(){
+      if(!isAdmin()) return;
+      const dbs = chats();
+      Object.keys(dbs || {}).forEach(id => {
+        const c = dbs[id] || {};
+        if(!(c.humanRequested || c.waitingHuman || c.priority)) return;
+
+        const stamp = id + '|' + String(c.updatedAt || c.lastUserAt || '');
+        if(seenHumanSound[stamp]) return;
+
+        const age = now() - Number(c.updatedAt || c.lastUserAt || 0);
+        if(age > 1000 * 60 * 5){
+          seenHumanSound[stamp] = 1;
+          return;
+        }
+
+        seenHumanSound[stamp] = 1;
+        tuBeep('human');
+        setTimeout(() => tuBeep('human'), 480);
+      });
+    });
+  }
+
+  // Al abrir un chat admin se marca leído y apaga amarillo.
+  const oldAbrir = window.abrirChatAdmin;
+  if(typeof oldAbrir === 'function' && !oldAbrir.__tuV25ReadWrap){
+    const wrapped = function(chatId){
+      const r = oldAbrir.apply(this, arguments);
+      safe(function(){
+        if(chatId && typeof db !== 'undefined' && typeof ref !== 'undefined' && typeof update !== 'undefined'){
+          update(ref(db, 'tomauno/chats/' + chatId), {
+            unreadAdmin:false,
+            waitingHuman:false,
+            readByAdminAt:Date.now()
+          }).catch(()=>{});
+        }
+        setTimeout(applyAdminStates, 120);
+      });
+      return r;
+    };
+    wrapped.__tuV25ReadWrap = 1;
+    window.abrirChatAdmin = wrapped;
+    try{ abrirChatAdmin = wrapped; }catch(e){}
+  }
+
+  // Si Javier responde manualmente, deja de ser rojo HUMANO pendiente.
+  const oldSendAdmin = window.enviarChatAdmin;
+  if(typeof oldSendAdmin === 'function' && !oldSendAdmin.__tuV25HumanClear){
+    const wrappedAdminSend = async function(){
+      const id = window.currentOpenChatId || currentOpenId();
+      const r = await oldSendAdmin.apply(this, arguments);
+      safe(function(){
+        if(id && typeof db !== 'undefined' && typeof ref !== 'undefined' && typeof update !== 'undefined'){
+          update(ref(db, 'tomauno/chats/' + id), {
+            humanRequested:false,
+            waitingHuman:false,
+            priority:false,
+            unreadAdmin:false,
+            readByAdminAt:Date.now(),
+            humanMode:true,
+            manualUntil:Date.now() + 1000*60*60
+          }).catch(()=>{});
+        }
+      });
+      setTimeout(applyAdminStates, 120);
+      return r;
+    };
+    wrappedAdminSend.__tuV25HumanClear = 1;
+    window.enviarChatAdmin = wrappedAdminSend;
+    try{ enviarChatAdmin = wrappedAdminSend; }catch(e){}
+  }
+
+  function visitorOnline(c){
+    const t = Number(c && (c.userLastSeen || c.lastSeen || c.updatedAt) || 0);
+    return !!(c && (c.userOnline || (t && now() - t < 90000)));
+  }
+
+  function applyAdminStates(){
+    safe(function(){
+      if(!isAdmin()) return;
+      const dbs = chats();
+
+      document.querySelectorAll('.chat-tab,.chat-list-item,.chat-inbox-item,[data-chat-id]').forEach(el => {
+        const id = el.getAttribute('data-chat-id') || el.dataset.chatId || '';
+        const c = id ? dbs[id] : null;
+        if(!c) return;
+
+        const pendingHuman = !!(c.humanRequested || c.waitingHuman || c.priority);
+        const unread = !!c.unreadAdmin;
+        const online = visitorOnline(c);
+
+        el.classList.toggle('tu-state-human', pendingHuman);
+        el.classList.toggle('tu-state-unread', !pendingHuman && unread);
+        el.classList.toggle('tu-state-online', !pendingHuman && !unread && online);
+        el.classList.toggle('tu-state-offline', !pendingHuman && !unread && !online);
+
+        let badge = el.querySelector('.tu-state-badge');
+        if(!badge){
+          badge = document.createElement('span');
+          badge.className = 'tu-state-badge';
+          const title = el.querySelector('.chat-tab-name,.chat-list-name,.chat-name,strong,b') || el.firstElementChild || el;
+          title.appendChild(badge);
+        }
+
+        badge.textContent = pendingHuman ? ' HUMANO' : unread ? ' NUEVO' : online ? ' ONLINE' : ' OFF';
+      });
+    });
+  }
+
+  // Typing en admin: que se vea abajo y no quede tapado por la burbuja anterior.
+  function keepTypingVisible(){
+    safe(function(){
+      if(!isAdmin()) return;
+      const pop = document.getElementById('chat-popover');
+      if(!pop || !pop.classList.contains('open')) return;
+
+      const box = pop.querySelector('.chat-msgs');
+      if(!box) return;
+
+      const typing = pop.querySelector('.tu-live-typing,.chat-typing-live,.typing-live,.chat-bubble.typing');
+      if(!typing) return;
+
+      // Solo bajamos si el admin está en el fondo o casi en el fondo.
+      const nearBottom = (box.scrollHeight - box.scrollTop - box.clientHeight) < 180;
+      if(nearBottom) box.scrollTop = box.scrollHeight;
+    });
+  }
+
+  // Botones rápidos en visitante.
+  function quickButton(label, value){
+    return '<button type="button" class="tu-quick-btn" data-tu-msg="'+label+'">'+value+'</button>';
+  }
+
+  function ensureVisitorQuickButtons(){
+    safe(function(){
+      if(isAdmin()) return;
+      const pop = document.getElementById('chat-popover');
+      if(!pop || !pop.classList.contains('open')) return;
+      if(pop.querySelector('.tu-quick-actions')) return;
+
+      const row = pop.querySelector('.chat-row');
+      if(!row) return;
+
+      const bar = document.createElement('div');
+      bar.className = 'tu-quick-actions';
+      bar.innerHTML =
+        quickButton('Cursos activos','Cursos') +
+        quickButton('Eventos activos','Eventos') +
+        quickButton('Servicios disponibles','Servicios') +
+        quickButton('Ubicación','Ubicación') +
+        quickButton('Quiero hablar con Javier','Humano');
+
+      row.parentNode.insertBefore(bar, row);
+    });
+  }
+
+  document.addEventListener('click', function(ev){
+    const btn = ev.target && ev.target.closest && ev.target.closest('.tu-quick-btn');
+    if(!btn) return;
+
+    ev.preventDefault();
+    ev.stopPropagation();
+
+    const text = btn.getAttribute('data-tu-msg') || btn.textContent || '';
+    const inp = document.getElementById('chat-text');
+    if(inp){
+      inp.value = text;
+      inp.dispatchEvent(new Event('input', {bubbles:true}));
+      setTimeout(() => {
+        if(typeof window.enviarChatVisitante === 'function') window.enviarChatVisitante();
+      }, 40);
+    }
+  }, true);
+
+  // Fullscreen admin centrado.
+  function centerAdminFullscreen(){
+    safe(function(){
+      const pop = document.getElementById('chat-popover');
+      if(!pop || !pop.classList.contains('open')) return;
+      const isExpanded = pop.classList.contains('expanded') || pop.classList.contains('tomauno-expanded');
+      const adminUi = !!pop.querySelector('#chat-admin-text,.chat-inbox-side,.chat-admin-tools');
+      if(isExpanded && adminUi) pop.classList.add('tu-admin-centered');
+      else pop.classList.remove('tu-admin-centered');
+    });
+  }
+
+  function css(){
+    if(document.getElementById('tomauno-v25-css')) return;
+    const st = document.createElement('style');
+    st.id = 'tomauno-v25-css';
+    st.textContent = `
+      .tu-state-badge{
+        margin-left:6px;
+        font-size:10px;
+        font-weight:900;
+        letter-spacing:.04em;
+      }
+      .tu-state-human{
+        border-color:rgba(255,54,54,.95)!important;
+        box-shadow:0 0 0 1px rgba(255,54,54,.35),0 0 18px rgba(255,54,54,.18)!important;
+      }
+      .tu-state-human .tu-state-badge{color:#ff3b3b!important;}
+      .tu-state-unread{
+        border-color:rgba(245,198,66,.95)!important;
+        box-shadow:0 0 0 1px rgba(245,198,66,.35),0 0 18px rgba(245,198,66,.13)!important;
+      }
+      .tu-state-unread .tu-state-badge{color:#f5c842!important;}
+      .tu-state-online .tu-state-badge{color:#4caf7d!important;}
+      .tu-state-offline{opacity:.72;}
+      .tu-state-offline .tu-state-badge{color:#858585!important;}
+
+      #chat-popover.open .tu-quick-actions{
+        display:flex;
+        flex-wrap:wrap;
+        gap:6px;
+        padding:6px 4px 8px;
+      }
+      #chat-popover.open .tu-quick-btn{
+        border:1px solid rgba(255,255,255,.12);
+        background:rgba(255,255,255,.045);
+        color:#fff;
+        border-radius:999px;
+        padding:7px 10px;
+        font-size:11px;
+        font-weight:800;
+        cursor:pointer;
+      }
+      #chat-popover.open .tu-quick-btn:hover{
+        border-color:rgba(232,0,10,.5);
+        background:rgba(232,0,10,.13);
+      }
+
+      #chat-popover.open.tu-admin-centered,
+      #chat-popover.open.expanded.tu-admin-centered,
+      #chat-popover.open.tomauno-expanded.tu-admin-centered{
+        position:fixed!important;
+        left:50%!important;
+        right:auto!important;
+        top:50%!important;
+        bottom:auto!important;
+        transform:translate(-50%,-50%)!important;
+        width:min(1120px,calc(100vw - 42px))!important;
+        height:min(82vh,780px)!important;
+        max-height:min(82vh,780px)!important;
+        z-index:99998!important;
+      }
+
+      #chat-popover.open .chat-msgs{
+        scroll-behavior:auto!important;
+        padding-bottom:22px!important;
+      }
+    `;
+    document.head.appendChild(st);
+  }
+
+  css();
+  setInterval(soundForRealUserMessages, 900);
+  setInterval(soundForHumanRequest, 1300);
+  setInterval(applyAdminStates, 900);
+  setInterval(keepTypingVisible, 250);
+  setInterval(ensureVisitorQuickButtons, 900);
+  setInterval(centerAdminFullscreen, 500);
+  setTimeout(function(){ applyAdminStates(); ensureVisitorQuickButtons(); centerAdminFullscreen(); }, 600);
+})();

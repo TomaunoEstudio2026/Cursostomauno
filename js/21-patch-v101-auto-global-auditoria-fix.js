@@ -63,3 +63,22 @@
   else {css();clean();}
   setInterval(clean,700);
 })();
+
+
+/* Tomauno v25 patch mínimo: estados visuales y estabilidad scroll. */
+(function(){
+  function safe(fn){try{return fn();}catch(e){}}
+  function css(){
+    if(document.getElementById('tomauno-v25-patch-css')) return;
+    var st=document.createElement('style');
+    st.id='tomauno-v25-patch-css';
+    st.textContent=[
+      'html body #chat-popover.open .chat-msgs{scroll-behavior:auto!important;overscroll-behavior:contain!important;padding-bottom:22px!important;}',
+      'html body .tu-live-list-preview{display:none!important;}',
+      'html body .chat-tab-preview:empty{display:none!important;}'
+    ].join('\n');
+    document.head.appendChild(st);
+  }
+  if(document.readyState==='loading') document.addEventListener('DOMContentLoaded',css,{once:true});
+  else css();
+})();
