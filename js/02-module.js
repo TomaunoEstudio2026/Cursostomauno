@@ -9246,3 +9246,424 @@ window.filterCursos = function(){
   setInterval(showSoundUnlock, 2500);
   setInterval(soundRecentUserMessage, 900);
 })();
+
+
+// ── TOMAUNO v27 MOBILE UX + SCROLL FINAL ───────────────────────────────────
+// Móvil: chat tipo app fullscreen, input siempre visible, quick actions compactas/ocultables,
+// scroll al fondo para respuestas y typing, admin fullscreen centrado.
+(function(){
+  'use strict';
+
+  function safe(fn){ try{return fn();}catch(e){ try{console.warn('tomauno v27:', e);}catch(_){} } }
+
+  function isMobile(){
+    return window.matchMedia && window.matchMedia('(max-width: 700px)').matches;
+  }
+
+  function isAdmin(){
+    return safe(function(){
+      return localStorage.getItem('tomauno-admin-ok') === '1' ||
+             localStorage.getItem('tomauno-admin-notify') === '1' ||
+             !!document.querySelector('#chat-popover.open #chat-admin-text,#chat-popover.open .chat-inbox-side,#chat-popover.open .chat-admin-tools');
+    }) || false;
+  }
+
+  function pop(){ return document.getElementById('chat-popover'); }
+  function box(){ return document.querySelector('#chat-popover.open .chat-msgs'); }
+
+  function forceBottom(extra){
+    safe(function(){
+      const b = box();
+      if(!b) return;
+      requestAnimationFrame(function(){
+        b.scrollTop = b.scrollHeight + (extra || 220);
+        setTimeout(function(){ b.scrollTop = b.scrollHeight + (extra || 220); }, 80);
+        setTimeout(function(){ b.scrollTop = b.scrollHeight + (extra || 220); }, 260);
+      });
+    });
+  }
+
+  // 1) En móvil, al abrir chat visitante queda fullscreen y no como popup flotante.
+  function applyMobileMode(){
+    safe(function(){
+      const p = pop();
+      if(!p) return;
+      const visitor = !isAdmin() && p.classList.contains('open');
+      document.body.classList.toggle('tu-mobile-chat-open', visitor && isMobile());
+      document.documentElement.classList.toggle('tu-mobile-chat-open', visitor && isMobile());
+      if(visitor && isMobile()){
+        p.classList.add('tu-mobile-fullscreen');
+        p.classList.remove('expanded');
+        forceBottom(260);
+      }else{
+        p.classList.remove('tu-mobile-fullscreen');
+      }
+    });
+  }
+
+  // 2) Si aparece respuesta nueva o cambia el último mensaje, bajar.
+  let lastKey = '';
+  function watchMessages(){
+    safe(function(){
+      const p = pop();
+      if(!p || !p.classList.contains('open')) return;
+      const bubbles = Array.from(p.querySelectorAll('.chat-bubble'));
+      if(!bubbles.length) return;
+      const last = bubbles[bubbles.length - 1];
+      const key = (last.className || '') + '|' + (last.textContent || '').slice(-220);
+      if(key !== lastKey){
+        lastKey = key;
+        // En visitante siempre baja; en admin solo si está cerca del fondo.
+        if(!isAdmin()) forceBottom(280);
+        else{
+          const b = box();
+          if(b && (b.scrollHeight - b.scrollTop - b.clientHeight) < 230) forceBottom(240);
+        }
+      }
+    });
+  }
+
+  // 3) Mientras escribe en admin: que no quede tapado por último mensaje.
+  function keepTypingVisible(){
+    safe(function(){
+      const p = pop();
+      const b = box();
+      if(!p || !b) return;
+
+      const typing = p.querySelector('.tu-live-typing,.chat-typing-live,.typing-live,.chat-bubble.typing,[data-typing-live]');
+      if(!typing) return;
+
+      const rect = typing.getBoundingClientRect();
+      const boxRect = b.getBoundingClientRect();
+
+      // Si está muy abajo/tapado por input, baja 2-3 renglones.
+      if(rect.bottom > boxRect.bottom - 90){
+        b.scrollTop += 140;
+      }else if((b.scrollHeight - b.scrollTop - b.clientHeight) < 260){
+        b.scrollTop = b.scrollHeight + 220;
+      }
+    });
+  }
+
+  // 4) Botones rápidos en móvil: primera fila chica. Si estorban, pueden esconderse.
+  function tuneQuickActions(){
+    safe(function(){
+      const p = pop();
+      if(!p || !p.classList.contains('open') || isAdmin()) return;
+      const qa = p.querySelector('.tu-quick-actions');
+      if(!qa) return;
+
+      if(isMobile()){
+        qa.classList.add('tu-mobile-quick');
+        // Íconos + texto mínimo
+        const btns = qa.querySelectorAll('.tu-quick-btn');
+        const labels = [
+          ['🎓','Cursos'],
+          ['📅','Eventos'],
+          ['🛠️','Servicios'],
+          ['📍',''],
+          ['👤','']
+        ];
+        btns.forEach((btn, i) => {
+          const x = labels[i];
+          if(!x) return;
+          btn.innerHTML = '<span>'+x[0]+'</span>' + (x[1] ? '<em>'+x[1]+'</em>' : '');
+        });
+      }
+    });
+  }
+
+  // 5) Enter/Enviar móvil: después del envío, foco y scroll abajo.
+  document.addEventListener('click', function(ev){
+    const send = ev.target && ev.target.closest && ev.target.closest('#chat-popover.open .chat-send,#chat-popover.open [data-chat-send]');
+    const quick = ev.target && ev.target.closest && ev.target.closest('.tu-quick-btn');
+    if(send || quick){
+      setTimeout(function(){ forceBottom(320); }, 180);
+      setTimeout(function(){ forceBottom(320); }, 720);
+    }
+  }, true);
+
+  document.addEventListener('keydown', function(ev){
+    if(ev.key === 'Enter' && ev.target && ev.target.id === 'chat-text'){
+      setTimeout(function(){ forceBottom(320); }, 180);
+      setTimeout(function(){ forceBottom(320); }, 720);
+    }
+  }, true);
+
+  document.addEventListener('focusin', function(ev){
+    if(ev.target && (ev.target.id === 'chat-text' || ev.target.id === 'chat-name')){
+      setTimeout(function(){ applyMobileMode(); forceBottom(340); }, 250);
+      setTimeout(function(){ forceBottom(340); }, 700);
+    }
+  }, true);
+
+  // 6) Fullscreen admin centrado, también si la clase es distinta.
+  function centerAdminExpanded(){
+    safe(function(){
+      const p = pop();
+      if(!p || !p.classList.contains('open')) return;
+      const adminUi = !!p.querySelector('#chat-admin-text,.chat-inbox-side,.chat-admin-tools');
+      const expanded = p.classList.contains('expanded') || p.classList.contains('tomauno-expanded') || p.classList.contains('tu-admin-fullscreen');
+      if(adminUi && expanded){
+        p.classList.add('tu-admin-centered-v27');
+      }else{
+        p.classList.remove('tu-admin-centered-v27');
+      }
+    });
+  }
+
+  // 7) Sonido: si navegador bloquea, mostrar activador más visible en admin.
+  function showSoundHint(){
+    safe(function(){
+      if(!isAdmin()) return;
+      if(document.querySelector('.tu-sound-unlock')) return;
+      if(sessionStorage.getItem('tu-sound-ok') === '1') return;
+
+      const btn = document.createElement('button');
+      btn.className = 'tu-sound-unlock';
+      btn.textContent = '🔊 Activar alertas';
+      btn.onclick = function(){
+        try{ sessionStorage.setItem('tu-sound-ok','1'); }catch(e){}
+        btn.remove();
+        if(typeof beep === 'function') beep();
+        try{
+          const AC = window.AudioContext || window.webkitAudioContext;
+          if(AC){
+            const ctx = new AC();
+            const osc = ctx.createOscillator();
+            const gain = ctx.createGain();
+            osc.frequency.value = 880;
+            gain.gain.value = .12;
+            osc.connect(gain); gain.connect(ctx.destination);
+            osc.start(); osc.stop(ctx.currentTime + .12);
+          }
+        }catch(e){}
+      };
+      document.body.appendChild(btn);
+    });
+  }
+
+  function css(){
+    if(document.getElementById('tomauno-v27-css')) return;
+    const st = document.createElement('style');
+    st.id = 'tomauno-v27-css';
+    st.textContent = `
+      html.tu-mobile-chat-open,
+      body.tu-mobile-chat-open{
+        overflow:hidden!important;
+        height:100%!important;
+      }
+
+      @media(max-width:700px){
+        html body #chat-popover.open.tu-mobile-fullscreen,
+        html body.tomauno-visitor-active #chat-popover.open.tu-mobile-fullscreen,
+        html body:not(.tomauno-admin-active) #chat-popover.open.tu-mobile-fullscreen{
+          position:fixed!important;
+          left:0!important;
+          right:0!important;
+          top:0!important;
+          bottom:0!important;
+          width:100vw!important;
+          max-width:100vw!important;
+          min-width:0!important;
+          height:100dvh!important;
+          max-height:100dvh!important;
+          min-height:100dvh!important;
+          transform:none!important;
+          border-radius:0!important;
+          z-index:99998!important;
+          padding:14px 12px calc(var(--tomauno-keyboard,0px) + 10px)!important;
+        }
+
+        html body #chat-popover.open.tu-mobile-fullscreen .chat-popover-inner,
+        html body #chat-popover.open.tu-mobile-fullscreen .chat-panel{
+          height:100%!important;
+          min-height:0!important;
+          display:flex!important;
+          flex-direction:column!important;
+          overflow:hidden!important;
+        }
+
+        html body #chat-popover.open.tu-mobile-fullscreen .chat-head{
+          flex:0 0 auto!important;
+          min-height:74px!important;
+          padding-right:58px!important;
+        }
+
+        html body #chat-popover.open.tu-mobile-fullscreen .chat-msgs{
+          flex:1 1 auto!important;
+          min-height:0!important;
+          max-height:none!important;
+          height:auto!important;
+          overflow-y:auto!important;
+          scroll-behavior:auto!important;
+          padding-bottom:36px!important;
+        }
+
+        html body #chat-popover.open.tu-mobile-fullscreen .tu-quick-actions{
+          flex:0 0 auto!important;
+          display:flex!important;
+          flex-wrap:nowrap!important;
+          overflow-x:auto!important;
+          gap:5px!important;
+          padding:4px 0 6px!important;
+          scrollbar-width:none!important;
+        }
+
+        html body #chat-popover.open.tu-mobile-fullscreen .tu-quick-actions::-webkit-scrollbar{
+          display:none!important;
+        }
+
+        html body #chat-popover.open.tu-mobile-fullscreen .tu-quick-btn{
+          height:34px!important;
+          min-width:42px!important;
+          padding:6px 9px!important;
+          flex:0 0 auto!important;
+          border-radius:999px!important;
+        }
+
+        html body #chat-popover.open.tu-mobile-fullscreen .tu-quick-btn span{
+          font-size:15px!important;
+          line-height:1!important;
+        }
+
+        html body #chat-popover.open.tu-mobile-fullscreen .tu-quick-btn em{
+          font-size:10px!important;
+          font-style:normal!important;
+          font-weight:900!important;
+        }
+
+        html body #chat-popover.open.tu-mobile-fullscreen .chat-row{
+          flex:0 0 auto!important;
+          display:grid!important;
+          grid-template-columns:1fr 58px!important;
+          gap:8px!important;
+          align-items:center!important;
+          margin:6px 0 0!important;
+        }
+
+        html body #chat-popover.open.tu-mobile-fullscreen #chat-text,
+        html body #chat-popover.open.tu-mobile-fullscreen #chat-name{
+          min-height:56px!important;
+          height:56px!important;
+          font-size:16px!important;
+          padding:0 16px!important;
+        }
+
+        html body #chat-popover.open.tu-mobile-fullscreen .chat-send{
+          width:56px!important;
+          height:56px!important;
+          min-width:56px!important;
+          border-radius:50%!important;
+          display:flex!important;
+          align-items:center!important;
+          justify-content:center!important;
+        }
+
+        html body #chat-popover.open.tu-mobile-fullscreen .chat-fab{
+          display:none!important;
+        }
+
+        html body #chat-popover.open.tu-mobile-fullscreen + #chat-fab,
+        html body.tu-mobile-chat-open #chat-fab{
+          display:none!important;
+          pointer-events:none!important;
+        }
+      }
+
+      html body #chat-popover.open.tu-admin-centered-v27,
+      html body #chat-popover.open.expanded.tu-admin-centered-v27,
+      html body #chat-popover.open.tomauno-expanded.tu-admin-centered-v27{
+        position:fixed!important;
+        left:50%!important;
+        right:auto!important;
+        top:50%!important;
+        bottom:auto!important;
+        transform:translate(-50%,-50%)!important;
+        width:min(1140px,calc(100vw - 40px))!important;
+        height:min(84vh,800px)!important;
+        max-height:min(84vh,800px)!important;
+        z-index:99998!important;
+      }
+
+      .tu-sound-unlock{
+        position:fixed!important;
+        right:18px!important;
+        bottom:18px!important;
+        z-index:100001!important;
+        border:1px solid rgba(255,255,255,.18)!important;
+        background:rgba(232,0,10,.95)!important;
+        color:#fff!important;
+        border-radius:999px!important;
+        padding:10px 14px!important;
+        font-size:12px!important;
+        font-weight:900!important;
+        box-shadow:0 12px 34px rgba(0,0,0,.35)!important;
+      }
+    `;
+    document.head.appendChild(st);
+  }
+
+  css();
+  applyMobileMode();
+  tuneQuickActions();
+  centerAdminExpanded();
+
+  setInterval(applyMobileMode, 600);
+  setInterval(watchMessages, 300);
+  setInterval(keepTypingVisible, 250);
+  setInterval(tuneQuickActions, 1200);
+  setInterval(centerAdminExpanded, 500);
+  setTimeout(showSoundHint, 2200);
+})();
+
+
+// ── TOMAUNO v27b MOBILE KEYBOARD UX ────────────────────────────────────────
+// Cierra teclado móvil después de enviar correctamente.
+(function(){
+  'use strict';
+
+  function isMobile(){
+    return window.matchMedia && window.matchMedia('(max-width:700px)').matches;
+  }
+
+  function closeKeyboard(){
+    try{
+      const el = document.activeElement;
+      if(el && (el.id === 'chat-text' || el.id === 'chat-name')){
+        el.blur();
+      }
+    }catch(e){}
+  }
+
+  // Enter
+  document.addEventListener('keydown', function(ev){
+    if(ev.key !== 'Enter') return;
+    const t = ev.target;
+    if(!t || t.id !== 'chat-text') return;
+
+    if(isMobile()){
+      setTimeout(closeKeyboard, 180);
+    }
+  }, true);
+
+  // Botón enviar
+  document.addEventListener('click', function(ev){
+    const btn = ev.target && ev.target.closest && ev.target.closest('#chat-popover.open .chat-send,#chat-popover.open [data-chat-send]');
+    if(!btn) return;
+
+    if(isMobile()){
+      setTimeout(closeKeyboard, 180);
+    }
+  }, true);
+
+  // Botones rápidos
+  document.addEventListener('click', function(ev){
+    const btn = ev.target && ev.target.closest && ev.target.closest('.tu-quick-btn');
+    if(!btn) return;
+
+    if(isMobile()){
+      setTimeout(closeKeyboard, 180);
+    }
+  }, true);
+})();

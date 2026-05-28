@@ -101,3 +101,21 @@
   if(document.readyState==='loading') document.addEventListener('DOMContentLoaded',css,{once:true});
   else css();
 })();
+
+
+/* Tomauno v27 patch mínimo: móvil fullscreen y admin centrado. */
+(function(){
+  function css(){
+    if(document.getElementById('tomauno-v27-patch-css')) return;
+    var st=document.createElement('style');
+    st.id='tomauno-v27-patch-css';
+    st.textContent=[
+      '@media(max-width:700px){html body #chat-popover.open.tu-mobile-fullscreen{position:fixed!important;left:0!important;right:0!important;top:0!important;bottom:0!important;width:100vw!important;height:100dvh!important;max-height:100dvh!important;border-radius:0!important;z-index:99998!important;}}',
+      'html body #chat-popover.open .chat-msgs{scroll-behavior:auto!important;overscroll-behavior:contain!important;padding-bottom:36px!important;}',
+      'html body #chat-popover.open.tu-admin-centered-v27{position:fixed!important;left:50%!important;top:50%!important;right:auto!important;bottom:auto!important;transform:translate(-50%,-50%)!important;}'
+    ].join('\n');
+    document.head.appendChild(st);
+  }
+  if(document.readyState==='loading') document.addEventListener('DOMContentLoaded',css,{once:true});
+  else css();
+})();
