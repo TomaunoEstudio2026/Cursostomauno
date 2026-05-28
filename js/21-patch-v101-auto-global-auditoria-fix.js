@@ -164,3 +164,14 @@
   if(document.readyState==='loading') document.addEventListener('DOMContentLoaded',css,{once:true});
   else css();
 })();
+
+
+/* Tomauno final3 remove alert buttons */
+(function(){
+  function clean(){
+    document.querySelectorAll('.tu-v28d-sound-unlock,.tu-call-sound-unlock,.tu-sound-unlock,.tu-v34-sound-unlock').forEach(function(n){n.remove();});
+  }
+  if(document.readyState==='loading') document.addEventListener('DOMContentLoaded',clean,{once:true});
+  else clean();
+  setInterval(clean,1000);
+})();
