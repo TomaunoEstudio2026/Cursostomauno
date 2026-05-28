@@ -239,13 +239,13 @@
 })();
 
 
-/* Tomauno final6c CSS llamada */
+/* Tomauno final6d CSS llamada */
 (function(){
   function css(){
-    if(document.getElementById('tu6c-patch-css')) return;
+    if(document.getElementById('tu6d-patch-css')) return;
     var st=document.createElement('style');
-    st.id='tu6c-patch-css';
-    st.textContent='.tu-call-box{background:#fff!important;color:#111!important;border-radius:18px!important;padding:12px 14px!important;font-weight:700!important;line-height:1.45!important}.tu-call-box::first-line{color:#e8000a!important;font-weight:900!important;}';
+    st.id='tu6d-patch-css';
+    st.textContent='.tu6d-call{background:#fff!important;color:#111!important;border-radius:18px!important;padding:12px 14px!important;font-weight:700!important;line-height:1.45!important}.tu6d-call::first-line{color:#e8000a!important;font-weight:900!important;}';
     document.head.appendChild(st);
   }
   if(document.readyState==='loading') document.addEventListener('DOMContentLoaded',css,{once:true});
