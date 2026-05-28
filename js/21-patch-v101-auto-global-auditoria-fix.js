@@ -217,3 +217,37 @@
   else clean();
   setInterval(clean,1000);
 })();
+
+
+/* Tomauno final6b: colores de estado coherentes */
+(function(){
+  function css(){
+    if(document.getElementById('tu-final6b-colores-css')) return;
+    var st=document.createElement('style');
+    st.id='tu-final6b-colores-css';
+    st.textContent=[
+      '.chat-list-item.unread,.chat-tab.unread{border-color:#ffd54a!important;box-shadow:inset 3px 0 0 rgba(255,213,74,.95)!important;}',
+      '.chat-list-item.priority,.chat-tab.priority{border-color:#ff0612!important;box-shadow:inset 3px 0 0 rgba(232,0,10,.95)!important;}',
+      '.chat-tab.unread .chat-tab-light{background:#ffd54a!important;box-shadow:0 0 0 5px rgba(255,213,74,.16),0 0 18px rgba(255,213,74,.65)!important;}',
+      '.chat-tab.priority .chat-tab-light{background:#ff0612!important;box-shadow:0 0 0 5px rgba(232,0,10,.16),0 0 18px rgba(232,0,10,.65)!important;}',
+      '.chat-tab.online:not(.unread):not(.priority) .chat-tab-light{background:#38d27a!important;box-shadow:0 0 0 4px rgba(56,210,122,.13)!important;}'
+    ].join('\\n');
+    document.head.appendChild(st);
+  }
+  if(document.readyState==='loading') document.addEventListener('DOMContentLoaded',css,{once:true});
+  else css();
+})();
+
+
+/* Tomauno final6c CSS llamada */
+(function(){
+  function css(){
+    if(document.getElementById('tu6c-patch-css')) return;
+    var st=document.createElement('style');
+    st.id='tu6c-patch-css';
+    st.textContent='.tu-call-box{background:#fff!important;color:#111!important;border-radius:18px!important;padding:12px 14px!important;font-weight:700!important;line-height:1.45!important}.tu-call-box::first-line{color:#e8000a!important;font-weight:900!important;}';
+    document.head.appendChild(st);
+  }
+  if(document.readyState==='loading') document.addEventListener('DOMContentLoaded',css,{once:true});
+  else css();
+})();
