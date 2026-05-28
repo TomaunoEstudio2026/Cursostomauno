@@ -119,3 +119,48 @@
   if(document.readyState==='loading') document.addEventListener('DOMContentLoaded',css,{once:true});
   else css();
 })();
+
+
+/* Tomauno v28 patch mínimo: humano y móvil fullscreen. */
+(function(){
+  function css(){
+    if(document.getElementById('tomauno-v28-patch-css')) return;
+    var st=document.createElement('style');
+    st.id='tomauno-v28-patch-css';
+    st.textContent=[
+      'html body #chat-popover.open .chat-msgs{scroll-behavior:auto!important;overscroll-behavior:contain!important;padding-bottom:34px!important;}',
+      '@media(max-width:700px){html body #chat-popover.open.tu-mobile-fullscreen{position:fixed!important;left:0!important;right:0!important;top:0!important;bottom:0!important;width:100vw!important;height:100dvh!important;max-height:100dvh!important;border-radius:0!important;z-index:99998!important;}}'
+    ].join('\n');
+    document.head.appendChild(st);
+  }
+  if(document.readyState==='loading') document.addEventListener('DOMContentLoaded',css,{once:true});
+  else css();
+})();
+
+
+/* Tomauno v28b patch mínimo: badge humano visible y lectura. */
+(function(){
+  function css(){
+    if(document.getElementById('tomauno-v28b-patch-css')) return;
+    var st=document.createElement('style');
+    st.id='tomauno-v28b-patch-css';
+    st.textContent='.tu-state-human .tu-state-badge{background:rgba(232,0,10,.22)!important;border:1px solid rgba(232,0,10,.55)!important;color:#ff5b5b!important;padding:2px 6px!important;border-radius:999px!important;font-size:9px!important;font-weight:900!important;}';
+    document.head.appendChild(st);
+  }
+  if(document.readyState==='loading') document.addEventListener('DOMContentLoaded',css,{once:true});
+  else css();
+})();
+
+
+/* Tomauno v28c patch mínimo: alarma llamada humana. */
+(function(){
+  function css(){
+    if(document.getElementById('tomauno-v28c-patch-css')) return;
+    var st=document.createElement('style');
+    st.id='tomauno-v28c-patch-css';
+    st.textContent='.tu-call-sound-unlock{position:fixed!important;right:18px!important;bottom:18px!important;z-index:100002!important;background:#e8000a!important;color:#fff!important;border-radius:999px!important;padding:11px 15px!important;font-size:12px!important;font-weight:900!important;}';
+    document.head.appendChild(st);
+  }
+  if(document.readyState==='loading') document.addEventListener('DOMContentLoaded',css,{once:true});
+  else css();
+})();
