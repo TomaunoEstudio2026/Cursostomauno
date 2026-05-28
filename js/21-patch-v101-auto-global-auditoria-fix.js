@@ -189,3 +189,17 @@
   else clean();
   setInterval(clean,1000);
 })();
+
+
+/* Tomauno final5: ocultar botones alerta */
+(function(){
+  function clean(){
+    document.querySelectorAll('.tu-v28d-sound-unlock,.tu-call-sound-unlock,.tu-sound-unlock,.tu-v34-sound-unlock').forEach(function(n){n.remove();});
+    document.querySelectorAll('button').forEach(function(b){
+      if(/activar alertas|activar llamada|activar llamadas|activar sonido/i.test(b.innerText||'')) b.remove();
+    });
+  }
+  if(document.readyState==='loading') document.addEventListener('DOMContentLoaded',clean,{once:true});
+  else clean();
+  setInterval(clean,1000);
+})();
