@@ -8325,3 +8325,9 @@ window.filterCursos = function(){
   syncChatGlobalsFinal();
   setInterval(() => { renderLiveTypingFinal(); decorateTypingListsFinal(); updateHumanCountdownFinal(); }, 1000);
 })();
+
+
+// v22 chat speed tweaks
+window.TOMAUNO_TYPING_DELAY = 350;
+window.TOMAUNO_REPLY_DELAY = 650;
+

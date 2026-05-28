@@ -3,7 +3,7 @@
 // No agrega archivos nuevos.
 (function(){
   'use strict';
-  var VERSION='Tomauno modular v20-clean-chat';
+  var VERSION='Tomauno modular v18';
   var modoGlobal=null;
   var modoCargado=false;
   var listenerStarted=false;
@@ -602,7 +602,7 @@
         });
         return out;
       }
-      // v20-clean: no cancelar scrollChatSmart; solo preservar foco/valor cuando corresponda.
+      if(was && name==='scrollChatSmart') return;
       if(was) capture();
       var out=old.apply(this,arguments);
       if(was){setTimeout(restore,0);setTimeout(restore,30);setTimeout(cleanVisitor,35);}
@@ -620,7 +620,7 @@
     wrap('updateChatMessagesOnly');
     wrap('abrirChatVisitante');
     wrap('scrollChatSmart');
-    // v20-clean: NO envolver enviarChatVisitante. El envio estable vive en 02-module.js.
+    // wrap('enviarChatVisitante'); // desactivado por estabilidad
     document.addEventListener('keydown',function(e){
       if(!e || e.key!=='Enter') return;
       if(e.target && e.target.id==='chat-text'){
@@ -652,7 +652,7 @@
     document.addEventListener('click',function(e){
       if(e.target && e.target.closest && e.target.closest('#chat-fab,#chat-popover')) setTimeout(cleanVisitor,80);
     },true);
-    // v20-clean: desactivado; re-renderizar cada 250ms mientras se escribe causaba saltos de foco/scroll.
+    setInterval(function(){ if(writing()) cleanVisitor(); },1200);
   }
   if(document.readyState==='loading') document.addEventListener('DOMContentLoaded',install,{once:true}); else install();
 
@@ -665,6 +665,48 @@
     try{notifyAdminChat=window.notifyAdminChat;}catch(e){}
   }
 
-  // v20-clean: bloque finalControl eliminado. Evitaba el Enter nativo y duplicaba el envio del visitante.
-
+  // Cierre de control: este parche carga ultimo, asi que asegura Enter/envio,
+  // sonido admin y limpieza del typing en bandeja sin depender de wrappers viejos.
+  // finalControl desactivado por estabilidad
 })();
+
+
+// v22 HUMAN FLOW SIMPLE
+(function(){
+  function replaceHumanMessages(){
+    try{
+      document.querySelectorAll('.chat-bubble.admin').forEach(function(b){
+        var t=(b.innerText||'');
+
+        if(/Javier puede estar ocupado|dejarme tu consulta|dejar registrada tu consulta/i.test(t)){
+          b.innerHTML='🟢 Javier responderá personalmente.<br><br>📱 Dejá tu WhatsApp y tu consulta para que pueda responderte apenas quede libre.<div class="chat-meta">Ahora</div>';
+        }
+      });
+    }catch(e){}
+  }
+
+  setInterval(replaceHumanMessages,1200);
+})();
+
+
+
+// v22 ONLINE INDICATOR
+(function(){
+  function humanOnline(){
+    try{
+      return !!document.querySelector('#chat-popover.open #chat-admin-text');
+    }catch(e){return false;}
+  }
+
+  function updateVisitorOnline(){
+    try{
+      if(humanOnline()){
+        var sub=document.querySelector('#chat-popover.open .chat-subline');
+        if(sub) sub.textContent='🟢 Javier en línea';
+      }
+    }catch(e){}
+  }
+
+  setInterval(updateVisitorOnline,1000);
+})();
+
