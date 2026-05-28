@@ -1916,7 +1916,7 @@ window.abrirChatTomauno = () => {
   setChatPopover(
     '<div class="chat-head"><div class="chat-avatar">💬</div><div><div class="chat-title">CHAT TOMAUNO</div><div class="chat-subline">Consulta directa desde la web</div></div></div>' +
     '<div class="chat-panel"><div class="chat-msgs" id="chat-msgs">' +
-    '<div class="chat-bubble admin"><div>Hola 😊<br/><b>¿Cómo es tu nombre?</b></div><div class="chat-meta">Ahora</div></div>' +
+    '<div class="chat-bubble admin"><div>Soy el asistente de Tomauno 😊<br/><b>¿Cómo es tu nombre?</b></div><div class="chat-meta">Ahora</div></div>' +
     '</div>' +
     '<div class="chat-name-row"><input class="finput" id="chat-name" placeholder="Tu nombre" onkeydown="if(event.key===\'Enter\')window.iniciarChatConNombre()"/><button class="chat-send" onclick="window.iniciarChatConNombre()">➜</button></div></div>'
   );
@@ -2134,12 +2134,12 @@ function chatLastActivityLabel(c){
 }
 function chatNeedsReply(c){
   if(!c) return false;
-  return !!(c.unreadAdmin || c.humanRequested);
+  return !!c.unreadAdmin;
 }
 function chatStatusLabel(c){
   if(!c) return 'abierto';
   if(c.unreadAdmin) return 'Esperando';
-  if(c.humanRequested) return 'Prioridad';
+  if(c.humanRequested && !c.readByAdminAt) return 'Prioridad';
   if(isChatUserOnline(c)) return 'Online';
   return c.status === 'cerrado' ? 'Cerrado' : 'Al día';
 }
@@ -2179,7 +2179,7 @@ function abrirPanelChatsAdmin(){
     '<button class="chat-filter" onclick="window.verResumenConsultasChat()">📋 Resumen</button>' +
     '<button class="chat-clean-btn" onclick="window.limpiarChatsDefinitivo()">🧹 Limpiar chats</button>' +
     '</div>' +
-    (lista.length ? lista.map(([id,c]) => '<div class="chat-list-item '+(c.unreadAdmin?'unread ':'')+((c.humanRequested||c.prioridad||c.awaitingHumanContact)?'priority':'')+'" onclick="window.abrirChatAdmin(\''+id+'\')"><div style="flex:1;min-width:0;"><div style="font-weight:800;font-size:14px;">'+((c.humanRequested||c.prioridad||c.awaitingHumanContact)?'⭐ ':'')+(c.updatedAt && c.createdAt && (c.updatedAt-c.createdAt)>60000?'🔁 ':'')+escHtml(chatVisibleName(c,id))+'</div><div style="font-size:11px;color:var(--text3);margin-top:2px;max-width:245px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">'+escHtml(((c.humanRequested||c.prioridad||c.awaitingHumanContact)?'Atención Javier · ':'')+(c.lastMsg||''))+'</div>'+(c.wp?'<div style="font-size:11px;color:#25d366;margin-top:2px;">WP: '+escHtml(c.wp)+'</div>':'')+'</div><span class="chat-status '+(c.unreadAdmin?'new':c.status==='abierto'?'on':'')+'">'+(c.unreadAdmin?'Nuevo':escHtml(c.status||'abierto'))+'</span><button class="chat-trash" title="Eliminar chat" onclick="event.stopPropagation();window.eliminarChatDefinitivo(\''+id+'\')">🗑️</button></div>').join('') : '<div style="color:var(--text3);font-size:13px;padding:20px;text-align:center;">Sin chats en este filtro</div>')
+    (lista.length ? lista.map(([id,c]) => '<div class="chat-list-item '+(c.unreadAdmin?'unread ':'')+(((c.humanRequested||c.prioridad||c.awaitingHumanContact)&&!c.readByAdminAt)?'priority':'')+'" onclick="window.abrirChatAdmin(\''+id+'\')"><div style="flex:1;min-width:0;"><div style="font-weight:800;font-size:14px;">'+(((c.humanRequested||c.prioridad||c.awaitingHumanContact)&&!c.readByAdminAt)?'⭐ ':'')+(c.updatedAt && c.createdAt && (c.updatedAt-c.createdAt)>60000?'🔁 ':'')+escHtml(chatVisibleName(c,id))+'</div><div style="font-size:11px;color:var(--text3);margin-top:2px;max-width:245px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">'+escHtml(((c.humanRequested||c.prioridad||c.awaitingHumanContact)?'Atención Javier · ':'')+(c.lastMsg||''))+'</div>'+(c.wp?'<div style="font-size:11px;color:#25d366;margin-top:2px;">WP: '+escHtml(c.wp)+'</div>':'')+'</div><span class="chat-status '+(c.unreadAdmin?'new':c.status==='abierto'?'on':'')+'">'+(c.unreadAdmin?'Nuevo':escHtml(c.status||'abierto'))+'</span><button class="chat-trash" title="Eliminar chat" onclick="event.stopPropagation();window.eliminarChatDefinitivo(\''+id+'\')">🗑️</button></div>').join('') : '<div style="color:var(--text3);font-size:13px;padding:20px;text-align:center;">Sin chats en este filtro</div>')
   );
 }
 window.setChatListFilter = (f) => { chatListFilter = f || 'abiertos'; abrirPanelChatsAdmin(); };
@@ -2220,7 +2220,7 @@ function adminChatTabsHtml(activeId){
       'chat-tab',
       id===activeId ? 'active' : '',
       c.unreadAdmin ? 'unread' : '',
-      c.humanRequested ? 'priority' : '',
+      (c.humanRequested && !c.readByAdminAt) ? 'priority' : '',
       isChatUserOnline(c) ? 'online' : '',
       chatNeedsReply(c) ? 'waiting' : 'answered'
     ].filter(Boolean).join(' ');
@@ -2282,7 +2282,7 @@ window.abrirChatAdmin = (id, silent=false) => {
     '<div class="chat-tools-block">' + quickRepliesHtml() +
     '<div class="chat-admin-actions"><button class="btn-out" title="Bandeja" onclick="abrirPanelChatsAdmin()"><span class="ico">←</span></button><button class="btn-out" title="Editar nombre" onclick="window.editarNombreChat(\''+id+'\')"><span class="ico">✏️</span></button><button class="btn-out" title="Copiar conversación" onclick="window.copiarHistorialChat(\''+id+'\')"><span class="ico">📋</span></button><button class="btn-out" title="Exportar TXT" onclick="window.exportarHistorialChat(\''+id+'\')"><span class="ico">⬇️</span></button><button class="btn-out danger" title="Cerrar chat" onclick="window.cerrarConversacionChat(\''+id+'\')"><span class="ico">✕</span></button><button class="btn-out danger" title="Borrar chat" onclick="window.eliminarChatDefinitivo(\''+id+'\')"><span class="ico">🗑️</span></button>' + (chat.wp?'<a class="btn-out" title="WhatsApp" style="text-align:center;text-decoration:none;color:#25d366;border-color:rgba(37,211,102,.35);" target="_blank" rel="noopener noreferrer" href="https://wa.me/549'+String(chat.wp||'').replace(/\D/g,'')+'"><span class="ico">💬</span></a>':'') + '</div></div></div>'
   );
-  update(ref(db,'tomauno/chats/'+id), {unreadAdmin:false}).catch(()=>{});
+  update(ref(db,'tomauno/chats/'+id), {unreadAdmin:false, unread:false, hasNew:false, hasNewAdmin:false, waitingHuman:false, priority:false, prioridad:false, readByAdminAt:Date.now(), adminReadAt:Date.now(), lastReadAdminAt:Date.now()}).catch(()=>{});
   setTimeout(()=>{const el=document.getElementById('chat-msgs'); if(el) scrollChatSmart(el); const inp=document.getElementById('chat-admin-text'); if(inp && (!silent || wasFocused)){ inp.focus(); inp.setSelectionRange(inp.value.length, inp.value.length); }},60);
 };
 
@@ -5122,7 +5122,7 @@ window.abrirChatTomauno = function(){
   setChatPopover(
     '<div class="chat-head"><div class="chat-avatar">💬</div><div><div class="chat-title">CHAT TOMAUNO</div><div class="chat-subline">Consulta directa desde la web</div></div></div>' +
     '<div class="chat-panel"><div class="chat-msgs" id="chat-msgs">' +
-    '<div class="chat-bubble admin"><div>Hola 😊<br/><b>¿Cómo es tu nombre?</b></div><div class="chat-meta">Ahora</div></div>' +
+    '<div class="chat-bubble admin"><div>Soy el asistente de Tomauno 😊<br/><b>¿Cómo es tu nombre?</b></div><div class="chat-meta">Ahora</div></div>' +
     '</div>' +
     '<div class="chat-name-row"><input class="finput" id="chat-name" placeholder="Tu nombre" onkeydown="if(event.key===\'Enter\')window.iniciarChatConNombre()"/><button class="chat-send" onclick="window.iniciarChatConNombre()">➜</button></div></div>'
   );
@@ -7358,7 +7358,7 @@ window.filterCursos = function(){
   function visitorStartHtml89(){
     return '<div class="chat-head"><div class="chat-avatar">💬</div><div><div class="chat-title">CHAT TOMAUNO</div><div class="chat-subline">Consulta directa desde la web</div></div></div>'+
       '<div class="chat-panel"><div class="chat-msgs" id="chat-msgs">'+
-      '<div class="chat-bubble admin"><div>Hola 😊<br/><b>¿Cómo es tu nombre?</b></div><div class="chat-meta">Ahora</div></div>'+
+      '<div class="chat-bubble admin"><div>Soy el asistente de Tomauno 😊<br/><b>¿Cómo es tu nombre?</b></div><div class="chat-meta">Ahora</div></div>'+
       '</div><div class="chat-name-row"><input class="finput" id="chat-name" placeholder="Tu nombre" onkeydown="if(event.key===\'Enter\')window.iniciarChatConNombre()"/><button class="chat-send" onclick="window.iniciarChatConNombre()">➜</button></div></div>';
   }
   function visitorChatHtml89(id){
@@ -12854,7 +12854,7 @@ window.filterCursos = function(){
   css();
 
   setInterval(function(){
-    animateWelcome();
+    // bienvenida directa en string original; sin typewriter/parche visual
     notifyFirstUser();
     keepOpenClean();
     watchHuman();
