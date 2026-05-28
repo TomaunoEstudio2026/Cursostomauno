@@ -176,3 +176,7 @@
   }
   if(document.readyState==='loading') document.addEventListener('DOMContentLoaded',css,{once:true}); else css();
 })();
+
+
+/* Tomauno v28e minimal CSS */
+(function(){function css(){if(document.getElementById('tomauno-v28e-patch-css'))return;var st=document.createElement('style');st.id='tomauno-v28e-patch-css';st.textContent='#chat-popover.open .chat-name-row,#chat-popover.open .tu-name-send-row{display:grid!important;grid-template-columns:1fr 58px!important;gap:8px!important;align-items:center!important}#chat-popover.open .chat-name-row .chat-send,#chat-popover.open .tu-name-send-row .chat-send{grid-column:2!important;grid-row:1!important;width:56px!important;height:56px!important;min-width:56px!important;border-radius:50%!important}#chat-popover.open .chat-name-row #chat-name,#chat-popover.open .tu-name-send-row #chat-name{grid-column:1!important;grid-row:1!important}#chat-popover.open .chat-bubble.admin{position:relative!important;border-radius:18px!important}';document.head.appendChild(st)}if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',css,{once:true});else css();})();
