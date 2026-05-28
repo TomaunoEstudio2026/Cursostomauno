@@ -35,3 +35,31 @@
   if(window.visualViewport){visualViewport.addEventListener('resize',viewport); visualViewport.addEventListener('scroll',viewport);}
   setInterval(humanText,1200);
 })();
+
+
+/* Tomauno v24 patch mínimo: solo estilos/limpieza, sin interceptar envío. */
+(function(){
+  function safe(fn){try{return fn();}catch(e){}}
+  function css(){
+    if(document.getElementById('tomauno-v24-patch-css')) return;
+    var st=document.createElement('style');
+    st.id='tomauno-v24-patch-css';
+    st.textContent=[
+      'html body #chat-popover.open .chat-msgs{scroll-behavior:auto!important;overscroll-behavior:contain!important;}',
+      'html body .chat-tab-preview:empty{display:none!important;}',
+      'html body .tu-live-list-preview{display:none!important;}'
+    ].join('\n');
+    document.head.appendChild(st);
+  }
+  function clean(){
+    safe(function(){
+      document.querySelectorAll('.tu-live-list-preview').forEach(function(n){n.remove();});
+      document.querySelectorAll('.chat-tab-preview').forEach(function(el){
+        if(/^Escribiendo\\s*:/i.test(el.textContent||'')) el.textContent='';
+      });
+    });
+  }
+  if(document.readyState==='loading') document.addEventListener('DOMContentLoaded',function(){css();clean();},{once:true});
+  else {css();clean();}
+  setInterval(clean,700);
+})();
