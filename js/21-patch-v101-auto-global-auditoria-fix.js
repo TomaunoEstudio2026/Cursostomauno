@@ -3,7 +3,7 @@
 // No agrega archivos nuevos.
 (function(){
   'use strict';
-  var VERSION='Tomauno modular v18';
+  var VERSION='Tomauno modular v20-clean-chat';
   var modoGlobal=null;
   var modoCargado=false;
   var listenerStarted=false;
@@ -602,7 +602,7 @@
         });
         return out;
       }
-      if(was && name==='scrollChatSmart') return;
+      // v20-clean: no cancelar scrollChatSmart; solo preservar foco/valor cuando corresponda.
       if(was) capture();
       var out=old.apply(this,arguments);
       if(was){setTimeout(restore,0);setTimeout(restore,30);setTimeout(cleanVisitor,35);}
@@ -620,7 +620,7 @@
     wrap('updateChatMessagesOnly');
     wrap('abrirChatVisitante');
     wrap('scrollChatSmart');
-    wrap('enviarChatVisitante');
+    // v20-clean: NO envolver enviarChatVisitante. El envio estable vive en 02-module.js.
     document.addEventListener('keydown',function(e){
       if(!e || e.key!=='Enter') return;
       if(e.target && e.target.id==='chat-text'){
@@ -652,7 +652,7 @@
     document.addEventListener('click',function(e){
       if(e.target && e.target.closest && e.target.closest('#chat-fab,#chat-popover')) setTimeout(cleanVisitor,80);
     },true);
-    setInterval(function(){ if(writing()) cleanVisitor(); },250);
+    // v20-clean: desactivado; re-renderizar cada 250ms mientras se escribe causaba saltos de foco/scroll.
   }
   if(document.readyState==='loading') document.addEventListener('DOMContentLoaded',install,{once:true}); else install();
 
@@ -665,61 +665,6 @@
     try{notifyAdminChat=window.notifyAdminChat;}catch(e){}
   }
 
-  // Cierre de control: este parche carga ultimo, asi que asegura Enter/envio,
-  // sonido admin y limpieza del typing en bandeja sin depender de wrappers viejos.
-  (function finalControl(){
-    var seenAlarm=Object.create(null);
-    function directVisitorSend(){
-      var fn=window.tomaunoEnviarVisitanteDirecto || window.enviarChatVisitante;
-      if(typeof fn!=='function') return;
-      var id=currentChatId();
-      if(!id){try{id=sessionStorage.getItem('tomauno-chat-id')||'';}catch(e){}}
-      return fn(id);
-    }
-    window.addEventListener('keydown',function(e){
-      if(!e || e.key!=='Enter' || !e.target || e.target.id!=='chat-text') return;
-      e.preventDefault(); e.stopPropagation(); if(e.stopImmediatePropagation) e.stopImmediatePropagation();
-      Promise.resolve(directVisitorSend()).catch(function(){});
-    },true);
-    window.addEventListener('click',function(e){
-      var btn=e.target&&e.target.closest&&e.target.closest('#chat-popover.open .chat-row .chat-send');
-      if(!btn) return;
-      e.preventDefault(); e.stopPropagation(); if(e.stopImmediatePropagation) e.stopImmediatePropagation();
-      Promise.resolve(directVisitorSend()).catch(function(){});
-    },true);
-    function cleanTypingPreviews(){
-      safe(function(){
-        document.querySelectorAll('.tu-live-list-preview').forEach(function(n){n.remove();});
-        document.querySelectorAll('.chat-tab.typing-live,.chat-list-item.typing-live').forEach(function(el){el.classList.remove('typing-live');});
-        document.querySelectorAll('.chat-tab-preview').forEach(function(el){
-          if(/^Escribiendo\s*:/i.test(el.textContent||'')) el.textContent='';
-        });
-      });
-    }
-    function latestUserStamp(c){
-      var best=0;
-      if(c&&c.messages){Object.keys(c.messages).forEach(function(k){var m=c.messages[k]||{}; if(m.from==='user'&&!m.typing) best=Math.max(best,Number(m.createdAt||0));});}
-      return best || Number((c&&c.updatedAt)||0);
-    }
-    function alarmUnread(){
-      safe(function(){
-        if(!isAdmin()) return;
-        var dbs=getChats();
-        Object.keys(dbs||{}).forEach(function(id){
-          var c=dbs[id]||{};
-          if(!c || c.status==='cerrado' || !c.unreadAdmin) return;
-          var stamp=latestUserStamp(c);
-          if(!stamp) return;
-          var key=id+'|'+stamp;
-          if(seenAlarm[key]) return;
-          seenAlarm[key]=1;
-          beepAdmin();
-        });
-      });
-    }
-    setInterval(cleanTypingPreviews,700);
-    setInterval(alarmUnread,1200);
-    setTimeout(cleanTypingPreviews,200);
-    setTimeout(alarmUnread,1500);
-  })();
+  // v20-clean: bloque finalControl eliminado. Evitaba el Enter nativo y duplicaba el envio del visitante.
+
 })();
