@@ -265,3 +265,17 @@
   if(document.readyState==='loading') document.addEventListener('DOMContentLoaded',css,{once:true});
   else css();
 })();
+
+
+/* Tomauno final6f CSS white bubble */
+(function(){
+  function css(){
+    if(document.getElementById('tu6f-patch-css')) return;
+    var st=document.createElement('style');
+    st.id='tu6f-patch-css';
+    st.textContent='.tu6f-white{background:#fff!important;color:#111!important;border-radius:18px!important;padding:12px 14px!important;font-weight:700!important;line-height:1.45!important}.tu6f-white::first-line{color:#e8000a!important;font-weight:900!important;}#chat-popover.open .chat-msgs{scroll-behavior:auto!important;overscroll-behavior:contain!important;}';
+    document.head.appendChild(st);
+  }
+  if(document.readyState==='loading') document.addEventListener('DOMContentLoaded',css,{once:true});
+  else css();
+})();
