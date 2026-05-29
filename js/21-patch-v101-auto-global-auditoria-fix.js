@@ -166,4 +166,176 @@
 })();
 
 
-/* patch final6m limpio */
+/* Tomauno final3 remove alert buttons */
+(function(){
+  function clean(){
+    document.querySelectorAll('.tu-v28d-sound-unlock,.tu-call-sound-unlock,.tu-sound-unlock,.tu-v34-sound-unlock').forEach(function(n){n.remove();});
+  }
+  if(document.readyState==='loading') document.addEventListener('DOMContentLoaded',clean,{once:true});
+  else clean();
+  setInterval(clean,1000);
+})();
+
+
+/* Tomauno final4: ocultar botones alerta */
+(function(){
+  function clean(){
+    document.querySelectorAll('.tu-v28d-sound-unlock,.tu-call-sound-unlock,.tu-sound-unlock,.tu-v34-sound-unlock').forEach(function(n){n.remove();});
+    document.querySelectorAll('button').forEach(function(b){
+      if(/activar alertas|activar llamada|activar llamadas|activar sonido/i.test(b.innerText||'')) b.remove();
+    });
+  }
+  if(document.readyState==='loading') document.addEventListener('DOMContentLoaded',clean,{once:true});
+  else clean();
+  setInterval(clean,1000);
+})();
+
+
+/* Tomauno final5: ocultar botones alerta */
+(function(){
+  function clean(){
+    document.querySelectorAll('.tu-v28d-sound-unlock,.tu-call-sound-unlock,.tu-sound-unlock,.tu-v34-sound-unlock').forEach(function(n){n.remove();});
+    document.querySelectorAll('button').forEach(function(b){
+      if(/activar alertas|activar llamada|activar llamadas|activar sonido/i.test(b.innerText||'')) b.remove();
+    });
+  }
+  if(document.readyState==='loading') document.addEventListener('DOMContentLoaded',clean,{once:true});
+  else clean();
+  setInterval(clean,1000);
+})();
+
+
+/* Tomauno final6: ocultar botones alerta */
+(function(){
+  function clean(){
+    document.querySelectorAll('.tu-v28d-sound-unlock,.tu-call-sound-unlock,.tu-sound-unlock,.tu-v34-sound-unlock').forEach(function(n){n.remove();});
+    document.querySelectorAll('button').forEach(function(b){
+      if(/activar alertas|activar llamada|activar llamadas|activar sonido/i.test(b.innerText||'')) b.remove();
+    });
+  }
+  if(document.readyState==='loading') document.addEventListener('DOMContentLoaded',clean,{once:true});
+  else clean();
+  setInterval(clean,1000);
+})();
+
+
+/* Tomauno final6b: colores de estado coherentes */
+(function(){
+  function css(){
+    if(document.getElementById('tu-final6b-colores-css')) return;
+    var st=document.createElement('style');
+    st.id='tu-final6b-colores-css';
+    st.textContent=[
+      '.chat-list-item.unread,.chat-tab.unread{border-color:#ffd54a!important;box-shadow:inset 3px 0 0 rgba(255,213,74,.95)!important;}',
+      '.chat-list-item.priority,.chat-tab.priority{border-color:#ff0612!important;box-shadow:inset 3px 0 0 rgba(232,0,10,.95)!important;}',
+      '.chat-tab.unread .chat-tab-light{background:#ffd54a!important;box-shadow:0 0 0 5px rgba(255,213,74,.16),0 0 18px rgba(255,213,74,.65)!important;}',
+      '.chat-tab.priority .chat-tab-light{background:#ff0612!important;box-shadow:0 0 0 5px rgba(232,0,10,.16),0 0 18px rgba(232,0,10,.65)!important;}',
+      '.chat-tab.online:not(.unread):not(.priority) .chat-tab-light{background:#38d27a!important;box-shadow:0 0 0 4px rgba(56,210,122,.13)!important;}'
+    ].join('\\n');
+    document.head.appendChild(st);
+  }
+  if(document.readyState==='loading') document.addEventListener('DOMContentLoaded',css,{once:true});
+  else css();
+})();
+
+
+/* Tomauno final6d CSS llamada */
+(function(){
+  function css(){
+    if(document.getElementById('tu6d-patch-css')) return;
+    var st=document.createElement('style');
+    st.id='tu6d-patch-css';
+    st.textContent='.tu6d-call{background:#fff!important;color:#111!important;border-radius:18px!important;padding:12px 14px!important;font-weight:700!important;line-height:1.45!important}.tu6d-call::first-line{color:#e8000a!important;font-weight:900!important;}';
+    document.head.appendChild(st);
+  }
+  if(document.readyState==='loading') document.addEventListener('DOMContentLoaded',css,{once:true});
+  else css();
+})();
+
+
+/* Tomauno final6e CSS core */
+(function(){
+  function css(){
+    if(document.getElementById('tu6e-patch-css')) return;
+    var st=document.createElement('style');
+    st.id='tu6e-patch-css';
+    st.textContent='@media(max-width:700px){#chat-popover.open .chat-row{display:grid!important;grid-template-columns:minmax(0,1fr) 56px!important;gap:8px!important;align-items:center!important}#chat-popover.open #chat-text{min-width:0!important;width:100%!important;font-size:17px!important}#chat-popover.open .chat-send{grid-column:2!important;width:56px!important;height:56px!important;min-width:56px!important;border-radius:50%!important}#chat-popover.open .chat-bubble{font-size:15.5px!important;line-height:1.45!important}}';
+    document.head.appendChild(st);
+  }
+  if(document.readyState==='loading') document.addEventListener('DOMContentLoaded',css,{once:true});
+  else css();
+})();
+
+
+/* Tomauno final6f CSS white bubble */
+(function(){
+  function css(){
+    if(document.getElementById('tu6f-patch-css')) return;
+    var st=document.createElement('style');
+    st.id='tu6f-patch-css';
+    st.textContent='.tu6f-white{background:#fff!important;color:#111!important;border-radius:18px!important;padding:12px 14px!important;font-weight:700!important;line-height:1.45!important}.tu6f-white::first-line{color:#e8000a!important;font-weight:900!important;}#chat-popover.open .chat-msgs{scroll-behavior:auto!important;overscroll-behavior:contain!important;}';
+    document.head.appendChild(st);
+  }
+  if(document.readyState==='loading') document.addEventListener('DOMContentLoaded',css,{once:true});
+  else css();
+})();
+
+
+/* Tomauno final6g CSS */
+(function(){
+  function css(){
+    if(document.getElementById('tu6g-patch-css')) return;
+    var st=document.createElement('style');
+    st.id='tu6g-patch-css';
+    st.textContent='.tu6g-white{background:#fff!important;color:#111!important;border-radius:18px!important;padding:12px 14px!important;font-weight:700!important;line-height:1.45!important}.tu6g-white::first-line{color:#e8000a!important;font-weight:900!important;}#chat-popover.open .chat-msgs{scroll-behavior:auto!important;overscroll-behavior:contain!important;}';
+    document.head.appendChild(st);
+  }
+  if(document.readyState==='loading') document.addEventListener('DOMContentLoaded',css,{once:true});
+  else css();
+})();
+
+
+/* Tomauno final6h CSS */
+(function(){
+  function css(){
+    if(document.getElementById('tu6h-patch-css')) return;
+    var st=document.createElement('style');
+    st.id='tu6h-patch-css';
+    st.textContent='.tu6h-white{background:#fff!important;color:#111!important;border-radius:18px!important;padding:12px 14px!important;font-weight:700!important;line-height:1.45!important}.tu6h-white::first-line{color:#e8000a!important;font-weight:900!important;}#chat-popover.open .chat-msgs{scroll-behavior:auto!important;overscroll-behavior:contain!important;}';
+    document.head.appendChild(st);
+  }
+  if(document.readyState==='loading') document.addEventListener('DOMContentLoaded',css,{once:true});
+  else css();
+})();
+
+
+/* Tomauno final6i CSS */
+(function(){
+  function css(){
+    if(document.getElementById('tu6i-patch-css')) return;
+    var st=document.createElement('style');
+    st.id='tu6i-patch-css';
+    st.textContent='.tu-lead-star{display:inline-flex!important;align-items:center!important;justify-content:center!important;margin-right:4px!important;color:#ffd54a!important;filter:drop-shadow(0 0 5px rgba(255,213,74,.55))!important}.javier-lead{border-color:rgba(255,213,74,.65)!important;}';
+    document.head.appendChild(st);
+  }
+  if(document.readyState==='loading') document.addEventListener('DOMContentLoaded',css,{once:true});
+  else css();
+})();
+
+
+/* Tomauno final6j CSS */
+(function(){
+  function css(){
+    if(document.getElementById('tu6j-patch-css')) return;
+    var st=document.createElement('style');
+    st.id='tu6j-patch-css';
+    st.textContent='#chat-popover.open .chat-row{position:relative!important;z-index:5!important}#chat-popover.open #chat-text{min-width:0!important}.tu6j-actions{display:flex!important;gap:7px!important;flex-wrap:wrap!important;margin-top:10px!important}.tu6j-action{border:1px solid rgba(255,255,255,.25)!important;background:rgba(255,255,255,.08)!important;color:#fff!important;border-radius:999px!important;padding:7px 10px!important;font-weight:800!important;cursor:pointer!important;font-size:12px!important}';
+    document.head.appendChild(st);
+  }
+  if(document.readyState==='loading') document.addEventListener('DOMContentLoaded',css,{once:true});
+  else css();
+})();
+
+/* final6k css included in module */
+
+/* final6l css in module */
