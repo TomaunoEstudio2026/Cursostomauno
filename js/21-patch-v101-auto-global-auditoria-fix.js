@@ -321,3 +321,17 @@
   if(document.readyState==='loading') document.addEventListener('DOMContentLoaded',css,{once:true});
   else css();
 })();
+
+
+/* Tomauno final6j CSS */
+(function(){
+  function css(){
+    if(document.getElementById('tu6j-patch-css')) return;
+    var st=document.createElement('style');
+    st.id='tu6j-patch-css';
+    st.textContent='#chat-popover.open .chat-row{position:relative!important;z-index:5!important}#chat-popover.open #chat-text{min-width:0!important}.tu6j-actions{display:flex!important;gap:7px!important;flex-wrap:wrap!important;margin-top:10px!important}.tu6j-action{border:1px solid rgba(255,255,255,.25)!important;background:rgba(255,255,255,.08)!important;color:#fff!important;border-radius:999px!important;padding:7px 10px!important;font-weight:800!important;cursor:pointer!important;font-size:12px!important}';
+    document.head.appendChild(st);
+  }
+  if(document.readyState==='loading') document.addEventListener('DOMContentLoaded',css,{once:true});
+  else css();
+})();

@@ -15202,3 +15202,236 @@ window.filterCursos = function(){
     markJavierLeads();
   },700);
 })();
+
+
+
+// ─────────────────────────────────────────────────────────────────────────────
+// TOMAUNO v28b FINAL 6J — UX VISITANTE + HUMANO + RESUMEN
+// - input visitante visible/foco
+// - respuesta nueva: scroll al inicio del mensaje si el usuario no está leyendo
+// - acciones/botones del asistente también en visitante
+// - HUMANO por chat refleja Javier Online en visitante
+// - luego de registrar WhatsApp, vuelve a AUTO si el modo global está automático
+// - registra WhatsApp/consulta en resumen
+// ─────────────────────────────────────────────────────────────────────────────
+(function(){
+  'use strict';
+
+  function safe(fn){ try{return fn();}catch(e){ try{console.warn('TU final6j:',e);}catch(_){} } }
+  function q(s,r){ return (r||document).querySelector(s); }
+  function qa(s,r){ return Array.from((r||document).querySelectorAll(s)); }
+
+  var visitorReadingUntil = 0;
+  var lastAdminKey = '';
+
+  function isAdmin(){
+    return safe(function(){
+      return localStorage.getItem('tomauno-admin-ok') === '1' ||
+             localStorage.getItem('tomauno-admin-notify') === '1' ||
+             !!q('#chat-popover.open #chat-admin-text,#chat-popover.open .chat-inbox-side,#chat-popover.open .chat-admin-tools');
+    }) || false;
+  }
+
+  function chats(){ return safe(function(){ return window.chatsDB || chatsDB || {}; }) || {}; }
+  function visitorId(){ return safe(function(){ return window.currentVisitorChatId || currentVisitorChatId || sessionStorage.getItem('tomauno-chat-id') || ''; }) || ''; }
+  function adminId(){ return safe(function(){ return window.currentOpenChatId || currentOpenChatId || ''; }) || ''; }
+
+  function setLocal(id,data){
+    safe(function(){ if(window.chatsDB && window.chatsDB[id]) Object.assign(window.chatsDB[id],data); });
+    safe(function(){ if(typeof chatsDB !== 'undefined' && chatsDB[id]) Object.assign(chatsDB[id],data); });
+  }
+
+  function updateChat(id,data){
+    if(!id || typeof db === 'undefined' || typeof ref === 'undefined' || typeof update === 'undefined') return Promise.resolve();
+    setLocal(id,data);
+    return update(ref(db,'tomauno/chats/'+id),data).catch(function(){});
+  }
+
+  function pushMessage(id,msg){
+    if(!id || typeof db === 'undefined' || typeof ref === 'undefined' || typeof push === 'undefined') return Promise.resolve();
+    return push(ref(db,'tomauno/chats/'+id+'/messages'),msg).catch(function(){});
+  }
+
+  function chatTimeSafe(){
+    return safe(function(){ return chatTime(); }) || new Date().toLocaleTimeString('es-AR',{hour:'2-digit',minute:'2-digit'});
+  }
+
+  function extractPhone(text){
+    var m = String(text||'').match(/(?:\+?54)?(?:\D*\d){8,14}/);
+    if(!m) return '';
+    var d = m[0].replace(/\D/g,'');
+    return d.length >= 8 ? d : '';
+  }
+
+  function isVisitorView(){
+    return !!q('#chat-popover.open #chat-text') && !q('#chat-popover.open #chat-admin-text');
+  }
+
+  function focusVisitorInput(){
+    if(!isVisitorView()) return;
+    if(window.matchMedia && window.matchMedia('(max-width:700px)').matches) return;
+    var inp = q('#chat-popover.open #chat-text');
+    if(!inp) return;
+    try{ inp.focus({preventScroll:true}); inp.setSelectionRange(inp.value.length,inp.value.length); }catch(e){}
+  }
+
+  function keepInputVisible(){
+    if(!isVisitorView()) return;
+    var row = q('#chat-popover.open .chat-row');
+    var inp = q('#chat-popover.open #chat-text');
+    if(row){ row.style.position='relative'; row.style.zIndex='5'; }
+    if(inp){ inp.style.minWidth='0'; }
+  }
+
+  function lockReading(){
+    if(!isVisitorView()) return;
+    visitorReadingUntil = Date.now() + 25000;
+    window.__tomaunoVisitorReadingUntil = visitorReadingUntil;
+  }
+
+  ['wheel','touchstart','touchmove','pointerdown','mousedown','scroll'].forEach(function(ev){
+    document.addEventListener(ev,function(e){
+      if(e.target && e.target.closest && e.target.closest('#chat-popover.open .chat-msgs')) lockReading();
+    },true);
+  });
+
+  function scrollToNewAnswerStart(){
+    if(!isVisitorView()) return;
+    if(Date.now() < visitorReadingUntil) return;
+    var box = q('#chat-popover.open .chat-msgs');
+    if(!box) return;
+    var admins = qa('.chat-bubble.admin',box);
+    if(!admins.length) return;
+    var last = admins[admins.length-1];
+    var key = (last.innerText||'').slice(0,120)+'|'+(last.innerText||'').length;
+    if(key && key !== lastAdminKey){
+      lastAdminKey = key;
+      requestAnimationFrame(function(){ box.scrollTop = Math.max(0,last.offsetTop - 14); });
+      setTimeout(focusVisitorInput,180);
+    }
+  }
+
+  function renderVisitorActions(){
+    if(!isVisitorView()) return;
+    var box = q('#chat-popover.open .chat-msgs');
+    if(!box) return;
+    qa('.chat-bubble.admin',box).forEach(function(b){
+      if(b.dataset.tu6jActions === '1') return;
+      var txt = b.innerText || '';
+      var actions = [];
+      if(/#info:curso:|Ver cursos|Cursos|curso/i.test(txt)) actions.push(['🎓 Ver cursos','cursos']);
+      if(/#info:servicio:|Ver servicios|Servicios|servicio/i.test(txt)) actions.push(['🛠️ Ver servicios','servicios']);
+      if(/#info:evento:|Ver eventos|Eventos|evento/i.test(txt)) actions.push(['📅 Ver eventos','eventos']);
+      if(/Pedro M[eé]ndez|ubicaci[oó]n|direcci[oó]n|Google Maps|mapa/i.test(txt)) actions.push(['📍 Ubicación','ubicacion']);
+      if(/WhatsApp|Contacto|Javier/i.test(txt)) actions.push(['💬 WhatsApp','whatsapp']);
+      if(!actions.length) return;
+      var html = '<div class="tu6j-actions">'+actions.map(function(a){
+        return '<button type="button" class="tu6j-action" data-tu-action="'+a[1]+'">'+a[0]+'</button>';
+      }).join('')+'</div>';
+      b.insertAdjacentHTML('beforeend',html);
+      b.dataset.tu6jActions = '1';
+    });
+  }
+
+  document.addEventListener('click',function(e){
+    var btn = e.target && e.target.closest && e.target.closest('.tu6j-action[data-tu-action]');
+    if(!btn) return;
+    e.preventDefault(); e.stopPropagation();
+    var a = btn.dataset.tuAction;
+    if(a === 'cursos') safe(function(){ document.getElementById('sec-cursos')?.scrollIntoView({behavior:'smooth',block:'start'}); });
+    if(a === 'servicios') safe(function(){ document.getElementById('sec-servicios')?.scrollIntoView({behavior:'smooth',block:'start'}); });
+    if(a === 'eventos') safe(function(){ document.getElementById('sec-eventos')?.scrollIntoView({behavior:'smooth',block:'start'}); });
+    if(a === 'ubicacion') safe(function(){ window.open('https://www.google.com/maps/search/?api=1&query=Pedro+Mendez+2069+Posadas+Misiones','_blank'); });
+    if(a === 'whatsapp') safe(function(){ window.open('https://wa.me/5493764354522','_blank'); });
+  },true);
+
+  function updateVisitorHeader(){
+    if(!isVisitorView()) return;
+    var id = visitorId();
+    var c = id ? (chats()[id] || {}) : {};
+    var title = q('#chat-popover.open .chat-title');
+    var sub = q('#chat-popover.open .chat-subline');
+    if(!title) return;
+    var humanOnline = !!(c.javierOnline && c.javierOnlineAt && Date.now()-Number(c.javierOnlineAt)<15*60*1000);
+    if(humanOnline){
+      title.textContent = 'JAVIER ONLINE';
+      if(sub) sub.innerHTML = '🟢 Javier está en línea';
+    }else{
+      title.textContent = 'ASISTENTE TOMAUNO';
+      if(sub) sub.textContent = 'Asistente Tomauno';
+    }
+  }
+
+  function confirmText(){
+    return '✅ Perfecto. Ya quedó registrada tu consulta.\n\nApenas pueda la revisa y te responde por WhatsApp.\n\nMuchas gracias.';
+  }
+
+  var oldResponder = window.responderAutomaticoChat;
+  if(typeof oldResponder === 'function' && !oldResponder.__tu6j){
+    var responder6j = async function(id,text){
+      var c = chats()[id] || {};
+      var phone = extractPhone(text);
+      if((c.humanRequested || c.waitingHuman || c.humanFallbackSent) && phone){
+        await updateChat(id,{
+          whatsapp:phone, telefono:phone, phone:phone,
+          humanRequested:false, waitingHuman:false, humanFallbackSent:false, humanConfirm:true,
+          priority:false, prioridad:false, unreadAdmin:true,
+          updatedAt:Date.now(), lastUserMsg:text, lastUserAt:Date.now(),
+          resumenTema:c.resumenTema || 'Consulta',
+          resumenConsulta:text
+        });
+        await pushMessage(id,{from:'admin',auto:true,text:confirmText(),time:chatTimeSafe(),createdAt:Date.now(),humanConfirm:true});
+        return;
+      }
+      return oldResponder.apply(this,arguments);
+    };
+    responder6j.__tu6j = 1;
+    window.responderAutomaticoChat = responder6j;
+    try{ responderAutomaticoChat = responder6j; }catch(e){}
+  }
+
+  function enhanceQuickButtons(){
+    if(!isVisitorView()) return;
+    qa('#chat-popover.open button').forEach(function(b){
+      var t = (b.innerText||'').trim();
+      if(t === '📍' || /ubicaci/i.test(t)){ b.title='Ver ubicación del estudio'; b.setAttribute('aria-label','Ver ubicación del estudio'); }
+      if(/humano|👤|persona/i.test(t)){ b.title='Pedir atención de Javier'; b.setAttribute('aria-label','Pedir atención de Javier'); }
+    });
+  }
+
+  var oldSendAdmin = window.enviarChatAdmin;
+  if(typeof oldSendAdmin === 'function' && !oldSendAdmin.__tu6j){
+    var send6j = async function(){
+      var id = adminId();
+      var r = await oldSendAdmin.apply(this,arguments);
+      if(id) await updateChat(id,{humanMode:true,manualUntil:Date.now()+3600000,javierOnline:true,javierOnlineAt:Date.now()});
+      return r;
+    };
+    send6j.__tu6j = 1;
+    window.enviarChatAdmin = send6j;
+    try{ enviarChatAdmin = send6j; }catch(e){}
+  }
+
+  function css(){
+    if(q('#tu6j-css')) return;
+    var st=document.createElement('style');
+    st.id='tu6j-css';
+    st.textContent=`
+      #chat-popover.open .chat-row{position:relative!important;z-index:5!important;}
+      #chat-popover.open #chat-text{min-width:0!important;}
+      .tu6j-actions{display:flex!important;gap:7px!important;flex-wrap:wrap!important;margin-top:10px!important;}
+      .tu6j-action{border:1px solid rgba(255,255,255,.25)!important;background:rgba(255,255,255,.08)!important;color:#fff!important;border-radius:999px!important;padding:7px 10px!important;font-weight:800!important;cursor:pointer!important;font-size:12px!important;}
+      .tu6j-action:hover{background:rgba(255,255,255,.16)!important;}
+    `;
+    document.head.appendChild(st);
+  }
+  css();
+
+  setInterval(function(){
+    keepInputVisible();
+    scrollToNewAnswerStart();
+    renderVisitorActions();
+    updateVisitorHeader();
+    enhanceQuickButtons();
+  },700);
+})();
