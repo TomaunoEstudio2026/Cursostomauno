@@ -335,3 +335,5 @@
   if(document.readyState==='loading') document.addEventListener('DOMContentLoaded',css,{once:true});
   else css();
 })();
+
+/* final6k css included in module */
