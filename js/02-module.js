@@ -15995,3 +15995,221 @@ function css(){
 css();
 setInterval(()=>{scrollVisitorToAnswer();applyPanelStates();updateHeader();improveFullscreen()},700);
 })();
+
+
+// TOMAUNO v28b FINAL 6O — SCROLL / AUTO / BOTONES
+(function(){
+'use strict';
+
+function safe(fn){try{return fn()}catch(e){try{console.warn('TU final6o:',e)}catch(_){}}}
+function q(s,r){return (r||document).querySelector(s)}
+function qa(s,r){return Array.from((r||document).querySelectorAll(s))}
+function norm(s){return String(s||'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^a-z0-9ñ\s]/g,' ').replace(/\s+/g,' ').trim()}
+
+let visitorLockUntil=0,lastScrollKey='',lastAutoClearId='';
+
+function isVisitor(){return !!q('#chat-popover.open #chat-text')&&!q('#chat-popover.open #chat-admin-text')}
+function isAdmin(){return safe(()=>localStorage.getItem('tomauno-admin-ok')==='1'||localStorage.getItem('tomauno-admin-notify')==='1'||!!q('#chat-popover.open #chat-admin-text,#chat-popover.open .chat-inbox-side,#chat-popover.open .chat-admin-tools'))||false}
+function chats(){return safe(()=>window.chatsDB||chatsDB||{})||{}}
+function adminId(){return safe(()=>window.currentOpenChatId||currentOpenChatId||'')||''}
+function visitorId(){return safe(()=>window.currentVisitorChatId||currentVisitorChatId||sessionStorage.getItem('tomauno-chat-id')||'')||''}
+function updateChat(id,data){if(!id||typeof db==='undefined'||typeof ref==='undefined'||typeof update==='undefined')return Promise.resolve();safe(()=>{if(window.chatsDB&&window.chatsDB[id])Object.assign(window.chatsDB[id],data)});safe(()=>{if(typeof chatsDB!=='undefined'&&chatsDB[id])Object.assign(chatsDB[id],data)});return update(ref(db,'tomauno/chats/'+id),data).catch(()=>{})}
+
+// 1) Scroll visitante correcto.
+// - Si aparece pregunta del usuario: bajar al final para ver lo enviado.
+// - Si aparece respuesta del asistente: ubicar al inicio de esa respuesta.
+// - Si el usuario tocó el scroll: no mover por 25s.
+function lockVisitor(){if(!isVisitor())return;visitorLockUntil=Date.now()+25000;window.__tomaunoVisitorReadingUntil=visitorLockUntil}
+['wheel','touchstart','touchmove','pointerdown','mousedown'].forEach(ev=>document.addEventListener(ev,e=>{if(e.target&&e.target.closest&&e.target.closest('#chat-popover.open .chat-msgs'))lockVisitor()},true));
+
+function smartVisitorScroll(){
+ if(!isVisitor())return;
+ if(Date.now()<visitorLockUntil)return;
+ const box=q('#chat-popover.open .chat-msgs'); if(!box)return;
+ const bubbles=qa('.chat-bubble',box); if(!bubbles.length)return;
+ const last=bubbles[bubbles.length-1];
+ const key=(last.className||'')+'|'+(last.innerText||'').slice(0,120)+'|'+(last.innerText||'').length+'|'+last.offsetTop;
+ if(key===lastScrollKey)return;
+ lastScrollKey=key;
+ requestAnimationFrame(()=>{
+   if(Date.now()<visitorLockUntil)return;
+   if(last.classList.contains('user')){
+     box.scrollTop=box.scrollHeight;
+   }else{
+     box.scrollTop=Math.max(0,last.offsetTop-18);
+   }
+ });
+}
+
+const oldScrollInto=Element.prototype.scrollIntoView;
+if(oldScrollInto&&!oldScrollInto.__tu6o){
+ Element.prototype.scrollIntoView=function(){
+   if(this.closest&&this.closest('#chat-popover.open .chat-msgs')&&isVisitor()&&Date.now()<visitorLockUntil)return;
+   return oldScrollInto.apply(this,arguments);
+ };
+ Element.prototype.scrollIntoView.__tu6o=1;
+}
+
+// 2) Botones duplicados y WhatsApp extra.
+function cleanActionButtons(){
+ qa('#chat-popover.open .chat-bubble.admin').forEach(b=>{
+   const seen={};
+   qa('button,.chat-action,.tu6j-action,a',b).forEach(el=>{
+     const txt=(el.innerText||el.textContent||'').trim().toLowerCase();
+     const action=(el.dataset&&el.dataset.tuAction)||'';
+     const key=action||txt;
+     if(!key)return;
+
+     // No agregar WhatsApp automáticamente debajo de cada texto.
+     // Dejamos links internos del mensaje, pero quitamos botones generados.
+     if((action==='whatsapp'||txt==='whatsapp'||txt.includes('whatsapp')) && el.classList.contains('tu6j-action')){
+       el.remove(); return;
+     }
+
+     if(seen[key]) el.remove();
+     else seen[key]=true;
+   });
+ });
+}
+
+// 3) AUTO vuelve a funcionar: limpiar modo humano del chat y dejar responder al asistente.
+async function setChatAuto(id){
+ if(!id)return;
+ await updateChat(id,{
+   humanMode:false,
+   manualUntil:0,
+   javierOnline:false,
+   javierOnlineAt:0,
+   humanRequested:false,
+   waitingHuman:false,
+   priority:false,
+   prioridad:false,
+   unreadAdmin:false,
+   autoRestoredAt:Date.now()
+ });
+}
+async function setChatHuman(id){
+ if(!id)return;
+ await updateChat(id,{
+   humanMode:true,
+   manualUntil:Date.now()+3600000,
+   javierOnline:true,
+   javierOnlineAt:Date.now(),
+   humanRequested:false,
+   waitingHuman:false,
+   priority:false,
+   prioridad:false,
+   unreadAdmin:false
+ });
+}
+
+window.tomaunoToggleModoChatActual=async function(id){
+ const chatId=id||adminId(); if(!chatId)return;
+ const c=chats()[chatId]||{};
+ const human=!!c.humanMode;
+ if(human){
+   await setChatAuto(chatId);
+   safe(()=>toast('🤖 Este chat vuelve a automático',true));
+ }else{
+   await setChatHuman(chatId);
+   safe(()=>toast('👤 Este chat queda en humano',true));
+ }
+ setTimeout(()=>safe(()=>abrirChatAdmin(chatId,true)),80);
+};
+
+window.toggleModoAsistenteChat=function(){
+ const id=adminId();
+ if(id&&q('#chat-popover.open #chat-admin-text')) return window.tomaunoToggleModoChatActual(id);
+ safe(()=>toast('Abrí un chat para pasarlo a humano/auto.',true));
+};
+
+// Si el chat quedó marcado humano pero el botón está en AUTO, evitar que el wrapper lo mate.
+const oldResponder=window.responderAutomaticoChat;
+if(typeof oldResponder==='function'&&!oldResponder.__tu6o){
+ const responder6o=function(id,text){
+   const c=chats()[id]||{};
+   if(c.autoRestoredAt && !c.humanMode){
+     c.humanRequested=false; c.waitingHuman=false; c.humanFallbackSent=false;
+   }
+   return oldResponder.apply(this,arguments);
+ };
+ responder6o.__tu6o=1; window.responderAutomaticoChat=responder6o; try{responderAutomaticoChat=responder6o}catch(e){}
+}
+
+// 4) Amarillo visible y persistente mientras no leído.
+// Forzamos estilo inline porque otros renderizadores reescriben clases.
+function getItemId(el){
+ return el.getAttribute('data-chat-id')||el.dataset.chatId||'';
+}
+function isUnread(c){return !!(c&&(c.unreadAdmin||c.hasNewAdmin||c.hasNew||c.unread))}
+function isHumanCall(c){return !!(c&&c.humanRequested&&!c.humanFallbackSent&&!c.humanConfirm)}
+function isOnline(c){return !!(c&&(c.userOnline||c.online||c.isOnline||(c.userLastSeen&&Date.now()-Number(c.userLastSeen)<70000)))}
+function hasLead(c){return !!(c&&(c.humanFallbackSent||c.humanConfirm||c.whatsapp||c.phone||c.telefono||c.resumenConsulta||c.consultaJavier))}
+
+function applyStrongStates(){
+ qa('.chat-tab,.chat-list-item,.chat-inbox-item,[data-chat-id]').forEach(el=>{
+   const id=getItemId(el); if(!id)return;
+   const c=chats()[id]||{};
+   const red=isHumanCall(c), yellow=!red&&isUnread(c), green=!red&&!yellow&&isOnline(c);
+   el.classList.toggle('priority',red);
+   el.classList.toggle('unread',yellow);
+   el.classList.toggle('online',green);
+   el.classList.toggle('javier-lead',hasLead(c));
+   if(red){
+     el.style.borderColor='#e8000a';
+     el.style.boxShadow='inset 3px 0 0 rgba(232,0,10,.95)';
+   }else if(yellow){
+     el.style.borderColor='#ffd54a';
+     el.style.boxShadow='inset 3px 0 0 rgba(255,213,74,.95)';
+   }else if(green){
+     el.style.borderColor='rgba(56,210,122,.55)';
+     el.style.boxShadow='';
+   }else{
+     el.style.borderColor='';
+     el.style.boxShadow='';
+   }
+   if(red&&!el.querySelector('.tu6o-mega'))el.insertAdjacentHTML('afterbegin','<span class="tu6o-mega" title="Llamada a Javier">📣</span>');
+   if(hasLead(c)&&!el.querySelector('.tu6o-star'))el.insertAdjacentHTML('afterbegin','<span class="tu6o-star" title="Consulta/WhatsApp para revisar">⭐</span>');
+ });
+}
+
+// 5) Nombres duplicados visuales robustos.
+function duplicateNames(){
+ const db=chats(), counts={}, seen={};
+ Object.entries(db).forEach(([id,c])=>{const n=String(c.name||c.nombre||'').trim().toLowerCase();if(n)counts[n]=(counts[n]||0)+1});
+ qa('.chat-tab,.chat-list-item,.chat-inbox-item,[data-chat-id]').forEach(el=>{
+   const id=getItemId(el); if(!id)return;
+   const c=db[id]||{}, n=String(c.name||c.nombre||'').trim(), k=n.toLowerCase();
+   if(!n||counts[k]<=1)return;
+   seen[k]=(seen[k]||0)+1;
+   const suffix=seen[k]>1?' '+seen[k]:'';
+   const node=el.querySelector('.chat-tab-name,.chat-name,strong,b')||el.firstElementChild;
+   if(node&&node.dataset.tu6oName!==n+suffix){
+     node.dataset.tu6oName=n+suffix;
+     node.textContent=n+suffix;
+   }
+ });
+}
+
+// 6) Header estable.
+function updateHeader(){
+ if(!isVisitor())return;
+ const c=chats()[visitorId()]||{}, title=q('#chat-popover.open .chat-title'), sub=q('#chat-popover.open .chat-subline'); if(!title)return;
+ const human=!!(c.humanMode&&c.javierOnline&&c.javierOnlineAt&&Date.now()-Number(c.javierOnlineAt)<15*60*1000);
+ if(human){title.textContent='JAVIER ONLINE'; if(sub)sub.innerHTML='🟢 Javier está en línea'}
+ else{title.textContent='ASISTENTE TOMAUNO'; if(sub)sub.textContent='Asistente Tomauno'}
+}
+
+function css(){
+ if(q('#tu6o-css'))return;
+ const st=document.createElement('style'); st.id='tu6o-css';
+ st.textContent=`
+ .tu6o-star,.tu6o-mega{display:inline-flex!important;margin-right:4px!important;color:#ffd54a!important;filter:drop-shadow(0 0 5px rgba(255,213,74,.65))!important}
+ .chat-tab.unread,.chat-list-item.unread,[data-chat-id].unread{border-color:#ffd54a!important;box-shadow:inset 3px 0 0 rgba(255,213,74,.95)!important}
+ .chat-tab.priority,.chat-list-item.priority,[data-chat-id].priority{border-color:#e8000a!important;box-shadow:inset 3px 0 0 rgba(232,0,10,.95)!important}`;
+ document.head.appendChild(st);
+}
+css();
+
+setInterval(()=>{smartVisitorScroll();cleanActionButtons();applyStrongStates();duplicateNames();updateHeader()},650);
+})();
