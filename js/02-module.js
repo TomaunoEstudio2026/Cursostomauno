@@ -1710,9 +1710,14 @@ function notifyNative(title, body, tag){
 }
 
 function notifyAdminChat(title, body, chatId){
-  try{ beep(); }catch(e){}
-  try{ showNotif(); showNotifBanner(title, body || 'Nuevo mensaje'); }catch(e){}
-  notifyNative('💬 ' + title, body || 'Nuevo mensaje desde la web', chatId ? 'tomauno-chat-' + chatId : 'tomauno-chat');
+  const t = String(title || '');
+  const b = String(body || '');
+  const isHuman = /humana|Javier|LLAMADA/i.test(t + ' ' + b);
+  const isNewChat = /Nuevo chat web|Chat nuevo/i.test(t);
+  if(!isHuman && !isNewChat) return;
+  try{ isHuman && window.tomaunoHumanAlarm ? window.tomaunoHumanAlarm(chatId, b) : beep(); }catch(e){}
+  try{ showNotif(); showNotifBanner(isHuman ? '📣 LLAMADA PARA JAVIER' : title, body || 'Nuevo chat web'); }catch(e){}
+  notifyNative((isHuman ? '📣 ' : '💬 ') + (isHuman ? 'LLAMADA PARA JAVIER' : title), body || 'Nuevo mensaje desde la web', chatId ? 'tomauno-chat-' + chatId : 'tomauno-chat');
 }
 
 onValue(ref(db, 'tomauno/status'), snap => {
@@ -2054,6 +2059,10 @@ function renderMsgs(chat, adminView=false, chatId=''){
 }
 function scrollChatSmart(box){
   if(!box) return;
+  const isVisitorView = !!document.querySelector('#chat-popover.open #chat-text') && !document.querySelector('#chat-popover.open #chat-admin-text');
+  if(isVisitorView && window.__tomaunoVisitorReadingUntil && Date.now() < window.__tomaunoVisitorReadingUntil){
+    return;
+  }
   const bubbles = box.querySelectorAll('.chat-bubble');
   const last = bubbles[bubbles.length - 1];
   if(!last){ box.scrollTop = box.scrollHeight; return; }
@@ -2443,13 +2452,22 @@ window.guardarModoAsistente = async () => {
   toast(modo === 'automatico' ? '🤖 Modo automático activado' : '👤 Modo manual activado', true);
 };
 window.toggleModoAsistenteChat = async () => {
+  const box = document.getElementById('chat-msgs');
+  const oldTop = box ? box.scrollTop : null;
   const nuevo = asistenteModo() === 'automatico' ? 'manual' : 'automatico';
   await update(ref(db,'tomauno/asistente'), {modo:nuevo});
+  asistenteDB = Object.assign({}, asistenteDB || {}, {modo:nuevo});
   toast(nuevo === 'automatico' ? '🤖 Asistente automático ON' : '👤 Asistente manual', true);
   const fab=document.getElementById('chat-fab');
   if(fab) fab.classList.toggle('auto-on', nuevo === 'automatico');
+  if(currentOpenChatId && nuevo === 'automatico'){
+    try{ await update(ref(db,'tomauno/chats/'+currentOpenChatId), {javierOnline:false, javierOnlineAt:0, humanMode:false}); }catch(e){}
+  }else if(currentOpenChatId && nuevo === 'manual'){
+    try{ await update(ref(db,'tomauno/chats/'+currentOpenChatId), {javierOnline:true, javierOnlineAt:Date.now(), humanMode:true}); }catch(e){}
+  }
   if (isAdminNotifier() && currentOpenChatId) setTimeout(()=>abrirChatAdmin(currentOpenChatId, true), 80);
   else if (isAdminNotifier()) setTimeout(()=>abrirPanelChatsAdmin(), 80);
+  setTimeout(()=>{ const b=document.getElementById('chat-msgs'); if(b && oldTop !== null) b.scrollTop = oldTop; }, 180);
 };
 
 function asistenteCommandDuplicado(command, ignoreId=''){
@@ -11740,8 +11758,8 @@ window.filterCursos = function(){
     removeAlertButtons();
     notifyNewVisitorOnly();
     keepOpenRead();
-    checkHumanTimeout();
-    watchHumanRequests();
+    // final6g: checkHumanTimeout(); desactivado
+    // final6g: watchHumanRequests(); desactivado
     // final6e: header visitante estable, sin alternar textos
   },800);
 })();
@@ -13224,10 +13242,10 @@ window.filterCursos = function(){
   css();
 
   setInterval(function(){
-    updateCounterVisual();
+    // final6g: updateCounterVisual(); desactivado
     // final6e: fallback viejo desactivado
-    updateVisitorHeaderStable();
-    removeOldHumanAutoDuplicates();
+    // final6g: updateVisitorHeaderStable(); desactivado
+    // final6g: removeOldHumanAutoDuplicates(); desactivado
   },700);
 })();
 
@@ -13623,8 +13641,8 @@ window.filterCursos = function(){
 
   setInterval(function(){
     // final6f: notificaciones por mensaje desactivadas; solo eventos nuevos/controlados
-    updateCounter();
-    fallbackOnce();
+    // final6g: updateCounter(); desactivado
+    // final6g: fallbackOnce(); desactivado
     focusInputAfterReply();
   },700);
 })();
@@ -14108,10 +14126,356 @@ window.filterCursos = function(){
   css();
 
   setInterval(function(){
+    // final6g: notifyNewChatOnly(); desactivado
+    // final6g: updateCounter(); desactivado
+    // final6g: fallbackOnce(); desactivado
+    // final6g: styleFallbackWhite(); desactivado
+    // final6g: updateVisitorHeader(); desactivado
+  },700);
+})();
+
+
+
+// ─────────────────────────────────────────────────────────────────────────────
+// TOMAUNO v28b FINAL 6G — ESTABILIDAD SCROLL / NOTIF / HUMANO / CEREBRO
+// Cambios controlados:
+// - scroll visitante libre al leer
+// - notificaciones solo chat nuevo o llamada
+// - humano solo 2 mensajes: llamada + fallback blanco
+// - AUTO/HUMANO estable
+// - título visitante: ASISTENTE TOMAUNO en auto / JAVIER ONLINE en manual
+// - primeras reglas de cerebro: pagos, edad, dueño, cursos, 15 años
+// ─────────────────────────────────────────────────────────────────────────────
+(function(){
+  'use strict';
+
+  function safe(fn){ try{return fn();}catch(e){ try{console.warn('TU final6g:',e);}catch(_){} } }
+  function q(s,r){ return (r||document).querySelector(s); }
+  function qa(s,r){ return Array.from((r||document).querySelectorAll(s)); }
+  function norm(s){
+    return String(s||'').toLowerCase()
+      .normalize('NFD').replace(/[\u0300-\u036f]/g,'')
+      .replace(/[^a-z0-9ñ\s]/g,' ')
+      .replace(/\s+/g,' ')
+      .trim();
+  }
+
+  var bootAt = Date.now();
+  var initialChatsLoaded = false;
+  var knownChats = {};
+  var ringTimers = {};
+  var fallbackSent = {};
+  var handledHuman = {};
+
+  function isAdmin(){
+    return safe(function(){
+      return localStorage.getItem('tomauno-admin-ok') === '1' ||
+             localStorage.getItem('tomauno-admin-notify') === '1' ||
+             !!q('#chat-popover.open #chat-admin-text,#chat-popover.open .chat-inbox-side,#chat-popover.open .chat-admin-tools');
+    }) || false;
+  }
+
+  function isAuto(){
+    return safe(function(){ return asistenteModo() === 'automatico'; }) !== false;
+  }
+
+  function chats(){ return safe(function(){ return window.chatsDB || chatsDB || {}; }) || {}; }
+  function visitorId(){ return safe(function(){ return window.currentVisitorChatId || currentVisitorChatId || sessionStorage.getItem('tomauno-chat-id') || ''; }) || ''; }
+  function adminId(){ return safe(function(){ return window.currentOpenChatId || currentOpenChatId || ''; }) || ''; }
+
+  function setLocal(id,data){
+    safe(function(){ if(window.chatsDB && window.chatsDB[id]) Object.assign(window.chatsDB[id],data); });
+    safe(function(){ if(typeof chatsDB !== 'undefined' && chatsDB[id]) Object.assign(chatsDB[id],data); });
+  }
+
+  function updateChat(id,data){
+    if(!id || typeof db === 'undefined' || typeof ref === 'undefined' || typeof update === 'undefined') return Promise.resolve();
+    setLocal(id,data);
+    return update(ref(db,'tomauno/chats/'+id),data).catch(function(){});
+  }
+
+  function pushMessage(id,msg){
+    if(!id || typeof db === 'undefined' || typeof ref === 'undefined' || typeof push === 'undefined') return Promise.resolve();
+    return push(ref(db,'tomauno/chats/'+id+'/messages'),msg).catch(function(){});
+  }
+
+  function chatTimeSafe(){
+    return safe(function(){ return chatTime(); }) || new Date().toLocaleTimeString('es-AR',{hour:'2-digit',minute:'2-digit'});
+  }
+
+  // 1) Scroll visitante: al tocar o intentar subir, no forzar abajo por 20s.
+  function lockVisitorScroll(){
+    if(!q('#chat-popover.open #chat-text')) return;
+    window.__tomaunoVisitorReadingUntil = Date.now() + 20000;
+  }
+  ['wheel','touchstart','touchmove','pointerdown','scroll'].forEach(function(ev){
+    document.addEventListener(ev,function(e){
+      if(e.target && e.target.closest && e.target.closest('#chat-popover.open .chat-msgs')){
+        lockVisitorScroll();
+      }
+    },true);
+  });
+
+  // 2) Sonidos: solo nuevo chat / llamada.
+  function play(kind){
+    safe(function(){
+      var AC = window.AudioContext || window.webkitAudioContext;
+      if(!AC) return;
+      var ctx = new AC();
+      var t = ctx.currentTime + 0.02;
+      var freqs = kind === 'human' ? [620,780,980,1220,980] : [880,1120,880];
+      var gain = kind === 'human' ? 0.36 : 0.20;
+      freqs.forEach(function(f,i){
+        var o=ctx.createOscillator(), g=ctx.createGain();
+        o.frequency.value=f; g.gain.value=gain;
+        o.connect(g); g.connect(ctx.destination);
+        o.start(t+i*.14); o.stop(t+i*.14+.12);
+      });
+      setTimeout(function(){ if(ctx.close) ctx.close(); },900);
+    });
+  }
+
+  function firstUserMessage(chat){
+    var ms = chat && chat.messages ? chat.messages : {};
+    var best = null;
+    Object.keys(ms).forEach(function(k){
+      var m=ms[k]||{};
+      if(m.from==='user' && !m.typing && String(m.text||'').trim()){
+        if(!best || Number(m.createdAt||0)<Number(best.createdAt||0)) best=m;
+      }
+    });
+    return best;
+  }
+
+  function notifyNewChatOnly(){
+    if(!isAdmin()) return;
+    var dbs = chats();
+    if(!initialChatsLoaded){
+      Object.keys(dbs).forEach(function(id){ knownChats[id]=true; });
+      initialChatsLoaded = true;
+      return;
+    }
+    Object.entries(dbs).forEach(function(pair){
+      var id=pair[0], c=pair[1]||{};
+      if(knownChats[id]) return;
+      var first=firstUserMessage(c);
+      if(!first) return;
+      if(Number(first.createdAt||0) < bootAt - 1500) return;
+      knownChats[id]=true;
+      play('normal');
+    });
+  }
+
+  // 3) Humano: solo mensaje llamada + fallback blanco.
+  function isHumanRequest(text){
+    var x=norm(text);
+    return [
+      'pasame con javier','quiero hablar con javier','quiero hablar con el dueno','quiero hablar con el dueño',
+      'pasame con el dueno','pasame con el dueño','quiero consultar a javier','javier se encuentra',
+      'me puedo comunicar con javier','puedo hablar con el fotografo','puedo hablar con el fotógrafo',
+      'me pasas con el fotografo','me pasas con el fotógrafo','llamar a javier','llama a javier',
+      'podes llamar a javier','puedes llamar a javier','humano','atencion humana','atención humana',
+      'cel de javier','celular de javier','telefono de javier','teléfono de javier','whatsapp de javier'
+    ].map(norm).some(function(p){ return x.includes(p); });
+  }
+  function hasPhone(text){ return String(text||'').replace(/[^\d+]/g,'').length>=8; }
+  function callText(sec){
+    sec=Math.max(0,Number(sec||0));
+    return '📞 Aguardá un momento por favor, voy a intentar contactar con Javier para que te responda por acá 😊\n\n⏱️ '+String(sec).padStart(2,'0')+'s para intentar conectar con Javier';
+  }
+  function fallbackText(){
+    return '🟢 Al parecer Javier está ocupado o no se encuentra en el estudio. Ni bien pueda te responderá personalmente.\n\n📱 Para dejar agendada tu consulta necesito que me pases tu WhatsApp y el mensaje para Javier.';
+  }
+  function confirmText(){
+    return '✅ Perfecto. Ya quedó registrada tu consulta para Javier.\n\nApenas pueda la revisa y te responde por WhatsApp.\n\nMuchas gracias.';
+  }
+  function startRing(id){
+    if(!id || ringTimers[id]) return;
+    var started=Date.now();
+    function tick(){
+      if(!ringTimers[id]) return;
+      if(Date.now()-started>60000){ stopRing(id); return; }
+      play('human');
+      ringTimers[id]=setTimeout(tick,10000);
+    }
+    ringTimers[id]=true; tick();
+  }
+  function stopRing(id){
+    if(ringTimers[id] && ringTimers[id]!==true) clearTimeout(ringTimers[id]);
+    delete ringTimers[id];
+  }
+
+  var prevResponder = window.responderAutomaticoChat;
+  if(typeof prevResponder === 'function' && !prevResponder.__tu6g){
+    var responder6g = async function(id,text){
+      var c=chats()[id]||{};
+
+      if((c.humanRequested || c.waitingHuman || c.humanFallbackSent) && hasPhone(text)){
+        stopRing(id);
+        await updateChat(id,{humanRequested:false,waitingHuman:false,humanFallbackSent:false,priority:false,prioridad:false,unreadAdmin:true,updatedAt:Date.now(),lastUserMsg:text,lastUserAt:Date.now()});
+        await pushMessage(id,{from:'admin',auto:true,text:confirmText(),time:chatTimeSafe(),createdAt:Date.now(),humanConfirm:true});
+        return;
+      }
+
+      if(isHumanRequest(text)){
+        var key=id+'|'+norm(text);
+        if(handledHuman[key]) return;
+        handledHuman[key]=true;
+        var t=Date.now();
+        await updateChat(id,{humanRequested:true,waitingHuman:false,humanFallbackSent:false,priority:false,prioridad:false,unreadAdmin:true,callUntil:t+60000,updatedAt:t,lastUserMsg:text,lastUserAt:t});
+        await pushMessage(id,{from:'admin',auto:true,text:callText(60),time:chatTimeSafe(),createdAt:Date.now(),systemCall:true,callUntil:t+60000});
+        if(isAdmin()) startRing(id);
+        return;
+      }
+
+      return prevResponder.apply(this,arguments);
+    };
+    responder6g.__tu6g = 1;
+    window.responderAutomaticoChat = responder6g;
+    try{ responderAutomaticoChat = responder6g; }catch(e){}
+  }
+
+  function updateCounter(){
+    var id=isAdmin()?adminId():visitorId();
+    var c=chats()[id]||{};
+    if(!c.humanRequested || !c.callUntil || c.humanFallbackSent) return;
+    var left=Math.max(0,Math.ceil((Number(c.callUntil)-Date.now())/1000));
+    qa('#chat-popover.open .chat-bubble.admin').forEach(function(b){
+      var t=b.innerText||'';
+      if(/Aguardá un momento|intentar conectar con Javier|intentar contactar con Javier/i.test(t)){
+        b.innerHTML='<div class="tu6g-white">'+callText(left).replace(/\n/g,'<br>')+'</div><div class="chat-meta">Ahora</div>';
+      }
+    });
+  }
+
+  function fallbackOnce(){
+    Object.entries(chats()).forEach(function(pair){
+      var id=pair[0], c=pair[1]||{};
+      if(!c.humanRequested || !c.callUntil || c.humanFallbackSent || fallbackSent[id]) return;
+      if(Date.now()<Number(c.callUntil)) return;
+      fallbackSent[id]=true; stopRing(id);
+      updateChat(id,{waitingHuman:true,humanFallbackSent:true,priority:false,prioridad:false,updatedAt:Date.now()});
+      pushMessage(id,{from:'admin',auto:true,text:fallbackText(),time:chatTimeSafe(),createdAt:Date.now(),humanFallback:true});
+    });
+  }
+
+  function styleWhite(){
+    qa('#chat-popover.open .chat-bubble.admin').forEach(function(b){
+      var t=b.innerText||'';
+      if(/Al parecer Javier está ocupado|Ya quedó registrada tu consulta/i.test(t) && !b.querySelector('.tu6g-white')){
+        b.innerHTML='<div class="tu6g-white">'+t.replace(/\n/g,'<br>')+'</div>';
+      }
+      if(/Javier no pudo responder en este momento/i.test(t)){
+        b.remove();
+      }
+    });
+  }
+
+  // 4) Cerebro: reglas puntuales antes de cursos.
+  function splitKeys(raw){
+    return String(raw||'').split(/[,\n;]/).map(function(x){return x.trim();}).filter(Boolean);
+  }
+  function findKnowledgeByTerms(terms){
+    try{
+      if(typeof asistenteKnowledgeEntries !== 'function') return '';
+      var entries=asistenteKnowledgeEntries();
+      for(var i=0;i<entries.length;i++){
+        var k=entries[i][1]||{};
+        var hay=norm([k.titulo||'',k.command||'',k.keys||'',k.respuesta||''].join(' '));
+        if(terms.some(function(t){return hay.includes(norm(t));}) && k.respuesta) return k.respuesta;
+      }
+    }catch(e){}
+    return '';
+  }
+
+  var oldBuscar = (typeof buscarRespuestaAsistente === 'function') ? buscarRespuestaAsistente : null;
+  if(oldBuscar && !oldBuscar.__tu6gBrain){
+    var buscar6g = function(text){
+      var x=norm(text);
+      if(/forma.*pago|formas.*pago|medios.*pago|como.*pago|se puede pagar|transferencia|efectivo|mercado pago|tarjeta/.test(x)){
+        return findKnowledgeByTerms(['formas de pago','medios de pago','pago','pagos','transferencia','efectivo','mercado pago']) || 'Podés consultar las formas de pago disponibles directamente por WhatsApp o con Javier para confirmar la opción más cómoda.';
+      }
+      if(/edad|años|anos|a partir de que edad|a partir de cuantos|puedo anotarme|puedo inscribirme/.test(x)){
+        return findKnowledgeByTerms(['edad','edades','años','inscripción','inscripcion','anotarme']) || 'Depende de la actividad o curso. Decime cuál te interesa y te confirmo la edad recomendada o mínima.';
+      }
+      if(/dueño|dueno|propietario|nombre del dueño|quien es javier|quien es el fotografo|quién es el fotógrafo/.test(x)){
+        return findKnowledgeByTerms(['dueño','dueno','propietario','javier','fotógrafo','fotografo']) || 'El estudio es de Javier Móttola, fotógrafo y director de Tomauno.';
+      }
+      if(/que cursos dan|qué cursos dan|cursos dan|que cursos tienen|qué cursos tienen|hay cursos|cursos activos|dictan cursos/.test(x)){
+        return findKnowledgeByTerms(['cursos activos','curso','cursos','capacitaciones']) || (typeof respuestaCursosActivosChat === 'function' ? respuestaCursosActivosChat() : 'Puedo mostrarte los cursos activos. Tocá el botón Cursos o escribí “cursos activos”.');
+      }
+      if(/15 años|quince|quinceañera|15 de mi hija|presupuesto.*15|fotos.*15/.test(x)){
+        return findKnowledgeByTerms(['15 años','quince','quinceañera','pack15','sesión 15','sesion 15']) || 'Para fotos de 15 años tenemos distintas opciones de cobertura/sesión. Si querés, te paso las opciones disponibles o podés dejar tu WhatsApp para enviarte el detalle.';
+      }
+
+      // Comandos con varias keys separadas por coma.
+      if(String(text||'').trim().startsWith('/')){
+        try{
+          if(typeof asistenteKnowledgeEntries === 'function'){
+            var cmd=String(text||'').trim().toLowerCase();
+            var entries=asistenteKnowledgeEntries();
+            for(var i=0;i<entries.length;i++){
+              var k=entries[i][1]||{};
+              var keys=splitKeys([k.command||'',k.keys||'',k.titulo||''].join(','));
+              for(var j=0;j<keys.length;j++){
+                if(keys[j].toLowerCase()===cmd && k.respuesta) return k.respuesta;
+              }
+            }
+          }
+        }catch(e){}
+      }
+
+      return oldBuscar.apply(this,arguments);
+    };
+    buscar6g.__tu6gBrain = 1;
+    buscarRespuestaAsistente = buscar6g;
+    try{ window.buscarRespuestaAsistente = buscar6g; }catch(e){}
+  }
+
+  // 5) Header estable.
+  function updateHeader(){
+    if(isAdmin()) return;
+    var title=q('#chat-popover.open .chat-title');
+    var sub=q('#chat-popover.open .chat-subline');
+    if(!title) return;
+    var id=visitorId();
+    var c=id?(chats()[id]||{}):{};
+    var humanOnline=!!(c.javierOnline && c.javierOnlineAt && Date.now()-Number(c.javierOnlineAt)<15*60*1000 && !isAuto());
+    if(humanOnline){
+      title.textContent='JAVIER ONLINE';
+      if(sub) sub.innerHTML='🟢 Javier está en línea';
+    }else{
+      title.textContent='ASISTENTE TOMAUNO';
+      if(sub) sub.textContent='Asistente Tomauno';
+    }
+  }
+
+  function css(){
+    if(q('#tu6g-css')) return;
+    var st=document.createElement('style');
+    st.id='tu6g-css';
+    st.textContent=`
+      .tu6g-white{
+        background:#fff!important;
+        color:#111!important;
+        border-radius:18px!important;
+        padding:12px 14px!important;
+        box-shadow:0 8px 24px rgba(0,0,0,.22)!important;
+        font-weight:700!important;
+        line-height:1.45!important;
+      }
+      .tu6g-white::first-line{color:#e8000a!important;font-weight:900!important;}
+      #chat-popover.open .chat-msgs{scroll-behavior:auto!important;overscroll-behavior:contain!important;}
+    `;
+    document.head.appendChild(st);
+  }
+  css();
+
+  setInterval(function(){
     notifyNewChatOnly();
     updateCounter();
     fallbackOnce();
-    styleFallbackWhite();
-    updateVisitorHeader();
+    styleWhite();
+    updateHeader();
   },700);
 })();
