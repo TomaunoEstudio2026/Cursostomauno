@@ -307,3 +307,17 @@
   if(document.readyState==='loading') document.addEventListener('DOMContentLoaded',css,{once:true});
   else css();
 })();
+
+
+/* Tomauno final6i CSS */
+(function(){
+  function css(){
+    if(document.getElementById('tu6i-patch-css')) return;
+    var st=document.createElement('style');
+    st.id='tu6i-patch-css';
+    st.textContent='.tu-lead-star{display:inline-flex!important;align-items:center!important;justify-content:center!important;margin-right:4px!important;color:#ffd54a!important;filter:drop-shadow(0 0 5px rgba(255,213,74,.55))!important}.javier-lead{border-color:rgba(255,213,74,.65)!important;}';
+    document.head.appendChild(st);
+  }
+  if(document.readyState==='loading') document.addEventListener('DOMContentLoaded',css,{once:true});
+  else css();
+})();
