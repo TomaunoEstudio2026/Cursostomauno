@@ -251,3 +251,17 @@
   if(document.readyState==='loading') document.addEventListener('DOMContentLoaded',css,{once:true});
   else css();
 })();
+
+
+/* Tomauno final6e CSS core */
+(function(){
+  function css(){
+    if(document.getElementById('tu6e-patch-css')) return;
+    var st=document.createElement('style');
+    st.id='tu6e-patch-css';
+    st.textContent='@media(max-width:700px){#chat-popover.open .chat-row{display:grid!important;grid-template-columns:minmax(0,1fr) 56px!important;gap:8px!important;align-items:center!important}#chat-popover.open #chat-text{min-width:0!important;width:100%!important;font-size:17px!important}#chat-popover.open .chat-send{grid-column:2!important;width:56px!important;height:56px!important;min-width:56px!important;border-radius:50%!important}#chat-popover.open .chat-bubble{font-size:15.5px!important;line-height:1.45!important}}';
+    document.head.appendChild(st);
+  }
+  if(document.readyState==='loading') document.addEventListener('DOMContentLoaded',css,{once:true});
+  else css();
+})();
