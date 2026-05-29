@@ -16215,198 +16215,261 @@ setInterval(()=>{smartVisitorScroll();cleanActionButtons();applyStrongStates();d
 })();
 
 
-// TOMAUNO v28b FINAL 6P — AUTO / NOMBRES / BORRAR MENSAJES / UX
+// TOMAUNO v28b FINAL 6Q — DESDE 6O SIN HUM DUPLICADO
 (function(){
 'use strict';
 
-function safe(fn){try{return fn()}catch(e){try{console.warn('TU final6p:',e)}catch(_){}}}
+function safe(fn){try{return fn()}catch(e){try{console.warn('TU final6q:',e)}catch(_){}}}
 function q(s,r){return (r||document).querySelector(s)}
 function qa(s,r){return Array.from((r||document).querySelectorAll(s))}
-function norm(s){return String(s||'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^a-z0-9ñ\s]/g,' ').replace(/\s+/g,' ').trim()}
 
-let visitorLockUntil=0,lastScrollKey='',lastManualScrollAt=0;
+let lastScrollKey='', visitorLockUntil=0;
 
 function isVisitor(){return !!q('#chat-popover.open #chat-text')&&!q('#chat-popover.open #chat-admin-text')}
 function isAdmin(){return safe(()=>localStorage.getItem('tomauno-admin-ok')==='1'||localStorage.getItem('tomauno-admin-notify')==='1'||!!q('#chat-popover.open #chat-admin-text,#chat-popover.open .chat-inbox-side,#chat-popover.open .chat-admin-tools'))||false}
 function chats(){return safe(()=>window.chatsDB||chatsDB||{})||{}}
 function adminId(){return safe(()=>window.currentOpenChatId||currentOpenChatId||'')||''}
-function visitorId(){return safe(()=>window.currentVisitorChatId||currentVisitorChatId||sessionStorage.getItem('tomauno-chat-id')||'')||''}
 function updateChat(id,data){if(!id||typeof db==='undefined'||typeof ref==='undefined'||typeof update==='undefined')return Promise.resolve();safe(()=>{if(window.chatsDB&&window.chatsDB[id])Object.assign(window.chatsDB[id],data)});safe(()=>{if(typeof chatsDB!=='undefined'&&chatsDB[id])Object.assign(chatsDB[id],data)});return update(ref(db,'tomauno/chats/'+id),data).catch(()=>{})}
-function pushMessage(id,msg){if(!id||typeof db==='undefined'||typeof ref==='undefined'||typeof push==='undefined')return Promise.resolve();return push(ref(db,'tomauno/chats/'+id+'/messages'),msg).catch(()=>{})}
-function chatTimeSafe(){return safe(()=>chatTime())||new Date().toLocaleTimeString('es-AR',{hour:'2-digit',minute:'2-digit'})}
 
-// 1) Scroll visitante.
-// Mientras usuario toca el historial: no mover.
-// Cuando el usuario envía: bajar al fondo.
-// Cuando llega respuesta del asistente: ir al inicio de esa respuesta.
-function lockVisitor(){if(!isVisitor())return;visitorLockUntil=Date.now()+22000;lastManualScrollAt=Date.now();window.__tomaunoVisitorReadingUntil=visitorLockUntil}
-['wheel','touchstart','touchmove','pointerdown','mousedown'].forEach(ev=>document.addEventListener(ev,e=>{if(e.target&&e.target.closest&&e.target.closest('#chat-popover.open .chat-msgs'))lockVisitor()},true));
+// 1) HUM únicamente en la botonera inferior de admin, no en mensajes/lista/panel.
+function fixHumButtonOnly(){
+  const tools = q('#chat-popover.open .chat-admin-tools') || q('#chat-popover.open .chat-tools') || q('#chat-popover.open .admin-tools');
+  if(!tools) return;
 
-function smartVisitorScroll(){
- if(!isVisitor())return;
- const box=q('#chat-popover.open .chat-msgs'); if(!box)return;
- const bubbles=qa('.chat-bubble',box); if(!bubbles.length)return;
- const last=bubbles[bubbles.length-1];
- const text=(last.innerText||'').trim();
- const key=(last.className||'')+'|'+text.slice(0,140)+'|'+text.length+'|'+last.offsetTop;
- if(key===lastScrollKey)return;
- lastScrollKey=key;
+  qa('button', tools).forEach(btn=>{
+    const txt=(btn.innerText||btn.textContent||'').trim();
+    if(/humano|manual|javier/i.test(txt) && !/whatsapp|instagram|ubicaci|cursos|servicios|sesiones/i.test(txt)){
+      btn.innerText='HUM';
+      btn.title='Pasar este chat a humano / automático';
+      btn.setAttribute('aria-label','Pasar este chat a humano / automático');
+      btn.classList.add('tu6q-hum-btn');
+    }
+  });
 
- // Si el último es del usuario, siempre mostrar abajo para que vea que envió.
- if(last.classList.contains('user')){
-   visitorLockUntil=0;
-   setTimeout(()=>{box.scrollTop=box.scrollHeight},40);
-   return;
- }
-
- // Si tocó el historial hace poco, respetar.
- if(Date.now()<visitorLockUntil)return;
-
- // Asistente: inicio de la última respuesta.
- setTimeout(()=>{if(Date.now()<visitorLockUntil)return; box.scrollTop=Math.max(0,last.offsetTop-16)},80);
+  // Si por versiones anteriores quedó más de un HUM, dejar solo el primero dentro de la botonera.
+  let found=false;
+  qa('button', tools).forEach(btn=>{
+    const txt=(btn.innerText||btn.textContent||'').trim();
+    if(txt==='HUM'){
+      if(found) btn.style.display='none';
+      found=true;
+    }
+  });
 }
 
-const oldScrollInto=Element.prototype.scrollIntoView;
-if(oldScrollInto&&!oldScrollInto.__tu6p){
- Element.prototype.scrollIntoView=function(){
-   if(this.closest&&this.closest('#chat-popover.open .chat-msgs')&&isVisitor()&&Date.now()<visitorLockUntil)return;
-   return oldScrollInto.apply(this,arguments);
- };
- Element.prototype.scrollIntoView.__tu6p=1;
+// 2) Deshacer HUM accidental fuera de botonera: no tocar contenido de mensajes/lista.
+function undoBadHumOutsideTools(){
+  qa('#chat-popover.open .chat-bubble button, #chat-popover.open .chat-tab button, #chat-popover.open .chat-list-item button, #chat-popover.open .chat-inbox-item button').forEach(btn=>{
+    if((btn.innerText||'').trim()==='HUM' && !btn.closest('.chat-admin-tools,.chat-tools,.admin-tools')){
+      if(btn.dataset.tu6pOrig) btn.innerText=btn.dataset.tu6pOrig;
+      else btn.style.display='none';
+    }
+  });
 }
 
-// 2) Después de fallback/WhatsApp, el asistente no debe quedar muerto.
-// Si el usuario sigue consultando y no dejó teléfono, responder normal.
-// Si deja teléfono, confirmar, pero luego limpiar flags para futuras consultas.
-function extractPhone(text){const m=String(text||'').match(/(?:\+?54)?(?:\D*\d){8,14}/);if(!m)return '';const d=m[0].replace(/\D/g,'');return d.length>=8?d:''}
-const oldResponder=window.responderAutomaticoChat;
-if(typeof oldResponder==='function'&&!oldResponder.__tu6p){
- const responder6p=async function(id,text){
-   const c=chats()[id]||{};
-   const phone=extractPhone(text);
+// 3) AUTO vuelve a funcionar limpiando flags del chat.
+window.tomaunoToggleModoChatActual = async function(id){
+  const chatId=id||adminId();
+  if(!chatId) return;
+  const c=chats()[chatId]||{};
+  const toHuman=!c.humanMode;
 
-   if((c.humanRequested||c.waitingHuman||c.humanFallbackSent)&&phone){
-     await updateChat(id,{
-       whatsapp:phone,telefono:phone,phone:phone,consultaJavier:true,
-       humanRequested:false,waitingHuman:false,humanFallbackSent:false,humanConfirm:true,
-       priority:false,prioridad:false,unreadAdmin:true,
-       updatedAt:Date.now(),lastUserMsg:text,lastUserAt:Date.now(),
-       resumenTema:c.resumenTema||'Consulta',resumenConsulta:text
-     });
-     await pushMessage(id,{from:'admin',auto:true,text:'✅ Perfecto. Ya quedó registrada tu consulta.\n\nApenas pueda la revisa y te responde por WhatsApp.\n\nMuchas gracias.',time:chatTimeSafe(),createdAt:Date.now(),humanConfirm:true});
-     return;
-   }
+  if(toHuman){
+    await updateChat(chatId,{
+      humanMode:true,
+      manualUntil:Date.now()+3600000,
+      javierOnline:true,
+      javierOnlineAt:Date.now(),
+      humanRequested:false,
+      waitingHuman:false,
+      priority:false,
+      prioridad:false,
+      unreadAdmin:false
+    });
+    safe(()=>toast('👤 Este chat queda en humano',true));
+  }else{
+    await updateChat(chatId,{
+      humanMode:false,
+      manualUntil:0,
+      javierOnline:false,
+      javierOnlineAt:0,
+      humanRequested:false,
+      waitingHuman:false,
+      humanFallbackSent:false,
+      priority:false,
+      prioridad:false,
+      unreadAdmin:false,
+      autoRestoredAt:Date.now()
+    });
+    safe(()=>toast('🤖 Este chat vuelve a automático',true));
+  }
+  setTimeout(()=>safe(()=>abrirChatAdmin(chatId,true)),80);
+};
 
-   // Si ya se pidió WhatsApp pero el usuario sigue preguntando sin teléfono, volver al asistente normal.
-   if((c.waitingHuman||c.humanFallbackSent) && !phone){
-     await updateChat(id,{humanRequested:false,waitingHuman:false,humanFallbackSent:false,priority:false,prioridad:false,updatedAt:Date.now()});
-   }
+window.toggleModoAsistenteChat=function(){
+  const id=adminId();
+  if(id&&q('#chat-popover.open #chat-admin-text')) return window.tomaunoToggleModoChatActual(id);
+  safe(()=>toast('Abrí un chat para pasarlo a humano/auto.',true));
+};
 
-   return oldResponder.apply(this,arguments);
- };
- responder6p.__tu6p=1;window.responderAutomaticoChat=responder6p;try{responderAutomaticoChat=responder6p}catch(e){}
+// 4) Scroll visitante: si envía usuario, baja; si responde asistente, inicio de respuesta; si toca scroll, no mover.
+function lockVisitor(){
+  if(!isVisitor()) return;
+  visitorLockUntil=Date.now()+22000;
+  window.__tomaunoVisitorReadingUntil=visitorLockUntil;
+}
+['wheel','touchstart','touchmove','pointerdown','mousedown'].forEach(ev=>{
+  document.addEventListener(ev,e=>{
+    if(e.target&&e.target.closest&&e.target.closest('#chat-popover.open .chat-msgs')) lockVisitor();
+  },true);
+});
+
+function smartScroll(){
+  if(!isVisitor()) return;
+  const box=q('#chat-popover.open .chat-msgs');
+  if(!box) return;
+  const bubbles=qa('.chat-bubble',box);
+  if(!bubbles.length) return;
+
+  const last=bubbles[bubbles.length-1];
+  const txt=(last.innerText||'').trim();
+  const key=(last.className||'')+'|'+txt.slice(0,120)+'|'+txt.length+'|'+last.offsetTop;
+  if(key===lastScrollKey) return;
+  lastScrollKey=key;
+
+  if(last.classList.contains('user')){
+    visitorLockUntil=0;
+    setTimeout(()=>{box.scrollTop=box.scrollHeight},50);
+    return;
+  }
+
+  if(Date.now()<visitorLockUntil) return;
+  setTimeout(()=>{if(Date.now()<visitorLockUntil)return; box.scrollTop=Math.max(0,last.offsetTop-16)},90);
 }
 
-// 3) Botón humano compacto HUM.
-function compactHumanButtons(){
- qa('#chat-popover.open button').forEach(btn=>{
-   const t=(btn.innerText||btn.textContent||'').trim();
-   if(/humano|humana|javier|persona/i.test(t) && !/whatsapp|instagram|ubic/i.test(t)){
-     btn.dataset.tu6pOrig=t;
-     btn.innerText='HUM';
-     btn.title='Pasar este chat a humano / Javier';
-     btn.setAttribute('aria-label','Pasar este chat a humano');
-     btn.style.minWidth='44px';
-     btn.style.paddingLeft='10px';
-     btn.style.paddingRight='10px';
-   }
- });
-}
-
-// 4) Borrar mensajes del asistente visibles.
-// Nota: si no encuentro el id real del mensaje, lo oculta visualmente y lo marca en localStorage.
-function hiddenKey(chatId,txt){return 'tu_hidden_msg_'+chatId+'_'+String(txt||'').slice(0,80)}
-function addDeleteButtons(){
- const chatId=isAdmin()?adminId():visitorId();
- if(!chatId)return;
- qa('#chat-popover.open .chat-bubble.admin').forEach(b=>{
-   if(b.querySelector('.tu6p-del'))return;
-   const txt=(b.innerText||'').trim();
-   if(!txt)return;
-   try{if(localStorage.getItem(hiddenKey(chatId,txt))==='1'){b.remove();return}}catch(e){}
-   const del=document.createElement('button');
-   del.type='button';
-   del.className='tu6p-del';
-   del.innerText='🗑️';
-   del.title='Ocultar/borrar este mensaje del asistente';
-   del.addEventListener('click',function(ev){
-     ev.preventDefault();ev.stopPropagation();
-     try{localStorage.setItem(hiddenKey(chatId,txt),'1')}catch(e){}
-     b.remove();
-   },true);
-   b.appendChild(del);
- });
-}
-
-// 5) Nombres repetidos más robustos: buscar nodo real y también agregar badge visual.
-function duplicateNames(){
- const db=chats(), groups={}, order={};
- Object.entries(db).forEach(([id,c])=>{
-   const n=String(c.name||c.nombre||'').trim().toLowerCase();
-   if(!n)return;
-   if(!groups[n])groups[n]=[];
-   groups[n].push(id);
- });
- Object.keys(groups).forEach(k=>groups[k].forEach((id,idx)=>order[id]=idx+1));
-
- qa('.chat-tab,.chat-list-item,.chat-inbox-item,[data-chat-id]').forEach(el=>{
-   const id=el.getAttribute('data-chat-id')||el.dataset.chatId||''; if(!id)return;
-   const c=db[id]||{}, n=String(c.name||c.nombre||'').trim(); if(!n)return;
-   const k=n.toLowerCase(); if(!groups[k]||groups[k].length<2)return;
-   const num=order[id]||1;
-   if(num<=1)return;
-   if(!el.querySelector('.tu6p-dupe')){
-     const badge=document.createElement('span');
-     badge.className='tu6p-dupe';
-     badge.textContent=' '+num;
-     badge.title='Nombre repetido';
-     const nameNode=el.querySelector('.chat-tab-name,.chat-name,strong,b,.name')||el.firstElementChild||el;
-     nameNode.appendChild(badge);
-   }
- });
-}
-
-// 6) Amarillo fuerte para espera.
+// 5) Amarillo/📣/⭐ fuerte desde 6O.
 function isUnread(c){return !!(c&&(c.unreadAdmin||c.hasNewAdmin||c.hasNew||c.unread))}
 function isHumanCall(c){return !!(c&&c.humanRequested&&!c.humanFallbackSent&&!c.humanConfirm)}
 function isOnline(c){return !!(c&&(c.userOnline||c.online||c.isOnline||(c.userLastSeen&&Date.now()-Number(c.userLastSeen)<70000)))}
 function hasLead(c){return !!(c&&(c.humanFallbackSent||c.humanConfirm||c.whatsapp||c.phone||c.telefono||c.resumenConsulta||c.consultaJavier))}
+function getItemId(el){return el.getAttribute('data-chat-id')||el.dataset.chatId||''}
+
 function strongStates(){
- qa('.chat-tab,.chat-list-item,.chat-inbox-item,[data-chat-id]').forEach(el=>{
-   const id=el.getAttribute('data-chat-id')||el.dataset.chatId||''; if(!id)return;
-   const c=chats()[id]||{};
-   const red=isHumanCall(c), yellow=!red&&isUnread(c), green=!red&&!yellow&&isOnline(c);
-   el.classList.toggle('priority',red);el.classList.toggle('unread',yellow);el.classList.toggle('online',green);el.classList.toggle('javier-lead',hasLead(c));
-   if(red){el.style.borderColor='#e8000a';el.style.boxShadow='inset 3px 0 0 rgba(232,0,10,.95)'}
-   else if(yellow){el.style.borderColor='#ffd54a';el.style.boxShadow='inset 3px 0 0 rgba(255,213,74,.95)'}
-   else if(green){el.style.borderColor='rgba(56,210,122,.55)';el.style.boxShadow=''}
-   else{el.style.borderColor='';el.style.boxShadow=''}
-   if(red&&!el.querySelector('.tu6p-mega'))el.insertAdjacentHTML('afterbegin','<span class="tu6p-mega" title="Llamada a Javier">📣</span>');
-   if(hasLead(c)&&!el.querySelector('.tu6p-star'))el.insertAdjacentHTML('afterbegin','<span class="tu6p-star" title="Consulta/WhatsApp para revisar">⭐</span>');
- });
+  qa('.chat-tab,.chat-list-item,.chat-inbox-item,[data-chat-id]').forEach(el=>{
+    const id=getItemId(el); if(!id) return;
+    const c=chats()[id]||{};
+    const red=isHumanCall(c);
+    const yellow=!red&&isUnread(c);
+    const green=!red&&!yellow&&isOnline(c);
+
+    el.classList.toggle('priority',red);
+    el.classList.toggle('unread',yellow);
+    el.classList.toggle('online',green);
+    el.classList.toggle('javier-lead',hasLead(c));
+
+    if(red){
+      el.style.borderColor='#e8000a';
+      el.style.boxShadow='inset 3px 0 0 rgba(232,0,10,.95)';
+    }else if(yellow){
+      el.style.borderColor='#ffd54a';
+      el.style.boxShadow='inset 3px 0 0 rgba(255,213,74,.95)';
+    }else if(green){
+      el.style.borderColor='rgba(56,210,122,.55)';
+      el.style.boxShadow='';
+    }else{
+      el.style.borderColor='';
+      el.style.boxShadow='';
+    }
+
+    if(red&&!el.querySelector('.tu6q-mega')) el.insertAdjacentHTML('afterbegin','<span class="tu6q-mega" title="Llamada a Javier">📣</span>');
+    if(hasLead(c)&&!el.querySelector('.tu6q-star')) el.insertAdjacentHTML('afterbegin','<span class="tu6q-star" title="Consulta/WhatsApp para revisar">⭐</span>');
+  });
+}
+
+// 6) Nombres repetidos con badge, sin cambiar toda la línea.
+function duplicateNames(){
+  const db=chats(), groups={}, order={};
+  Object.entries(db).forEach(([id,c])=>{
+    const n=String(c.name||c.nombre||'').trim().toLowerCase();
+    if(!n) return;
+    if(!groups[n]) groups[n]=[];
+    groups[n].push(id);
+  });
+  Object.keys(groups).forEach(k=>groups[k].forEach((id,i)=>order[id]=i+1));
+
+  qa('.chat-tab,.chat-list-item,.chat-inbox-item,[data-chat-id]').forEach(el=>{
+    const id=getItemId(el); if(!id) return;
+    const c=db[id]||{};
+    const n=String(c.name||c.nombre||'').trim().toLowerCase();
+    if(!n||!groups[n]||groups[n].length<2) return;
+    const num=order[id]||1;
+    if(num<=1) return;
+    if(!el.querySelector('.tu6q-dupe')){
+      const badge=document.createElement('span');
+      badge.className='tu6q-dupe';
+      badge.textContent=String(num);
+      badge.title='Nombre repetido';
+      const node=el.querySelector('.chat-tab-name,.chat-name,strong,b,.name')||el.firstElementChild||el;
+      node.appendChild(badge);
+    }
+  });
 }
 
 function css(){
- if(q('#tu6p-css'))return;
- const st=document.createElement('style');st.id='tu6p-css';
- st.textContent=`
- .tu6p-del{display:inline-flex!important;margin-left:7px!important;border:1px solid rgba(255,255,255,.25)!important;background:rgba(0,0,0,.18)!important;color:#fff!important;border-radius:50%!important;width:24px!important;height:24px!important;align-items:center!important;justify-content:center!important;font-size:12px!important;cursor:pointer!important;vertical-align:middle!important}
- .tu6p-dupe{display:inline-flex!important;align-items:center!important;justify-content:center!important;min-width:18px!important;height:18px!important;border-radius:99px!important;background:#e8000a!important;color:#fff!important;font-size:11px!important;margin-left:4px!important;padding:0 5px!important}
- .tu6p-star,.tu6p-mega{display:inline-flex!important;margin-right:4px!important;color:#ffd54a!important;filter:drop-shadow(0 0 5px rgba(255,213,74,.65))!important}
- `;
- document.head.appendChild(st);
+  if(q('#tu6q-css')) return;
+  const st=document.createElement('style');
+  st.id='tu6q-css';
+  st.textContent=`
+    .tu6q-hum-btn{min-width:44px!important;padding-left:10px!important;padding-right:10px!important;}
+    .tu6q-dupe{display:inline-flex!important;align-items:center!important;justify-content:center!important;min-width:18px!important;height:18px!important;border-radius:99px!important;background:#e8000a!important;color:#fff!important;font-size:11px!important;margin-left:4px!important;padding:0 5px!important}
+    .tu6q-star,.tu6q-mega{display:inline-flex!important;margin-right:4px!important;color:#ffd54a!important;filter:drop-shadow(0 0 5px rgba(255,213,74,.65))!important}
+  `;
+  document.head.appendChild(st);
 }
 css();
 
-setInterval(()=>{smartVisitorScroll();compactHumanButtons();addDeleteButtons();duplicateNames();strongStates()},650);
+setInterval(()=>{fixHumButtonOnly();undoBadHumOutsideTools();smartScroll();strongStates();duplicateNames()},650);
+})();
+
+
+// TOMAUNO v28b FINAL 6R — BASURERO SOLO ADM
+(function(){
+'use strict';
+
+function q(s,r){return (r||document).querySelector(s)}
+function qa(s,r){return Array.from((r||document).querySelectorAll(s))}
+function isAdminView(){
+  return !!q('#chat-popover.open #chat-admin-text,#chat-popover.open .chat-inbox-side,#chat-popover.open .chat-admin-tools');
+}
+function isVisitorView(){
+  return !!q('#chat-popover.open #chat-text') && !isAdminView();
+}
+
+// 1) El visitante nunca debe ver basureros en mensajes.
+function removeTrashFromVisitor(){
+  if(!isVisitorView()) return;
+  qa('#chat-popover.open .chat-bubble .tu6p-del, #chat-popover.open .chat-bubble .tu-msg-del, #chat-popover.open .chat-bubble button').forEach(btn=>{
+    const t=(btn.innerText||btn.textContent||'').trim();
+    if(t==='🗑️' || /borrar|eliminar/i.test(btn.title||'')){
+      btn.remove();
+    }
+  });
+}
+
+// 2) Si alguna versión anterior agregó botón borrar, ocultarlo globalmente en visitante por CSS.
+function css(){
+  if(q('#tu6r-css')) return;
+  const st=document.createElement('style');
+  st.id='tu6r-css';
+  st.textContent=`
+    #chat-popover.open:not(:has(#chat-admin-text)) .tu6p-del,
+    #chat-popover.open:not(:has(#chat-admin-text)) .tu-msg-del{
+      display:none!important;
+    }
+  `;
+  document.head.appendChild(st);
+}
+css();
+
+setInterval(removeTrashFromVisitor,500);
 })();
