@@ -16730,3 +16730,445 @@ function css(){
 css();
 setInterval(()=>{addSilenceButton();markSilencedVisual();dedupeButtonsStrong();centerMaximizedAdmin()},650);
 })();
+
+
+// TOMAUNO v28b FINAL 6U — ESTABILIDAD UI
+(function(){
+'use strict';
+
+function safe(fn){try{return fn()}catch(e){try{console.warn('TU final6u:',e)}catch(_){}}}
+function q(s,r){return (r||document).querySelector(s)}
+function qa(s,r){return Array.from((r||document).querySelectorAll(s))}
+
+let lastVisitorKey='';
+let adminOpenLockUntil=0;
+let lastFabClick=0;
+
+function isVisitor(){return !!q('#chat-popover.open #chat-text')&&!q('#chat-popover.open #chat-admin-text')}
+function isAdmin(){return !!q('#chat-popover.open #chat-admin-text,#chat-popover.open .chat-inbox-side,#chat-popover.open .chat-admin-tools')}
+function chats(){return safe(()=>window.chatsDB||chatsDB||{})||{}}
+function getItemId(el){return el.getAttribute('data-chat-id')||el.dataset.chatId||''}
+
+// Scroll visitante: simple y estable, siempre al final cuando aparece una burbuja nueva.
+function forceVisitorBottom(){
+ if(!isVisitor())return;
+ const box=q('#chat-popover.open .chat-msgs'); if(!box)return;
+ const bubbles=qa('.chat-bubble',box); if(!bubbles.length)return;
+ const last=bubbles[bubbles.length-1];
+ const key=(last.className||'')+'|'+(last.innerText||'').slice(0,160)+'|'+(last.innerText||'').length+'|'+last.offsetTop;
+ if(key===lastVisitorKey)return;
+ lastVisitorKey=key;
+ setTimeout(()=>{box.scrollTop=box.scrollHeight},80);
+ setTimeout(()=>{box.scrollTop=box.scrollHeight},260);
+}
+
+// Blindaje scrollIntoView: evita quedar en medio.
+const oldScrollInto=Element.prototype.scrollIntoView;
+if(oldScrollInto&&!oldScrollInto.__tu6u){
+ Element.prototype.scrollIntoView=function(){
+  if(this.closest&&this.closest('#chat-popover.open .chat-msgs')&&isVisitor()){
+   setTimeout(()=>{const box=q('#chat-popover.open .chat-msgs'); if(box)box.scrollTop=box.scrollHeight},60);
+  }
+  return oldScrollInto.apply(this,arguments);
+ };
+ Element.prototype.scrollIntoView.__tu6u=1;
+}
+
+function stableRows(){
+ qa('.chat-tab,.chat-list-item,.chat-inbox-item,[data-chat-id]').forEach(row=>row.classList.add('tu6u-stable-row'));
+}
+
+function applyStableStates(){
+ qa('.chat-tab,.chat-list-item,.chat-inbox-item,[data-chat-id]').forEach(el=>{
+  const id=getItemId(el);
+  const c=id?(chats()[id]||{}):{};
+  const txt=(el.innerText||'').toLowerCase();
+
+  const red=!!(c.humanRequested&&!c.humanFallbackSent&&!c.humanConfirm) || (/atenci[oó]n javier|humano|llamada|javier/.test(txt) && /esperando|prioridad/.test(txt));
+  const yellow=!red && (!!(c.unreadAdmin||c.hasNewAdmin||c.hasNew||c.unread) || /esperando|pendiente|sin leer/.test(txt));
+  const green=!red&&!yellow&&(!!(c.userOnline||c.online||c.isOnline||(c.userLastSeen&&Date.now()-Number(c.userLastSeen)<70000)) || /online|en l[ií]nea/.test(txt));
+
+  el.classList.toggle('tu6u-red',red);
+  el.classList.toggle('tu6u-yellow',yellow);
+  el.classList.toggle('tu6u-green',green);
+
+  if(red&&!el.querySelector('.tu6u-mega'))el.insertAdjacentHTML('afterbegin','<span class="tu6u-mega" title="Llamada / Atención Javier">📣</span>');
+  const lead=!!(c.humanFallbackSent||c.humanConfirm||c.whatsapp||c.phone||c.telefono||c.resumenConsulta||c.consultaJavier)||/whatsapp|consulta/i.test(txt);
+  if(lead&&!el.querySelector('.tu6u-star'))el.insertAdjacentHTML('afterbegin','<span class="tu6u-star" title="Consulta/WhatsApp pendiente">⭐</span>');
+ });
+}
+
+function markDuplicates(){
+ const db=chats();
+ const groups={}, order={};
+ Object.entries(db).forEach(([id,c])=>{
+  const n=String(c.name||c.nombre||'').trim().toLowerCase();
+  if(!n)return;
+  if(!groups[n])groups[n]=[];
+  groups[n].push(id);
+ });
+ Object.keys(groups).forEach(k=>groups[k].forEach((id,i)=>order[id]=i+1));
+
+ qa('.chat-tab,.chat-list-item,.chat-inbox-item,[data-chat-id]').forEach(el=>{
+  const id=getItemId(el); if(!id)return;
+  const c=db[id]||{};
+  const n=String(c.name||c.nombre||'').trim().toLowerCase();
+  if(!n||!groups[n]||groups[n].length<2)return;
+  const num=order[id]||1;
+  if(num<=1)return;
+  if(!el.querySelector('.tu6u-dupe')){
+   const badge=document.createElement('span');
+   badge.className='tu6u-dupe';
+   badge.textContent='#'+num;
+   badge.title='Nombre repetido';
+   const node=el.querySelector('.chat-tab-name,.chat-name,strong,b,.name')||el.firstElementChild||el;
+   node.appendChild(badge);
+  }
+ });
+}
+
+// Reducir abre/cierra por doble clic rápido.
+const oldPanel=window.abrirPanelChatsAdmin;
+if(typeof oldPanel==='function'&&!oldPanel.__tu6u){
+ const panel6u=function(){
+  adminOpenLockUntil=Date.now()+1200;
+  return oldPanel.apply(this,arguments);
+ };
+ panel6u.__tu6u=1;
+ window.abrirPanelChatsAdmin=panel6u;
+ try{abrirPanelChatsAdmin=panel6u}catch(e){}
+}
+const oldClose=window.cerrarChatPopover;
+if(typeof oldClose==='function'&&!oldClose.__tu6u){
+ const close6u=function(){
+  if(Date.now()<adminOpenLockUntil&&isAdmin())return;
+  return oldClose.apply(this,arguments);
+ };
+ close6u.__tu6u=1;
+ window.cerrarChatPopover=close6u;
+ try{cerrarChatPopover=close6u}catch(e){}
+}
+document.addEventListener('click',e=>{
+ const fab=e.target&&e.target.closest&&e.target.closest('#chat-fab,.chat-fab,[data-chat-fab]');
+ if(!fab)return;
+ const now=Date.now();
+ if(now-lastFabClick<450){
+  e.preventDefault();e.stopPropagation();if(e.stopImmediatePropagation)e.stopImmediatePropagation();return false;
+ }
+ lastFabClick=now;
+},true);
+
+function improveInbox(){
+ const pop=q('#chat-popover.open'); if(!pop)return;
+ const inbox=q('#chat-popover.open .chat-inbox-full,#chat-popover.open .chat-inbox-list,#chat-popover.open .chat-inbox-side');
+ const isInbox=!!inbox&&!q('#chat-popover.open #chat-admin-text');
+ pop.classList.toggle('tu6u-inbox-mode',isInbox);
+}
+
+function buttonIntent(el){
+ const text=(el.innerText||el.textContent||'').toLowerCase();
+ const href=(el.getAttribute&&el.getAttribute('href')||'').toLowerCase();
+ const ds=(el.dataset&&(el.dataset.tuAction||el.dataset.action||el.dataset.target)||'').toLowerCase();
+ const all=text+' '+href+' '+ds;
+ if(/servicio|servicios/.test(all))return 'servicios';
+ if(/curso|cursos/.test(all))return 'cursos';
+ if(/evento|eventos/.test(all))return 'eventos';
+ if(/ubicaci|mapa|maps|pedro/.test(all))return 'ubicacion';
+ if(/whatsapp|wa\.me/.test(all))return 'whatsapp';
+ if(/instagram/.test(all))return 'instagram';
+ if(/info/.test(all))return 'info';
+ return text.trim()||href||ds;
+}
+function dedupeButtons(){
+ qa('#chat-popover.open .chat-bubble.admin').forEach(b=>{
+  const seen={};
+  qa('button,.chat-action,.tu6j-action,a',b).forEach(el=>{
+   const key=buttonIntent(el);
+   if(!key)return;
+   if(seen[key])el.remove();else seen[key]=true;
+  });
+ });
+}
+
+function css(){
+ if(q('#tu6u-css'))return;
+ const st=document.createElement('style');
+ st.id='tu6u-css';
+ st.textContent=`
+ .tu6u-stable-row{min-height:58px!important;height:auto!important;padding-top:9px!important;padding-bottom:9px!important;transition:none!important;transform:none!important;will-change:auto!important}
+ .tu6u-stable-row *{transition:none!important}
+ .tu6u-red{border-color:#e8000a!important;box-shadow:inset 3px 0 0 rgba(232,0,10,.95)!important}
+ .tu6u-yellow{border-color:#ffd54a!important;box-shadow:inset 3px 0 0 rgba(255,213,74,.95)!important}
+ .tu6u-green:not(.tu6u-yellow):not(.tu6u-red){border-color:rgba(56,210,122,.55)!important;box-shadow:none!important}
+ .tu6u-star,.tu6u-mega{display:inline-flex!important;margin-right:4px!important;color:#ffd54a!important;filter:drop-shadow(0 0 5px rgba(255,213,74,.65))!important}
+ .tu6u-dupe{display:inline-flex!important;align-items:center!important;justify-content:center!important;min-width:22px!important;height:18px!important;border-radius:99px!important;background:#e8000a!important;color:#fff!important;font-size:11px!important;margin-left:5px!important;padding:0 6px!important;vertical-align:middle!important}
+ #chat-popover.open.tu6u-inbox-mode{width:min(900px,96vw)!important;max-width:min(900px,96vw)!important;left:50%!important;transform:translateX(-50%)!important}
+ #chat-popover.open.tu6u-inbox-mode .chat-inbox-list,#chat-popover.open.tu6u-inbox-mode .chat-inbox-full,#chat-popover.open.tu6u-inbox-mode .chat-inbox-side{width:100%!important;max-width:none!important;max-height:calc(92vh - 140px)!important;overflow:auto!important}
+ `;
+ document.head.appendChild(st);
+}
+css();
+
+setInterval(()=>{forceVisitorBottom();stableRows();applyStableStates();markDuplicates();improveInbox();dedupeButtons()},650);
+})();
+
+
+// TOMAUNO v28b FINAL 6V — SILENCIO REAL DE ALARMA
+// No toca cerebro ni respuestas. Solo corta audio de alarmas cuando el ADM atiende.
+(function(){
+'use strict';
+
+function safe(fn){try{return fn()}catch(e){try{console.warn('TU final6v:',e)}catch(_){}}}
+function q(s,r){return (r||document).querySelector(s)}
+function qa(s,r){return Array.from((r||document).querySelectorAll(s))}
+
+function adminId(){return safe(()=>window.currentOpenChatId||currentOpenChatId||'')||''}
+function isAdmin(){return !!q('#chat-popover.open #chat-admin-text,#chat-popover.open .chat-inbox-side,#chat-popover.open .chat-admin-tools')}
+
+window.tomaunoMuteAlarmsUntil = window.tomaunoMuteAlarmsUntil || 0;
+
+function muteAlarms(ms){
+  window.tomaunoMuteAlarmsUntil = Date.now() + (ms || 120000);
+  try{ localStorage.setItem('tomaunoMuteAlarmsUntil', String(window.tomaunoMuteAlarmsUntil)); }catch(e){}
+}
+
+function isMuted(){
+  let v = window.tomaunoMuteAlarmsUntil || 0;
+  try{ v = Math.max(v, Number(localStorage.getItem('tomaunoMuteAlarmsUntil')||0)); }catch(e){}
+  return Date.now() < v;
+}
+
+// 1) Silenciar osciladores WebAudio mientras esté muteado.
+// Esto corta incluso alarmas viejas que quedaron con setTimeout activo.
+safe(()=>{
+  if(window.__tu6vOscillatorPatch) return;
+  window.__tu6vOscillatorPatch = true;
+  if(window.OscillatorNode && OscillatorNode.prototype && OscillatorNode.prototype.start){
+    const oldStart = OscillatorNode.prototype.start;
+    OscillatorNode.prototype.start = function(){
+      if(isMuted()) return;
+      return oldStart.apply(this, arguments);
+    };
+  }
+});
+
+// 2) Silenciar audio HTML si alguna alarma usa <audio>.
+safe(()=>{
+  if(window.__tu6vAudioPatch) return;
+  window.__tu6vAudioPatch = true;
+  if(window.HTMLMediaElement && HTMLMediaElement.prototype && HTMLMediaElement.prototype.play){
+    const oldPlay = HTMLMediaElement.prototype.play;
+    HTMLMediaElement.prototype.play = function(){
+      if(isMuted()) return Promise.resolve();
+      return oldPlay.apply(this, arguments);
+    };
+  }
+});
+
+// 3) Al abrir chat ADM, silenciar. Es lo que querías: llego a la PC, abro el chat, deja de sonar.
+const oldOpenAdmin = window.abrirChatAdmin;
+if(typeof oldOpenAdmin === 'function' && !oldOpenAdmin.__tu6v){
+  const open6v = function(id, silent){
+    const r = oldOpenAdmin.apply(this, arguments);
+    if(id) muteAlarms(120000);
+    return r;
+  };
+  open6v.__tu6v = 1;
+  window.abrirChatAdmin = open6v;
+  try{ abrirChatAdmin = open6v; }catch(e){}
+}
+
+// 4) Al responder desde ADM, silenciar.
+const oldSendAdmin = window.enviarChatAdmin;
+if(typeof oldSendAdmin === 'function' && !oldSendAdmin.__tu6v){
+  const send6v = async function(){
+    muteAlarms(120000);
+    return oldSendAdmin.apply(this, arguments);
+  };
+  send6v.__tu6v = 1;
+  window.enviarChatAdmin = send6v;
+  try{ enviarChatAdmin = send6v; }catch(e){}
+}
+
+// 5) Al pasar a HUM/AUTO, silenciar.
+const oldToggle = window.tomaunoToggleModoChatActual;
+if(typeof oldToggle === 'function' && !oldToggle.__tu6v){
+  const toggle6v = function(){
+    muteAlarms(120000);
+    return oldToggle.apply(this, arguments);
+  };
+  toggle6v.__tu6v = 1;
+  window.tomaunoToggleModoChatActual = toggle6v;
+}
+
+// 6) Botón visible 🔕 en herramientas ADM.
+function addMuteButton(){
+  if(!isAdmin()) return;
+  const tools = q('#chat-popover.open .chat-admin-tools') || q('#chat-popover.open .chat-tools') || q('#chat-popover.open .admin-tools');
+  if(!tools || tools.querySelector('.tu6v-mute')) return;
+  const btn = document.createElement('button');
+  btn.type = 'button';
+  btn.className = 'tu6v-mute';
+  btn.textContent = '🔕';
+  btn.title = 'Silenciar alarmas por 2 minutos';
+  btn.setAttribute('aria-label','Silenciar alarmas');
+  btn.addEventListener('click', ev=>{
+    ev.preventDefault();
+    ev.stopPropagation();
+    muteAlarms(120000);
+    safe(()=>toast('🔕 Alarmas silenciadas por 2 minutos', true));
+  }, true);
+  tools.appendChild(btn);
+}
+
+// 7) Si el ADM está mirando un chat con llamada, también silenciar automáticamente.
+function autoMuteWhenViewingCall(){
+  if(!isAdmin()) return;
+  const id = adminId();
+  if(!id) return;
+  const txt = q('#chat-popover.open .chat-msgs')?.innerText || '';
+  if(/Aguardá un momento|intentar conectar con Javier|llamada para Javier/i.test(txt)){
+    muteAlarms(120000);
+  }
+}
+
+function css(){
+  if(q('#tu6v-css')) return;
+  const st = document.createElement('style');
+  st.id = 'tu6v-css';
+  st.textContent = `
+    .tu6v-mute{
+      border:1px solid rgba(255,255,255,.18)!important;
+      background:rgba(255,255,255,.06)!important;
+      color:#fff!important;
+      border-radius:999px!important;
+      width:38px!important;
+      height:38px!important;
+      display:inline-flex!important;
+      align-items:center!important;
+      justify-content:center!important;
+      cursor:pointer!important;
+      font-weight:900!important;
+    }
+  `;
+  document.head.appendChild(st);
+}
+css();
+
+setInterval(()=>{addMuteButton();autoMuteWhenViewingCall()},700);
+})();
+
+
+// TOMAUNO v28b FINAL 6W — ESTABILIZACIÓN CHAT
+(function(){
+'use strict';
+function safe(fn){try{return fn()}catch(e){try{console.warn('TU final6w:',e)}catch(_){}}}
+function q(s,r){return (r||document).querySelector(s)}
+function qa(s,r){return Array.from((r||document).querySelectorAll(s))}
+function chats(){return safe(()=>window.chatsDB||chatsDB||{})||{}}
+function isVisitor(){return !!q('#chat-popover.open #chat-text')&&!q('#chat-popover.open #chat-admin-text')}
+function isAdmin(){return !!q('#chat-popover.open #chat-admin-text,#chat-popover.open .chat-inbox-side,#chat-popover.open .chat-admin-tools')}
+function getId(el){return el.getAttribute('data-chat-id')||el.dataset.chatId||''}
+
+let lastVisitorKey='', lastPanelSig='', visitorManualUntil=0;
+
+function lockVisitor(){if(!isVisitor())return;visitorManualUntil=Date.now()+12000;window.__tomaunoVisitorReadingUntil=visitorManualUntil}
+['wheel','touchstart','touchmove','pointerdown','mousedown'].forEach(ev=>document.addEventListener(ev,e=>{if(e.target&&e.target.closest&&e.target.closest('#chat-popover.open .chat-msgs'))lockVisitor()},true));
+
+function visitorScrollBottom(){
+ if(!isVisitor()||Date.now()<visitorManualUntil)return;
+ const box=q('#chat-popover.open .chat-msgs'); if(!box)return;
+ const bubbles=qa('.chat-bubble',box); if(!bubbles.length)return;
+ const last=bubbles[bubbles.length-1];
+ const key=(last.className||'')+'|'+(last.innerText||'').slice(0,140)+'|'+(last.innerText||'').length+'|'+last.offsetTop;
+ if(key===lastVisitorKey)return; lastVisitorKey=key;
+ requestAnimationFrame(()=>{if(Date.now()<visitorManualUntil)return;box.scrollTop=box.scrollHeight});
+ setTimeout(()=>{if(Date.now()<visitorManualUntil)return;box.scrollTop=box.scrollHeight},180);
+}
+
+const oldScrollInto=Element.prototype.scrollIntoView;
+if(oldScrollInto&&!oldScrollInto.__tu6w){
+ Element.prototype.scrollIntoView=function(){
+  if(this.closest&&this.closest('#chat-popover.open .chat-msgs')&&isVisitor()){
+   setTimeout(()=>{const box=q('#chat-popover.open .chat-msgs');if(box&&Date.now()>=visitorManualUntil)box.scrollTop=box.scrollHeight},80);
+  }
+  return oldScrollInto.apply(this,arguments);
+ };
+ Element.prototype.scrollIntoView.__tu6w=1;
+}
+
+function panelSig(){
+ return qa('.chat-tab,.chat-list-item,.chat-inbox-item,[data-chat-id]').map(el=>{
+  const id=getId(el), c=id?(chats()[id]||{}):{};
+  return [id,!!c.humanRequested,!!c.humanFallbackSent,!!c.humanConfirm,!!c.unreadAdmin,!!c.whatsapp,!!c.phone,!!c.telefono,!!c.userOnline,c.userLastSeen||''].join(':');
+ }).join('|');
+}
+function stabilizePanel(){
+ const rows=qa('.chat-tab,.chat-list-item,.chat-inbox-item,[data-chat-id]');
+ rows.forEach(row=>row.classList.add('tu6w-row'));
+ const sig=panelSig(); if(sig===lastPanelSig)return; lastPanelSig=sig;
+ const db=chats(), groups={}, order={};
+ Object.entries(db).forEach(([id,c])=>{const n=String(c.name||c.nombre||'').trim().toLowerCase();if(!n)return;if(!groups[n])groups[n]=[];groups[n].push(id)});
+ Object.keys(groups).forEach(k=>groups[k].forEach((id,i)=>order[id]=i+1));
+ rows.forEach(el=>{
+  const id=getId(el); if(!id)return;
+  const c=db[id]||{};
+  const call=!!(c.humanRequested&&!c.humanFallbackSent&&!c.humanConfirm);
+  const lead=!!(c.humanFallbackSent||c.humanConfirm||c.whatsapp||c.phone||c.telefono||c.resumenConsulta||c.consultaJavier);
+  const unread=!!(c.unreadAdmin||c.hasNewAdmin||c.hasNew||c.unread);
+  const online=!!(c.userOnline||c.online||c.isOnline||(c.userLastSeen&&Date.now()-Number(c.userLastSeen)<70000));
+  el.classList.toggle('tu6w-call',call);
+  el.classList.toggle('tu6w-unread',!call&&unread);
+  el.classList.toggle('tu6w-online',!call&&!unread&&online);
+  el.classList.toggle('tu6w-lead',lead);
+  if(call&&!el.querySelector('.tu6w-mega'))el.insertAdjacentHTML('afterbegin','<span class="tu6w-mega" title="Llamada a Javier">📣</span>');
+  if(lead&&!el.querySelector('.tu6w-star'))el.insertAdjacentHTML('afterbegin','<span class="tu6w-star" title="Consulta/WhatsApp pendiente">⭐</span>');
+  const n=String(c.name||c.nombre||'').trim().toLowerCase(), num=order[id]||1;
+  if(n&&groups[n]&&groups[n].length>1&&num>1&&!el.querySelector('.tu6w-dupe')){
+   const badge=document.createElement('span');badge.className='tu6w-dupe';badge.textContent='#'+num;badge.title='Nombre repetido';
+   const node=el.querySelector('.chat-tab-name,.chat-name,strong,b,.name')||el.firstElementChild||el;node.appendChild(badge);
+  }
+ });
+}
+
+function stableInbox(){
+ const pop=q('#chat-popover.open'); if(!pop)return;
+ const inbox=q('#chat-popover.open .chat-inbox-full,#chat-popover.open .chat-inbox-list,#chat-popover.open .chat-inbox-side');
+ const inboxMode=!!inbox&&!q('#chat-popover.open #chat-admin-text');
+ pop.classList.toggle('tu6w-inbox-mode',inboxMode);
+ if(isAdmin()&&(pop.classList.contains('max')||pop.classList.contains('maximized')||pop.classList.contains('fullscreen')||pop.classList.contains('is-maximized'))){
+  pop.style.left='50%';pop.style.right='auto';pop.style.top='50%';pop.style.bottom='auto';pop.style.transform='translate(-50%,-50%)';pop.style.width='min(1180px,96vw)';pop.style.maxWidth='min(1180px,96vw)';pop.style.height='min(820px,94vh)';pop.style.maxHeight='94vh';
+ }
+}
+
+function intent(el){
+ const text=(el.innerText||el.textContent||'').toLowerCase(), href=(el.getAttribute&&el.getAttribute('href')||'').toLowerCase(), ds=(el.dataset&&(el.dataset.tuAction||el.dataset.action||el.dataset.target)||'').toLowerCase();
+ const all=text+' '+href+' '+ds;
+ if(/servicio|servicios/.test(all))return 'servicios';
+ if(/curso|cursos/.test(all))return 'cursos';
+ if(/evento|eventos/.test(all))return 'eventos';
+ if(/ubicaci|mapa|maps|pedro/.test(all))return 'ubicacion';
+ if(/whatsapp|wa\.me/.test(all))return 'whatsapp';
+ if(/instagram/.test(all))return 'instagram';
+ if(/info/.test(all))return 'info';
+ return text.trim()||href||ds;
+}
+function dedupeActions(){
+ qa('#chat-popover.open .chat-bubble.admin').forEach(b=>{
+  const seen={};
+  qa('button,.chat-action,.tu6j-action,a',b).forEach(el=>{const k=intent(el);if(!k)return;if(seen[k])el.remove();else seen[k]=true});
+ });
+}
+function trashOnlyAdmin(){
+ if(!isVisitor())return;
+ qa('#chat-popover.open .chat-bubble .tu6p-del,#chat-popover.open .chat-bubble .tu-msg-del,#chat-popover.open .chat-bubble button').forEach(btn=>{const t=(btn.innerText||btn.textContent||'').trim();if(t==='🗑️'||/borrar|eliminar/i.test(btn.title||''))btn.remove()});
+}
+function css(){
+ if(q('#tu6w-css'))return;
+ const st=document.createElement('style');st.id='tu6w-css';
+ st.textContent=`#chat-popover.open .tu6w-row{min-height:58px!important;height:auto!important;padding-top:9px!important;padding-bottom:9px!important;transition:none!important;transform:none!important;will-change:auto!important;contain:layout paint!important}#chat-popover.open .tu6w-row *{transition:none!important;animation:none!important}.tu6w-call{border-color:#e8000a!important;box-shadow:inset 3px 0 0 rgba(232,0,10,.95)!important}.tu6w-unread{border-color:#ffd54a!important;box-shadow:inset 3px 0 0 rgba(255,213,74,.95)!important}.tu6w-online:not(.tu6w-unread):not(.tu6w-call){border-color:rgba(56,210,122,.55)!important;box-shadow:none!important}.tu6w-lead{outline:1px solid rgba(255,213,74,.35)!important}.tu6w-star,.tu6w-mega{display:inline-flex!important;margin-right:4px!important;color:#ffd54a!important;filter:drop-shadow(0 0 5px rgba(255,213,74,.65))!important}.tu6w-dupe{display:inline-flex!important;align-items:center!important;justify-content:center!important;min-width:22px!important;height:18px!important;border-radius:99px!important;background:#e8000a!important;color:#fff!important;font-size:11px!important;margin-left:5px!important;padding:0 6px!important;vertical-align:middle!important}#chat-popover.open.tu6w-inbox-mode{width:min(900px,96vw)!important;max-width:min(900px,96vw)!important;left:50%!important;transform:translateX(-50%)!important}#chat-popover.open.tu6w-inbox-mode .chat-inbox-list,#chat-popover.open.tu6w-inbox-mode .chat-inbox-full,#chat-popover.open.tu6w-inbox-mode .chat-inbox-side{width:100%!important;max-width:none!important;max-height:calc(92vh - 140px)!important;overflow:auto!important}#chat-popover.open:not(:has(#chat-admin-text)) .tu6p-del,#chat-popover.open:not(:has(#chat-admin-text)) .tu-msg-del{display:none!important}`;
+ document.head.appendChild(st);
+}
+css();
+setInterval(()=>{visitorScrollBottom();stabilizePanel();stableInbox();dedupeActions();trashOnlyAdmin()},700);
+})();
