@@ -15493,202 +15493,232 @@ window.filterCursos = function(){
 })();
 
 
-// TOMAUNO CHAT 7D — LIMPIEZA SIN PANEL
-// Base limpia: conserva hasta FINAL 6J. No toca panel/luces/nombres.
-// Solo: scroll visitante abajo + basurero ADM + un solo silencio.
+// TOMAUNO CHAT 7F — LIMPIEZA RENDER CHAT
+// Base estable. No toca AUTO/HUM ni campanita.
+// Corrige: basureros duplicados, header visitante, apertura ADM, X usuarios, scroll visitante mínimo.
 (function(){
 'use strict';
 
-function safe(fn){try{return fn()}catch(e){try{console.warn('TU chat7d:',e)}catch(_){}}}
+function safe(fn){try{return fn()}catch(e){try{console.warn('TU chat7f:',e)}catch(_){}}}
 function q(s,r){return (r||document).querySelector(s)}
 function qa(s,r){return Array.from((r||document).querySelectorAll(s))}
+function chats(){return safe(()=>window.chatsDB||chatsDB||{})||{}}
+function isVisitor(){return !!q('#chat-popover.open #chat-text')&&!q('#chat-popover.open #chat-admin-text')}
+function isAdmin(){return !!q('#chat-popover.open #chat-admin-text,#chat-popover.open .chat-inbox-side,#chat-popover.open .chat-admin-tools')}
+function adminId(){return safe(()=>window.currentOpenChatId||currentOpenChatId||'')||''}
 
 let lastVisitorKey='';
-let lastForceAt=0;
+let lastOpenedAdminId='';
 
-function isVisitor(){
-  return !!q('#chat-popover.open #chat-text') && !q('#chat-popover.open #chat-admin-text');
-}
-function isAdmin(){
-  return !!q('#chat-popover.open #chat-admin-text,#chat-popover.open .chat-inbox-side,#chat-popover.open .chat-admin-tools');
-}
-function adminId(){
-  return safe(()=>window.currentOpenChatId||currentOpenChatId||'')||'';
-}
-
-// 1) Visitante: si aparece mensaje nuevo, bajar al final.
-// No intenta acomodar al inicio. No toca ADM.
-function visitorBottom(){
+// 1) Encabezado visitante: una sola regla visual, sin parpadeo.
+function fixVisitorHeader(){
   if(!isVisitor()) return;
 
-  const box=q('#chat-popover.open .chat-msgs');
-  if(!box) return;
+  const id = safe(()=>window.currentVisitorChatId||currentVisitorChatId||sessionStorage.getItem('tomauno-chat-id')||'')||'';
+  const c = (id && chats()[id]) || {};
+  const human = !!(
+    c.humanMode &&
+    c.javierOnline &&
+    c.javierOnlineAt &&
+    Date.now() - Number(c.javierOnlineAt) < 15 * 60 * 1000
+  );
 
-  const bubbles=qa('.chat-bubble',box);
-  if(!bubbles.length) return;
+  const title = q('#chat-popover.open .chat-title');
+  const sub = q('#chat-popover.open .chat-subline');
 
-  const last=bubbles[bubbles.length-1];
-  const key=[
-    bubbles.length,
-    last.className||'',
-    (last.innerText||'').slice(0,180),
-    (last.innerText||'').length,
-    last.offsetTop
-  ].join('|');
+  if(human){
+    if(title && title.textContent !== 'JAVIER ONLINE') title.textContent = 'JAVIER ONLINE';
+    if(sub && sub.textContent !== '🟢 Javier está en línea') sub.textContent = '🟢 Javier está en línea';
+  }else{
+    if(title && title.textContent !== 'ASISTENTE TOMAUNO') title.textContent = 'ASISTENTE TOMAUNO';
+    if(sub && sub.textContent !== 'Asistente Tomauno') sub.textContent = 'Asistente Tomauno';
+  }
+}
 
-  if(key===lastVisitorKey) return;
-  lastVisitorKey=key;
-  lastForceAt=Date.now();
-
-  const down=()=>{
-    const b=q('#chat-popover.open .chat-msgs');
-    if(b&&isVisitor()) b.scrollTop=b.scrollHeight;
+// 2) ADM abre chat directo cuando sea posible. No agregar botón Bandeja extra.
+const oldOpenAdmin7f = window.abrirChatAdmin;
+if(typeof oldOpenAdmin7f === 'function' && !oldOpenAdmin7f.__chat7f){
+  const open7f = function(id,silent){
+    if(id) lastOpenedAdminId = id;
+    return oldOpenAdmin7f.apply(this, arguments);
   };
-
-  requestAnimationFrame(down);
-  setTimeout(down,80);
-  setTimeout(down,260);
-  setTimeout(down,700);
+  open7f.__chat7f = 1;
+  window.abrirChatAdmin = open7f;
+  try{ abrirChatAdmin = open7f; }catch(e){}
 }
 
-// Si otro código intenta moverlo al medio justo después de llegar el mensaje, lo devuelvo abajo.
-function keepBottom(){
-  if(!isVisitor()) return;
-  if(Date.now()-lastForceAt>1500) return;
-  const b=q('#chat-popover.open .chat-msgs');
-  if(b) b.scrollTop=b.scrollHeight;
+function bestChatId(){
+  const db = chats();
+  let best = lastOpenedAdminId || adminId();
+  let score = best ? 1 : -1;
+
+  Object.entries(db).forEach(([id,c])=>{
+    c=c||{};
+    let s=0;
+    if(c.humanRequested&&!c.humanFallbackSent&&!c.humanConfirm) s+=100000;
+    if(c.unreadAdmin||c.hasNewAdmin||c.hasNew||c.unread) s+=50000;
+    if(c.userOnline||c.online||c.isOnline||(c.userLastSeen&&Date.now()-Number(c.userLastSeen)<70000)) s+=5000;
+    s += Number(c.updatedAt||c.lastUserAt||c.userLastSeen||0)/100000000;
+    if(s>score){score=s;best=id;}
+  });
+  return best;
 }
 
-// 2) ADM: un solo basurero por mensaje del asistente.
-// Solo oculta de pantalla; no toca Firebase.
-function adminTrash(){
+const oldPanel7f = window.abrirPanelChatsAdmin;
+if(typeof oldPanel7f === 'function' && !oldPanel7f.__chat7f){
+  const panel7f = function(forceInbox){
+    if(forceInbox === true || window.__tomaunoForceInboxOnce){
+      window.__tomaunoForceInboxOnce = false;
+      return oldPanel7f.apply(this, arguments);
+    }
+    const target = bestChatId();
+    if(target && typeof window.abrirChatAdmin === 'function'){
+      return window.abrirChatAdmin(target, true);
+    }
+    return oldPanel7f.apply(this, arguments);
+  };
+  panel7f.__chat7f = 1;
+  window.abrirPanelChatsAdmin = panel7f;
+  try{ abrirPanelChatsAdmin = panel7f; }catch(e){}
+}
+
+// Eliminar botón Bandeja extra de versiones fallidas.
+function removeExtraInboxButton(){
+  qa('#chat-popover.open .tu7a-inbox').forEach(x=>x.remove());
+}
+
+// 3) X de usuario: evitar que cierre todo y mande a bandeja.
+document.addEventListener('click', function(ev){
+  const btn = ev.target && ev.target.closest && ev.target.closest('.chat-tab button,.chat-list-item button,.chat-inbox-item button,[data-chat-id] button');
+  if(!btn) return;
+
+  const row = btn.closest('.chat-tab,.chat-list-item,.chat-inbox-item,[data-chat-id]');
+  if(!row) return;
+
+  const t = (btn.innerText||btn.textContent||btn.title||btn.getAttribute('aria-label')||'').toLowerCase();
+  if(t.includes('×') || t.includes('x') || t.includes('cerrar') || t.includes('eliminar')){
+    const current = adminId();
+    setTimeout(function(){
+      const pop = q('#chat-popover.open');
+      if(!pop && current && typeof window.abrirChatAdmin === 'function'){
+        window.abrirChatAdmin(current, true);
+      }
+    }, 120);
+  }
+}, true);
+
+// 4) Basurero ADM: uno solo por mensaje visible. No tocar Firebase.
+function normalizeAdminTrash(){
   if(!isAdmin()) return;
   if(!adminId()) return;
 
   qa('#chat-popover.open .chat-bubble.admin').forEach(b=>{
-    const existing=qa('.tu7d-del,.tu7c-del,.tu7b-del,.tu6x-del,.tu6p-del,.tu-msg-del',b);
-    if(existing.length){
-      existing.forEach((x,i)=>{if(i>0)x.remove()});
-      existing[0].className='tu7d-del';
-      existing[0].textContent='🗑️';
-      existing[0].title='Ocultar este mensaje del asistente';
-      return;
-    }
+    // quitar todos los basureros previos dentro de este mensaje
+    qa('.tu7f-del,.tu7e-del,.tu7d-del,.tu7c-del,.tu7b-del,.tu6x-del,.tu6p-del,.tu-msg-del', b).forEach(x=>x.remove());
+
+    // si el mensaje contiene muchos íconos sueltos por basura previa, limpiar botones cuyo único texto sea 🗑️
+    qa('button', b).forEach(btn=>{
+      const t=(btn.innerText||btn.textContent||'').trim();
+      if(t==='🗑️' || /ocultar.*mensaje|borrar.*mensaje|eliminar.*mensaje/i.test(btn.title||'')){
+        btn.remove();
+      }
+    });
 
     const text=(b.innerText||'').trim();
     if(!text) return;
 
     const btn=document.createElement('button');
     btn.type='button';
-    btn.className='tu7d-del';
+    btn.className='tu7f-del';
     btn.textContent='🗑️';
     btn.title='Ocultar este mensaje del asistente';
     btn.setAttribute('aria-label','Ocultar mensaje del asistente');
-    btn.addEventListener('click',ev=>{
-      ev.preventDefault();
-      ev.stopPropagation();
+    btn.addEventListener('click',function(e){
+      e.preventDefault();
+      e.stopPropagation();
       b.remove();
     },true);
     b.appendChild(btn);
   });
 }
 
-// 3) Visitante: nunca ve basureros.
-function noTrashVisitor(){
+function removeTrashVisitor(){
   if(!isVisitor()) return;
-  qa('#chat-popover.open .tu7d-del,#chat-popover.open .tu7c-del,#chat-popover.open .tu7b-del,#chat-popover.open .tu6x-del,#chat-popover.open .tu6p-del,#chat-popover.open .tu-msg-del').forEach(x=>x.remove());
+  qa('#chat-popover.open .tu7f-del,#chat-popover.open .tu7e-del,#chat-popover.open .tu7d-del,#chat-popover.open .tu7c-del,#chat-popover.open .tu7b-del,#chat-popover.open .tu6x-del,#chat-popover.open .tu6p-del,#chat-popover.open .tu-msg-del').forEach(x=>x.remove());
 }
 
-// 4) Un solo botón de silencio. No crear otro si ya existe.
-window.tomaunoMuteAlarmsUntil = window.tomaunoMuteAlarmsUntil || 0;
-function muteAll(ms){
-  window.tomaunoMuteAlarmsUntil = Date.now() + (ms || 180000);
-  try{localStorage.setItem('tomaunoMuteAlarmsUntil', String(window.tomaunoMuteAlarmsUntil))}catch(e){}
-}
-function normalizeMute(){
-  if(!isAdmin()) return;
+// 5) Visitante: si llega mensaje nuevo, bajar al final. Sin loops agresivos.
+function visitorBottomOnNew(){
+  if(!isVisitor()) return;
 
-  const tools=q('#chat-popover.open .chat-admin-tools')||q('#chat-popover.open .chat-tools')||q('#chat-popover.open .admin-tools');
-  if(!tools) return;
+  const box = q('#chat-popover.open .chat-msgs');
+  if(!box) return;
 
-  const all=qa('.tu7d-mute,.tu7c-mute,.tu6v-mute,.tu6t-silence,.tu6x-mute',tools);
-  let keep=all[0];
+  const bubbles = qa('.chat-bubble', box);
+  if(!bubbles.length) return;
 
-  if(!keep){
-    keep=document.createElement('button');
-    keep.type='button';
-    tools.appendChild(keep);
-  }
+  const last = bubbles[bubbles.length - 1];
+  const key = bubbles.length + '|' + (last.className||'') + '|' + (last.innerText||'').length + '|' + last.offsetTop;
 
-  all.forEach(b=>{if(b!==keep)b.remove()});
+  if(key === lastVisitorKey) return;
+  lastVisitorKey = key;
 
-  keep.className='tu7d-mute';
-  keep.textContent='🔕';
-  keep.title='Silenciar alarmas de toda la web por 3 minutos';
-  keep.setAttribute('aria-label','Silenciar alarmas');
+  const down = () => {
+    const b=q('#chat-popover.open .chat-msgs');
+    if(b && isVisitor()) b.scrollTop = b.scrollHeight;
+  };
 
-  if(!keep.dataset.tu7dBound){
-    keep.dataset.tu7dBound='1';
-    keep.addEventListener('click',ev=>{
-      ev.preventDefault();
-      ev.stopPropagation();
-      muteAll(180000);
-      safe(()=>toast('🔕 Alarmas silenciadas por 3 minutos',true));
-    },true);
-  }
+  setTimeout(down, 80);
+  setTimeout(down, 260);
 }
 
-// 5) Dedupe de botones dentro del mensaje, sin tocar panel.
+// 6) Dedupe botones de acción, preservando basurero.
 function intent(el){
   const text=(el.innerText||el.textContent||'').toLowerCase();
   const href=(el.getAttribute&&el.getAttribute('href')||'').toLowerCase();
   const ds=(el.dataset&&(el.dataset.tuAction||el.dataset.action||el.dataset.target)||'').toLowerCase();
   const all=text+' '+href+' '+ds;
 
-  if(/servicio|servicios/.test(all))return 'servicios';
-  if(/curso|cursos/.test(all))return 'cursos';
-  if(/evento|eventos/.test(all))return 'eventos';
-  if(/ubicaci|mapa|maps|pedro/.test(all))return 'ubicacion';
-  if(/whatsapp|wa\.me/.test(all))return 'whatsapp';
-  if(/instagram/.test(all))return 'instagram';
-  if(/info/.test(all))return 'info';
+  if(el.classList.contains('tu7f-del')) return 'delete-unique';
+  if(/servicio|servicios/.test(all)) return 'servicios';
+  if(/curso|cursos/.test(all)) return 'cursos';
+  if(/evento|eventos/.test(all)) return 'eventos';
+  if(/ubicaci|mapa|maps|pedro/.test(all)) return 'ubicacion';
+  if(/whatsapp|wa\.me/.test(all)) return 'whatsapp';
+  if(/instagram/.test(all)) return 'instagram';
+  if(/info/.test(all)) return 'info';
 
   return text.trim()||href||ds;
 }
-function dedupeButtons(){
+
+function dedupeActions(){
   qa('#chat-popover.open .chat-bubble.admin').forEach(b=>{
     const seen={};
-    qa('button,.chat-action,.tu6j-action,a',b).forEach(el=>{
-      if(el.classList.contains('tu7d-del')) return;
+    qa('button,.chat-action,.tu6j-action,a', b).forEach(el=>{
       const k=intent(el);
       if(!k) return;
+      if(k==='delete-unique') return;
       if(seen[k]) el.remove();
       else seen[k]=true;
     });
   });
 }
 
+// 7) Un solo botón de mute si existe; no crear nuevos innecesarios.
+function normalizeMute(){
+  if(!isAdmin()) return;
+  const tools=q('#chat-popover.open .chat-admin-tools')||q('#chat-popover.open .chat-tools')||q('#chat-popover.open .admin-tools');
+  if(!tools) return;
+  const all=qa('.tu7d-mute,.tu7c-mute,.tu6v-mute,.tu6t-silence,.tu6x-mute', tools);
+  all.forEach((b,i)=>{ if(i>0) b.remove(); });
+}
+
 function css(){
-  if(q('#tu7d-css')) return;
-
+  if(q('#tu7f-css')) return;
   const st=document.createElement('style');
-  st.id='tu7d-css';
+  st.id='tu7f-css';
   st.textContent=`
-    .tu7d-mute{
-      border:1px solid rgba(255,255,255,.18)!important;
-      background:rgba(255,255,255,.06)!important;
-      color:#fff!important;
-      border-radius:999px!important;
-      width:38px!important;
-      height:38px!important;
-      display:inline-flex!important;
-      align-items:center!important;
-      justify-content:center!important;
-      cursor:pointer!important;
-      font-weight:900!important;
-    }
-
-    .tu7d-del{
+    .tu7f-del{
       display:inline-flex!important;
       margin-left:7px!important;
       border:1px solid rgba(255,255,255,.25)!important;
@@ -15703,7 +15733,8 @@ function css(){
       cursor:pointer!important;
       vertical-align:middle!important;
     }
-
+    #chat-popover.open:not(:has(#chat-admin-text)) .tu7f-del,
+    #chat-popover.open:not(:has(#chat-admin-text)) .tu7e-del,
     #chat-popover.open:not(:has(#chat-admin-text)) .tu7d-del,
     #chat-popover.open:not(:has(#chat-admin-text)) .tu7c-del,
     #chat-popover.open:not(:has(#chat-admin-text)) .tu7b-del,
@@ -15717,13 +15748,14 @@ function css(){
 }
 css();
 
-setInterval(()=>{
-  visitorBottom();
-  keepBottom();
-  adminTrash();
-  noTrashVisitor();
+setInterval(function(){
+  fixVisitorHeader();
+  removeExtraInboxButton();
+  normalizeAdminTrash();
+  removeTrashVisitor();
+  visitorBottomOnNew();
+  dedupeActions();
   normalizeMute();
-  dedupeButtons();
-},400);
+}, 500);
 
 })();
