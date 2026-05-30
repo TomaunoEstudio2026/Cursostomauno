@@ -7817,16 +7817,48 @@ window.filterCursos = function(){
 
   const prevScrollFinal = scrollChatSmart;
   scrollChatSmart = function(box){
-    if(visitorTypingNow()) return;
-    return prevScrollFinal.apply(this, arguments);
+    const isVisitorChat = !!document.querySelector('#chat-popover.open #chat-text') &&
+                          !document.querySelector('#chat-popover.open #chat-admin-text');
+
+    if(visitorTypingNow() && !isVisitorChat) return;
+
+    const r = prevScrollFinal.apply(this, arguments);
+
+    if(isVisitorChat && box){
+      setTimeout(() => { box.scrollTop = box.scrollHeight; }, 80);
+      setTimeout(() => { box.scrollTop = box.scrollHeight; }, 220);
+    }
+
+    return r;
   };
   window.scrollChatSmart = scrollChatSmart;
 
   const prevUpdateMsgsFinal = updateChatMessagesOnly;
   updateChatMessagesOnly = function(id, adminView){
-    if(visitorTypingNow()) return preserveDraft(() => prevUpdateMsgsFinal.call(this, id, false));
+    const isVisitorChat = !!document.querySelector('#chat-popover.open #chat-text') &&
+                          !document.querySelector('#chat-popover.open #chat-admin-text');
+
+    if(visitorTypingNow()){
+      const rTyping = preserveDraft(() => prevUpdateMsgsFinal.call(this, id, false));
+      if(isVisitorChat){
+        setTimeout(() => {
+          const box = document.querySelector('#chat-popover.open .chat-msgs');
+          if(box) box.scrollTop = box.scrollHeight;
+        }, 120);
+      }
+      return rTyping;
+    }
+
     const r = prevUpdateMsgsFinal.apply(this, arguments);
     setTimeout(renderLiveTypingFinal, 20);
+
+    if(isVisitorChat){
+      setTimeout(() => {
+        const box = document.querySelector('#chat-popover.open .chat-msgs');
+        if(box) box.scrollTop = box.scrollHeight;
+      }, 120);
+    }
+
     return r;
   };
   window.updateChatMessagesOnly = updateChatMessagesOnly;
@@ -11670,11 +11702,17 @@ window.filterCursos = function(){
   // Si el visitante ve Javier online, cambiar encabezado.
   function updateVisitorHeader(){
     if(isAdmin()) return;
+
     var id = visitorId();
     if(!id) return;
 
     var c = chats()[id] || {};
-    var online = !!(c.javierOnline && c.javierOnlineAt && Date.now() - Number(c.javierOnlineAt) < 15*60*1000);
+    var online = !!(
+      c.humanMode &&
+      c.javierOnline &&
+      c.javierOnlineAt &&
+      Date.now() - Number(c.javierOnlineAt) < 15 * 60 * 1000
+    );
 
     var title = q('#chat-popover.open .chat-title');
     var sub = q('#chat-popover.open .chat-subline');
@@ -11682,6 +11720,9 @@ window.filterCursos = function(){
     if(online){
       if(title) title.textContent = 'JAVIER ONLINE';
       if(sub) sub.textContent = '🟢 Javier está en línea';
+    }else{
+      if(title) title.textContent = 'ASISTENTE TOMAUNO';
+      if(sub) sub.textContent = 'Asistente Tomauno';
     }
   }
 
@@ -13552,18 +13593,27 @@ window.filterCursos = function(){
   if(typeof oldToggle === 'function' && !oldToggle.__tu6e){
     var toggle6e = function(){
       var box = q('#chat-popover.open .chat-msgs');
+      var isAdminChat = !!q('#chat-popover.open #chat-admin-text');
       var oldTop = box ? box.scrollTop : null;
       var oldHeight = box ? box.scrollHeight : null;
+
       var r = oldToggle.apply(this,arguments);
+
       setTimeout(function(){
         var b = q('#chat-popover.open .chat-msgs');
-        if(!b || oldTop === null) return;
-        if(oldHeight && b.scrollHeight !== oldHeight){
-          b.scrollTop = b.scrollHeight;
+        if(!b) return;
+
+        if(isAdminChat && oldTop !== null){
+          if(oldHeight && b.scrollHeight !== oldHeight){
+            b.scrollTop = b.scrollHeight;
+          }else{
+            b.scrollTop = oldTop;
+          }
         }else{
-          b.scrollTop = oldTop;
+          b.scrollTop = b.scrollHeight;
         }
       },160);
+
       return r;
     };
     toggle6e.__tu6e = 1;
@@ -13815,7 +13865,13 @@ window.filterCursos = function(){
   var oldScrollInto = Element.prototype.scrollIntoView;
   if(oldScrollInto && !oldScrollInto.__tu6f){
     Element.prototype.scrollIntoView = function(){
-      if(Date.now() < userScrollLockUntil && this.closest && this.closest('#chat-popover.open .chat-msgs')) return;
+      var isAdminChat = !!document.querySelector('#chat-popover.open #chat-admin-text');
+      if(
+        isAdminChat &&
+        Date.now() < userScrollLockUntil &&
+        this.closest &&
+        this.closest('#chat-popover.open .chat-msgs')
+      ) return;
       return oldScrollInto.apply(this,arguments);
     };
     Element.prototype.scrollIntoView.__tu6f = 1;
