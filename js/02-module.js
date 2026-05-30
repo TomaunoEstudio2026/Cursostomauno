@@ -17059,203 +17059,160 @@ setInterval(()=>{addMuteButton();autoMuteWhenViewingCall()},700);
 })();
 
 
-// TOMAUNO v28b FINAL 6X — CIERRE CHAT ESTABLE
+// TOMAUNO CHAT 7C — RESCATE ESTABLE
+// Base: 6V. No toca nombres/luces/estados. Limpia parches visuales fallidos.
 (function(){
 'use strict';
 
-function safe(fn){try{return fn()}catch(e){try{console.warn('TU final6x:',e)}catch(_){}}}
+function safe(fn){try{return fn()}catch(e){try{console.warn('TU chat7c:',e)}catch(_){}}}
 function q(s,r){return (r||document).querySelector(s)}
 function qa(s,r){return Array.from((r||document).querySelectorAll(s))}
-function chats(){return safe(()=>window.chatsDB||chatsDB||{})||{}}
-function adminId(){return safe(()=>window.currentOpenChatId||currentOpenChatId||'')||''}
-function isVisitor(){return !!q('#chat-popover.open #chat-text')&&!q('#chat-popover.open #chat-admin-text')}
-function isAdmin(){return !!q('#chat-popover.open #chat-admin-text,#chat-popover.open .chat-inbox-side,#chat-popover.open .chat-admin-tools')}
-function getId(el){return el.getAttribute('data-chat-id')||el.dataset.chatId||''}
 
 let lastVisitorKey='';
-let visitorManualUntil=0;
+let lastForceAt=0;
 
-// 1) Silencio global robusto y un solo botón.
-window.tomaunoMuteAlarmsUntil = window.tomaunoMuteAlarmsUntil || 0;
-function muteAll(ms){
-  window.tomaunoMuteAlarmsUntil = Date.now() + (ms || 180000);
-  try{localStorage.setItem('tomaunoMuteAlarmsUntil',String(window.tomaunoMuteAlarmsUntil))}catch(e){}
+function isVisitor(){
+  return !!q('#chat-popover.open #chat-text') && !q('#chat-popover.open #chat-admin-text');
 }
-function isMuted(){
-  let v=window.tomaunoMuteAlarmsUntil||0;
-  try{v=Math.max(v,Number(localStorage.getItem('tomaunoMuteAlarmsUntil')||0))}catch(e){}
-  return Date.now()<v;
+function isAdmin(){
+  return !!q('#chat-popover.open #chat-admin-text,#chat-popover.open .chat-inbox-side,#chat-popover.open .chat-admin-tools');
 }
-safe(()=>{
-  if(!window.__tu6xAudioPatch && window.OscillatorNode && OscillatorNode.prototype && OscillatorNode.prototype.start){
-    window.__tu6xAudioPatch=1;
-    const oldStart=OscillatorNode.prototype.start;
-    OscillatorNode.prototype.start=function(){if(isMuted())return;return oldStart.apply(this,arguments)};
-  }
-});
-safe(()=>{
-  if(!window.__tu6xMediaPatch && window.HTMLMediaElement && HTMLMediaElement.prototype && HTMLMediaElement.prototype.play){
-    window.__tu6xMediaPatch=1;
-    const oldPlay=HTMLMediaElement.prototype.play;
-    HTMLMediaElement.prototype.play=function(){if(isMuted())return Promise.resolve();return oldPlay.apply(this,arguments)};
-  }
-});
+function adminId(){
+  return safe(()=>window.currentOpenChatId||currentOpenChatId||'')||'';
+}
 
-const oldSend=window.enviarChatAdmin;
-if(typeof oldSend==='function'&&!oldSend.__tu6x){
-  const send6x=async function(){muteAll(180000);return oldSend.apply(this,arguments)};
-  send6x.__tu6x=1;window.enviarChatAdmin=send6x;try{enviarChatAdmin=send6x}catch(e){}
-}
-document.addEventListener('input',e=>{
-  if(e.target&&e.target.closest&&e.target.closest('#chat-popover.open')&&isAdmin())muteAll(180000);
-},true);
+// 1) VISITANTE: mensaje nuevo => bajar al final.
+// No intenta calcular inicio, no toca ADM.
+function visitorBottomOnNew(){
+  if(!isVisitor()) return;
 
-function oneMuteButton(){
+  const box=q('#chat-popover.open .chat-msgs');
+  if(!box) return;
+
+  const bubbles=qa('.chat-bubble',box);
+  if(!bubbles.length) return;
+
+  const last=bubbles[bubbles.length-1];
+  const key=(last.className||'')+'|'+(last.innerText||'').slice(0,180)+'|'+(last.innerText||'').length+'|'+last.offsetTop+'|'+bubbles.length;
+
+  if(key===lastVisitorKey) return;
+  lastVisitorKey=key;
+  lastForceAt=Date.now();
+
+  const down=()=>{
+    const b=q('#chat-popover.open .chat-msgs');
+    if(b&&isVisitor()) b.scrollTop=b.scrollHeight;
+  };
+
+  requestAnimationFrame(down);
+  setTimeout(down,80);
+  setTimeout(down,250);
+  setTimeout(down,650);
+}
+
+function keepBottomBriefly(){
+  if(!isVisitor()) return;
+  if(Date.now()-lastForceAt>1400) return;
+  const b=q('#chat-popover.open .chat-msgs');
+  if(b) b.scrollTop=b.scrollHeight;
+}
+
+// 2) UN SOLO botón de silencio.
+// Oculta duplicados de versiones anteriores y deja uno.
+function normalizeMuteButton(){
+  if(!isAdmin()) return;
+
   const tools=q('#chat-popover.open .chat-admin-tools')||q('#chat-popover.open .chat-tools')||q('#chat-popover.open .admin-tools');
-  if(!tools)return;
+  if(!tools) return;
 
-  // eliminar duplicados anteriores
-  qa('.tu6t-silence,.tu6v-mute,.tu6x-mute',tools).forEach((b,i)=>{if(i>0)b.remove()});
+  const all=qa('.tu6t-silence,.tu6v-mute,.tu6x-mute,.tu7c-mute',tools);
+  let keep=all[0];
 
-  let btn=tools.querySelector('.tu6x-mute')||tools.querySelector('.tu6v-mute')||tools.querySelector('.tu6t-silence');
-  if(!btn){
-    btn=document.createElement('button');
-    btn.type='button';
-    tools.appendChild(btn);
+  if(!keep){
+    keep=document.createElement('button');
+    keep.type='button';
+    tools.appendChild(keep);
   }
-  btn.className='tu6x-mute';
-  btn.textContent='🔕';
-  btn.title='Silenciar alarmas de toda la web por 3 minutos';
-  btn.setAttribute('aria-label','Silenciar alarmas');
-  if(!btn.dataset.tu6xBound){
-    btn.dataset.tu6xBound='1';
-    btn.addEventListener('click',ev=>{
-      ev.preventDefault();ev.stopPropagation();
-      muteAll(180000);
+
+  all.forEach(b=>{if(b!==keep)b.remove()});
+
+  keep.className='tu7c-mute';
+  keep.textContent='🔕';
+  keep.title='Silenciar alarmas de toda la web por 3 minutos';
+  keep.setAttribute('aria-label','Silenciar alarmas');
+
+  if(!keep.dataset.tu7cBound){
+    keep.dataset.tu7cBound='1';
+    keep.addEventListener('click',ev=>{
+      ev.preventDefault();
+      ev.stopPropagation();
+      const until=Date.now()+180000;
+      window.tomaunoMuteAlarmsUntil=until;
+      try{localStorage.setItem('tomaunoMuteAlarmsUntil',String(until))}catch(e){}
       safe(()=>toast('🔕 Alarmas silenciadas por 3 minutos',true));
     },true);
   }
 }
 
-// 2) Scroll visitante: nunca ir al principio. Si hay mensaje nuevo, ir al final, salvo que usuario esté leyendo.
-function lockVisitor(){
-  if(!isVisitor())return;
-  visitorManualUntil=Date.now()+12000;
-  window.__tomaunoVisitorReadingUntil=visitorManualUntil;
-}
-['wheel','touchstart','touchmove','pointerdown','mousedown'].forEach(ev=>document.addEventListener(ev,e=>{
-  if(e.target&&e.target.closest&&e.target.closest('#chat-popover.open .chat-msgs'))lockVisitor();
-},true));
-
-function visitorBottom(){
-  if(!isVisitor())return;
-  if(Date.now()<visitorManualUntil)return;
-  const box=q('#chat-popover.open .chat-msgs');if(!box)return;
-  const bubbles=qa('.chat-bubble',box);if(!bubbles.length)return;
-  const last=bubbles[bubbles.length-1];
-  const key=(last.className||'')+'|'+(last.innerText||'').slice(0,140)+'|'+(last.innerText||'').length+'|'+last.offsetTop;
-  if(key===lastVisitorKey)return;
-  lastVisitorKey=key;
-  setTimeout(()=>{if(Date.now()<visitorManualUntil)return;box.scrollTop=box.scrollHeight},80);
-  setTimeout(()=>{if(Date.now()<visitorManualUntil)return;box.scrollTop=box.scrollHeight},240);
-}
-
-// 3) Panel sin temblores: badges absolutos, X siempre arriba derecha.
-function decoratePanel(){
-  const db=chats();
-  const groups={}, order={};
-
-  Object.entries(db).forEach(([id,c])=>{
-    const n=String(c.name||c.nombre||'').trim().toLowerCase();
-    if(!n)return;
-    if(!groups[n])groups[n]=[];
-    groups[n].push(id);
-  });
-  Object.keys(groups).forEach(k=>groups[k].forEach((id,i)=>order[id]=i+1));
-
-  qa('.chat-tab,.chat-list-item,.chat-inbox-item,[data-chat-id]').forEach(el=>{
-    const id=getId(el);if(!id)return;
-    const c=db[id]||{};
-    el.classList.add('tu6x-row');
-
-    const call=!!(c.humanRequested&&!c.humanFallbackSent&&!c.humanConfirm);
-    const lead=!!(c.humanFallbackSent||c.humanConfirm||c.whatsapp||c.phone||c.telefono||c.resumenConsulta||c.consultaJavier);
-    const unread=!!(c.unreadAdmin||c.hasNewAdmin||c.hasNew||c.unread);
-    const online=!!(c.userOnline||c.online||c.isOnline||(c.userLastSeen&&Date.now()-Number(c.userLastSeen)<70000));
-
-    el.classList.toggle('tu6x-call',call);
-    el.classList.toggle('tu6x-lead',lead);
-    el.classList.toggle('tu6x-unread',!call&&unread);
-    el.classList.toggle('tu6x-online',!call&&!unread&&online);
-
-    // quitar iconos viejos que estaban al inicio y tapaban
-    qa('.tu6w-star,.tu6w-mega,.tu6u-star,.tu6u-mega,.tu6s-star,.tu6s-mega,.tu6q-star,.tu6q-mega,.tu6n-star,.tu6n-mega,.tu6o-star,.tu6o-mega',el).forEach(x=>x.remove());
-
-    if(call&&!el.querySelector('.tu6x-mega')){
-      const s=document.createElement('span');
-      s.className='tu6x-mega';
-      s.textContent='📣';
-      s.title='Llamada a Javier';
-      el.appendChild(s);
-    }
-    if(lead&&!el.querySelector('.tu6x-star')){
-      const s=document.createElement('span');
-      s.className='tu6x-star';
-      s.textContent='⭐';
-      s.title='Consulta/WhatsApp pendiente';
-      el.appendChild(s);
-    }
-
-    const n=String(c.name||c.nombre||'').trim().toLowerCase();
-    const num=order[id]||1;
-    if(n&&groups[n]&&groups[n].length>1&&num>1&&!el.querySelector('.tu6x-dupe')){
-      const b=document.createElement('span');
-      b.className='tu6x-dupe';
-      b.textContent='#'+num;
-      b.title='Nombre repetido';
-      el.appendChild(b);
-    }
-
-    // X arriba derecha
-    const close=el.querySelector('button,[aria-label*="cerrar" i],[title*="cerrar" i],.close,.chat-close');
-    if(close)close.classList.add('tu6x-close');
-  });
-}
-
-// 4) Basurero de mensajes solo ADM.
-// Si ya hay edición funcionando, esto agrega borrar visual/local solo en admin.
-function adminTrashMessages(){
-  if(!isAdmin())return;
-  const chatId=adminId();
-  if(!chatId)return;
+// 3) ADM: un solo basurero por mensaje del asistente.
+// No agrega si ya hay uno de cualquier versión.
+function adminTrashOnce(){
+  if(!isAdmin()) return;
+  if(!adminId()) return;
 
   qa('#chat-popover.open .chat-bubble.admin').forEach(b=>{
-    if(b.querySelector('.tu6x-del'))return;
+    const existing=qa('.tu7c-del,.tu7b-del,.tu6x-del,.tu6p-del,.tu-msg-del',b);
+    if(existing.length){
+      existing.forEach((x,i)=>{if(i>0)x.remove()});
+      existing[0].className='tu7c-del';
+      existing[0].textContent='🗑️';
+      existing[0].title='Ocultar este mensaje del asistente';
+      return;
+    }
+
     const text=(b.innerText||'').trim();
-    if(!text)return;
+    if(!text) return;
+
     const btn=document.createElement('button');
     btn.type='button';
-    btn.className='tu6x-del';
+    btn.className='tu7c-del';
     btn.textContent='🗑️';
     btn.title='Ocultar este mensaje del asistente';
     btn.addEventListener('click',ev=>{
-      ev.preventDefault();ev.stopPropagation();
+      ev.preventDefault();
+      ev.stopPropagation();
       b.remove();
     },true);
     b.appendChild(btn);
   });
 }
-function removeTrashVisitor(){
-  if(!isVisitor())return;
-  qa('#chat-popover.open .chat-bubble .tu6x-del,#chat-popover.open .chat-bubble .tu6p-del,#chat-popover.open .chat-bubble .tu-msg-del').forEach(x=>x.remove());
+
+// 4) VISITANTE: jamás ver basureros.
+function noTrashVisitor(){
+  if(!isVisitor()) return;
+  qa('#chat-popover.open .tu7c-del,#chat-popover.open .tu7b-del,#chat-popover.open .tu6x-del,#chat-popover.open .tu6p-del,#chat-popover.open .tu-msg-del').forEach(x=>x.remove());
 }
 
-// 5) Dedupe botones por intención.
+// 5) Limpiar solo adornos fallidos que tapaban nombres/X.
+// No intenta rehacer colores ni duplicados.
+function cleanBadPanelDecorations(){
+  qa('.chat-tab,.chat-list-item,.chat-inbox-item,[data-chat-id]').forEach(row=>{
+    qa('.tu7a-star,.tu7a-mega,.tu7a-dupe,.tu7b-star,.tu7b-mega,.tu7b-dupe,.tu6x-star,.tu6x-mega,.tu6x-dupe,.tu6w-star,.tu6w-mega,.tu6w-dupe,.tu6u-star,.tu6u-mega,.tu6u-dupe,.tu6s-star,.tu6s-mega,.tu6s-dupe',row).forEach(x=>x.remove());
+    row.classList.remove('tu7a-row','tu7b-row','tu6x-row','tu6w-row','tu6u-stable-row','tu6s-row');
+    row.style.paddingLeft='';
+    row.style.paddingRight='';
+    row.style.contain='';
+    row.style.transform='';
+  });
+}
+
+// 6) Dedupe simple de botones de acción del asistente.
 function intent(el){
   const text=(el.innerText||el.textContent||'').toLowerCase();
   const href=(el.getAttribute&&el.getAttribute('href')||'').toLowerCase();
   const ds=(el.dataset&&(el.dataset.tuAction||el.dataset.action||el.dataset.target)||'').toLowerCase();
   const all=text+' '+href+' '+ds;
+
   if(/servicio|servicios/.test(all))return 'servicios';
   if(/curso|cursos/.test(all))return 'cursos';
   if(/evento|eventos/.test(all))return 'eventos';
@@ -17263,25 +17220,29 @@ function intent(el){
   if(/whatsapp|wa\.me/.test(all))return 'whatsapp';
   if(/instagram/.test(all))return 'instagram';
   if(/info/.test(all))return 'info';
+
   return text.trim()||href||ds;
 }
-function dedupeActions(){
+function dedupeButtons(){
   qa('#chat-popover.open .chat-bubble.admin').forEach(b=>{
     const seen={};
     qa('button,.chat-action,.tu6j-action,a',b).forEach(el=>{
-      if(el.classList.contains('tu6x-del'))return;
-      const k=intent(el);if(!k)return;
-      if(seen[k])el.remove();else seen[k]=true;
+      if(el.classList.contains('tu7c-del'))return;
+      const k=intent(el);
+      if(!k)return;
+      if(seen[k])el.remove();
+      else seen[k]=true;
     });
   });
 }
 
 function css(){
-  if(q('#tu6x-css'))return;
+  if(q('#tu7c-css')) return;
+
   const st=document.createElement('style');
-  st.id='tu6x-css';
+  st.id='tu7c-css';
   st.textContent=`
-    .tu6x-mute{
+    .tu7c-mute{
       border:1px solid rgba(255,255,255,.18)!important;
       background:rgba(255,255,255,.06)!important;
       color:#fff!important;
@@ -17295,81 +17256,7 @@ function css(){
       font-weight:900!important;
     }
 
-    #chat-popover.open .tu6x-row{
-      position:relative!important;
-      min-height:58px!important;
-      height:auto!important;
-      padding:10px 44px 10px 34px!important;
-      transition:none!important;
-      animation:none!important;
-      transform:none!important;
-      will-change:auto!important;
-      contain:layout paint!important;
-    }
-
-    #chat-popover.open .tu6x-row *{
-      transition:none!important;
-      animation:none!important;
-    }
-
-    .tu6x-close{
-      position:absolute!important;
-      top:10px!important;
-      right:10px!important;
-      left:auto!important;
-      bottom:auto!important;
-      z-index:5!important;
-    }
-
-    .tu6x-star,.tu6x-mega{
-      position:absolute!important;
-      left:10px!important;
-      z-index:4!important;
-      color:#ffd54a!important;
-      filter:drop-shadow(0 0 5px rgba(255,213,74,.65))!important;
-      pointer-events:none!important;
-    }
-
-    .tu6x-mega{top:10px!important;}
-    .tu6x-star{top:31px!important;}
-
-    .tu6x-dupe{
-      position:absolute!important;
-      right:42px!important;
-      top:12px!important;
-      min-width:24px!important;
-      height:18px!important;
-      border-radius:999px!important;
-      background:#e8000a!important;
-      color:#fff!important;
-      font-size:11px!important;
-      display:inline-flex!important;
-      align-items:center!important;
-      justify-content:center!important;
-      padding:0 6px!important;
-      pointer-events:none!important;
-    }
-
-    .tu6x-call{
-      border-color:#e8000a!important;
-      box-shadow:inset 3px 0 0 rgba(232,0,10,.95)!important;
-    }
-
-    .tu6x-unread{
-      border-color:#ffd54a!important;
-      box-shadow:inset 3px 0 0 rgba(255,213,74,.95)!important;
-    }
-
-    .tu6x-online:not(.tu6x-unread):not(.tu6x-call){
-      border-color:rgba(56,210,122,.55)!important;
-      box-shadow:none!important;
-    }
-
-    .tu6x-lead{
-      outline:1px solid rgba(255,213,74,.35)!important;
-    }
-
-    .tu6x-del{
+    .tu7c-del{
       display:inline-flex!important;
       margin-left:7px!important;
       border:1px solid rgba(255,255,255,.25)!important;
@@ -17385,10 +17272,16 @@ function css(){
       vertical-align:middle!important;
     }
 
+    #chat-popover.open:not(:has(#chat-admin-text)) .tu7c-del,
+    #chat-popover.open:not(:has(#chat-admin-text)) .tu7b-del,
     #chat-popover.open:not(:has(#chat-admin-text)) .tu6x-del,
     #chat-popover.open:not(:has(#chat-admin-text)) .tu6p-del,
     #chat-popover.open:not(:has(#chat-admin-text)) .tu-msg-del{
       display:none!important;
+    }
+
+    .chat-tab,.chat-list-item,.chat-inbox-item,[data-chat-id]{
+      transform:none!important;
     }
   `;
   document.head.appendChild(st);
@@ -17396,113 +17289,13 @@ function css(){
 css();
 
 setInterval(()=>{
-  oneMuteButton();
-  visitorBottom();
-  decoratePanel();
-  adminTrashMessages();
-  removeTrashVisitor();
-  dedupeActions();
-},650);
-})();
+  visitorBottomOnNew();
+  keepBottomBriefly();
+  normalizeMuteButton();
+  adminTrashOnce();
+  noTrashVisitor();
+  cleanBadPanelDecorations();
+  dedupeButtons();
+},400);
 
-
-// TOMAUNO CHAT 7B — MÍNIMO: SCROLL VISITANTE + BORRAR EN ADM
-(function(){
-'use strict';
-function safe(fn){try{return fn()}catch(e){try{console.warn('TU chat7b:',e)}catch(_){}}}
-function q(s,r){return (r||document).querySelector(s)}
-function qa(s,r){return Array.from((r||document).querySelectorAll(s))}
-let lastVisitorMsgKey='', lastVisitorForceAt=0;
-function isVisitor(){return !!q('#chat-popover.open #chat-text')&&!q('#chat-popover.open #chat-admin-text')}
-function isAdmin(){return !!q('#chat-popover.open #chat-admin-text,#chat-popover.open .chat-inbox-side,#chat-popover.open .chat-admin-tools')}
-function adminId(){return safe(()=>window.currentOpenChatId||currentOpenChatId||'')||''}
-
-function forceVisitorBottom(){
- if(!isVisitor())return;
- const box=q('#chat-popover.open .chat-msgs'); if(!box)return;
- const bubbles=qa('.chat-bubble',box); if(!bubbles.length)return;
- const last=bubbles[bubbles.length-1];
- const key=(last.className||'')+'|'+(last.innerText||'').slice(0,180)+'|'+(last.innerText||'').length+'|'+last.offsetTop+'|'+bubbles.length;
- if(key===lastVisitorMsgKey)return;
- lastVisitorMsgKey=key; lastVisitorForceAt=Date.now();
- const bottom=()=>{if(!isVisitor())return; const b=q('#chat-popover.open .chat-msgs'); if(b)b.scrollTop=b.scrollHeight};
- requestAnimationFrame(bottom); setTimeout(bottom,80); setTimeout(bottom,250); setTimeout(bottom,600);
-}
-function keepVisitorBottomAfterNew(){
- if(!isVisitor())return;
- if(Date.now()-lastVisitorForceAt>1200)return;
- const box=q('#chat-popover.open .chat-msgs'); if(box)box.scrollTop=box.scrollHeight;
-}
-
-const oldScrollInto=Element.prototype.scrollIntoView;
-if(oldScrollInto&&!oldScrollInto.__chat7b){
- Element.prototype.scrollIntoView=function(){
-  const r=oldScrollInto.apply(this,arguments);
-  if(this.closest&&this.closest('#chat-popover.open .chat-msgs')&&isVisitor()){
-   lastVisitorForceAt=Date.now();
-   setTimeout(()=>{const b=q('#chat-popover.open .chat-msgs'); if(b)b.scrollTop=b.scrollHeight},30);
-   setTimeout(()=>{const b=q('#chat-popover.open .chat-msgs'); if(b)b.scrollTop=b.scrollHeight},180);
-  }
-  return r;
- };
- Element.prototype.scrollIntoView.__chat7b=1;
-}
-
-function adminTrashMessages(){
- if(!isAdmin())return;
- const chatId=adminId(); if(!chatId)return;
- qa('#chat-popover.open .chat-bubble.admin').forEach(b=>{
-  if(b.querySelector('.tu7b-del'))return;
-  const text=(b.innerText||'').trim(); if(!text)return;
-  const btn=document.createElement('button');
-  btn.type='button'; btn.className='tu7b-del'; btn.textContent='🗑️';
-  btn.title='Ocultar este mensaje del asistente';
-  btn.setAttribute('aria-label','Ocultar mensaje del asistente');
-  btn.addEventListener('click',ev=>{ev.preventDefault();ev.stopPropagation();b.remove()},true);
-  b.appendChild(btn);
- });
-}
-function removeTrashFromVisitor(){
- if(!isVisitor())return;
- qa('#chat-popover.open .tu7b-del,#chat-popover.open .tu6x-del,#chat-popover.open .tu6p-del,#chat-popover.open .tu-msg-del').forEach(x=>x.remove());
-}
-function removeExtraPanelBadges(){
- qa('.chat-tab,.chat-list-item,.chat-inbox-item,[data-chat-id]').forEach(row=>{
-  qa('.tu6x-star,.tu6x-mega,.tu6w-star,.tu6w-mega,.tu6u-star,.tu6u-mega,.tu6s-star,.tu6s-mega,.tu7a-star,.tu7a-mega,.tu7a-dupe,.tu6x-dupe,.tu6w-dupe,.tu6u-dupe,.tu6s-dupe',row).forEach(x=>x.remove());
-  row.classList.remove('tu6x-row','tu6w-row','tu6u-stable-row','tu7a-row');
-  row.style.paddingLeft=''; row.style.paddingRight=''; row.style.contain='';
- });
-}
-function intent(el){
- const text=(el.innerText||el.textContent||'').toLowerCase();
- const href=(el.getAttribute&&el.getAttribute('href')||'').toLowerCase();
- const ds=(el.dataset&&(el.dataset.tuAction||el.dataset.action||el.dataset.target)||'').toLowerCase();
- const all=text+' '+href+' '+ds;
- if(/servicio|servicios/.test(all))return 'servicios';
- if(/curso|cursos/.test(all))return 'cursos';
- if(/evento|eventos/.test(all))return 'eventos';
- if(/ubicaci|mapa|maps|pedro/.test(all))return 'ubicacion';
- if(/whatsapp|wa\.me/.test(all))return 'whatsapp';
- if(/instagram/.test(all))return 'instagram';
- if(/info/.test(all))return 'info';
- return text.trim()||href||ds;
-}
-function dedupeActionButtons(){
- qa('#chat-popover.open .chat-bubble.admin').forEach(b=>{
-  const seen={};
-  qa('button,.chat-action,.tu6j-action,a',b).forEach(el=>{
-   if(el.classList.contains('tu7b-del'))return;
-   const k=intent(el); if(!k)return;
-   if(seen[k])el.remove(); else seen[k]=true;
-  });
- });
-}
-function css(){
- if(q('#tu7b-css'))return;
- const st=document.createElement('style'); st.id='tu7b-css';
- st.textContent=`.tu7b-del{display:inline-flex!important;margin-left:7px!important;border:1px solid rgba(255,255,255,.25)!important;background:rgba(0,0,0,.18)!important;color:#fff!important;border-radius:50%!important;width:24px!important;height:24px!important;align-items:center!important;justify-content:center!important;font-size:12px!important;cursor:pointer!important;vertical-align:middle!important}#chat-popover.open:not(:has(#chat-admin-text)) .tu7b-del,#chat-popover.open:not(:has(#chat-admin-text)) .tu6x-del,#chat-popover.open:not(:has(#chat-admin-text)) .tu6p-del,#chat-popover.open:not(:has(#chat-admin-text)) .tu-msg-del{display:none!important}`;
- document.head.appendChild(st);
-}
-css();
-setInterval(()=>{forceVisitorBottom();keepVisitorBottomAfterNew();adminTrashMessages();removeTrashFromVisitor();removeExtraPanelBadges();dedupeActionButtons()},400);
 })();
