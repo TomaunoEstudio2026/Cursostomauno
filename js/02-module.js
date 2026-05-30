@@ -15551,3 +15551,242 @@ css();
 
 setInterval(cleanOldTrashButtons, 800);
 })();
+
+
+// TOMAUNO CHAT 7I — ADM DIRECTO / LLAMADA IDENTIFICADA / HEADER / CENTRADO
+// Mantiene borrar real 7H. No modifica renderMsgs ni borrarMensajeChatParaVisitante.
+(function(){
+'use strict';
+
+function safe(fn){try{return fn()}catch(e){try{console.warn('TU chat7i:',e)}catch(_){}}}
+function q(s,r){return (r||document).querySelector(s)}
+function qa(s,r){return Array.from((r||document).querySelectorAll(s))}
+function chats(){return safe(()=>window.chatsDB||chatsDB||{})||{}}
+function isVisitor(){return !!q('#chat-popover.open #chat-text')&&!q('#chat-popover.open #chat-admin-text')}
+function isAdmin(){return !!q('#chat-popover.open #chat-admin-text,#chat-popover.open .chat-inbox-side,#chat-popover.open .chat-admin-tools')}
+function adminId(){return safe(()=>window.currentOpenChatId||currentOpenChatId||'')||''}
+function visitorIdSafe(){return safe(()=>window.currentVisitorChatId||currentVisitorChatId||sessionStorage.getItem('tomauno-chat-id')||'')||''}
+function updateChat(id,data){
+  if(!id||typeof db==='undefined'||typeof ref==='undefined'||typeof update==='undefined')return Promise.resolve();
+  safe(()=>{if(window.chatsDB&&window.chatsDB[id])Object.assign(window.chatsDB[id],data)});
+  safe(()=>{if(typeof chatsDB!=='undefined'&&chatsDB[id])Object.assign(chatsDB[id],data)});
+  return update(ref(db,'tomauno/chats/'+id),data).catch(()=>{});
+}
+
+let lastDirectChatId='';
+let lastVisitorKey='';
+let lastCallAutoOpen='';
+
+// 1) ADM: abrir directo a chat útil, nunca bandeja salvo pedido explícito.
+function bestChatId(){
+  const dbs=chats();
+  const current=adminId();
+  if(current && dbs[current]) return current;
+  if(lastDirectChatId && dbs[lastDirectChatId]) return lastDirectChatId;
+
+  let best='', score=-1;
+  Object.entries(dbs).forEach(([id,c])=>{
+    c=c||{};
+    let s=0;
+    if(c.humanRequested&&c.callUntil&&!c.humanConfirm) s+=1000000;
+    if(c.unreadAdmin||c.hasNewAdmin||c.hasNew||c.unread) s+=100000;
+    if(c.userOnline||c.online||c.isOnline||(c.userLastSeen&&Date.now()-Number(c.userLastSeen)<70000)) s+=10000;
+    s += Number(c.updatedAt||c.lastUserAt||c.userLastSeen||0)/100000000;
+    if(s>score){score=s;best=id;}
+  });
+  return best;
+}
+
+const oldOpenAdmin7i=window.abrirChatAdmin;
+if(typeof oldOpenAdmin7i==='function'&&!oldOpenAdmin7i.__chat7i){
+  const open7i=function(id,silent){
+    if(id) lastDirectChatId=id;
+    const r=oldOpenAdmin7i.apply(this,arguments);
+    setTimeout(markActiveChat,80);
+    setTimeout(centerMaxAdmin,120);
+    return r;
+  };
+  open7i.__chat7i=1;
+  window.abrirChatAdmin=open7i;
+  try{abrirChatAdmin=open7i}catch(e){}
+}
+
+const oldPanel7i=window.abrirPanelChatsAdmin;
+if(typeof oldPanel7i==='function'&&!oldPanel7i.__chat7i){
+  const panel7i=function(forceInbox){
+    if(forceInbox===true||window.__tomaunoForceInboxOnce){
+      window.__tomaunoForceInboxOnce=false;
+      return oldPanel7i.apply(this,arguments);
+    }
+    const id=bestChatId();
+    if(id&&typeof window.abrirChatAdmin==='function') return window.abrirChatAdmin(id,true);
+    return oldPanel7i.apply(this,arguments);
+  };
+  panel7i.__chat7i=1;
+  window.abrirPanelChatsAdmin=panel7i;
+  try{abrirPanelChatsAdmin=panel7i}catch(e){}
+}
+
+// 2) X en persona del panel: no mandar a bandeja ni cerrar todo.
+document.addEventListener('click',function(ev){
+  const btn=ev.target&&ev.target.closest&&ev.target.closest('.chat-tab button,.chat-list-item button,.chat-inbox-item button,[data-chat-id] button');
+  if(!btn)return;
+  const row=btn.closest('.chat-tab,.chat-list-item,.chat-inbox-item,[data-chat-id]');
+  if(!row)return;
+  const t=(btn.innerText||btn.textContent||btn.title||btn.getAttribute('aria-label')||'').toLowerCase();
+  if(!(t.includes('×')||t==='x'||t.includes('cerrar')||t.includes('eliminar')))return;
+  const current=adminId()||lastDirectChatId;
+  setTimeout(()=>{
+    if(current&&typeof window.abrirChatAdmin==='function') window.abrirChatAdmin(current,true);
+  },180);
+},true);
+
+// 3) Indicador de chat activo y llamada.
+function rowId(el){return el.getAttribute('data-chat-id')||el.dataset.chatId||''}
+function markActiveChat(){
+  const current=adminId();
+  qa('.chat-tab,.chat-list-item,.chat-inbox-item,[data-chat-id]').forEach(row=>{
+    const id=rowId(row);
+    if(!id)return;
+    const c=chats()[id]||{};
+    const active=id===current;
+    const calling=!!(c.humanRequested&&c.callUntil&&!c.humanConfirm&&!c.callAnsweredAt);
+    row.classList.toggle('tu7i-active',active);
+    row.classList.toggle('tu7i-calling',calling);
+    if(calling&&!row.querySelector('.tu7i-call')){
+      const s=document.createElement('span');
+      s.className='tu7i-call';
+      s.textContent='📣';
+      s.title='Está llamando a Javier';
+      row.appendChild(s);
+    }
+    if(!calling) qa('.tu7i-call',row).forEach(x=>x.remove());
+  });
+}
+
+// 4) Llamada Javier: abrir chat de quien llama y detener al responder o HUM.
+function activeCallIds(){
+  return Object.entries(chats()).filter(([id,c])=>{
+    c=c||{};
+    return !!(c.humanRequested&&c.callUntil&&Date.now()<Number(c.callUntil)&&!c.callAnsweredAt&&!c.humanConfirm);
+  }).map(([id])=>id);
+}
+function openCallChat(){
+  if(!isAdmin())return;
+  const ids=activeCallIds();
+  if(!ids.length)return;
+  const id=ids[0];
+  if(lastCallAutoOpen===id)return;
+  lastCallAutoOpen=id;
+  if(typeof window.abrirChatAdmin==='function') setTimeout(()=>window.abrirChatAdmin(id,true),80);
+}
+function stopCall(id){
+  if(!id)return;
+  safe(()=>{if(typeof stopHumanRing==='function')stopHumanRing(id)});
+  safe(()=>{if(typeof stopRing==='function')stopRing(id)});
+  updateChat(id,{
+    humanRequested:false,
+    waitingHuman:false,
+    priority:false,
+    prioridad:false,
+    callUntil:0,
+    callAnsweredAt:Date.now(),
+    updatedAt:Date.now()
+  });
+}
+const oldSend7i=window.enviarChatAdmin;
+if(typeof oldSend7i==='function'&&!oldSend7i.__chat7i){
+  const send7i=function(){
+    const id=adminId();
+    if(id)stopCall(id);
+    return oldSend7i.apply(this,arguments);
+  };
+  send7i.__chat7i=1;window.enviarChatAdmin=send7i;try{enviarChatAdmin=send7i}catch(e){}
+}
+const oldToggle7i=window.toggleModoAsistenteChat;
+if(typeof oldToggle7i==='function'&&!oldToggle7i.__chat7i){
+  const toggle7i=function(){
+    const id=adminId();
+    if(id)stopCall(id);
+    return oldToggle7i.apply(this,arguments);
+  };
+  toggle7i.__chat7i=1;window.toggleModoAsistenteChat=toggle7i;try{toggleModoAsistenteChat=toggle7i}catch(e){}
+}
+document.addEventListener('input',function(e){
+  if(isAdmin()&&e.target&&e.target.closest&&e.target.closest('#chat-popover.open')){
+    const id=adminId(); if(id) stopCall(id);
+  }
+},true);
+
+// 5) Header visitante: forzar coherencia título/subtítulo.
+function fixVisitorHeader(){
+  if(!isVisitor())return;
+  const id=visitorIdSafe();
+  const c=(id&&chats()[id])||{};
+  const human=!!(c.humanMode&&c.javierOnline&&c.javierOnlineAt&&Date.now()-Number(c.javierOnlineAt)<15*60*1000);
+  const title=q('#chat-popover.open .chat-title');
+  const sub=q('#chat-popover.open .chat-subline');
+  if(human){
+    if(title)title.textContent='JAVIER ONLINE';
+    if(sub)sub.textContent='🟢 Javier está en línea';
+  }else{
+    if(title)title.textContent='ASISTENTE TOMAUNO';
+    if(sub)sub.textContent='Asistente Tomauno';
+  }
+}
+
+// 6) Scroll visitante: bajar al final ante mensaje nuevo.
+function visitorBottom(){
+  if(!isVisitor())return;
+  const box=q('#chat-popover.open .chat-msgs'); if(!box)return;
+  const bubbles=qa('.chat-bubble',box); if(!bubbles.length)return;
+  const last=bubbles[bubbles.length-1];
+  const key=[bubbles.length,last.className||'',(last.innerText||'').length,last.offsetTop,box.scrollHeight].join('|');
+  if(key===lastVisitorKey)return;
+  lastVisitorKey=key;
+  const down=()=>{const b=q('#chat-popover.open .chat-msgs');if(b&&isVisitor())b.scrollTop=b.scrollHeight};
+  requestAnimationFrame(down);
+  setTimeout(down,80);
+  setTimeout(down,250);
+  setTimeout(down,600);
+}
+
+// 7) Centrar maximizado ADM.
+function centerMaxAdmin(){
+  const pop=q('#chat-popover.open'); if(!pop||!isAdmin())return;
+  const max=pop.classList.contains('max')||pop.classList.contains('maximized')||pop.classList.contains('fullscreen')||pop.classList.contains('is-maximized')||pop.classList.contains('expanded');
+  if(!max)return;
+  pop.style.left='50%';
+  pop.style.right='auto';
+  pop.style.top='50%';
+  pop.style.bottom='auto';
+  pop.style.transform='translate(-50%,-50%)';
+  pop.style.width='min(1180px,96vw)';
+  pop.style.maxWidth='min(1180px,96vw)';
+  pop.style.height='min(820px,94vh)';
+  pop.style.maxHeight='94vh';
+}
+document.addEventListener('click',function(e){
+  const btn=e.target&&e.target.closest&&e.target.closest('#chat-popover.open button');
+  if(!btn)return;
+  const t=(btn.innerText||btn.textContent||btn.title||btn.getAttribute('aria-label')||'').toLowerCase();
+  if(/max|pantalla|expand|⛶/.test(t)){setTimeout(centerMaxAdmin,120);setTimeout(centerMaxAdmin,350)}
+},true);
+
+// 8) Sonidos primer mensaje: no toco campanita ni bloqueo audio. Solo evito duplicar toasts si hay botones extra.
+function removeExtraInboxButton(){qa('#chat-popover.open .tu7a-inbox').forEach(x=>x.remove())}
+
+function css(){
+  if(q('#tu7i-css'))return;
+  const st=document.createElement('style');st.id='tu7i-css';
+  st.textContent=`
+    .tu7i-active{outline:2px solid rgba(255,255,255,.85)!important;box-shadow:0 0 0 2px rgba(232,0,10,.35), inset 3px 0 0 #e8000a!important}
+    .tu7i-calling{border-color:#ffd54a!important;box-shadow:inset 3px 0 0 #ffd54a!important}
+    .tu7i-call{display:inline-flex!important;margin-left:5px!important;color:#ffd54a!important;filter:drop-shadow(0 0 5px rgba(255,213,74,.8))!important}
+  `;
+  document.head.appendChild(st);
+}
+css();
+
+setInterval(()=>{markActiveChat();openCallChat();fixVisitorHeader();visitorBottom();centerMaxAdmin();removeExtraInboxButton()},500);
+})();
