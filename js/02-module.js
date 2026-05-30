@@ -15553,12 +15553,12 @@ setInterval(cleanOldTrashButtons, 800);
 })();
 
 
-// TOMAUNO CHAT 7J — SCROLL / SONIDOS / HEADER / DUPLICADOS
-// Mantiene renderMsgs y borrar real de 7H. No toca cursos/eventos/planillas.
+// TOMAUNO CHAT 7L — FIX LLAMADA / SCROLL / DUPLICADOS / MAX
+// Base con borrar real de 7H. No toca cursos/eventos/planillas.
 (function(){
 'use strict';
 
-function safe(fn){try{return fn()}catch(e){try{console.warn('TU chat7j:',e)}catch(_){}}}
+function safe(fn){try{return fn()}catch(e){try{console.warn('TU chat7l:',e)}catch(_){}}}
 function q(s,r){return (r||document).querySelector(s)}
 function qa(s,r){return Array.from((r||document).querySelectorAll(s))}
 function chats(){return safe(()=>window.chatsDB||chatsDB||{})||{}}
@@ -15573,54 +15573,109 @@ function updateChat(id,data){
   return update(ref(db,'tomauno/chats/'+id),data).catch(()=>{});
 }
 
-let lastDirectChatId='';
 let lastVisitorSignature='';
-let lastScrollForceAt=0;
-let lastCallAutoOpen='';
-let lastNormalSoundAt=0;
-let suppressNormalSoundsUntil=0;
+let lastDirectChatId='';
+let callFocusedId='';
+let lastJavierBeep=0;
 
-// 1) VISITANTE: bajar al final si aparece/crece contenido.
-// No toca ADM. No intenta inicio exacto.
-function forceVisitorBottom(reason){
+// 1) Scroll visitante: baja al final cuando cambia contenido.
+function forceVisitorBottom(){
   if(!isVisitor())return;
-  const box=q('#chat-popover.open .chat-msgs'); if(!box)return;
+  const box=q('#chat-popover.open .chat-msgs');
+  if(!box)return;
   box.scrollTop=box.scrollHeight;
-  lastScrollForceAt=Date.now();
 }
 function visitorScrollWatch(){
   if(!isVisitor())return;
   const box=q('#chat-popover.open .chat-msgs'); if(!box)return;
   const bubbles=qa('.chat-bubble',box);
   const last=bubbles[bubbles.length-1];
-  const sig=[bubbles.length,box.scrollHeight,last?last.offsetTop:0,last?(last.innerText||'').length:0,last?last.className:''].join('|');
+  const sig=[bubbles.length,box.scrollHeight,last?last.offsetTop:0,last?(last.innerText||'').length:0].join('|');
   if(sig!==lastVisitorSignature){
     lastVisitorSignature=sig;
-    requestAnimationFrame(()=>forceVisitorBottom('new'));
-    setTimeout(()=>forceVisitorBottom('new80'),80);
-    setTimeout(()=>forceVisitorBottom('new250'),250);
-    setTimeout(()=>forceVisitorBottom('new700'),700);
-  }else if(Date.now()-lastScrollForceAt<1400){
-    // Si otro código lo deja arriba justo después de entrar algo nuevo, corregirlo brevemente.
-    box.scrollTop=box.scrollHeight;
+    requestAnimationFrame(forceVisitorBottom);
+    setTimeout(forceVisitorBottom,80);
+    setTimeout(forceVisitorBottom,260);
+    setTimeout(forceVisitorBottom,700);
   }
 }
-
-// Refuerzo en funciones origen ya existentes, sin romper si no están.
-if(typeof window.scrollChatSmart==='function'&&!window.scrollChatSmart.__chat7j){
-  const prev=window.scrollChatSmart;
-  const f=function(box){
-    const r=prev.apply(this,arguments);
-    if(isVisitor()&&box){
-      setTimeout(()=>{try{box.scrollTop=box.scrollHeight}catch(e){}},60);
-      setTimeout(()=>{try{box.scrollTop=box.scrollHeight}catch(e){}},220);
+// Refuerzo directo sobre función original si existe.
+if(typeof window.scrollChatSmart==='function'&&!window.scrollChatSmart.__chat7l){
+  const old=window.scrollChatSmart;
+  const fn=function(box){
+    const r=old.apply(this,arguments);
+    if(isVisitor()){
+      setTimeout(forceVisitorBottom,60);
+      setTimeout(forceVisitorBottom,220);
     }
     return r;
   };
-  f.__chat7j=1; window.scrollChatSmart=f; try{scrollChatSmart=f}catch(e){}
+  fn.__chat7l=1;
+  window.scrollChatSmart=fn;
+  try{scrollChatSmart=fn}catch(e){}
 }
 
-// 2) ADM directo y maximizado centrado.
+// 2) Header visitante coherente.
+function fixVisitorHeader(){
+  if(!isVisitor())return;
+  const id=visitorIdSafe();
+  const c=(id&&chats()[id])||{};
+  const human=!!(c.humanMode&&c.javierOnline&&c.javierOnlineAt&&Date.now()-Number(c.javierOnlineAt)<15*60*1000);
+  const title=q('#chat-popover.open .chat-title');
+  const sub=q('#chat-popover.open .chat-subline');
+  if(human){
+    if(title)title.textContent='JAVIER ONLINE';
+    if(sub)sub.textContent='🟢 Javier está en línea';
+  }else{
+    if(title)title.textContent='ASISTENTE TOMAUNO';
+    if(sub)sub.textContent='Asistente Tomauno';
+  }
+}
+
+// 3) Duplicados visuales sin alterar IDs.
+// Modifica solo el primer texto fuerte visible de la fila, no reordena ni recrea.
+function rowId(row){return row.getAttribute('data-chat-id')||row.dataset.chatId||''}
+function markDuplicateNames(){
+  const dbs=chats();
+  const groups={}, order={};
+  Object.entries(dbs).forEach(([id,c])=>{
+    const n=String(c.name||c.nombre||'').trim().toLowerCase();
+    if(!n)return;
+    if(!groups[n])groups[n]=[];
+    groups[n].push(id);
+  });
+  Object.keys(groups).forEach(k=>groups[k].forEach((id,i)=>order[id]=i+1));
+
+  qa('.chat-tab,.chat-list-item,.chat-inbox-item,[data-chat-id]').forEach(row=>{
+    const id=rowId(row); if(!id)return;
+    const c=dbs[id]||{};
+    const n=String(c.name||c.nombre||'').trim();
+    if(!n)return;
+    const key=n.toLowerCase();
+    const num=order[id]||1;
+    const label=n+(num>1?' '+num:'');
+    row.classList.toggle('tu7l-active',id===adminId());
+    const calling=!!(c.humanRequested&&c.callUntil&&!c.humanConfirm&&!c.callAnsweredAt);
+    row.classList.toggle('tu7l-calling',calling);
+
+    if(calling&&!row.querySelector('.tu7l-call')){
+      const s=document.createElement('span');s.className='tu7l-call';s.textContent='📣';s.title='Está llamando a Javier';row.appendChild(s);
+    }
+    if(!calling)qa('.tu7l-call',row).forEach(x=>x.remove());
+
+    if(groups[key]&&groups[key].length>1){
+      const nameNode=row.querySelector('.chat-tab-name,.chat-name,strong,b,.name')||row.querySelector('strong')||row.querySelector('b');
+      if(nameNode&&!nameNode.dataset.tu7lOriginal){
+        nameNode.dataset.tu7lOriginal=nameNode.textContent.trim();
+      }
+      if(nameNode&&nameNode.textContent.trim()!==label){
+        nameNode.textContent=label;
+      }
+    }
+  });
+}
+
+// 4) ADM directo.
 function bestChatId(){
   const dbs=chats();
   const current=adminId();
@@ -15638,76 +15693,28 @@ function bestChatId(){
   });
   return best;
 }
-const oldOpenAdmin7j=window.abrirChatAdmin;
-if(typeof oldOpenAdmin7j==='function'&&!oldOpenAdmin7j.__chat7j){
-  const open7j=function(id,silent){
+const oldOpenAdmin7l=window.abrirChatAdmin;
+if(typeof oldOpenAdmin7l==='function'&&!oldOpenAdmin7l.__chat7l){
+  const open7l=function(id,silent){
     if(id)lastDirectChatId=id;
-    const r=oldOpenAdmin7j.apply(this,arguments);
-    setTimeout(markRows,80);
-    setTimeout(centerMaxAdmin,120);
+    const r=oldOpenAdmin7l.apply(this,arguments);
+    setTimeout(()=>{markDuplicateNames();centerMaxAdmin()},100);
     return r;
   };
-  open7j.__chat7j=1; window.abrirChatAdmin=open7j; try{abrirChatAdmin=open7j}catch(e){}
+  open7l.__chat7l=1;window.abrirChatAdmin=open7l;try{abrirChatAdmin=open7l}catch(e){}
 }
-const oldPanel7j=window.abrirPanelChatsAdmin;
-if(typeof oldPanel7j==='function'&&!oldPanel7j.__chat7j){
-  const panel7j=function(forceInbox){
-    if(forceInbox===true||window.__tomaunoForceInboxOnce){window.__tomaunoForceInboxOnce=false;return oldPanel7j.apply(this,arguments)}
+const oldPanel7l=window.abrirPanelChatsAdmin;
+if(typeof oldPanel7l==='function'&&!oldPanel7l.__chat7l){
+  const panel7l=function(forceInbox){
+    if(forceInbox===true||window.__tomaunoForceInboxOnce){window.__tomaunoForceInboxOnce=false;return oldPanel7l.apply(this,arguments)}
     const id=bestChatId();
     if(id&&typeof window.abrirChatAdmin==='function')return window.abrirChatAdmin(id,true);
-    return oldPanel7j.apply(this,arguments);
+    return oldPanel7l.apply(this,arguments);
   };
-  panel7j.__chat7j=1; window.abrirPanelChatsAdmin=panel7j; try{abrirPanelChatsAdmin=panel7j}catch(e){}
+  panel7l.__chat7l=1;window.abrirPanelChatsAdmin=panel7l;try{abrirPanelChatsAdmin=panel7l}catch(e){}
 }
 
-// 3) X de persona: no ir a bandeja.
-document.addEventListener('click',function(ev){
-  const btn=ev.target&&ev.target.closest&&ev.target.closest('.chat-tab button,.chat-list-item button,.chat-inbox-item button,[data-chat-id] button');
-  if(!btn)return;
-  const row=btn.closest('.chat-tab,.chat-list-item,.chat-inbox-item,[data-chat-id]');
-  if(!row)return;
-  const t=(btn.innerText||btn.textContent||btn.title||btn.getAttribute('aria-label')||'').toLowerCase();
-  if(!(t.includes('×')||t==='x'||t.includes('cerrar')||t.includes('eliminar')))return;
-  const current=adminId()||lastDirectChatId;
-  setTimeout(()=>{if(current&&typeof window.abrirChatAdmin==='function')window.abrirChatAdmin(current,true)},180);
-},true);
-
-// 4) Filas: activo, llamada y duplicados visuales.
-function rowId(el){return el.getAttribute('data-chat-id')||el.dataset.chatId||''}
-function markRows(){
-  const dbs=chats();
-  const current=adminId();
-  const groups={}, order={};
-  Object.entries(dbs).forEach(([id,c])=>{
-    const n=String(c.name||c.nombre||'').trim().toLowerCase();
-    if(!n)return;
-    if(!groups[n])groups[n]=[];
-    groups[n].push(id);
-  });
-  Object.keys(groups).forEach(k=>groups[k].forEach((id,i)=>order[id]=i+1));
-
-  qa('.chat-tab,.chat-list-item,.chat-inbox-item,[data-chat-id]').forEach(row=>{
-    const id=rowId(row); if(!id)return;
-    const c=dbs[id]||{};
-    const active=id===current;
-    const calling=!!(c.humanRequested&&c.callUntil&&!c.humanConfirm&&!c.callAnsweredAt);
-    row.classList.toggle('tu7j-active',active);
-    row.classList.toggle('tu7j-calling',calling);
-
-    if(calling&&!row.querySelector('.tu7j-call')){
-      const s=document.createElement('span'); s.className='tu7j-call'; s.textContent='📣'; s.title='Está llamando a Javier'; row.appendChild(s);
-    }
-    if(!calling)qa('.tu7j-call',row).forEach(x=>x.remove());
-
-    const n=String(c.name||c.nombre||'').trim().toLowerCase();
-    const num=order[id]||1;
-    if(n&&groups[n]&&groups[n].length>1&&num>1&&!row.querySelector('.tu7j-dupe')){
-      const b=document.createElement('span'); b.className='tu7j-dupe'; b.textContent=String(num); b.title='Nombre repetido'; row.appendChild(b);
-    }
-  });
-}
-
-// 5) Llamada Javier: abrir chat de quien llama y cortar alarma al responder/HUM/escribir.
+// 5) Llamada Javier: abrir chat de quien llama, sonido más notorio, detener al responder.
 function activeCallIds(){
   return Object.entries(chats()).filter(([id,c])=>{
     c=c||{};
@@ -15719,9 +15726,9 @@ function openCallChat(){
   const ids=activeCallIds();
   if(!ids.length)return;
   const id=ids[0];
-  if(lastCallAutoOpen===id)return;
-  lastCallAutoOpen=id;
-  if(typeof window.abrirChatAdmin==='function')setTimeout(()=>window.abrirChatAdmin(id,true),80);
+  if(callFocusedId===id)return;
+  callFocusedId=id;
+  if(typeof window.abrirChatAdmin==='function')setTimeout(()=>window.abrirChatAdmin(id,true),60);
 }
 function stopCall(id){
   if(!id)return;
@@ -15729,88 +15736,99 @@ function stopCall(id){
   safe(()=>{if(typeof stopRing==='function')stopRing(id)});
   updateChat(id,{humanRequested:false,waitingHuman:false,priority:false,prioridad:false,callUntil:0,callAnsweredAt:Date.now(),updatedAt:Date.now()});
 }
-const oldSend7j=window.enviarChatAdmin;
-if(typeof oldSend7j==='function'&&!oldSend7j.__chat7j){
-  const send7j=function(){const id=adminId();if(id)stopCall(id);return oldSend7j.apply(this,arguments)};
-  send7j.__chat7j=1; window.enviarChatAdmin=send7j; try{enviarChatAdmin=send7j}catch(e){}
+const oldSend7l=window.enviarChatAdmin;
+if(typeof oldSend7l==='function'&&!oldSend7l.__chat7l){
+  const send7l=function(){const id=adminId();if(id)stopCall(id);return oldSend7l.apply(this,arguments)};
+  send7l.__chat7l=1;window.enviarChatAdmin=send7l;try{enviarChatAdmin=send7l}catch(e){}
 }
-const oldToggle7j=window.toggleModoAsistenteChat;
-if(typeof oldToggle7j==='function'&&!oldToggle7j.__chat7j){
-  const toggle7j=function(){const id=adminId();if(id)stopCall(id);return oldToggle7j.apply(this,arguments)};
-  toggle7j.__chat7j=1; window.toggleModoAsistenteChat=toggle7j; try{toggleModoAsistenteChat=toggle7j}catch(e){}
+const oldToggle7l=window.toggleModoAsistenteChat;
+if(typeof oldToggle7l==='function'&&!oldToggle7l.__chat7l){
+  const toggle7l=function(){const id=adminId();if(id)stopCall(id);return oldToggle7l.apply(this,arguments)};
+  toggle7l.__chat7l=1;window.toggleModoAsistenteChat=toggle7l;try{toggleModoAsistenteChat=toggle7l}catch(e){}
 }
 document.addEventListener('input',function(e){
   if(isAdmin()&&e.target&&e.target.closest&&e.target.closest('#chat-popover.open')){
-    const id=adminId(); if(id)stopCall(id);
+    const id=adminId();if(id)stopCall(id);
   }
 },true);
 
-// 6) Header visitante coherente.
-function fixVisitorHeader(){
-  if(!isVisitor())return;
-  const id=visitorIdSafe();
-  const c=(id&&chats()[id])||{};
-  const human=!!(c.humanMode&&c.javierOnline&&c.javierOnlineAt&&Date.now()-Number(c.javierOnlineAt)<15*60*1000);
-  const title=q('#chat-popover.open .chat-title');
-  const sub=q('#chat-popover.open .chat-subline');
-  if(human){
-    if(title)title.textContent='JAVIER ONLINE';
-    if(sub)sub.textContent='🟢 Javier está en línea';
-  }else{
-    if(title)title.textContent='ASISTENTE TOMAUNO';
-    if(sub)sub.textContent='Asistente Tomauno';
-  }
+// Sonido adicional de llamada: no reemplaza el original, solo refuerza cada 10s si hay llamada activa.
+// No depende de campanita normal.
+function beepJavier(){
+  const ids=activeCallIds();
+  if(!ids.length)return;
+  const now=Date.now();
+  if(now-lastJavierBeep<9500)return;
+  lastJavierBeep=now;
+  try{
+    const Ctx=window.AudioContext||window.webkitAudioContext;
+    const ctx=new Ctx();
+    [660,880,660].forEach((freq,i)=>{
+      const osc=ctx.createOscillator();
+      const gain=ctx.createGain();
+      osc.type='square';
+      osc.frequency.value=freq;
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+      gain.gain.setValueAtTime(0.0001,ctx.currentTime+i*0.18);
+      gain.gain.exponentialRampToValueAtTime(0.18,ctx.currentTime+i*0.18+0.03);
+      gain.gain.exponentialRampToValueAtTime(0.0001,ctx.currentTime+i*0.18+0.16);
+      osc.start(ctx.currentTime+i*0.18);
+      osc.stop(ctx.currentTime+i*0.18+0.18);
+    });
+  }catch(e){}
 }
 
-// 7) Sonidos normales duplicados: compuerta suave, NO afecta alarma Javier.
-// Bloquea ráfagas de sonidos normales que suceden juntos durante 600ms.
-function installNormalSoundGate(){
-  if(window.__tu7jSoundGate)return;
-  window.__tu7jSoundGate=true;
-
-  if(window.OscillatorNode&&OscillatorNode.prototype&&OscillatorNode.prototype.start){
-    const old=OscillatorNode.prototype.start;
-    OscillatorNode.prototype.start=function(){
-      const now=Date.now();
-      // Si hay llamada activa, no bloquear alarma.
-      if(activeCallIds().length) return old.apply(this,arguments);
-      if(now-lastNormalSoundAt<600) return;
-      lastNormalSoundAt=now;
-      return old.apply(this,arguments);
-    };
-  }
-}
-
-// 8) Centrar maximizado ADM.
+// 6) Max centrado real: aplicar con !important via style y repetir mientras esté max.
 function centerMaxAdmin(){
-  const pop=q('#chat-popover.open'); if(!pop||!isAdmin())return;
+  const pop=q('#chat-popover.open');if(!pop||!isAdmin())return;
   const max=pop.classList.contains('max')||pop.classList.contains('maximized')||pop.classList.contains('fullscreen')||pop.classList.contains('is-maximized')||pop.classList.contains('expanded');
   if(!max)return;
-  pop.style.left='50%'; pop.style.right='auto'; pop.style.top='50%'; pop.style.bottom='auto';
-  pop.style.transform='translate(-50%,-50%)';
-  pop.style.width='min(1180px,96vw)'; pop.style.maxWidth='min(1180px,96vw)';
-  pop.style.height='min(820px,94vh)'; pop.style.maxHeight='94vh';
+  pop.style.setProperty('position','fixed','important');
+  pop.style.setProperty('left','50%','important');
+  pop.style.setProperty('right','auto','important');
+  pop.style.setProperty('top','50%','important');
+  pop.style.setProperty('bottom','auto','important');
+  pop.style.setProperty('transform','translate(-50%,-50%)','important');
+  pop.style.setProperty('width','min(1180px,96vw)','important');
+  pop.style.setProperty('max-width','96vw','important');
+  pop.style.setProperty('height','min(820px,94vh)','important');
+  pop.style.setProperty('max-height','94vh','important');
 }
 document.addEventListener('click',function(e){
   const btn=e.target&&e.target.closest&&e.target.closest('#chat-popover.open button');
   if(!btn)return;
   const t=(btn.innerText||btn.textContent||btn.title||btn.getAttribute('aria-label')||'').toLowerCase();
-  if(/max|pantalla|expand|⛶/.test(t)){setTimeout(centerMaxAdmin,120);setTimeout(centerMaxAdmin,350)}
+  if(/max|pantalla|expand|⛶/.test(t)){
+    setTimeout(centerMaxAdmin,60);
+    setTimeout(centerMaxAdmin,180);
+    setTimeout(centerMaxAdmin,500);
+  }
+},true);
+
+// 7) X de persona: conservar chat actual.
+document.addEventListener('click',function(ev){
+  const btn=ev.target&&ev.target.closest&&ev.target.closest('.chat-tab button,.chat-list-item button,.chat-inbox-item button,[data-chat-id] button');
+  if(!btn)return;
+  const row=btn.closest('.chat-tab,.chat-list-item,.chat-inbox-item,[data-chat-id]');
+  if(!row)return;
+  const t=(btn.innerText||btn.textContent||btn.title||btn.getAttribute('aria-label')||'').toLowerCase();
+  if(!(t.includes('×')||t==='x'||t.includes('cerrar')||t.includes('eliminar')))return;
+  const current=adminId()||lastDirectChatId;
+  setTimeout(()=>{if(current&&typeof window.abrirChatAdmin==='function')window.abrirChatAdmin(current,true)},180);
 },true);
 
 function css(){
-  if(q('#tu7j-css'))return;
-  const st=document.createElement('style'); st.id='tu7j-css';
+  if(q('#tu7l-css'))return;
+  const st=document.createElement('style');st.id='tu7l-css';
   st.textContent=`
-    .tu7j-active{outline:2px solid rgba(255,255,255,.85)!important;box-shadow:0 0 0 2px rgba(232,0,10,.35), inset 3px 0 0 #e8000a!important}
-    .tu7j-calling{border-color:#ffd54a!important;box-shadow:inset 3px 0 0 #ffd54a!important}
-    .tu7j-call{display:inline-flex!important;margin-left:5px!important;color:#ffd54a!important;filter:drop-shadow(0 0 5px rgba(255,213,74,.8))!important}
-    .tu7j-dupe{display:inline-flex!important;margin-left:4px!important;min-width:18px!important;height:18px!important;border-radius:99px!important;background:#e8000a!important;color:#fff!important;font-size:11px!important;align-items:center!important;justify-content:center!important;padding:0 5px!important}
+    .tu7l-active{outline:2px solid rgba(255,255,255,.9)!important;box-shadow:0 0 0 2px rgba(232,0,10,.35), inset 3px 0 0 #e8000a!important}
+    .tu7l-calling{border-color:#ffd54a!important;box-shadow:inset 3px 0 0 #ffd54a!important}
+    .tu7l-call{display:inline-flex!important;margin-left:5px!important;color:#ffd54a!important;filter:drop-shadow(0 0 5px rgba(255,213,74,.8))!important}
   `;
   document.head.appendChild(st);
 }
 css();
-installNormalSoundGate();
 
-setInterval(()=>{visitorScrollWatch();markRows();openCallChat();fixVisitorHeader();centerMaxAdmin()},450);
+setInterval(()=>{visitorScrollWatch();fixVisitorHeader();markDuplicateNames();openCallChat();beepJavier();centerMaxAdmin()},450);
 })();
