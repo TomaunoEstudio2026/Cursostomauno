@@ -2235,25 +2235,51 @@ window.verResumenConsultasChat = () => {
 };
 
 function adminChatTabsHtml(activeId){
-  const abiertos = Object.entries(chatsDB)
+  const abiertosAll = Object.entries(chatsDB)
     .filter(([,c]) => isValidChat(c) && c.status !== 'cerrado')
     .sort((a,b)=>(b[1].updatedAt||0)-(a[1].updatedAt||0));
+
+  const abiertos = abiertosAll.slice(0,12);
   if (!abiertos.length) return '';
-  return '<div class="chat-tabs chat-inbox-side">' + abiertos.slice(0,12).map(([id,c]) => {
+
+  const visibleCounts = {};
+  const visibleOrder = {};
+  abiertos.forEach(([id,c]) => {
+    const base = String((c && c.name) || '').trim();
+    const key = (base || chatAnonName(id,c)).toLowerCase();
+    visibleCounts[key] = (visibleCounts[key] || 0) + 1;
+    visibleOrder[key] = visibleOrder[key] || [];
+    visibleOrder[key].push(id);
+  });
+
+  function visibleName(id,c){
+    const baseRaw = String((c && c.name) || '').trim();
+    const base = (baseRaw && !isGenericChatName(baseRaw)) ? baseRaw : chatAnonName(id,c);
+    const key = base.toLowerCase();
+    const arr = visibleOrder[key] || [];
+    const idx = arr.indexOf(id);
+    if((visibleCounts[key] || 0) > 1 && idx > 0) return base + ' ' + (idx + 1);
+    return base;
+  }
+
+  return '<div class="chat-tabs chat-inbox-side">' + abiertos.map(([id,c]) => {
     const status = chatStatusLabel(c);
     const time = chatLastActivityLabel(c);
-    const preview = String((c.humanRequested ? 'Atención Javier · ' : '') + (c.lastMsg || '')).trim();
+    const calling = !!(c.humanRequested && c.callUntil && !c.callAnsweredAt && !c.humanConfirm);
+    const preview = String((calling ? '📣 Llamada Javier · ' : (c.humanRequested ? 'Atención Javier · ' : '')) + (c.lastMsg || '')).trim();
     const cls = [
       'chat-tab',
       id===activeId ? 'active' : '',
+      calling ? 'calling' : '',
       c.unreadAdmin ? 'unread' : '',
       (c.humanRequested && !c.readByAdminAt) ? 'priority' : '',
       isChatUserOnline(c) ? 'online' : '',
       chatNeedsReply(c) ? 'waiting' : 'answered'
     ].filter(Boolean).join(' ');
-    return '<button class="'+cls+'" onclick="window.abrirChatAdmin(\''+id+'\')">'
+
+    return '<button class="'+cls+'" data-chat-id="'+escAttr(id)+'" onclick="window.abrirChatAdmin(\''+id+'\')">'
       + '<span class="chat-tab-light" title="'+escAttr(status)+'"></span>'
-      + '<span class="chat-tab-body"><span class="chat-tab-name">'+escHtml(chatVisibleName(c,id))+'</span>'
+      + '<span class="chat-tab-body"><span class="chat-tab-name">'+(calling?'📣 ':'')+escHtml(visibleName(id,c))+'</span>'
       + '<span class="chat-tab-preview">'+escHtml(preview || status)+'</span>'
       + '<span class="chat-tab-foot">'+escHtml(status)+(time?' · '+escHtml(time):'')+'</span></span>'
       + '<span class="chat-tab-close" title="Cerrar" onclick="event.stopPropagation();window.cerrarConversacionChat(\''+id+'\')">×</span>'
@@ -7854,7 +7880,7 @@ window.filterCursos = function(){
     const pop = document.getElementById('chat-popover');
     if(!pop || !pop.classList.contains('open') || adminActiveFinal()) return;
     const chat = chatsDB && chatsDB[id || visitorChatIdFinal()];
-    const human = chatIsHumanFinal(chat);
+    const human = !!(chat && (chat.humanMode || Number(chat.manualUntil||0) > Date.now()));
     pop.classList.toggle('tu-human-chat', human);
     pop.classList.toggle('tu-auto-chat', !human);
     const title = pop.querySelector('.chat-title');
@@ -11258,14 +11284,22 @@ window.filterCursos = function(){
   function visitorStatusLabel(){
     if(isAdmin()) return;
     var sub = q('#chat-popover.open .chat-subline');
-    if(!sub) return;
+    var title = q('#chat-popover.open .chat-title');
+    if(!sub && !title) return;
 
-    if(isAutoMode()){
-      if(!/Asistente Tomauno|Consulta directa/i.test(sub.textContent || '')){
-        sub.textContent = 'Asistente Tomauno';
-      }
+    var id = '';
+    try{ id = window.currentVisitorChatId || currentVisitorChatId || sessionStorage.getItem('tomauno-chat-id') || ''; }catch(e){}
+    var c = {};
+    try{ c = (window.chatsDB || chatsDB || {})[id] || {}; }catch(e){}
+
+    var human = !!(c && (c.humanMode || Number(c.manualUntil||0) > Date.now()));
+
+    if(human){
+      if(title) title.textContent = 'JAVIER ONLINE';
+      if(sub) sub.textContent = '🟢 Javier está en línea';
     }else{
-      sub.textContent = '🟢 Javier puede responderte personalmente';
+      if(title) title.textContent = 'ASISTENTE TOMAUNO';
+      if(sub) sub.textContent = 'Asistente Tomauno';
     }
   }
 
@@ -15731,4 +15765,237 @@ function fixVisitorHeader7m(){
   if(sub) sub.textContent=human?'🟢 Javier está en línea':'Asistente Tomauno';
 }
 setInterval(fixVisitorHeader7m,500);
+})();
+
+
+// TOMAUNO CHAT 7N — CIERRE PENDIENTES SIN TOCAR BASURERO REAL
+(function(){
+'use strict';
+
+function q(s,r){return (r||document).querySelector(s)}
+function qa(s,r){return Array.from((r||document).querySelectorAll(s))}
+function isAdminView(){return !!q('#chat-popover.open #chat-admin-text,#chat-popover.open .chat-inbox-side,#chat-popover.open .chat-admin-tools')}
+function isVisitorView(){return !!q('#chat-popover.open #chat-text')&&!q('#chat-popover.open #chat-admin-text')}
+function adminIdSafe(){try{return window.currentOpenChatId || currentOpenChatId || ''}catch(e){return ''}}
+function chatsSafe(){try{return window.chatsDB || chatsDB || {}}catch(e){return {}}}
+
+let manualInboxUntil = 0;
+let visitorObsBox = null;
+let visitorObs = null;
+
+// A) Botón Bandeja: cuando el usuario lo toca, debe quedarse en bandeja.
+document.addEventListener('click', function(e){
+  const btn = e.target && e.target.closest && e.target.closest('button,a');
+  if(!btn) return;
+  const txt = (btn.innerText || btn.textContent || btn.title || btn.getAttribute('aria-label') || '').toLowerCase().trim();
+  if(txt.includes('bandeja') || txt === '←' || txt.includes('volver')){
+    manualInboxUntil = Date.now() + 5000;
+    window.__tomaunoManualInboxUntil = manualInboxUntil;
+  }
+}, true);
+
+const prevOpenAdmin7n = window.abrirChatAdmin;
+if(typeof prevOpenAdmin7n === 'function' && !prevOpenAdmin7n.__chat7n){
+  const f = function(id,silent){
+    const lock = Math.max(manualInboxUntil, Number(window.__tomaunoManualInboxUntil || 0));
+    if(Date.now() < lock && silent) return;
+    return prevOpenAdmin7n.apply(this, arguments);
+  };
+  f.__chat7n = 1;
+  window.abrirChatAdmin = f;
+  try{ abrirChatAdmin = f; }catch(e){}
+}
+
+// B) Maximizar ADM centrado: usar clase CSS, no estilos inline pegados.
+// Al desmaximizar limpia clase y estilos.
+const prevToggleMax7n = window.toggleChatExpanded;
+window.toggleChatExpanded = function(){
+  const pop = document.getElementById('chat-popover');
+  if(!pop) return prevToggleMax7n && prevToggleMax7n.apply(this, arguments);
+
+  const admin = isAdminView();
+
+  if(admin){
+    const willExpand = !pop.classList.contains('expanded');
+    pop.classList.toggle('expanded', willExpand);
+    pop.classList.remove('dragged');
+
+    if(willExpand){
+      pop.classList.add('tu7n-center');
+      pop.style.left='';
+      pop.style.top='';
+      pop.style.right='';
+      pop.style.bottom='';
+      pop.style.transform='';
+      pop.style.width='';
+      pop.style.height='';
+      pop.style.maxWidth='';
+      pop.style.maxHeight='';
+    }else{
+      pop.classList.remove('tu7n-center');
+      pop.style.left='';
+      pop.style.top='';
+      pop.style.right='';
+      pop.style.bottom='';
+      pop.style.transform='';
+      pop.style.width='';
+      pop.style.height='';
+      pop.style.maxWidth='';
+      pop.style.maxHeight='';
+    }
+    return;
+  }
+
+  // visitante: deja el comportamiento previo intacto.
+  if(typeof prevToggleMax7n === 'function') return prevToggleMax7n.apply(this, arguments);
+  pop.classList.toggle('expanded');
+};
+
+function syncCenterClass(){
+  const pop = document.getElementById('chat-popover');
+  if(!pop || !isAdminView()) return;
+  if(pop.classList.contains('expanded')) pop.classList.add('tu7n-center');
+  else pop.classList.remove('tu7n-center');
+}
+
+// C) Scroll visitante: observar cambios reales del contenedor y bajar al final.
+// No toca ADM.
+function forceVisitorBottom(){
+  if(!isVisitorView()) return;
+  const box = document.getElementById('chat-msgs') || q('#chat-popover.open .chat-msgs');
+  if(!box) return;
+  box.scrollTop = box.scrollHeight;
+}
+function bindVisitorObserver(){
+  if(!isVisitorView()) return;
+  const box = document.getElementById('chat-msgs') || q('#chat-popover.open .chat-msgs');
+  if(!box || box === visitorObsBox) return;
+
+  if(visitorObs) try{ visitorObs.disconnect(); }catch(e){}
+  visitorObsBox = box;
+  visitorObs = new MutationObserver(() => {
+    forceVisitorBottom();
+    setTimeout(forceVisitorBottom,80);
+    setTimeout(forceVisitorBottom,240);
+  });
+  visitorObs.observe(box, {childList:true, subtree:true, characterData:true});
+  setTimeout(forceVisitorBottom,60);
+  setTimeout(forceVisitorBottom,220);
+}
+
+// Refuerzo sobre funciones conocidas.
+const prevUpdate7n = window.updateChatMessagesOnly;
+if(typeof prevUpdate7n === 'function' && !prevUpdate7n.__chat7n){
+  const f = function(id, adminView){
+    const r = prevUpdate7n.apply(this, arguments);
+    if(isVisitorView()){
+      setTimeout(forceVisitorBottom,60);
+      setTimeout(forceVisitorBottom,220);
+      setTimeout(forceVisitorBottom,600);
+    }
+    return r;
+  };
+  f.__chat7n = 1;
+  window.updateChatMessagesOnly = f;
+  try{ updateChatMessagesOnly = f; }catch(e){}
+}
+
+const prevOpenVisitor7n = window.abrirChatVisitante;
+if(typeof prevOpenVisitor7n === 'function' && !prevOpenVisitor7n.__chat7n){
+  const f = function(){
+    const r = prevOpenVisitor7n.apply(this, arguments);
+    setTimeout(bindVisitorObserver,80);
+    setTimeout(forceVisitorBottom,140);
+    setTimeout(forceVisitorBottom,400);
+    return r;
+  };
+  f.__chat7n = 1;
+  window.abrirChatVisitante = f;
+  try{ abrirChatVisitante = f; }catch(e){}
+}
+
+// D) Header visitante: última palabra, rápido, solo título/subtítulo.
+function fixVisitorHeader(){
+  if(!isVisitorView()) return;
+  let id = '';
+  try{id = window.currentVisitorChatId || currentVisitorChatId || sessionStorage.getItem('tomauno-chat-id') || ''}catch(e){}
+  const c = chatsSafe()[id] || {};
+  const human = !!(c.humanMode || Number(c.manualUntil||0) > Date.now());
+  const title = q('#chat-popover.open .chat-title');
+  const sub = q('#chat-popover.open .chat-subline');
+
+  if(human){
+    if(title && title.textContent !== 'JAVIER ONLINE') title.textContent = 'JAVIER ONLINE';
+    if(sub && sub.textContent !== '🟢 Javier está en línea') sub.textContent = '🟢 Javier está en línea';
+  }else{
+    if(title && title.textContent !== 'ASISTENTE TOMAUNO') title.textContent = 'ASISTENTE TOMAUNO';
+    if(sub && sub.textContent !== 'Asistente Tomauno') sub.textContent = 'Asistente Tomauno';
+  }
+}
+
+// E) Indicador llamada en panel, confiable.
+function markCallRows(){
+  const db = chatsSafe();
+  qa('.chat-tab,.chat-list-item,.chat-inbox-item,[data-chat-id]').forEach(row=>{
+    let id = row.getAttribute('data-chat-id') || row.dataset.chatId || '';
+    if(!id){
+      const on = row.getAttribute('onclick') || '';
+      const m = on.match(/abrirChatAdmin\('([^']+)'\)/);
+      if(m) id = m[1];
+    }
+    if(!id) return;
+    const c = db[id] || {};
+    const calling = !!(c.humanRequested && c.callUntil && !c.callAnsweredAt && !c.humanConfirm);
+    row.classList.toggle('tu7n-calling', calling);
+
+    if(calling && !row.querySelector('.tu7n-mega')){
+      const s = document.createElement('span');
+      s.className = 'tu7n-mega';
+      s.textContent = '📣';
+      s.title = 'Llamada a Javier';
+      const name = row.querySelector('.chat-tab-name,.chat-name,strong,b,.name') || row;
+      name.prepend(s);
+    }
+    if(!calling) qa('.tu7n-mega', row).forEach(x=>x.remove());
+  });
+}
+
+function css(){
+  if(document.getElementById('tu7n-css')) return;
+  const st = document.createElement('style');
+  st.id = 'tu7n-css';
+  st.textContent = `
+    html body #chat-popover.open.expanded.tu7n-center{
+      position:fixed!important;
+      left:50%!important;
+      top:50%!important;
+      right:auto!important;
+      bottom:auto!important;
+      transform:translate(-50%,-50%)!important;
+      width:min(1120px,calc(100vw - 42px))!important;
+      max-width:calc(100vw - 42px)!important;
+      height:min(82vh,820px)!important;
+      max-height:calc(100vh - 42px)!important;
+    }
+    .tu7n-calling{
+      border-color:#ffd54a!important;
+      box-shadow:inset 3px 0 0 #ffd54a!important;
+    }
+    .tu7n-mega{
+      display:inline-flex!important;
+      margin-right:4px!important;
+      color:#ffd54a!important;
+      filter:drop-shadow(0 0 5px rgba(255,213,74,.8))!important;
+    }
+  `;
+  document.head.appendChild(st);
+}
+css();
+
+setInterval(function(){
+  bindVisitorObserver();
+  fixVisitorHeader();
+  markCallRows();
+  syncCenterClass();
+}, 180);
 })();
