@@ -121,7 +121,7 @@
 })();
 
 
-/* Tomauno v28 patch mínimo: hum y móvil fullscreen. */
+/* Tomauno v28 patch mínimo: humano y móvil fullscreen. */
 (function(){
   function css(){
     if(document.getElementById('tomauno-v28-patch-css')) return;
@@ -138,7 +138,7 @@
 })();
 
 
-/* Tomauno v28b patch mínimo: badge hum visible y lectura. */
+/* Tomauno v28b patch mínimo: badge humano visible y lectura. */
 (function(){
   function css(){
     if(document.getElementById('tomauno-v28b-patch-css')) return;
