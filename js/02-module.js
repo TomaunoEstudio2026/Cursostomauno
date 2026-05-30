@@ -2048,24 +2048,25 @@ window.chatGoToSection = (id) => {
   navScroll(id);
 };
 function renderMsgs(chat, adminView=false, chatId=''){
-  return chatMsgs(chat).map(([mid,m]) => {
+  return chatMsgs(chat).filter(([mid,m]) => !(m && (m.hidden || m.deleted || m.deletedForVisitor))).map(([mid,m]) => {
     const editBtn = adminView && m.from === 'admin' ? '<button class="chat-edit-mini" title="Editar respuesta" onclick="event.stopPropagation();window.editarMensajeChat(\''+chatId+'\',\''+mid+'\')">✎</button>' : '';
+    const deleteBtn = adminView && (m.from === 'admin' || m.from === 'system') && !m.typing ? '<button class="chat-delete-mini" title="Borrar para el visitante" onclick="event.stopPropagation();window.borrarMensajeChatParaVisitante(\''+chatId+'\',\''+mid+'\')">🗑️</button>' : '';
     const cls = m.typing ? 'typing' : (m.from==='admin'?'admin':m.from==='system'?'system':'user');
     const actions = (!m.typing && (m.from==='admin' || m.from==='system')) ? chatActionButtonsForMessage(m.text || '') : '';
     const waitStart = m.humanWait ? Number(chat?.humanWaitStartedAt || m.createdAt || 0) : 0;
     const waitCountdown = waitStart ? '<div class="chat-human-countdown" data-human-wait-start="'+waitStart+'"><span class="chat-human-countdown-num">60</span>s para intentar conectar con Javier</div>' : '';
-    return '<div class="chat-bubble '+cls+'"><div>'+chatLinkify(m.text||'')+editBtn+'</div>'+waitCountdown+actions+(m.from==='system'?'':'<div class="chat-meta">'+escHtml(m.time||'')+'</div>')+'</div>';
+    return '<div class="chat-bubble '+cls+'" data-message-id="'+escAttr(mid)+'" data-msg-id="'+escAttr(mid)+'"><div>'+chatLinkify(m.text||'')+editBtn+deleteBtn+'</div>'+waitCountdown+actions+(m.from==='system'?'':'<div class="chat-meta">'+escHtml(m.time||'')+'</div>')+'</div>';
   }).join('');
 }
 function scrollChatSmart(box){
   if(!box) return;
   const isVisitorView = !!document.querySelector('#chat-popover.open #chat-text') && !document.querySelector('#chat-popover.open #chat-admin-text');
-  const distanceFromBottom = box.scrollHeight - box.clientHeight - box.scrollTop;
-  const visitorReading = isVisitorView && (
-    (window.__tomaunoVisitorReadingUntil && Date.now() < window.__tomaunoVisitorReadingUntil) ||
-    distanceFromBottom > 90
-  );
-  if(visitorReading) return;
+  if(isVisitorView){
+    box.scrollTop = box.scrollHeight;
+    setTimeout(()=>{ try{ box.scrollTop = box.scrollHeight; }catch(e){} }, 80);
+    setTimeout(()=>{ try{ box.scrollTop = box.scrollHeight; }catch(e){} }, 220);
+    return;
+  }
   box.scrollTop = box.scrollHeight;
 }
 function updateChatMessagesOnly(id, adminView){
@@ -7817,48 +7818,16 @@ window.filterCursos = function(){
 
   const prevScrollFinal = scrollChatSmart;
   scrollChatSmart = function(box){
-    const isVisitorChat = !!document.querySelector('#chat-popover.open #chat-text') &&
-                          !document.querySelector('#chat-popover.open #chat-admin-text');
-
-    if(visitorTypingNow() && !isVisitorChat) return;
-
-    const r = prevScrollFinal.apply(this, arguments);
-
-    if(isVisitorChat && box){
-      setTimeout(() => { box.scrollTop = box.scrollHeight; }, 80);
-      setTimeout(() => { box.scrollTop = box.scrollHeight; }, 220);
-    }
-
-    return r;
+    if(visitorTypingNow()) return;
+    return prevScrollFinal.apply(this, arguments);
   };
   window.scrollChatSmart = scrollChatSmart;
 
   const prevUpdateMsgsFinal = updateChatMessagesOnly;
   updateChatMessagesOnly = function(id, adminView){
-    const isVisitorChat = !!document.querySelector('#chat-popover.open #chat-text') &&
-                          !document.querySelector('#chat-popover.open #chat-admin-text');
-
-    if(visitorTypingNow()){
-      const rTyping = preserveDraft(() => prevUpdateMsgsFinal.call(this, id, false));
-      if(isVisitorChat){
-        setTimeout(() => {
-          const box = document.querySelector('#chat-popover.open .chat-msgs');
-          if(box) box.scrollTop = box.scrollHeight;
-        }, 120);
-      }
-      return rTyping;
-    }
-
+    if(visitorTypingNow()) return preserveDraft(() => prevUpdateMsgsFinal.call(this, id, false));
     const r = prevUpdateMsgsFinal.apply(this, arguments);
     setTimeout(renderLiveTypingFinal, 20);
-
-    if(isVisitorChat){
-      setTimeout(() => {
-        const box = document.querySelector('#chat-popover.open .chat-msgs');
-        if(box) box.scrollTop = box.scrollHeight;
-      }, 120);
-    }
-
     return r;
   };
   window.updateChatMessagesOnly = updateChatMessagesOnly;
@@ -12267,18 +12236,27 @@ window.filterCursos = function(){
   // 5) Javier online estable: sin intermitencia.
   function updateVisitorHeader(){
     if(isAdmin()) return;
+
     var id = visitorId();
     if(!id) return;
 
     var c = chats()[id] || {};
-    var online = !!(c.javierOnline && c.javierOnlineAt && Date.now() - Number(c.javierOnlineAt) < 15*60*1000);
+    var online = !!(
+      c.humanMode &&
+      c.javierOnline &&
+      c.javierOnlineAt &&
+      Date.now() - Number(c.javierOnlineAt) < 15 * 60 * 1000
+    );
 
     var title = q('#chat-popover.open .chat-title');
     var sub = q('#chat-popover.open .chat-subline');
 
     if(online){
       if(title) title.textContent = 'JAVIER ONLINE';
-      if(sub) sub.innerHTML = '🟢 Javier está en línea';
+      if(sub) sub.textContent = '🟢 Javier está en línea';
+    }else{
+      if(title) title.textContent = 'ASISTENTE TOMAUNO';
+      if(sub) sub.textContent = 'Asistente Tomauno';
     }
   }
 
@@ -12821,16 +12799,27 @@ window.filterCursos = function(){
   // 8) Javier online estable.
   function updateVisitorHeader(){
     if(isAdmin()) return;
+
     var id = visitorId();
     if(!id) return;
+
     var c = chats()[id] || {};
-    var online = !!(c.javierOnline && c.javierOnlineAt && Date.now() - Number(c.javierOnlineAt) < 15*60*1000);
+    var online = !!(
+      c.humanMode &&
+      c.javierOnline &&
+      c.javierOnlineAt &&
+      Date.now() - Number(c.javierOnlineAt) < 15 * 60 * 1000
+    );
+
+    var title = q('#chat-popover.open .chat-title');
+    var sub = q('#chat-popover.open .chat-subline');
 
     if(online){
-      var title = q('#chat-popover.open .chat-title');
-      var sub = q('#chat-popover.open .chat-subline');
       if(title) title.textContent = 'JAVIER ONLINE';
-      if(sub) sub.innerHTML = '🟢 Javier está en línea';
+      if(sub) sub.textContent = '🟢 Javier está en línea';
+    }else{
+      if(title) title.textContent = 'ASISTENTE TOMAUNO';
+      if(sub) sub.textContent = 'Asistente Tomauno';
     }
   }
 
@@ -13593,27 +13582,18 @@ window.filterCursos = function(){
   if(typeof oldToggle === 'function' && !oldToggle.__tu6e){
     var toggle6e = function(){
       var box = q('#chat-popover.open .chat-msgs');
-      var isAdminChat = !!q('#chat-popover.open #chat-admin-text');
       var oldTop = box ? box.scrollTop : null;
       var oldHeight = box ? box.scrollHeight : null;
-
       var r = oldToggle.apply(this,arguments);
-
       setTimeout(function(){
         var b = q('#chat-popover.open .chat-msgs');
-        if(!b) return;
-
-        if(isAdminChat && oldTop !== null){
-          if(oldHeight && b.scrollHeight !== oldHeight){
-            b.scrollTop = b.scrollHeight;
-          }else{
-            b.scrollTop = oldTop;
-          }
-        }else{
+        if(!b || oldTop === null) return;
+        if(oldHeight && b.scrollHeight !== oldHeight){
           b.scrollTop = b.scrollHeight;
+        }else{
+          b.scrollTop = oldTop;
         }
       },160);
-
       return r;
     };
     toggle6e.__tu6e = 1;
@@ -13865,13 +13845,7 @@ window.filterCursos = function(){
   var oldScrollInto = Element.prototype.scrollIntoView;
   if(oldScrollInto && !oldScrollInto.__tu6f){
     Element.prototype.scrollIntoView = function(){
-      var isAdminChat = !!document.querySelector('#chat-popover.open #chat-admin-text');
-      if(
-        isAdminChat &&
-        Date.now() < userScrollLockUntil &&
-        this.closest &&
-        this.closest('#chat-popover.open .chat-msgs')
-      ) return;
+      if(Date.now() < userScrollLockUntil && this.closest && this.closest('#chat-popover.open .chat-msgs')) return;
       return oldScrollInto.apply(this,arguments);
     };
     Element.prototype.scrollIntoView.__tu6f = 1;
@@ -14115,19 +14089,26 @@ window.filterCursos = function(){
   // Header visitante estable según modo.
   function updateVisitorHeader(){
     if(isAdmin()) return;
+
     var id = visitorId();
-    var c = id ? (chats()[id] || {}) : {};
+    if(!id) return;
+
+    var c = chats()[id] || {};
+    var online = !!(
+      c.humanMode &&
+      c.javierOnline &&
+      c.javierOnlineAt &&
+      Date.now() - Number(c.javierOnlineAt) < 15 * 60 * 1000
+    );
+
     var title = q('#chat-popover.open .chat-title');
     var sub = q('#chat-popover.open .chat-subline');
-    if(!title) return;
 
-    var onlineHuman = !!(c.javierOnline && c.javierOnlineAt && Date.now()-Number(c.javierOnlineAt)<15*60*1000 && !isAuto());
-
-    if(onlineHuman){
-      title.textContent = 'JAVIER ONLINE';
-      if(sub) sub.innerHTML = '🟢 Javier está en línea';
+    if(online){
+      if(title) title.textContent = 'JAVIER ONLINE';
+      if(sub) sub.textContent = '🟢 Javier está en línea';
     }else{
-      title.textContent = 'CHAT TOMAUNO';
+      if(title) title.textContent = 'ASISTENTE TOMAUNO';
       if(sub) sub.textContent = 'Asistente Tomauno';
     }
   }
@@ -15201,17 +15182,26 @@ window.filterCursos = function(){
   // 6) Header visitante.
   function updateVisitorHeader(){
     if(isAdmin()) return;
+
     var id = visitorId();
-    var c = id ? (chats()[id] || {}) : {};
-    var humanOnline = !!(c.javierOnline && c.javierOnlineAt && Date.now()-Number(c.javierOnlineAt)<15*60*1000 && !isAuto());
+    if(!id) return;
+
+    var c = chats()[id] || {};
+    var online = !!(
+      c.humanMode &&
+      c.javierOnline &&
+      c.javierOnlineAt &&
+      Date.now() - Number(c.javierOnlineAt) < 15 * 60 * 1000
+    );
+
     var title = q('#chat-popover.open .chat-title');
     var sub = q('#chat-popover.open .chat-subline');
-    if(!title) return;
-    if(humanOnline){
-      title.textContent = 'JAVIER ONLINE';
-      if(sub) sub.innerHTML = '🟢 Javier está en línea';
+
+    if(online){
+      if(title) title.textContent = 'JAVIER ONLINE';
+      if(sub) sub.textContent = '🟢 Javier está en línea';
     }else{
-      title.textContent = 'ASISTENTE TOMAUNO';
+      if(title) title.textContent = 'ASISTENTE TOMAUNO';
       if(sub) sub.textContent = 'Asistente Tomauno';
     }
   }
@@ -15402,18 +15392,27 @@ window.filterCursos = function(){
   },true);
 
   function updateVisitorHeader(){
-    if(!isVisitorView()) return;
+    if(isAdmin()) return;
+
     var id = visitorId();
-    var c = id ? (chats()[id] || {}) : {};
+    if(!id) return;
+
+    var c = chats()[id] || {};
+    var online = !!(
+      c.humanMode &&
+      c.javierOnline &&
+      c.javierOnlineAt &&
+      Date.now() - Number(c.javierOnlineAt) < 15 * 60 * 1000
+    );
+
     var title = q('#chat-popover.open .chat-title');
     var sub = q('#chat-popover.open .chat-subline');
-    if(!title) return;
-    var humanOnline = !!(c.javierOnline && c.javierOnlineAt && Date.now()-Number(c.javierOnlineAt)<15*60*1000);
-    if(humanOnline){
-      title.textContent = 'JAVIER ONLINE';
-      if(sub) sub.innerHTML = '🟢 Javier está en línea';
+
+    if(online){
+      if(title) title.textContent = 'JAVIER ONLINE';
+      if(sub) sub.textContent = '🟢 Javier está en línea';
     }else{
-      title.textContent = 'ASISTENTE TOMAUNO';
+      if(title) title.textContent = 'ASISTENTE TOMAUNO';
       if(sub) sub.textContent = 'Asistente Tomauno';
     }
   }
@@ -15493,232 +15492,41 @@ window.filterCursos = function(){
 })();
 
 
-// TOMAUNO CHAT 7F — LIMPIEZA RENDER CHAT
-// Base estable. No toca AUTO/HUM ni campanita.
-// Corrige: basureros duplicados, header visitante, apertura ADM, X usuarios, scroll visitante mínimo.
+// TOMAUNO CHAT 7H — BORRAR REAL PARA VISITANTE + SCROLL ORIGEN
 (function(){
 'use strict';
 
-function safe(fn){try{return fn()}catch(e){try{console.warn('TU chat7f:',e)}catch(_){}}}
 function q(s,r){return (r||document).querySelector(s)}
-function qa(s,r){return Array.from((r||document).querySelectorAll(s))}
-function chats(){return safe(()=>window.chatsDB||chatsDB||{})||{}}
-function isVisitor(){return !!q('#chat-popover.open #chat-text')&&!q('#chat-popover.open #chat-admin-text')}
 function isAdmin(){return !!q('#chat-popover.open #chat-admin-text,#chat-popover.open .chat-inbox-side,#chat-popover.open .chat-admin-tools')}
-function adminId(){return safe(()=>window.currentOpenChatId||currentOpenChatId||'')||''}
 
-let lastVisitorKey='';
-let lastOpenedAdminId='';
-
-// 1) Encabezado visitante: una sola regla visual, sin parpadeo.
-function fixVisitorHeader(){
-  if(!isVisitor()) return;
-
-  const id = safe(()=>window.currentVisitorChatId||currentVisitorChatId||sessionStorage.getItem('tomauno-chat-id')||'')||'';
-  const c = (id && chats()[id]) || {};
-  const human = !!(
-    c.humanMode &&
-    c.javierOnline &&
-    c.javierOnlineAt &&
-    Date.now() - Number(c.javierOnlineAt) < 15 * 60 * 1000
-  );
-
-  const title = q('#chat-popover.open .chat-title');
-  const sub = q('#chat-popover.open .chat-subline');
-
-  if(human){
-    if(title && title.textContent !== 'JAVIER ONLINE') title.textContent = 'JAVIER ONLINE';
-    if(sub && sub.textContent !== '🟢 Javier está en línea') sub.textContent = '🟢 Javier está en línea';
-  }else{
-    if(title && title.textContent !== 'ASISTENTE TOMAUNO') title.textContent = 'ASISTENTE TOMAUNO';
-    if(sub && sub.textContent !== 'Asistente Tomauno') sub.textContent = 'Asistente Tomauno';
-  }
-}
-
-// 2) ADM abre chat directo cuando sea posible. No agregar botón Bandeja extra.
-const oldOpenAdmin7f = window.abrirChatAdmin;
-if(typeof oldOpenAdmin7f === 'function' && !oldOpenAdmin7f.__chat7f){
-  const open7f = function(id,silent){
-    if(id) lastOpenedAdminId = id;
-    return oldOpenAdmin7f.apply(this, arguments);
-  };
-  open7f.__chat7f = 1;
-  window.abrirChatAdmin = open7f;
-  try{ abrirChatAdmin = open7f; }catch(e){}
-}
-
-function bestChatId(){
-  const db = chats();
-  let best = lastOpenedAdminId || adminId();
-  let score = best ? 1 : -1;
-
-  Object.entries(db).forEach(([id,c])=>{
-    c=c||{};
-    let s=0;
-    if(c.humanRequested&&!c.humanFallbackSent&&!c.humanConfirm) s+=100000;
-    if(c.unreadAdmin||c.hasNewAdmin||c.hasNew||c.unread) s+=50000;
-    if(c.userOnline||c.online||c.isOnline||(c.userLastSeen&&Date.now()-Number(c.userLastSeen)<70000)) s+=5000;
-    s += Number(c.updatedAt||c.lastUserAt||c.userLastSeen||0)/100000000;
-    if(s>score){score=s;best=id;}
-  });
-  return best;
-}
-
-const oldPanel7f = window.abrirPanelChatsAdmin;
-if(typeof oldPanel7f === 'function' && !oldPanel7f.__chat7f){
-  const panel7f = function(forceInbox){
-    if(forceInbox === true || window.__tomaunoForceInboxOnce){
-      window.__tomaunoForceInboxOnce = false;
-      return oldPanel7f.apply(this, arguments);
+window.borrarMensajeChatParaVisitante = async function(chatId,msgId){
+  if(!chatId || !msgId) return;
+  try{
+    if(typeof db !== 'undefined' && typeof ref !== 'undefined' && typeof update !== 'undefined'){
+      await update(ref(db,'tomauno/chats/'+chatId+'/messages/'+msgId), {
+        hidden:true,
+        deletedForVisitor:true,
+        deleted:true,
+        deletedAt:Date.now()
+      });
     }
-    const target = bestChatId();
-    if(target && typeof window.abrirChatAdmin === 'function'){
-      return window.abrirChatAdmin(target, true);
-    }
-    return oldPanel7f.apply(this, arguments);
-  };
-  panel7f.__chat7f = 1;
-  window.abrirPanelChatsAdmin = panel7f;
-  try{ abrirPanelChatsAdmin = panel7f; }catch(e){}
-}
-
-// Eliminar botón Bandeja extra de versiones fallidas.
-function removeExtraInboxButton(){
-  qa('#chat-popover.open .tu7a-inbox').forEach(x=>x.remove());
-}
-
-// 3) X de usuario: evitar que cierre todo y mande a bandeja.
-document.addEventListener('click', function(ev){
-  const btn = ev.target && ev.target.closest && ev.target.closest('.chat-tab button,.chat-list-item button,.chat-inbox-item button,[data-chat-id] button');
-  if(!btn) return;
-
-  const row = btn.closest('.chat-tab,.chat-list-item,.chat-inbox-item,[data-chat-id]');
-  if(!row) return;
-
-  const t = (btn.innerText||btn.textContent||btn.title||btn.getAttribute('aria-label')||'').toLowerCase();
-  if(t.includes('×') || t.includes('x') || t.includes('cerrar') || t.includes('eliminar')){
-    const current = adminId();
-    setTimeout(function(){
-      const pop = q('#chat-popover.open');
-      if(!pop && current && typeof window.abrirChatAdmin === 'function'){
-        window.abrirChatAdmin(current, true);
-      }
-    }, 120);
+  }catch(e){
+    console.warn('No pude marcar mensaje oculto:', e);
   }
-}, true);
+  try{ if(typeof updateChatMessagesOnly === 'function') updateChatMessagesOnly(chatId, true); }catch(e){}
+};
 
-// 4) Basurero ADM: uno solo por mensaje visible. No tocar Firebase.
-function normalizeAdminTrash(){
+function cleanOldTrashButtons(){
   if(!isAdmin()) return;
-  if(!adminId()) return;
-
-  qa('#chat-popover.open .chat-bubble.admin').forEach(b=>{
-    // quitar todos los basureros previos dentro de este mensaje
-    qa('.tu7f-del,.tu7e-del,.tu7d-del,.tu7c-del,.tu7b-del,.tu6x-del,.tu6p-del,.tu-msg-del', b).forEach(x=>x.remove());
-
-    // si el mensaje contiene muchos íconos sueltos por basura previa, limpiar botones cuyo único texto sea 🗑️
-    qa('button', b).forEach(btn=>{
-      const t=(btn.innerText||btn.textContent||'').trim();
-      if(t==='🗑️' || /ocultar.*mensaje|borrar.*mensaje|eliminar.*mensaje/i.test(btn.title||'')){
-        btn.remove();
-      }
-    });
-
-    const text=(b.innerText||'').trim();
-    if(!text) return;
-
-    const btn=document.createElement('button');
-    btn.type='button';
-    btn.className='tu7f-del';
-    btn.textContent='🗑️';
-    btn.title='Ocultar este mensaje del asistente';
-    btn.setAttribute('aria-label','Ocultar mensaje del asistente');
-    btn.addEventListener('click',function(e){
-      e.preventDefault();
-      e.stopPropagation();
-      b.remove();
-    },true);
-    b.appendChild(btn);
-  });
-}
-
-function removeTrashVisitor(){
-  if(!isVisitor()) return;
-  qa('#chat-popover.open .tu7f-del,#chat-popover.open .tu7e-del,#chat-popover.open .tu7d-del,#chat-popover.open .tu7c-del,#chat-popover.open .tu7b-del,#chat-popover.open .tu6x-del,#chat-popover.open .tu6p-del,#chat-popover.open .tu-msg-del').forEach(x=>x.remove());
-}
-
-// 5) Visitante: si llega mensaje nuevo, bajar al final. Sin loops agresivos.
-function visitorBottomOnNew(){
-  if(!isVisitor()) return;
-
-  const box = q('#chat-popover.open .chat-msgs');
-  if(!box) return;
-
-  const bubbles = qa('.chat-bubble', box);
-  if(!bubbles.length) return;
-
-  const last = bubbles[bubbles.length - 1];
-  const key = bubbles.length + '|' + (last.className||'') + '|' + (last.innerText||'').length + '|' + last.offsetTop;
-
-  if(key === lastVisitorKey) return;
-  lastVisitorKey = key;
-
-  const down = () => {
-    const b=q('#chat-popover.open .chat-msgs');
-    if(b && isVisitor()) b.scrollTop = b.scrollHeight;
-  };
-
-  setTimeout(down, 80);
-  setTimeout(down, 260);
-}
-
-// 6) Dedupe botones de acción, preservando basurero.
-function intent(el){
-  const text=(el.innerText||el.textContent||'').toLowerCase();
-  const href=(el.getAttribute&&el.getAttribute('href')||'').toLowerCase();
-  const ds=(el.dataset&&(el.dataset.tuAction||el.dataset.action||el.dataset.target)||'').toLowerCase();
-  const all=text+' '+href+' '+ds;
-
-  if(el.classList.contains('tu7f-del')) return 'delete-unique';
-  if(/servicio|servicios/.test(all)) return 'servicios';
-  if(/curso|cursos/.test(all)) return 'cursos';
-  if(/evento|eventos/.test(all)) return 'eventos';
-  if(/ubicaci|mapa|maps|pedro/.test(all)) return 'ubicacion';
-  if(/whatsapp|wa\.me/.test(all)) return 'whatsapp';
-  if(/instagram/.test(all)) return 'instagram';
-  if(/info/.test(all)) return 'info';
-
-  return text.trim()||href||ds;
-}
-
-function dedupeActions(){
-  qa('#chat-popover.open .chat-bubble.admin').forEach(b=>{
-    const seen={};
-    qa('button,.chat-action,.tu6j-action,a', b).forEach(el=>{
-      const k=intent(el);
-      if(!k) return;
-      if(k==='delete-unique') return;
-      if(seen[k]) el.remove();
-      else seen[k]=true;
-    });
-  });
-}
-
-// 7) Un solo botón de mute si existe; no crear nuevos innecesarios.
-function normalizeMute(){
-  if(!isAdmin()) return;
-  const tools=q('#chat-popover.open .chat-admin-tools')||q('#chat-popover.open .chat-tools')||q('#chat-popover.open .admin-tools');
-  if(!tools) return;
-  const all=qa('.tu7d-mute,.tu7c-mute,.tu6v-mute,.tu6t-silence,.tu6x-mute', tools);
-  all.forEach((b,i)=>{ if(i>0) b.remove(); });
+  document.querySelectorAll('#chat-popover.open .tu7g-del,#chat-popover.open .tu7f-del,#chat-popover.open .tu7e-del,#chat-popover.open .tu7d-del,#chat-popover.open .tu7c-del,#chat-popover.open .tu7b-del,#chat-popover.open .tu6x-del,#chat-popover.open .tu6p-del,#chat-popover.open .tu-msg-del').forEach(x=>x.remove());
 }
 
 function css(){
-  if(q('#tu7f-css')) return;
+  if(document.getElementById('tu7h-css')) return;
   const st=document.createElement('style');
-  st.id='tu7f-css';
+  st.id='tu7h-css';
   st.textContent=`
-    .tu7f-del{
+    .chat-delete-mini{
       display:inline-flex!important;
       margin-left:7px!important;
       border:1px solid rgba(255,255,255,.25)!important;
@@ -15733,14 +15541,7 @@ function css(){
       cursor:pointer!important;
       vertical-align:middle!important;
     }
-    #chat-popover.open:not(:has(#chat-admin-text)) .tu7f-del,
-    #chat-popover.open:not(:has(#chat-admin-text)) .tu7e-del,
-    #chat-popover.open:not(:has(#chat-admin-text)) .tu7d-del,
-    #chat-popover.open:not(:has(#chat-admin-text)) .tu7c-del,
-    #chat-popover.open:not(:has(#chat-admin-text)) .tu7b-del,
-    #chat-popover.open:not(:has(#chat-admin-text)) .tu6x-del,
-    #chat-popover.open:not(:has(#chat-admin-text)) .tu6p-del,
-    #chat-popover.open:not(:has(#chat-admin-text)) .tu-msg-del{
+    #chat-popover.open:not(:has(#chat-admin-text)) .chat-delete-mini{
       display:none!important;
     }
   `;
@@ -15748,14 +15549,5 @@ function css(){
 }
 css();
 
-setInterval(function(){
-  fixVisitorHeader();
-  removeExtraInboxButton();
-  normalizeAdminTrash();
-  removeTrashVisitor();
-  visitorBottomOnNew();
-  dedupeActions();
-  normalizeMute();
-}, 500);
-
+setInterval(cleanOldTrashButtons, 800);
 })();
