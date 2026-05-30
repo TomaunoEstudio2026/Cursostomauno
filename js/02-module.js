@@ -17406,324 +17406,103 @@ setInterval(()=>{
 })();
 
 
-// TOMAUNO CHAT 7A — ESTABILIDAD DE CHAT
-// No toca cursos/eventos/planillas. Solo chat ADM/visitante.
+// TOMAUNO CHAT 7B — MÍNIMO: SCROLL VISITANTE + BORRAR EN ADM
 (function(){
 'use strict';
-
-function safe(fn){try{return fn()}catch(e){try{console.warn('TU chat7a:',e)}catch(_){}}}
+function safe(fn){try{return fn()}catch(e){try{console.warn('TU chat7b:',e)}catch(_){}}}
 function q(s,r){return (r||document).querySelector(s)}
 function qa(s,r){return Array.from((r||document).querySelectorAll(s))}
-function chats(){return safe(()=>window.chatsDB||chatsDB||{})||{}}
+let lastVisitorMsgKey='', lastVisitorForceAt=0;
 function isVisitor(){return !!q('#chat-popover.open #chat-text')&&!q('#chat-popover.open #chat-admin-text')}
 function isAdmin(){return !!q('#chat-popover.open #chat-admin-text,#chat-popover.open .chat-inbox-side,#chat-popover.open .chat-admin-tools')}
-function getId(el){return el.getAttribute('data-chat-id')||el.dataset.chatId||''}
-function adminCurrent(){return safe(()=>window.currentOpenChatId||currentOpenChatId||'')||''}
+function adminId(){return safe(()=>window.currentOpenChatId||currentOpenChatId||'')||''}
 
-let lastVisitorKey='';
-let visitorFreeUntil=0;
-let lastAdminTarget='';
-
-// 1) Botón ADM: abrir directo un chat útil, no siempre bandeja.
-function chatScore(id,c){
-  c=c||{};
-  let score=0;
-  const now=Date.now();
-  if(c.humanRequested&&!c.humanFallbackSent&&!c.humanConfirm) score+=100000;
-  if(c.unreadAdmin||c.hasNewAdmin||c.hasNew||c.unread) score+=50000;
-  if(c.humanFallbackSent||c.humanConfirm||c.whatsapp||c.phone||c.telefono||c.resumenConsulta||c.consultaJavier) score+=15000;
-  if(c.userOnline||c.online||c.isOnline||(c.userLastSeen&&now-Number(c.userLastSeen)<70000)) score+=5000;
-  score+=Number(c.updatedAt||c.lastUserAt||c.userLastSeen||0)/100000000;
-  return score;
+function forceVisitorBottom(){
+ if(!isVisitor())return;
+ const box=q('#chat-popover.open .chat-msgs'); if(!box)return;
+ const bubbles=qa('.chat-bubble',box); if(!bubbles.length)return;
+ const last=bubbles[bubbles.length-1];
+ const key=(last.className||'')+'|'+(last.innerText||'').slice(0,180)+'|'+(last.innerText||'').length+'|'+last.offsetTop+'|'+bubbles.length;
+ if(key===lastVisitorMsgKey)return;
+ lastVisitorMsgKey=key; lastVisitorForceAt=Date.now();
+ const bottom=()=>{if(!isVisitor())return; const b=q('#chat-popover.open .chat-msgs'); if(b)b.scrollTop=b.scrollHeight};
+ requestAnimationFrame(bottom); setTimeout(bottom,80); setTimeout(bottom,250); setTimeout(bottom,600);
 }
-function bestChatId(){
-  const db=chats();
-  let best='', bestScore=-1;
-  Object.entries(db).forEach(([id,c])=>{
-    const s=chatScore(id,c);
-    if(s>bestScore){bestScore=s;best=id}
-  });
-  return best;
+function keepVisitorBottomAfterNew(){
+ if(!isVisitor())return;
+ if(Date.now()-lastVisitorForceAt>1200)return;
+ const box=q('#chat-popover.open .chat-msgs'); if(box)box.scrollTop=box.scrollHeight;
 }
 
-const oldPanel=window.abrirPanelChatsAdmin;
-if(typeof oldPanel==='function'&&!oldPanel.__chat7a){
-  const panel7a=function(forceInbox){
-    // Si el usuario pide bandeja explícitamente, respetar.
-    if(forceInbox===true || window.__tomaunoForceInboxOnce){
-      window.__tomaunoForceInboxOnce=false;
-      return oldPanel.apply(this,arguments);
-    }
-    const target=lastAdminTarget || adminCurrent() || bestChatId();
-    if(target && typeof window.abrirChatAdmin==='function'){
-      setTimeout(()=>safe(()=>window.abrirChatAdmin(target,true)),30);
-      return;
-    }
-    return oldPanel.apply(this,arguments);
-  };
-  panel7a.__chat7a=1;
-  window.abrirPanelChatsAdmin=panel7a;
-  try{abrirPanelChatsAdmin=panel7a}catch(e){}
+const oldScrollInto=Element.prototype.scrollIntoView;
+if(oldScrollInto&&!oldScrollInto.__chat7b){
+ Element.prototype.scrollIntoView=function(){
+  const r=oldScrollInto.apply(this,arguments);
+  if(this.closest&&this.closest('#chat-popover.open .chat-msgs')&&isVisitor()){
+   lastVisitorForceAt=Date.now();
+   setTimeout(()=>{const b=q('#chat-popover.open .chat-msgs'); if(b)b.scrollTop=b.scrollHeight},30);
+   setTimeout(()=>{const b=q('#chat-popover.open .chat-msgs'); if(b)b.scrollTop=b.scrollHeight},180);
+  }
+  return r;
+ };
+ Element.prototype.scrollIntoView.__chat7b=1;
 }
 
-const oldOpen=window.abrirChatAdmin;
-if(typeof oldOpen==='function'&&!oldOpen.__chat7a){
-  const open7a=function(id,silent){
-    if(id) lastAdminTarget=id;
-    return oldOpen.apply(this,arguments);
-  };
-  open7a.__chat7a=1;
-  window.abrirChatAdmin=open7a;
-  try{abrirChatAdmin=open7a}catch(e){}
-}
-
-// Botón Bandeja siempre disponible dentro del ADM.
-function addInboxButton(){
-  if(!isAdmin()) return;
-  const tools=q('#chat-popover.open .chat-admin-tools')||q('#chat-popover.open .chat-tools')||q('#chat-popover.open .admin-tools');
-  if(!tools || tools.querySelector('.tu7a-inbox')) return;
+function adminTrashMessages(){
+ if(!isAdmin())return;
+ const chatId=adminId(); if(!chatId)return;
+ qa('#chat-popover.open .chat-bubble.admin').forEach(b=>{
+  if(b.querySelector('.tu7b-del'))return;
+  const text=(b.innerText||'').trim(); if(!text)return;
   const btn=document.createElement('button');
-  btn.type='button';
-  btn.className='tu7a-inbox';
-  btn.textContent='Bandeja';
-  btn.title='Ir a bandeja de chats';
-  btn.addEventListener('click',ev=>{
-    ev.preventDefault();ev.stopPropagation();
-    window.__tomaunoForceInboxOnce=true;
-    safe(()=>oldPanel && oldPanel.call(window,true));
-  },true);
-  tools.appendChild(btn);
+  btn.type='button'; btn.className='tu7b-del'; btn.textContent='🗑️';
+  btn.title='Ocultar este mensaje del asistente';
+  btn.setAttribute('aria-label','Ocultar mensaje del asistente');
+  btn.addEventListener('click',ev=>{ev.preventDefault();ev.stopPropagation();b.remove()},true);
+  b.appendChild(btn);
+ });
 }
-
-// 2) Estados visuales con prioridad fija, sin reordenar ni reconstruir.
-function stateOf(c, txt){
-  c=c||{}; txt=(txt||'').toLowerCase();
-  if(c.humanRequested&&!c.humanFallbackSent&&!c.humanConfirm) return 'call';
-  if(/llamada|atenci[oó]n javier|humano/.test(txt)&&/esperando|prioridad/.test(txt)) return 'call';
-  if(c.unreadAdmin||c.hasNewAdmin||c.hasNew||c.unread||/esperando|pendiente|sin leer/.test(txt)) return 'unread';
-  if(c.userOnline||c.online||c.isOnline||(c.userLastSeen&&Date.now()-Number(c.userLastSeen)<70000)||/online|en l[ií]nea/.test(txt)) return 'online';
-  return 'off';
+function removeTrashFromVisitor(){
+ if(!isVisitor())return;
+ qa('#chat-popover.open .tu7b-del,#chat-popover.open .tu6x-del,#chat-popover.open .tu6p-del,#chat-popover.open .tu-msg-del').forEach(x=>x.remove());
 }
-function hasLead(c,txt){
-  txt=txt||'';
-  return !!(c&&(c.humanFallbackSent||c.humanConfirm||c.whatsapp||c.phone||c.telefono||c.resumenConsulta||c.consultaJavier)) || /whatsapp|consulta/i.test(txt);
+function removeExtraPanelBadges(){
+ qa('.chat-tab,.chat-list-item,.chat-inbox-item,[data-chat-id]').forEach(row=>{
+  qa('.tu6x-star,.tu6x-mega,.tu6w-star,.tu6w-mega,.tu6u-star,.tu6u-mega,.tu6s-star,.tu6s-mega,.tu7a-star,.tu7a-mega,.tu7a-dupe,.tu6x-dupe,.tu6w-dupe,.tu6u-dupe,.tu6s-dupe',row).forEach(x=>x.remove());
+  row.classList.remove('tu6x-row','tu6w-row','tu6u-stable-row','tu7a-row');
+  row.style.paddingLeft=''; row.style.paddingRight=''; row.style.contain='';
+ });
 }
-function decorateRows(){
-  const db=chats(), groups={}, order={};
-  Object.entries(db).forEach(([id,c])=>{
-    const n=String(c.name||c.nombre||'').trim().toLowerCase();
-    if(!n)return;
-    if(!groups[n]) groups[n]=[];
-    groups[n].push(id);
-  });
-  Object.keys(groups).forEach(k=>groups[k].forEach((id,i)=>order[id]=i+1));
-
-  qa('.chat-tab,.chat-list-item,.chat-inbox-item,[data-chat-id]').forEach(el=>{
-    const id=getId(el); if(!id)return;
-    const c=db[id]||{};
-    const txt=el.innerText||'';
-    const st=stateOf(c,txt);
-    el.classList.add('tu7a-row');
-    el.classList.toggle('tu7a-call',st==='call');
-    el.classList.toggle('tu7a-unread',st==='unread');
-    el.classList.toggle('tu7a-online',st==='online');
-    el.classList.toggle('tu7a-off',st==='off');
-    el.classList.toggle('tu7a-lead',hasLead(c,txt));
-
-    // limpiar badges viejos que tapaban
-    qa('.tu6x-star,.tu6x-mega,.tu6w-star,.tu6w-mega,.tu6u-star,.tu6u-mega,.tu6s-star,.tu6s-mega',el).forEach(x=>x.remove());
-
-    if(st==='call'&&!el.querySelector('.tu7a-mega')){
-      const s=document.createElement('span'); s.className='tu7a-mega'; s.textContent='📣'; s.title='Llamada a Javier'; el.appendChild(s);
-    }
-    if(hasLead(c,txt)&&!el.querySelector('.tu7a-star')){
-      const s=document.createElement('span'); s.className='tu7a-star'; s.textContent='⭐'; s.title='Consulta/WhatsApp pendiente'; el.appendChild(s);
-    }
-    const n=String(c.name||c.nombre||'').trim().toLowerCase();
-    const num=order[id]||1;
-    if(n&&groups[n]&&groups[n].length>1&&num>1&&!el.querySelector('.tu7a-dupe')){
-      const b=document.createElement('span'); b.className='tu7a-dupe'; b.textContent='#'+num; b.title='Nombre repetido'; el.appendChild(b);
-    }
-    const close=el.querySelector('button,[aria-label*="cerrar" i],[title*="cerrar" i],.close,.chat-close');
-    if(close) close.classList.add('tu7a-close');
-  });
-}
-
-// 3) Scroll visitante: si usuario toca historial, respetar; si aparece mensaje nuevo, ir abajo.
-function lockVisitor(){
-  if(!isVisitor())return;
-  visitorFreeUntil=Date.now()+12000;
-  window.__tomaunoVisitorReadingUntil=visitorFreeUntil;
-}
-['wheel','touchstart','touchmove','pointerdown','mousedown'].forEach(ev=>{
-  document.addEventListener(ev,e=>{
-    if(e.target&&e.target.closest&&e.target.closest('#chat-popover.open .chat-msgs')) lockVisitor();
-  },true);
-});
-function visitorScroll(){
-  if(!isVisitor()||Date.now()<visitorFreeUntil) return;
-  const box=q('#chat-popover.open .chat-msgs'); if(!box)return;
-  const bubbles=qa('.chat-bubble',box); if(!bubbles.length)return;
-  const last=bubbles[bubbles.length-1];
-  const key=(last.className||'')+'|'+(last.innerText||'').slice(0,120)+'|'+(last.innerText||'').length+'|'+last.offsetTop;
-  if(key===lastVisitorKey)return;
-  lastVisitorKey=key;
-  requestAnimationFrame(()=>{if(Date.now()>=visitorFreeUntil)box.scrollTop=box.scrollHeight});
-  setTimeout(()=>{if(Date.now()>=visitorFreeUntil)box.scrollTop=box.scrollHeight},180);
-}
-
-// 4) HUM/AUTO header estable solo visual.
-function stableVisitorHeader(){
-  if(!isVisitor()) return;
-  const id=safe(()=>window.currentVisitorChatId||currentVisitorChatId||sessionStorage.getItem('tomauno-chat-id')||'')||'';
-  const c=chats()[id]||{};
-  const title=q('#chat-popover.open .chat-title');
-  const sub=q('#chat-popover.open .chat-subline');
-  if(!title)return;
-  const human=!!(c.humanMode&&c.javierOnline&&c.javierOnlineAt&&Date.now()-Number(c.javierOnlineAt)<15*60*1000);
-  if(human){title.textContent='JAVIER ONLINE'; if(sub)sub.innerHTML='🟢 Javier está en línea'}
-  else{title.textContent='ASISTENTE TOMAUNO'; if(sub)sub.textContent='Asistente Tomauno'}
-}
-
-// 5) Basurero solo ADM si existe, nunca visitante.
-function trashOnlyAdmin(){
-  if(!isVisitor())return;
-  qa('#chat-popover.open .chat-bubble .tu6x-del,#chat-popover.open .chat-bubble .tu6p-del,#chat-popover.open .chat-bubble .tu-msg-del').forEach(x=>x.remove());
-}
-
-// 6) Dedupe botones de acciones.
 function intent(el){
-  const text=(el.innerText||el.textContent||'').toLowerCase();
-  const href=(el.getAttribute&&el.getAttribute('href')||'').toLowerCase();
-  const ds=(el.dataset&&(el.dataset.tuAction||el.dataset.action||el.dataset.target)||'').toLowerCase();
-  const all=text+' '+href+' '+ds;
-  if(/servicio|servicios/.test(all))return 'servicios';
-  if(/curso|cursos/.test(all))return 'cursos';
-  if(/evento|eventos/.test(all))return 'eventos';
-  if(/ubicaci|mapa|maps|pedro/.test(all))return 'ubicacion';
-  if(/whatsapp|wa\.me/.test(all))return 'whatsapp';
-  if(/instagram/.test(all))return 'instagram';
-  if(/info/.test(all))return 'info';
-  return text.trim()||href||ds;
+ const text=(el.innerText||el.textContent||'').toLowerCase();
+ const href=(el.getAttribute&&el.getAttribute('href')||'').toLowerCase();
+ const ds=(el.dataset&&(el.dataset.tuAction||el.dataset.action||el.dataset.target)||'').toLowerCase();
+ const all=text+' '+href+' '+ds;
+ if(/servicio|servicios/.test(all))return 'servicios';
+ if(/curso|cursos/.test(all))return 'cursos';
+ if(/evento|eventos/.test(all))return 'eventos';
+ if(/ubicaci|mapa|maps|pedro/.test(all))return 'ubicacion';
+ if(/whatsapp|wa\.me/.test(all))return 'whatsapp';
+ if(/instagram/.test(all))return 'instagram';
+ if(/info/.test(all))return 'info';
+ return text.trim()||href||ds;
 }
-function dedupeActions(){
-  qa('#chat-popover.open .chat-bubble.admin').forEach(b=>{
-    const seen={};
-    qa('button,.chat-action,.tu6j-action,a',b).forEach(el=>{
-      if(el.classList.contains('tu6x-del'))return;
-      const k=intent(el); if(!k)return;
-      if(seen[k])el.remove(); else seen[k]=true;
-    });
+function dedupeActionButtons(){
+ qa('#chat-popover.open .chat-bubble.admin').forEach(b=>{
+  const seen={};
+  qa('button,.chat-action,.tu6j-action,a',b).forEach(el=>{
+   if(el.classList.contains('tu7b-del'))return;
+   const k=intent(el); if(!k)return;
+   if(seen[k])el.remove(); else seen[k]=true;
   });
+ });
 }
-
 function css(){
-  if(q('#tu7a-css'))return;
-  const st=document.createElement('style');
-  st.id='tu7a-css';
-  st.textContent=`
-    .tu7a-inbox{
-      border:1px solid rgba(255,255,255,.18)!important;
-      background:rgba(255,255,255,.06)!important;
-      color:#fff!important;
-      border-radius:999px!important;
-      min-width:72px!important;
-      height:38px!important;
-      padding:0 12px!important;
-      font-weight:800!important;
-      cursor:pointer!important;
-    }
-
-    #chat-popover.open .tu7a-row{
-      position:relative!important;
-      min-height:58px!important;
-      height:auto!important;
-      padding:10px 44px 10px 34px!important;
-      transition:none!important;
-      animation:none!important;
-      transform:none!important;
-      will-change:auto!important;
-      contain:layout paint!important;
-    }
-
-    #chat-popover.open .tu7a-row *{
-      transition:none!important;
-      animation:none!important;
-    }
-
-    .tu7a-close{
-      position:absolute!important;
-      top:10px!important;
-      right:10px!important;
-      left:auto!important;
-      bottom:auto!important;
-      z-index:5!important;
-    }
-
-    .tu7a-star,.tu7a-mega{
-      position:absolute!important;
-      left:10px!important;
-      z-index:4!important;
-      color:#ffd54a!important;
-      filter:drop-shadow(0 0 5px rgba(255,213,74,.65))!important;
-      pointer-events:none!important;
-    }
-
-    .tu7a-mega{top:10px!important;}
-    .tu7a-star{top:31px!important;}
-
-    .tu7a-dupe{
-      position:absolute!important;
-      right:42px!important;
-      top:12px!important;
-      min-width:24px!important;
-      height:18px!important;
-      border-radius:999px!important;
-      background:#e8000a!important;
-      color:#fff!important;
-      font-size:11px!important;
-      display:inline-flex!important;
-      align-items:center!important;
-      justify-content:center!important;
-      padding:0 6px!important;
-      pointer-events:none!important;
-    }
-
-    .tu7a-call{
-      border-color:#e8000a!important;
-      box-shadow:inset 3px 0 0 rgba(232,0,10,.95)!important;
-    }
-
-    .tu7a-unread{
-      border-color:#ffd54a!important;
-      box-shadow:inset 3px 0 0 rgba(255,213,74,.95)!important;
-    }
-
-    .tu7a-online:not(.tu7a-unread):not(.tu7a-call){
-      border-color:rgba(56,210,122,.55)!important;
-      box-shadow:none!important;
-    }
-
-    .tu7a-lead{
-      outline:1px solid rgba(255,213,74,.35)!important;
-    }
-
-    #chat-popover.open:not(:has(#chat-admin-text)) .tu6x-del,
-    #chat-popover.open:not(:has(#chat-admin-text)) .tu6p-del,
-    #chat-popover.open:not(:has(#chat-admin-text)) .tu-msg-del{
-      display:none!important;
-    }
-  `;
-  document.head.appendChild(st);
+ if(q('#tu7b-css'))return;
+ const st=document.createElement('style'); st.id='tu7b-css';
+ st.textContent=`.tu7b-del{display:inline-flex!important;margin-left:7px!important;border:1px solid rgba(255,255,255,.25)!important;background:rgba(0,0,0,.18)!important;color:#fff!important;border-radius:50%!important;width:24px!important;height:24px!important;align-items:center!important;justify-content:center!important;font-size:12px!important;cursor:pointer!important;vertical-align:middle!important}#chat-popover.open:not(:has(#chat-admin-text)) .tu7b-del,#chat-popover.open:not(:has(#chat-admin-text)) .tu6x-del,#chat-popover.open:not(:has(#chat-admin-text)) .tu6p-del,#chat-popover.open:not(:has(#chat-admin-text)) .tu-msg-del{display:none!important}`;
+ document.head.appendChild(st);
 }
 css();
-
-setInterval(()=>{
-  addInboxButton();
-  decorateRows();
-  visitorScroll();
-  stableVisitorHeader();
-  trashOnlyAdmin();
-  dedupeActions();
-},700);
+setInterval(()=>{forceVisitorBottom();keepVisitorBottomAfterNew();adminTrashMessages();removeTrashFromVisitor();removeExtraPanelBadges();dedupeActionButtons()},400);
 })();
