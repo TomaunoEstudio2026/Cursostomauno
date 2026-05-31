@@ -17,3 +17,16 @@
   if(document.readyState==='loading') document.addEventListener('DOMContentLoaded',css,{once:true});
   else css();
 })();
+
+
+/* Tomauno fase4 llamada */
+(function(){
+  function css(){
+    if(document.getElementById('tu-fase4-patch-css')) return;
+    var st=document.createElement('style');
+    st.id='tu-fase4-patch-css';
+    st.textContent='.chat-bubble.tu-human-wait{background:#fff!important;color:#111!important}.chat-attend-call{margin-top:10px;border:0!important;border-radius:999px!important;background:#e8000a!important;color:#fff!important;padding:8px 12px!important;font-weight:900!important;cursor:pointer!important}';
+    document.head.appendChild(st);
+  }
+  if(document.readyState==='loading') document.addEventListener('DOMContentLoaded',css,{once:true}); else css();
+})();

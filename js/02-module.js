@@ -2051,9 +2051,12 @@ function renderMsgs(chat, adminView=false, chatId=''){
   return chatMsgs(chat).filter(([mid,m]) => !(m && (m.hidden || m.deleted || m.deletedForVisitor))).map(([mid,m]) => {
     const editBtn = adminView && m.from === 'admin' ? '<button class="chat-edit-mini" title="Editar respuesta" onclick="event.stopPropagation();window.editarMensajeChat(\''+chatId+'\',\''+mid+'\')">✎</button>' : '';
     const deleteBtn = adminView && (m.from === 'admin' || m.from === 'system') && !m.typing ? '<button class="chat-delete-mini" title="Borrar para el visitante" onclick="event.stopPropagation();window.borrarMensajeChatParaVisitante(\''+chatId+'\',\''+mid+'\')">🗑️</button>' : '';
-    const cls = m.typing ? 'typing' : (m.from==='admin'?'admin':m.from==='system'?'system':'user');
-    const actions = (!m.typing && (m.from==='admin' || m.from==='system')) ? chatActionButtonsForMessage(m.text || '') : '';
-    return '<div class="chat-bubble '+cls+'" data-message-id="'+escAttr(mid)+'" data-msg-id="'+escAttr(mid)+'"><div>'+chatLinkify(m.text||'')+editBtn+deleteBtn+'</div>'+actions+(m.from==='system'?'':'<div class="chat-meta">'+escHtml(m.time||'')+'</div>')+'</div>';
+    const cls = m.typing ? 'typing' : (m.humanWait ? 'admin tu-human-wait' : (m.from==='admin'?'admin':m.from==='system'?'system':'user'));
+    const actions = (!m.typing && !m.humanWait && (m.from==='admin' || m.from==='system')) ? chatActionButtonsForMessage(m.text || '') : '';
+    const waitStart = m.humanWait ? Number(chat?.humanWaitStartedAt || m.createdAt || 0) : 0;
+    const waitCountdown = waitStart ? '<div class="chat-human-countdown" data-human-wait-start="'+waitStart+'"><span class="chat-human-countdown-num">60</span>s para intentar conectar con Javier</div>' : '';
+    const attendBtn = adminView && m.humanWait ? '<button class="chat-attend-call" onclick="event.stopPropagation();window.atenderLlamadaJavier(\''+chatId+'\')">📞 ATENDIENDO</button>' : '';
+    return '<div class="chat-bubble '+cls+'" data-message-id="'+escAttr(mid)+'" data-msg-id="'+escAttr(mid)+'"><div>'+chatLinkify(m.text||'')+editBtn+deleteBtn+'</div>'+waitCountdown+attendBtn+actions+(m.from==='system'?'':'<div class="chat-meta">'+escHtml(m.time||'')+'</div>')+'</div>';
   }).join('');
 }
 function scrollChatSmart(box){
@@ -9870,5 +9873,163 @@ function fixVisitorHeader(){
   }
 }
 setInterval(fixVisitorHeader,700);
+
+})();
+
+
+// TOMAUNO LIMPIO FASE 4 — LLAMADA JAVIER CONTROLADA
+// Solo flujo de llamada: STOP/ATENDIENDO, contador blanco, corte de audio y AUTO no queda bloqueado.
+(function(){
+'use strict';
+
+function q(s,r){return (r||document).querySelector(s)}
+function qa(s,r){return Array.from((r||document).querySelectorAll(s))}
+function adminIdSafe(){try{return window.currentOpenChatId || currentOpenChatId || ''}catch(e){return ''}}
+function chatsSafe(){try{return window.chatsDB || chatsDB || {}}catch(e){return {}}}
+function updateChatSafe(id,data){
+  try{
+    if(window.chatsDB && window.chatsDB[id]) Object.assign(window.chatsDB[id], data);
+    if(typeof chatsDB !== 'undefined' && chatsDB[id]) Object.assign(chatsDB[id], data);
+    if(typeof db !== 'undefined' && typeof ref !== 'undefined' && typeof update !== 'undefined'){
+      return update(ref(db,'tomauno/chats/'+id), data).catch(()=>{});
+    }
+  }catch(e){}
+  return Promise.resolve();
+}
+
+function stopAllCallAudio(id){
+  if(!id) return;
+  try{ if(typeof stopHumanRing === 'function') stopHumanRing(id); }catch(e){}
+  try{ if(typeof stopRing === 'function') stopRing(id); }catch(e){}
+  try{
+    const bags = [window.__tomaunoHumanRingTimers, window.__tomaunoRingTimers, window.humanRingTimers, window.ringTimers].filter(Boolean);
+    bags.forEach(function(bag){
+      if(bag[id]){
+        try{ clearInterval(bag[id]); }catch(e){}
+        try{ clearTimeout(bag[id]); }catch(e){}
+      }
+      delete bag[id];
+    });
+  }catch(e){}
+}
+
+window.atenderLlamadaJavier = function(id){
+  id = id || adminIdSafe();
+  if(!id) return;
+  stopAllCallAudio(id);
+
+  // Importante: NO pone humanMode=true y NO toca manualUntil.
+  // Solo marca la llamada como atendida para cortar audio/estado de espera.
+  updateChatSafe(id,{
+    humanRequested:false,
+    waitingHuman:false,
+    priority:false,
+    prioridad:false,
+    callUntil:0,
+    callAnsweredAt:Date.now(),
+    updatedAt:Date.now()
+  });
+
+  try{
+    if(typeof push === 'function' && typeof ref === 'function' && typeof db !== 'undefined'){
+      push(ref(db,'tomauno/chats/'+id+'/messages'),{
+        from:'admin',
+        auto:true,
+        text:'🟢 Atendido por Javier.',
+        time:(typeof chatTimeSafe==='function'?chatTimeSafe():new Date().toLocaleTimeString('es-AR',{hour:'2-digit',minute:'2-digit'})),
+        createdAt:Date.now(),
+        humanAttend:true
+      });
+    }
+  }catch(e){}
+
+  try{ if(typeof toast === 'function') toast('📞 Llamada atendida'); }catch(e){}
+};
+
+// Si el admin escribe o toca HUM/AUTO, cortar SOLO la llamada. No cambiar modo.
+const oldSend = window.enviarChatAdmin;
+if(typeof oldSend === 'function' && !oldSend.__fase4Call){
+  const send4 = function(){
+    const id = adminIdSafe();
+    if(id) window.atenderLlamadaJavier(id);
+    return oldSend.apply(this,arguments);
+  };
+  send4.__fase4Call = 1;
+  window.enviarChatAdmin = send4;
+  try{ enviarChatAdmin = send4; }catch(e){}
+}
+
+const oldToggle = window.toggleModoAsistenteChat;
+if(typeof oldToggle === 'function' && !oldToggle.__fase4Call){
+  const toggle4 = function(){
+    const id = adminIdSafe();
+    if(id) window.atenderLlamadaJavier(id);
+    return oldToggle.apply(this,arguments);
+  };
+  toggle4.__fase4Call = 1;
+  window.toggleModoAsistenteChat = toggle4;
+  try{ toggleModoAsistenteChat = toggle4; }catch(e){}
+}
+
+document.addEventListener('input',function(e){
+  if(e.target && e.target.closest && e.target.closest('#chat-popover.open #chat-admin-text')){
+    const id = adminIdSafe();
+    if(id) window.atenderLlamadaJavier(id);
+  }
+},true);
+
+// Evitar que notificaciones muestren respuestas del admin.
+// Si el texto parece emitido por el admin/asistente, no mostrar banner.
+const oldBanner = window.showNotifBanner;
+if(typeof oldBanner === 'function' && !oldBanner.__fase4Filter){
+  const banner4 = function(title, msg, icon, onClick){
+    const t = String(title||'').toLowerCase();
+    const m = String(msg||'').toLowerCase();
+
+    if(
+      t.includes('javier') ||
+      t.includes('asistente') ||
+      m.includes('atendido por javier') ||
+      m.includes('javier responderá') ||
+      m.includes('javier respondera') ||
+      m.includes('voy a intentar comunicarme') ||
+      m.includes('en qué puedo ayudarte') ||
+      m.includes('en que puedo ayudarte')
+    ){
+      return;
+    }
+
+    return oldBanner.apply(this,arguments);
+  };
+  banner4.__fase4Filter = 1;
+  window.showNotifBanner = banner4;
+  try{ showNotifBanner = banner4; }catch(e){}
+}
+
+function css(){
+  if(document.getElementById('tu-fase4-call-css')) return;
+  const st=document.createElement('style');
+  st.id='tu-fase4-call-css';
+  st.textContent=[
+    '.chat-bubble.tu-human-wait{background:#fff!important;color:#111!important;border:1px solid rgba(232,0,10,.25)!important;}',
+    '.chat-bubble.tu-human-wait .chat-meta{color:#555!important;}',
+    '.chat-human-countdown{margin-top:8px;font-size:12px;font-weight:900;color:#e8000a!important;}',
+    '.chat-attend-call{margin-top:10px;border:0!important;border-radius:999px!important;background:#e8000a!important;color:#fff!important;padding:8px 12px!important;font-weight:900!important;cursor:pointer!important;}'
+  ].join('\n');
+  document.head.appendChild(st);
+}
+css();
+
+// Mantener contador visible simple
+function tickCountdown(){
+  qa('.chat-human-countdown').forEach(function(el){
+    const start = Number(el.getAttribute('data-human-wait-start') || 0);
+    if(!start) return;
+    const left = Math.max(0, 60 - Math.floor((Date.now()-start)/1000));
+    const num = el.querySelector('.chat-human-countdown-num');
+    if(num) num.textContent = left;
+  });
+}
+setInterval(tickCountdown,500);
 
 })();
