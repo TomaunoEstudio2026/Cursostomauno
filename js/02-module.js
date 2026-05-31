@@ -2060,13 +2060,6 @@ function renderMsgs(chat, adminView=false, chatId=''){
 }
 function scrollChatSmart(box){
   if(!box) return;
-  const isVisitorView = !!document.querySelector('#chat-popover.open #chat-text') && !document.querySelector('#chat-popover.open #chat-admin-text');
-  if(isVisitorView){
-    box.scrollTop = box.scrollHeight;
-    setTimeout(()=>{ try{ box.scrollTop = box.scrollHeight; }catch(e){} }, 80);
-    setTimeout(()=>{ try{ box.scrollTop = box.scrollHeight; }catch(e){} }, 220);
-    return;
-  }
   box.scrollTop = box.scrollHeight;
 }
 function updateChatMessagesOnly(id, adminView){
@@ -15492,12 +15485,27 @@ window.filterCursos = function(){
 })();
 
 
-// TOMAUNO CHAT 7H — BORRAR REAL PARA VISITANTE + SCROLL ORIGEN
+// TOMAUNO 7H LIMPIO FASE 2 — CORE CONTROLADO
+// Sin lógica vieja de maximizado ni scroll. Solo fixes funcionales mínimos.
 (function(){
 'use strict';
 
 function q(s,r){return (r||document).querySelector(s)}
-function isAdmin(){return !!q('#chat-popover.open #chat-admin-text,#chat-popover.open .chat-inbox-side,#chat-popover.open .chat-admin-tools')}
+function qa(s,r){return Array.from((r||document).querySelectorAll(s))}
+function isAdminView(){return !!q('#chat-popover.open #chat-admin-text,#chat-popover.open .chat-inbox-side,#chat-popover.open .chat-admin-tools')}
+function adminIdSafe(){try{return window.currentOpenChatId || currentOpenChatId || ''}catch(e){return ''}}
+function chatsSafe(){try{return window.chatsDB || chatsDB || {}}catch(e){return {}}}
+function isValid(c){try{return typeof isValidChat === 'function' ? isValidChat(c) : !!c}catch(e){return !!c}}
+function updateChatSafe(id,data){
+  try{
+    if(window.chatsDB && window.chatsDB[id]) Object.assign(window.chatsDB[id], data);
+    if(typeof chatsDB !== 'undefined' && chatsDB[id]) Object.assign(chatsDB[id], data);
+    if(typeof db !== 'undefined' && typeof ref !== 'undefined' && typeof update !== 'undefined'){
+      return update(ref(db,'tomauno/chats/'+id), data).catch(()=>{});
+    }
+  }catch(e){}
+  return Promise.resolve();
+}
 
 window.borrarMensajeChatParaVisitante = async function(chatId,msgId){
   if(!chatId || !msgId) return;
@@ -15510,86 +15518,15 @@ window.borrarMensajeChatParaVisitante = async function(chatId,msgId){
         deletedAt:Date.now()
       });
     }
-  }catch(e){
-    console.warn('No pude marcar mensaje oculto:', e);
-  }
+  }catch(e){ console.warn('No pude marcar mensaje oculto:', e); }
   try{ if(typeof updateChatMessagesOnly === 'function') updateChatMessagesOnly(chatId, true); }catch(e){}
 };
 
-function cleanOldTrashButtons(){
-  if(!isAdmin()) return;
-  document.querySelectorAll('#chat-popover.open .tu7g-del,#chat-popover.open .tu7f-del,#chat-popover.open .tu7e-del,#chat-popover.open .tu7d-del,#chat-popover.open .tu7c-del,#chat-popover.open .tu7b-del,#chat-popover.open .tu6x-del,#chat-popover.open .tu6p-del,#chat-popover.open .tu-msg-del').forEach(x=>x.remove());
-}
-
-function css(){
-  if(document.getElementById('tu7h-css')) return;
-  const st=document.createElement('style');
-  st.id='tu7h-css';
-  st.textContent=`
-    .chat-delete-mini{
-      display:inline-flex!important;
-      margin-left:7px!important;
-      border:1px solid rgba(255,255,255,.25)!important;
-      background:rgba(0,0,0,.18)!important;
-      color:#fff!important;
-      border-radius:50%!important;
-      width:24px!important;
-      height:24px!important;
-      align-items:center!important;
-      justify-content:center!important;
-      font-size:12px!important;
-      cursor:pointer!important;
-      vertical-align:middle!important;
-    }
-    #chat-popover.open:not(:has(#chat-admin-text)) .chat-delete-mini{
-      display:none!important;
-    }
-  `;
-  document.head.appendChild(st);
-}
-css();
-
-setInterval(cleanOldTrashButtons, 800);
-})();
-
-
-// TOMAUNO 7H LIMPIO FASE 1 — CORE FIXES
-// Pequeño reemplazo controlado tras eliminar el 21-patch viejo.
-// Mantiene basurero real de 7H. No toca scroll ni maximizado todavía.
-(function(){
-'use strict';
-
-function q(s,r){return (r||document).querySelector(s)}
-function qa(s,r){return Array.from((r||document).querySelectorAll(s))}
-function isAdminView(){
-  return !!q('#chat-popover.open #chat-admin-text,#chat-popover.open .chat-inbox-side,#chat-popover.open .chat-admin-tools');
-}
-function adminIdSafe(){
-  try{return window.currentOpenChatId || currentOpenChatId || ''}catch(e){return ''}
-}
-function chatsSafe(){
-  try{return window.chatsDB || chatsDB || {}}catch(e){return {}}
-}
-function isValid(c){
-  try{return typeof isValidChat === 'function' ? isValidChat(c) : !!c}catch(e){return !!c}
-}
-function updateChatSafe(id,data){
-  try{
-    if(window.chatsDB && window.chatsDB[id]) Object.assign(window.chatsDB[id], data);
-    if(typeof chatsDB !== 'undefined' && chatsDB[id]) Object.assign(chatsDB[id], data);
-    if(typeof db !== 'undefined' && typeof ref !== 'undefined' && typeof update !== 'undefined'){
-      return update(ref(db,'tomauno/chats/'+id), data).catch(()=>{});
-    }
-  }catch(e){}
-  return Promise.resolve();
-}
 function bestChatId(){
   var dbs = chatsSafe();
   var current = adminIdSafe();
   if(current && dbs[current] && dbs[current].status !== 'cerrado') return current;
-
-  var best = '';
-  var score = -1;
+  var best = '', score = -1;
   Object.entries(dbs).forEach(function(pair){
     var id = pair[0], c = pair[1] || {};
     if(!isValid(c) || c.status === 'cerrado') return;
@@ -15603,29 +15540,25 @@ function bestChatId(){
   return best;
 }
 
-// 1) Botón principal de chat ADM: abre chat directo si hay chat abierto.
 var oldAbrirPanel = window.abrirPanelChatsAdmin;
-if(typeof oldAbrirPanel === 'function' && !oldAbrirPanel.__cleanF1){
-  var panelCleanF1 = function(forceInbox){
+if(typeof oldAbrirPanel === 'function' && !oldAbrirPanel.__cleanF2){
+  var panelCleanF2 = function(forceInbox){
     if(forceInbox === true || window.__tomaunoForceInboxOnce){
       window.__tomaunoForceInboxOnce = false;
       return oldAbrirPanel.apply(this, arguments);
     }
     var id = bestChatId();
-    if(id && typeof window.abrirChatAdmin === 'function'){
-      return window.abrirChatAdmin(id, true);
-    }
+    if(id && typeof window.abrirChatAdmin === 'function') return window.abrirChatAdmin(id, true);
     return oldAbrirPanel.apply(this, arguments);
   };
-  panelCleanF1.__cleanF1 = 1;
-  window.abrirPanelChatsAdmin = panelCleanF1;
-  try{ abrirPanelChatsAdmin = panelCleanF1; }catch(e){}
+  panelCleanF2.__cleanF2 = 1;
+  window.abrirPanelChatsAdmin = panelCleanF2;
+  try{ abrirPanelChatsAdmin = panelCleanF2; }catch(e){}
 }
 
-// 2) X de una persona: no mandar a bandeja si quedan chats abiertos.
 var oldCerrarConv = window.cerrarConversacionChat;
-if(typeof oldCerrarConv === 'function' && !oldCerrarConv.__cleanF1){
-  var cerrarCleanF1 = async function(id){
+if(typeof oldCerrarConv === 'function' && !oldCerrarConv.__cleanF2){
+  var cerrarCleanF2 = async function(id){
     var r = await oldCerrarConv.apply(this, arguments);
     setTimeout(function(){
       var dbs = chatsSafe();
@@ -15637,63 +15570,52 @@ if(typeof oldCerrarConv === 'function' && !oldCerrarConv.__cleanF1){
         if(cid === id || !isValid(c) || c.status === 'cerrado') return;
         if(!next || Number(c.updatedAt || 0) > Number((dbs[next] || {}).updatedAt || 0)) next = cid;
       });
-      if(next && typeof window.abrirChatAdmin === 'function'){
-        window.abrirChatAdmin(next, true);
-      }
+      if(next && typeof window.abrirChatAdmin === 'function') window.abrirChatAdmin(next, true);
     }, 120);
     return r;
   };
-  cerrarCleanF1.__cleanF1 = 1;
-  window.cerrarConversacionChat = cerrarCleanF1;
-  try{ cerrarConversacionChat = cerrarCleanF1; }catch(e){}
+  cerrarCleanF2.__cleanF2 = 1;
+  window.cerrarConversacionChat = cerrarCleanF2;
+  try{ cerrarConversacionChat = cerrarCleanF2; }catch(e){}
 }
 
-// 3) Cortar alarma de llamada al responder, escribir o tocar HUM/AUTO.
 function stopCallSafe(id){
   if(!id) return;
   try{ if(typeof stopRing === 'function') stopRing(id); }catch(e){}
   try{ if(typeof stopHumanRing === 'function') stopHumanRing(id); }catch(e){}
-  try{
-    var bags = [window.__tomaunoRingTimers, window.__tomaunoHumanRingTimers, window.ringTimers, window.humanRingTimers].filter(Boolean);
-    bags.forEach(function(bag){
-      if(bag[id]){
-        try{ clearTimeout(bag[id]); }catch(e){}
-        try{ clearInterval(bag[id]); }catch(e){}
-      }
-      delete bag[id];
-    });
-  }catch(e){}
   updateChatSafe(id,{humanRequested:false,waitingHuman:false,priority:false,prioridad:false,callUntil:0,callAnsweredAt:Date.now(),updatedAt:Date.now()});
 }
+
 var oldSendAdmin = window.enviarChatAdmin;
-if(typeof oldSendAdmin === 'function' && !oldSendAdmin.__cleanF1){
-  var sendCleanF1 = function(){
+if(typeof oldSendAdmin === 'function' && !oldSendAdmin.__cleanF2){
+  var sendCleanF2 = function(){
     var id = adminIdSafe();
     if(id) stopCallSafe(id);
     return oldSendAdmin.apply(this, arguments);
   };
-  sendCleanF1.__cleanF1 = 1;
-  window.enviarChatAdmin = sendCleanF1;
-  try{ enviarChatAdmin = sendCleanF1; }catch(e){}
+  sendCleanF2.__cleanF2 = 1;
+  window.enviarChatAdmin = sendCleanF2;
+  try{ enviarChatAdmin = sendCleanF2; }catch(e){}
 }
+
 var oldToggle = window.toggleModoAsistenteChat;
-if(typeof oldToggle === 'function' && !oldToggle.__cleanF1){
-  var toggleCleanF1 = function(){
+if(typeof oldToggle === 'function' && !oldToggle.__cleanF2){
+  var toggleCleanF2 = function(){
     var id = adminIdSafe();
     if(id) stopCallSafe(id);
     return oldToggle.apply(this, arguments);
   };
-  toggleCleanF1.__cleanF1 = 1;
-  window.toggleModoAsistenteChat = toggleCleanF1;
-  try{ toggleModoAsistenteChat = toggleCleanF1; }catch(e){}
+  toggleCleanF2.__cleanF2 = 1;
+  window.toggleModoAsistenteChat = toggleCleanF2;
+  try{ toggleModoAsistenteChat = toggleCleanF2; }catch(e){}
 }
+
 document.addEventListener('input', function(e){
   if(isAdminView() && e.target && e.target.closest && e.target.closest('#chat-popover.open')){
     stopCallSafe(adminIdSafe());
   }
 }, true);
 
-// 4) HUM corto, sin mover botonera.
 function fixHumText(){
   qa('#chat-popover.open button').forEach(function(btn){
     var t = btn.textContent || '';
