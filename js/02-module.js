@@ -2048,25 +2048,24 @@ window.chatGoToSection = (id) => {
   navScroll(id);
 };
 function renderMsgs(chat, adminView=false, chatId=''){
-  return chatMsgs(chat).filter(([mid,m]) => !(m && (m.hidden || m.deleted || m.deletedForVisitor))).map(([mid,m]) => {
+  return chatMsgs(chat).map(([mid,m]) => {
     const editBtn = adminView && m.from === 'admin' ? '<button class="chat-edit-mini" title="Editar respuesta" onclick="event.stopPropagation();window.editarMensajeChat(\''+chatId+'\',\''+mid+'\')">✎</button>' : '';
-    const deleteBtn = adminView && (m.from === 'admin' || m.from === 'system') && !m.typing ? '<button class="chat-delete-mini" title="Borrar para el visitante" onclick="event.stopPropagation();window.borrarMensajeChatParaVisitante(\''+chatId+'\',\''+mid+'\')">🗑️</button>' : '';
     const cls = m.typing ? 'typing' : (m.from==='admin'?'admin':m.from==='system'?'system':'user');
     const actions = (!m.typing && (m.from==='admin' || m.from==='system')) ? chatActionButtonsForMessage(m.text || '') : '';
     const waitStart = m.humanWait ? Number(chat?.humanWaitStartedAt || m.createdAt || 0) : 0;
     const waitCountdown = waitStart ? '<div class="chat-human-countdown" data-human-wait-start="'+waitStart+'"><span class="chat-human-countdown-num">60</span>s para intentar conectar con Javier</div>' : '';
-    return '<div class="chat-bubble '+cls+'" data-message-id="'+escAttr(mid)+'" data-msg-id="'+escAttr(mid)+'"><div>'+chatLinkify(m.text||'')+editBtn+deleteBtn+'</div>'+waitCountdown+actions+(m.from==='system'?'':'<div class="chat-meta">'+escHtml(m.time||'')+'</div>')+'</div>';
+    return '<div class="chat-bubble '+cls+'"><div>'+chatLinkify(m.text||'')+editBtn+'</div>'+waitCountdown+actions+(m.from==='system'?'':'<div class="chat-meta">'+escHtml(m.time||'')+'</div>')+'</div>';
   }).join('');
 }
 function scrollChatSmart(box){
   if(!box) return;
   const isVisitorView = !!document.querySelector('#chat-popover.open #chat-text') && !document.querySelector('#chat-popover.open #chat-admin-text');
-  if(isVisitorView){
-    box.scrollTop = box.scrollHeight;
-    setTimeout(()=>{ try{ box.scrollTop = box.scrollHeight; }catch(e){} }, 80);
-    setTimeout(()=>{ try{ box.scrollTop = box.scrollHeight; }catch(e){} }, 220);
-    return;
-  }
+  const distanceFromBottom = box.scrollHeight - box.clientHeight - box.scrollTop;
+  const visitorReading = isVisitorView && (
+    (window.__tomaunoVisitorReadingUntil && Date.now() < window.__tomaunoVisitorReadingUntil) ||
+    distanceFromBottom > 90
+  );
+  if(visitorReading) return;
   box.scrollTop = box.scrollHeight;
 }
 function updateChatMessagesOnly(id, adminView){
@@ -3121,13 +3120,13 @@ function extraerNombreAI(text){
   if(/^(si|sí|ok|dale|bueno|perfecto|claro|gracias|quiero|consulta|web|whatsapp|telefono|javier)$/i.test(n)) return '';
   return n;
 }
-function chatEsperandoDatosHUMs(chat){
+function chatEsperandoDatosHumanos(chat){
   if(!chat) return false;
   if(chat.humanRequested && (!tieneNombreRealChat(chat) || !tieneWhatsAppChat(chat) || !chat.temaPrincipal)) return true;
   const last = chatMsgs(chat).slice().reverse().find(([,m]) => m && m.from === 'admin' && m.auto);
   return !!(last && /(dejame|dejam[eé]|whatsapp|nombre|tema|consulta).*Javier|Para que pueda contactarte|Sobre qu[eé] tema/i.test(String(last.text||'')));
 }
-async function manejarDatosHUMsPendientes(chatId, chat, userText){
+async function manejarDatosHumanosPendientes(chatId, chat, userText){
   const updates = {updatedAt:Date.now(), humanRequested:true, prioridad:true, unreadAdmin:true};
   const wp = extraerWhatsappAI(userText);
   const name = extraerNombreAI(userText);
@@ -3206,8 +3205,8 @@ async function responderAutomaticoChat(chatId, userText){
 
     // Si el usuario ya pidió atención humana y está dejando nombre/WhatsApp/tema,
     // no lo tratamos como una pregunta normal del asistente.
-    if(chatEsperandoDatosHUMs(chat)){
-      const respPend = await manejarDatosHUMsPendientes(chatId, chat, userText);
+    if(chatEsperandoDatosHumanos(chat)){
+      const respPend = await manejarDatosHumanosPendientes(chatId, chat, userText);
       if(respPend){
         const typingRefP = await push(ref(db,'tomauno/chats/'+chatId+'/messages'), {from:'system', text:'Tomauno está escribiendo', time:chatTime(), createdAt:Date.now(), typing:true});
         await update(ref(db,'tomauno/chats/'+chatId), {updatedAt:Date.now(), lastMsg:'Datos para Javier', status:'abierto'});
@@ -6313,8 +6312,8 @@ window.filterCursos = function(){
   };
 
   // 4) Si el usuario pidió Javier, pero luego pregunta por servicios/cursos/etc., no insistir con datos.
-  const __manejarDatosHUMsPendientes_v3319 = manejarDatosHUMsPendientes;
-  manejarDatosHUMsPendientes = async function(chatId, chat, userText){
+  const __manejarDatosHumanosPendientes_v3319 = manejarDatosHumanosPendientes;
+  manejarDatosHumanosPendientes = async function(chatId, chat, userText){
     const q = normAI(userText||'');
     if(/\b(no|no gracias|despues|más tarde|mas tarde)\b/.test(q)){
       await update(ref(db,'tomauno/chats/'+chatId), {humanRequested:false, prioridad:false, updatedAt:Date.now()});
@@ -6329,7 +6328,7 @@ window.filterCursos = function(){
     if(/(ubicacion|ubicación|direccion|dirección|donde queda|mapa)/.test(q)){
       return '📍 Estamos en Pedro Méndez 2069, Posadas, Misiones. #ubicacion#';
     }
-    return __manejarDatosHUMsPendientes_v3319.apply(this, arguments);
+    return __manejarDatosHumanosPendientes_v3319.apply(this, arguments);
   };
 
   // 5) Resumen WA realmente breve: no copia toda la charla.
@@ -7534,7 +7533,7 @@ window.filterCursos = function(){
     if(!btn || !chat) return;
     const human = chatIsHumanFinal(chat);
     btn.classList.toggle('on', !human);
-    btn.textContent = human ? '👤 HUM' : '🤖 AUTO';
+    btn.textContent = human ? '👤 HUMANO' : '🤖 AUTO';
     btn.title = human ? 'Este chat está en atención humana. Clic para volver a automático.' : 'Este chat está en automático. Clic para tomarlo manualmente.';
   }
   function adminViewingChatFinal(chatId){
@@ -8687,7 +8686,7 @@ window.filterCursos = function(){
     try{ abrirChatAdmin = wrapped; }catch(e){}
   }
 
-  // Si Javier responde manualmente, deja de ser rojo HUM pendiente.
+  // Si Javier responde manualmente, deja de ser rojo HUMANO pendiente.
   const oldSendAdmin = window.enviarChatAdmin;
   if(typeof oldSendAdmin === 'function' && !oldSendAdmin.__tuV25HumanClear){
     const wrappedAdminSend = async function(){
@@ -8746,7 +8745,7 @@ window.filterCursos = function(){
           title.appendChild(badge);
         }
 
-        badge.textContent = pendingHuman ? ' HUM' : unread ? ' NUEVO' : online ? ' ONLINE' : ' OFF';
+        badge.textContent = pendingHuman ? ' HUMANO' : unread ? ' NUEVO' : online ? ' ONLINE' : ' OFF';
       });
     });
   }
@@ -8792,7 +8791,7 @@ window.filterCursos = function(){
         quickButton('Eventos activos','Eventos') +
         quickButton('Servicios disponibles','Servicios') +
         quickButton('Ubicación','Ubicación') +
-        quickButton('Quiero hablar con Javier','HUM');
+        quickButton('Quiero hablar con Javier','Humano');
 
       row.parentNode.insertBefore(bar, row);
     });
@@ -9688,7 +9687,7 @@ window.filterCursos = function(){
 })();
 
 
-// ── TOMAUNO v28 UX + HUM + SCROLL ───────────────────────────────────────
+// ── TOMAUNO v28 UX + HUMANO + SCROLL ───────────────────────────────────────
 // Cursor inicial, botón humano visible, WhatsApp obligatorio, teclado móvil,
 // respuesta dueño/Javier, y scroll inteligente sin secuestrar mensajes largos.
 (function(){
@@ -9719,14 +9718,14 @@ window.filterCursos = function(){
     }) || '';
   }
 
-  // 1) Botonera rápida compacta desde el primer render, incluyendo HUM.
+  // 1) Botonera rápida compacta desde el primer render, incluyendo Humano.
   function quickHtml(){
     const items = [
       ['Cursos activos','🎓','Cursos'],
       ['Eventos activos','📅','Eventos'],
       ['Servicios disponibles','🛠️','Servicios'],
       ['Ubicación','📍',''],
-      ['Quiero hablar con Javier','👤','HUM']
+      ['Quiero hablar con Javier','👤','Humano']
     ];
     return items.map(function(x){
       return '<button type="button" class="tu-quick-btn tu-quick-compact" title="'+x[2]+'" data-tu-msg="'+x[0]+'"><span>'+x[1]+'</span>'+(x[2] ? '<em>'+x[2]+'</em>' : '')+'</button>';
@@ -9911,7 +9910,7 @@ window.filterCursos = function(){
   const oldBuscarV28 = (typeof buscarRespuestaAsistente === 'function') ? buscarRespuestaAsistente : null;
   buscarRespuestaAsistente = function(text){
     if(isOwnerQuestion(text)){
-      return 'TOMAUNO está a cargo de Javier, fotógrafo y responsable del estudio.\n\nSi querés hablar directamente con él, tocá el botón HUM o dejame tu WhatsApp y tu consulta.';
+      return 'TOMAUNO está a cargo de Javier, fotógrafo y responsable del estudio.\n\nSi querés hablar directamente con él, tocá el botón Humano o dejame tu WhatsApp y tu consulta.';
     }
     return oldBuscarV28 ? oldBuscarV28(text) : '';
   };
@@ -10243,13 +10242,13 @@ window.filterCursos = function(){
   // También marcar leído si el chat está abierto y llega render.
   setInterval(markCurrentRead, 2500);
 
-  // 3) Evitar estrella duplicada. Dejamos una sola señal: badge HUM.
+  // 3) Evitar estrella duplicada. Dejamos una sola señal: badge HUMANO.
   function cleanDuplicateStars(){
     safe(function(){
       document.querySelectorAll('.chat-tab,.chat-list-item,.chat-inbox-item,[data-chat-id]').forEach(function(el){
         const text = el.textContent || '';
-        // Si tiene HUM o Atención Javier, no necesita estrella visual repetida.
-        if(/HUM|Atención Javier|Consulta para Javier/i.test(text)){
+        // Si tiene HUMANO o Atención Javier, no necesita estrella visual repetida.
+        if(/HUMANO|Atención Javier|Consulta para Javier/i.test(text)){
           const nodes = Array.from(el.childNodes);
           nodes.forEach(function(n){
             if(n.nodeType === 3 && /⭐|★|☆/.test(n.textContent || '')){
@@ -10266,7 +10265,7 @@ window.filterCursos = function(){
     });
   }
 
-  // 4) HUM más visible que estrella chica.
+  // 4) HUMANO más visible que estrella chica.
   function css(){
     if(document.getElementById('tomauno-v28b-css')) return;
     const st = document.createElement('style');
@@ -10304,7 +10303,7 @@ window.filterCursos = function(){
 
 
 // ─────────────────────────────────────────────────────────────────────────────
-// TOMAUNO v28b FINAL 2 — SIN DUPLICAR HUM
+// TOMAUNO v28b FINAL 2 — SIN DUPLICAR HUMANO
 // Base: v28b. NO reemplaza flujo humano original.
 // Corrige solo Enter, altura, scroll, amarillo leído y notificaciones de usuario.
 // ─────────────────────────────────────────────────────────────────────────────
@@ -10821,7 +10820,7 @@ window.filterCursos = function(){
 
 
 // ─────────────────────────────────────────────────────────────────────────────
-// TOMAUNO v28b FINAL 3 — HUM ESTABLE + SIN ACTIVAR ALERTAS
+// TOMAUNO v28b FINAL 3 — HUMANO ESTABLE + SIN ACTIVAR ALERTAS
 // No reconstruye admin. Corrige restos de alerta, humano, amarillo y mensajes auto/manual.
 // ─────────────────────────────────────────────────────────────────────────────
 (function(){
@@ -10890,7 +10889,7 @@ window.filterCursos = function(){
     return safe(function(){ return asistenteModo() === 'automatico'; }) !== false;
   }
 
-  // 3) HUM con llamada real cada 10s durante 60s.
+  // 3) Humano con llamada real cada 10s durante 60s.
   function isHumanRequest(text){
     var x = norm(text);
     return [
@@ -11591,7 +11590,7 @@ window.filterCursos = function(){
     try{ window.buscarRespuestaAsistente = wrappedBuscar; }catch(e){}
   }
 
-  // 6) HUM: ring cada 10s y fallback al llegar a 00.
+  // 6) Humano: ring cada 10s y fallback al llegar a 00.
   var ringTimers = {};
   var fallbackSent = {};
 
@@ -11671,17 +11670,11 @@ window.filterCursos = function(){
   // Si el visitante ve Javier online, cambiar encabezado.
   function updateVisitorHeader(){
     if(isAdmin()) return;
-
     var id = visitorId();
     if(!id) return;
 
     var c = chats()[id] || {};
-    var online = !!(
-      c.humanMode &&
-      c.javierOnline &&
-      c.javierOnlineAt &&
-      Date.now() - Number(c.javierOnlineAt) < 15 * 60 * 1000
-    );
+    var online = !!(c.javierOnline && c.javierOnlineAt && Date.now() - Number(c.javierOnlineAt) < 15*60*1000);
 
     var title = q('#chat-popover.open .chat-title');
     var sub = q('#chat-popover.open .chat-subline');
@@ -11689,9 +11682,6 @@ window.filterCursos = function(){
     if(online){
       if(title) title.textContent = 'JAVIER ONLINE';
       if(sub) sub.textContent = '🟢 Javier está en línea';
-    }else{
-      if(title) title.textContent = 'ASISTENTE TOMAUNO';
-      if(sub) sub.textContent = 'Asistente Tomauno';
     }
   }
 
@@ -11777,7 +11767,7 @@ window.filterCursos = function(){
 
 
 // ─────────────────────────────────────────────────────────────────────────────
-// TOMAUNO v28b FINAL 5 — SONIDO GLOBAL + ESTADOS + HUM
+// TOMAUNO v28b FINAL 5 — SONIDO GLOBAL + ESTADOS + HUMANO
 // No toca layout. Corrige:
 // - audio desbloqueado desde la web principal/admin, no solo chat
 // - amarillo persistente desde DB/localStorage/clases
@@ -12094,7 +12084,7 @@ window.filterCursos = function(){
     }
   }
 
-  // 4) HUM: texto nuevo, ring cada 10s, fallback 00.
+  // 4) Humano: texto nuevo, ring cada 10s, fallback 00.
   function humanText(sec){
     sec = Math.max(0,Number(sec || 0));
     return '🟢 Al parecer Javier está ocupado o no se encuentra en el estudio. Ni bien pueda te responderá personalmente.\n\n📱 Para dejar agendada tu consulta necesito que me pases tu WhatsApp y el mensaje para Javier.';
@@ -12236,27 +12226,18 @@ window.filterCursos = function(){
   // 5) Javier online estable: sin intermitencia.
   function updateVisitorHeader(){
     if(isAdmin()) return;
-
     var id = visitorId();
     if(!id) return;
 
     var c = chats()[id] || {};
-    var online = !!(
-      c.humanMode &&
-      c.javierOnline &&
-      c.javierOnlineAt &&
-      Date.now() - Number(c.javierOnlineAt) < 15 * 60 * 1000
-    );
+    var online = !!(c.javierOnline && c.javierOnlineAt && Date.now() - Number(c.javierOnlineAt) < 15*60*1000);
 
     var title = q('#chat-popover.open .chat-title');
     var sub = q('#chat-popover.open .chat-subline');
 
     if(online){
       if(title) title.textContent = 'JAVIER ONLINE';
-      if(sub) sub.textContent = '🟢 Javier está en línea';
-    }else{
-      if(title) title.textContent = 'ASISTENTE TOMAUNO';
-      if(sub) sub.textContent = 'Asistente Tomauno';
+      if(sub) sub.innerHTML = '🟢 Javier está en línea';
     }
   }
 
@@ -12799,27 +12780,16 @@ window.filterCursos = function(){
   // 8) Javier online estable.
   function updateVisitorHeader(){
     if(isAdmin()) return;
-
     var id = visitorId();
     if(!id) return;
-
     var c = chats()[id] || {};
-    var online = !!(
-      c.humanMode &&
-      c.javierOnline &&
-      c.javierOnlineAt &&
-      Date.now() - Number(c.javierOnlineAt) < 15 * 60 * 1000
-    );
-
-    var title = q('#chat-popover.open .chat-title');
-    var sub = q('#chat-popover.open .chat-subline');
+    var online = !!(c.javierOnline && c.javierOnlineAt && Date.now() - Number(c.javierOnlineAt) < 15*60*1000);
 
     if(online){
+      var title = q('#chat-popover.open .chat-title');
+      var sub = q('#chat-popover.open .chat-subline');
       if(title) title.textContent = 'JAVIER ONLINE';
-      if(sub) sub.textContent = '🟢 Javier está en línea';
-    }else{
-      if(title) title.textContent = 'ASISTENTE TOMAUNO';
-      if(sub) sub.textContent = 'Asistente Tomauno';
+      if(sub) sub.innerHTML = '🟢 Javier está en línea';
     }
   }
 
@@ -12914,7 +12884,7 @@ window.filterCursos = function(){
 
 
 // ─────────────────────────────────────────────────────────────────────────────
-// TOMAUNO v28b FINAL 6D — FLUJO HUM CORRECTO
+// TOMAUNO v28b FINAL 6D — FLUJO HUMANO CORRECTO
 // Base final6b. Corrige SOLO llamada humana.
 // 1) intenta contactar + contador
 // 2) alarma cada 10s
@@ -13289,7 +13259,7 @@ window.filterCursos = function(){
 // - no repetir fallback cada vez que escribe
 // - foco del input visitante luego de respuesta
 // - botón enviar a la derecha en celular
-// - no saltar arriba al cambiar AUTO/HUM
+// - no saltar arriba al cambiar AUTO/HUMANO
 // ─────────────────────────────────────────────────────────────────────────────
 (function(){
   'use strict';
@@ -13577,7 +13547,7 @@ window.filterCursos = function(){
     });
   }
 
-  // AUTO/HUM no debe saltar al inicio.
+  // AUTO/HUMANO no debe saltar al inicio.
   var oldToggle = window.toggleModoAsistenteChat;
   if(typeof oldToggle === 'function' && !oldToggle.__tu6e){
     var toggle6e = function(){
@@ -13688,7 +13658,7 @@ window.filterCursos = function(){
 // - después de registrar WhatsApp el asistente sigue respondiendo
 // - minimizar no reabre al instante
 // - keywords múltiples del cerebro separadas por coma
-// - título visitante respeta AUTO/HUM
+// - título visitante respeta AUTO/HUMANO
 // ─────────────────────────────────────────────────────────────────────────────
 (function(){
   'use strict';
@@ -14089,26 +14059,19 @@ window.filterCursos = function(){
   // Header visitante estable según modo.
   function updateVisitorHeader(){
     if(isAdmin()) return;
-
     var id = visitorId();
-    if(!id) return;
-
-    var c = chats()[id] || {};
-    var online = !!(
-      c.humanMode &&
-      c.javierOnline &&
-      c.javierOnlineAt &&
-      Date.now() - Number(c.javierOnlineAt) < 15 * 60 * 1000
-    );
-
+    var c = id ? (chats()[id] || {}) : {};
     var title = q('#chat-popover.open .chat-title');
     var sub = q('#chat-popover.open .chat-subline');
+    if(!title) return;
 
-    if(online){
-      if(title) title.textContent = 'JAVIER ONLINE';
-      if(sub) sub.textContent = '🟢 Javier está en línea';
+    var onlineHuman = !!(c.javierOnline && c.javierOnlineAt && Date.now()-Number(c.javierOnlineAt)<15*60*1000 && !isAuto());
+
+    if(onlineHuman){
+      title.textContent = 'JAVIER ONLINE';
+      if(sub) sub.innerHTML = '🟢 Javier está en línea';
     }else{
-      if(title) title.textContent = 'ASISTENTE TOMAUNO';
+      title.textContent = 'CHAT TOMAUNO';
       if(sub) sub.textContent = 'Asistente Tomauno';
     }
   }
@@ -14174,12 +14137,12 @@ window.filterCursos = function(){
 
 
 // ─────────────────────────────────────────────────────────────────────────────
-// TOMAUNO v28b FINAL 6G — ESTABILIDAD SCROLL / NOTIF / HUM / CEREBRO
+// TOMAUNO v28b FINAL 6G — ESTABILIDAD SCROLL / NOTIF / HUMANO / CEREBRO
 // Cambios controlados:
 // - scroll visitante libre al leer
 // - notificaciones solo chat nuevo o llamada
 // - humano solo 2 mensajes: llamada + fallback blanco
-// - AUTO/HUM estable
+// - AUTO/HUMANO estable
 // - título visitante: ASISTENTE TOMAUNO en auto / JAVIER ONLINE en manual
 // - primeras reglas de cerebro: pagos, edad, dueño, cursos, 15 años
 // ─────────────────────────────────────────────────────────────────────────────
@@ -14303,7 +14266,7 @@ window.filterCursos = function(){
     });
   }
 
-  // 3) HUM: solo mensaje llamada + fallback blanco.
+  // 3) Humano: solo mensaje llamada + fallback blanco.
   function isHumanRequest(text){
     var x=norm(text);
     return [
@@ -14524,7 +14487,7 @@ window.filterCursos = function(){
 // Cambios finales directos:
 // - scroll visitante realmente libre al leer
 // - sonidos solo chat nuevo o llamada
-// - AUTO/HUM estable por chat
+// - AUTO/HUMANO estable por chat
 // - cerebro por prioridad usando keys/título/command, no respuesta completa
 // - fallback humano único en blanco
 // ─────────────────────────────────────────────────────────────────────────────
@@ -14666,7 +14629,7 @@ window.filterCursos = function(){
     });
   }
 
-  // 3) AUTO/HUM estable por chat.
+  // 3) AUTO/HUMANO estable por chat.
   window.toggleModoAsistenteChat = async function(){
     var id = adminId();
     if(id && q('#chat-popover.open #chat-admin-text')){
@@ -14712,7 +14675,7 @@ window.filterCursos = function(){
     safe(function(){ toast(nuevo === 'automatico' ? '🤖 Asistente automático ON' : '👤 Asistente manual', true); });
   };
 
-  // 4) HUM correcto.
+  // 4) Humano correcto.
   function isHumanRequest(text){
     var x=norm(text);
     return [
@@ -14935,7 +14898,7 @@ window.filterCursos = function(){
 // - silencio para "Nuevo mensaje web"
 // - alarma Javier por watcher admin
 // - foco input visitante
-// - HUM/AUTO por chat
+// - HUMANO/AUTO por chat
 // - bandeja sin rebote
 // ─────────────────────────────────────────────────────────────────────────────
 (function(){
@@ -15103,7 +15066,7 @@ window.filterCursos = function(){
     }
   }
 
-  // 4) MODO HUM/AUTO: controlar las dos funciones posibles.
+  // 4) MODO HUMANO/AUTO: controlar las dos funciones posibles.
   async function setChatMode(chatId,toHuman){
     if(!chatId) return;
     if(toHuman){
@@ -15182,26 +15145,17 @@ window.filterCursos = function(){
   // 6) Header visitante.
   function updateVisitorHeader(){
     if(isAdmin()) return;
-
     var id = visitorId();
-    if(!id) return;
-
-    var c = chats()[id] || {};
-    var online = !!(
-      c.humanMode &&
-      c.javierOnline &&
-      c.javierOnlineAt &&
-      Date.now() - Number(c.javierOnlineAt) < 15 * 60 * 1000
-    );
-
+    var c = id ? (chats()[id] || {}) : {};
+    var humanOnline = !!(c.javierOnline && c.javierOnlineAt && Date.now()-Number(c.javierOnlineAt)<15*60*1000 && !isAuto());
     var title = q('#chat-popover.open .chat-title');
     var sub = q('#chat-popover.open .chat-subline');
-
-    if(online){
-      if(title) title.textContent = 'JAVIER ONLINE';
-      if(sub) sub.textContent = '🟢 Javier está en línea';
+    if(!title) return;
+    if(humanOnline){
+      title.textContent = 'JAVIER ONLINE';
+      if(sub) sub.innerHTML = '🟢 Javier está en línea';
     }else{
-      if(title) title.textContent = 'ASISTENTE TOMAUNO';
+      title.textContent = 'ASISTENTE TOMAUNO';
       if(sub) sub.textContent = 'Asistente Tomauno';
     }
   }
@@ -15252,11 +15206,11 @@ window.filterCursos = function(){
 
 
 // ─────────────────────────────────────────────────────────────────────────────
-// TOMAUNO v28b FINAL 6J — UX VISITANTE + HUM + RESUMEN
+// TOMAUNO v28b FINAL 6J — UX VISITANTE + HUMANO + RESUMEN
 // - input visitante visible/foco
 // - respuesta nueva: scroll al inicio del mensaje si el usuario no está leyendo
 // - acciones/botones del asistente también en visitante
-// - HUM por chat refleja Javier Online en visitante
+// - HUMANO por chat refleja Javier Online en visitante
 // - luego de registrar WhatsApp, vuelve a AUTO si el modo global está automático
 // - registra WhatsApp/consulta en resumen
 // ─────────────────────────────────────────────────────────────────────────────
@@ -15392,27 +15346,18 @@ window.filterCursos = function(){
   },true);
 
   function updateVisitorHeader(){
-    if(isAdmin()) return;
-
+    if(!isVisitorView()) return;
     var id = visitorId();
-    if(!id) return;
-
-    var c = chats()[id] || {};
-    var online = !!(
-      c.humanMode &&
-      c.javierOnline &&
-      c.javierOnlineAt &&
-      Date.now() - Number(c.javierOnlineAt) < 15 * 60 * 1000
-    );
-
+    var c = id ? (chats()[id] || {}) : {};
     var title = q('#chat-popover.open .chat-title');
     var sub = q('#chat-popover.open .chat-subline');
-
-    if(online){
-      if(title) title.textContent = 'JAVIER ONLINE';
-      if(sub) sub.textContent = '🟢 Javier está en línea';
+    if(!title) return;
+    var humanOnline = !!(c.javierOnline && c.javierOnlineAt && Date.now()-Number(c.javierOnlineAt)<15*60*1000);
+    if(humanOnline){
+      title.textContent = 'JAVIER ONLINE';
+      if(sub) sub.innerHTML = '🟢 Javier está en línea';
     }else{
-      if(title) title.textContent = 'ASISTENTE TOMAUNO';
+      title.textContent = 'ASISTENTE TOMAUNO';
       if(sub) sub.textContent = 'Asistente Tomauno';
     }
   }
@@ -15492,41 +15437,202 @@ window.filterCursos = function(){
 })();
 
 
-// TOMAUNO CHAT 7H — BORRAR REAL PARA VISITANTE + SCROLL ORIGEN
+// TOMAUNO CHAT 7D — LIMPIEZA SIN PANEL
+// Base limpia: conserva hasta FINAL 6J. No toca panel/luces/nombres.
+// Solo: scroll visitante abajo + basurero ADM + un solo silencio.
 (function(){
 'use strict';
 
+function safe(fn){try{return fn()}catch(e){try{console.warn('TU chat7d:',e)}catch(_){}}}
 function q(s,r){return (r||document).querySelector(s)}
-function isAdmin(){return !!q('#chat-popover.open #chat-admin-text,#chat-popover.open .chat-inbox-side,#chat-popover.open .chat-admin-tools')}
+function qa(s,r){return Array.from((r||document).querySelectorAll(s))}
 
-window.borrarMensajeChatParaVisitante = async function(chatId,msgId){
-  if(!chatId || !msgId) return;
-  try{
-    if(typeof db !== 'undefined' && typeof ref !== 'undefined' && typeof update !== 'undefined'){
-      await update(ref(db,'tomauno/chats/'+chatId+'/messages/'+msgId), {
-        hidden:true,
-        deletedForVisitor:true,
-        deleted:true,
-        deletedAt:Date.now()
-      });
-    }
-  }catch(e){
-    console.warn('No pude marcar mensaje oculto:', e);
-  }
-  try{ if(typeof updateChatMessagesOnly === 'function') updateChatMessagesOnly(chatId, true); }catch(e){}
-};
+let lastVisitorKey='';
+let lastForceAt=0;
 
-function cleanOldTrashButtons(){
+function isVisitor(){
+  return !!q('#chat-popover.open #chat-text') && !q('#chat-popover.open #chat-admin-text');
+}
+function isAdmin(){
+  return !!q('#chat-popover.open #chat-admin-text,#chat-popover.open .chat-inbox-side,#chat-popover.open .chat-admin-tools');
+}
+function adminId(){
+  return safe(()=>window.currentOpenChatId||currentOpenChatId||'')||'';
+}
+
+// 1) Visitante: si aparece mensaje nuevo, bajar al final.
+// No intenta acomodar al inicio. No toca ADM.
+function visitorBottom(){
+  if(!isVisitor()) return;
+
+  const box=q('#chat-popover.open .chat-msgs');
+  if(!box) return;
+
+  const bubbles=qa('.chat-bubble',box);
+  if(!bubbles.length) return;
+
+  const last=bubbles[bubbles.length-1];
+  const key=[
+    bubbles.length,
+    last.className||'',
+    (last.innerText||'').slice(0,180),
+    (last.innerText||'').length,
+    last.offsetTop
+  ].join('|');
+
+  if(key===lastVisitorKey) return;
+  lastVisitorKey=key;
+  lastForceAt=Date.now();
+
+  const down=()=>{
+    const b=q('#chat-popover.open .chat-msgs');
+    if(b&&isVisitor()) b.scrollTop=b.scrollHeight;
+  };
+
+  requestAnimationFrame(down);
+  setTimeout(down,80);
+  setTimeout(down,260);
+  setTimeout(down,700);
+}
+
+// Si otro código intenta moverlo al medio justo después de llegar el mensaje, lo devuelvo abajo.
+function keepBottom(){
+  if(!isVisitor()) return;
+  if(Date.now()-lastForceAt>1500) return;
+  const b=q('#chat-popover.open .chat-msgs');
+  if(b) b.scrollTop=b.scrollHeight;
+}
+
+// 2) ADM: un solo basurero por mensaje del asistente.
+// Solo oculta de pantalla; no toca Firebase.
+function adminTrash(){
   if(!isAdmin()) return;
-  document.querySelectorAll('#chat-popover.open .tu7g-del,#chat-popover.open .tu7f-del,#chat-popover.open .tu7e-del,#chat-popover.open .tu7d-del,#chat-popover.open .tu7c-del,#chat-popover.open .tu7b-del,#chat-popover.open .tu6x-del,#chat-popover.open .tu6p-del,#chat-popover.open .tu-msg-del').forEach(x=>x.remove());
+  if(!adminId()) return;
+
+  qa('#chat-popover.open .chat-bubble.admin').forEach(b=>{
+    const existing=qa('.tu7d-del,.tu7c-del,.tu7b-del,.tu6x-del,.tu6p-del,.tu-msg-del',b);
+    if(existing.length){
+      existing.forEach((x,i)=>{if(i>0)x.remove()});
+      existing[0].className='tu7d-del';
+      existing[0].textContent='🗑️';
+      existing[0].title='Ocultar este mensaje del asistente';
+      return;
+    }
+
+    const text=(b.innerText||'').trim();
+    if(!text) return;
+
+    const btn=document.createElement('button');
+    btn.type='button';
+    btn.className='tu7d-del';
+    btn.textContent='🗑️';
+    btn.title='Ocultar este mensaje del asistente';
+    btn.setAttribute('aria-label','Ocultar mensaje del asistente');
+    btn.addEventListener('click',ev=>{
+      ev.preventDefault();
+      ev.stopPropagation();
+      b.remove();
+    },true);
+    b.appendChild(btn);
+  });
+}
+
+// 3) Visitante: nunca ve basureros.
+function noTrashVisitor(){
+  if(!isVisitor()) return;
+  qa('#chat-popover.open .tu7d-del,#chat-popover.open .tu7c-del,#chat-popover.open .tu7b-del,#chat-popover.open .tu6x-del,#chat-popover.open .tu6p-del,#chat-popover.open .tu-msg-del').forEach(x=>x.remove());
+}
+
+// 4) Un solo botón de silencio. No crear otro si ya existe.
+window.tomaunoMuteAlarmsUntil = window.tomaunoMuteAlarmsUntil || 0;
+function muteAll(ms){
+  window.tomaunoMuteAlarmsUntil = Date.now() + (ms || 180000);
+  try{localStorage.setItem('tomaunoMuteAlarmsUntil', String(window.tomaunoMuteAlarmsUntil))}catch(e){}
+}
+function normalizeMute(){
+  if(!isAdmin()) return;
+
+  const tools=q('#chat-popover.open .chat-admin-tools')||q('#chat-popover.open .chat-tools')||q('#chat-popover.open .admin-tools');
+  if(!tools) return;
+
+  const all=qa('.tu7d-mute,.tu7c-mute,.tu6v-mute,.tu6t-silence,.tu6x-mute',tools);
+  let keep=all[0];
+
+  if(!keep){
+    keep=document.createElement('button');
+    keep.type='button';
+    tools.appendChild(keep);
+  }
+
+  all.forEach(b=>{if(b!==keep)b.remove()});
+
+  keep.className='tu7d-mute';
+  keep.textContent='🔕';
+  keep.title='Silenciar alarmas de toda la web por 3 minutos';
+  keep.setAttribute('aria-label','Silenciar alarmas');
+
+  if(!keep.dataset.tu7dBound){
+    keep.dataset.tu7dBound='1';
+    keep.addEventListener('click',ev=>{
+      ev.preventDefault();
+      ev.stopPropagation();
+      muteAll(180000);
+      safe(()=>toast('🔕 Alarmas silenciadas por 3 minutos',true));
+    },true);
+  }
+}
+
+// 5) Dedupe de botones dentro del mensaje, sin tocar panel.
+function intent(el){
+  const text=(el.innerText||el.textContent||'').toLowerCase();
+  const href=(el.getAttribute&&el.getAttribute('href')||'').toLowerCase();
+  const ds=(el.dataset&&(el.dataset.tuAction||el.dataset.action||el.dataset.target)||'').toLowerCase();
+  const all=text+' '+href+' '+ds;
+
+  if(/servicio|servicios/.test(all))return 'servicios';
+  if(/curso|cursos/.test(all))return 'cursos';
+  if(/evento|eventos/.test(all))return 'eventos';
+  if(/ubicaci|mapa|maps|pedro/.test(all))return 'ubicacion';
+  if(/whatsapp|wa\.me/.test(all))return 'whatsapp';
+  if(/instagram/.test(all))return 'instagram';
+  if(/info/.test(all))return 'info';
+
+  return text.trim()||href||ds;
+}
+function dedupeButtons(){
+  qa('#chat-popover.open .chat-bubble.admin').forEach(b=>{
+    const seen={};
+    qa('button,.chat-action,.tu6j-action,a',b).forEach(el=>{
+      if(el.classList.contains('tu7d-del')) return;
+      const k=intent(el);
+      if(!k) return;
+      if(seen[k]) el.remove();
+      else seen[k]=true;
+    });
+  });
 }
 
 function css(){
-  if(document.getElementById('tu7h-css')) return;
+  if(q('#tu7d-css')) return;
+
   const st=document.createElement('style');
-  st.id='tu7h-css';
+  st.id='tu7d-css';
   st.textContent=`
-    .chat-delete-mini{
+    .tu7d-mute{
+      border:1px solid rgba(255,255,255,.18)!important;
+      background:rgba(255,255,255,.06)!important;
+      color:#fff!important;
+      border-radius:999px!important;
+      width:38px!important;
+      height:38px!important;
+      display:inline-flex!important;
+      align-items:center!important;
+      justify-content:center!important;
+      cursor:pointer!important;
+      font-weight:900!important;
+    }
+
+    .tu7d-del{
       display:inline-flex!important;
       margin-left:7px!important;
       border:1px solid rgba(255,255,255,.25)!important;
@@ -15541,7 +15647,13 @@ function css(){
       cursor:pointer!important;
       vertical-align:middle!important;
     }
-    #chat-popover.open:not(:has(#chat-admin-text)) .chat-delete-mini{
+
+    #chat-popover.open:not(:has(#chat-admin-text)) .tu7d-del,
+    #chat-popover.open:not(:has(#chat-admin-text)) .tu7c-del,
+    #chat-popover.open:not(:has(#chat-admin-text)) .tu7b-del,
+    #chat-popover.open:not(:has(#chat-admin-text)) .tu6x-del,
+    #chat-popover.open:not(:has(#chat-admin-text)) .tu6p-del,
+    #chat-popover.open:not(:has(#chat-admin-text)) .tu-msg-del{
       display:none!important;
     }
   `;
@@ -15549,101 +15661,13 @@ function css(){
 }
 css();
 
-setInterval(cleanOldTrashButtons, 800);
-})();
+setInterval(()=>{
+  visitorBottom();
+  keepBottom();
+  adminTrash();
+  noTrashVisitor();
+  normalizeMute();
+  dedupeButtons();
+},400);
 
-
-// TOMAUNO CHAT 7P — ROLLBACK ESTABLE
-// Base 7H: mantiene basurero real. Solo agrega HUM corto y cortar alarma al responder.
-// No toca scroll, panel, maximizado, duplicados, bandeja ni render de nombres.
-(function(){
-'use strict';
-
-function q(s,r){return (r||document).querySelector(s)}
-function isAdminView(){return !!q('#chat-popover.open #chat-admin-text,#chat-popover.open .chat-inbox-side,#chat-popover.open .chat-admin-tools')}
-function adminIdSafe(){try{return window.currentOpenChatId || currentOpenChatId || ''}catch(e){return ''}}
-
-function updateChatSafe(id,data){
-  try{
-    if(window.chatsDB && window.chatsDB[id]) Object.assign(window.chatsDB[id], data);
-    if(typeof chatsDB !== 'undefined' && chatsDB[id]) Object.assign(chatsDB[id], data);
-    if(typeof db !== 'undefined' && typeof ref !== 'undefined' && typeof update !== 'undefined'){
-      return update(ref(db,'tomauno/chats/'+id), data).catch(()=>{});
-    }
-  }catch(e){}
-  return Promise.resolve();
-}
-
-function stopCallSafe(id){
-  if(!id) return;
-
-  try{ if(typeof stopRing === 'function') stopRing(id); }catch(e){}
-  try{ if(typeof stopHumanRing === 'function') stopHumanRing(id); }catch(e){}
-
-  try{
-    const timerBags = [
-      window.__tomaunoRingTimers,
-      window.__tomaunoHumanRingTimers,
-      window.ringTimers,
-      window.humanRingTimers
-    ].filter(Boolean);
-
-    timerBags.forEach(function(bag){
-      if(bag[id] && bag[id] !== true){
-        try{ clearTimeout(bag[id]); }catch(e){}
-        try{ clearInterval(bag[id]); }catch(e){}
-      }
-      delete bag[id];
-    });
-  }catch(e){}
-
-  updateChatSafe(id,{
-    humanRequested:false,
-    waitingHuman:false,
-    priority:false,
-    prioridad:false,
-    callUntil:0,
-    callAnsweredAt:Date.now(),
-    updatedAt:Date.now()
-  });
-}
-
-const oldSend = window.enviarChatAdmin;
-if(typeof oldSend === 'function' && !oldSend.__chat7p){
-  const send7p = function(){
-    const id = adminIdSafe();
-    if(id) stopCallSafe(id);
-    return oldSend.apply(this, arguments);
-  };
-  send7p.__chat7p = 1;
-  window.enviarChatAdmin = send7p;
-  try{ enviarChatAdmin = send7p; }catch(e){}
-}
-
-const oldToggle = window.toggleModoAsistenteChat;
-if(typeof oldToggle === 'function' && !oldToggle.__chat7p){
-  const toggle7p = function(){
-    const id = adminIdSafe();
-    if(id) stopCallSafe(id);
-    return oldToggle.apply(this, arguments);
-  };
-  toggle7p.__chat7p = 1;
-  window.toggleModoAsistenteChat = toggle7p;
-  try{ toggleModoAsistenteChat = toggle7p; }catch(e){}
-}
-
-document.addEventListener('input', function(e){
-  if(isAdminView() && e.target && e.target.closest && e.target.closest('#chat-popover.open')){
-    stopCallSafe(adminIdSafe());
-  }
-}, true);
-
-function fixHumText(){
-  const btn = q('#chat-popover.open .chat-admin-tools .chat-filter.auto');
-  if(btn && /HUMANO/i.test(btn.textContent || '')){
-    btn.textContent = (btn.textContent || '').replace(/HUMANO/gi,'HUM');
-  }
-}
-
-setInterval(fixHumText, 800);
 })();
