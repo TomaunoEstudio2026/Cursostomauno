@@ -2134,25 +2134,8 @@ function chatAnonName(id, c){
 }
 function chatVisibleName(c, id){
   const n = String((c && c.name) || '').trim();
-  const base = (n && !isGenericChatName(n)) ? n : chatAnonName(id, c);
-
-  // Si hay varios chats con el mismo nombre visible, mostrar Ricardo, Ricardo 2, Ricardo 3...
-  try{
-    if(id && typeof chatsDB !== 'undefined' && chatsDB){
-      const same = Object.entries(chatsDB)
-        .filter(([,x]) => isValidChat(x))
-        .map(([cid,x]) => [cid, String((x && x.name) || '').trim()])
-        .filter(([,name]) => name && !isGenericChatName(name))
-        .filter(([,name]) => name.toLowerCase() === base.toLowerCase())
-        .sort((a,b) => Number((chatsDB[a[0]]||{}).createdAt||0) - Number((chatsDB[b[0]]||{}).createdAt||0));
-      if(same.length > 1){
-        const idx = same.findIndex(([cid]) => cid === id);
-        if(idx > 0) return base + ' ' + (idx + 1);
-      }
-    }
-  }catch(e){}
-
-  return base;
+  if(n && !isGenericChatName(n)) return n;
+  return chatAnonName(id, c);
 }
 function chatLastActivityLabel(c){
   const t = Number(c?.updatedAt || c?.createdAt || 0);
@@ -2235,51 +2218,25 @@ window.verResumenConsultasChat = () => {
 };
 
 function adminChatTabsHtml(activeId){
-  const abiertosAll = Object.entries(chatsDB)
+  const abiertos = Object.entries(chatsDB)
     .filter(([,c]) => isValidChat(c) && c.status !== 'cerrado')
     .sort((a,b)=>(b[1].updatedAt||0)-(a[1].updatedAt||0));
-
-  const abiertos = abiertosAll.slice(0,12);
   if (!abiertos.length) return '';
-
-  const visibleCounts = {};
-  const visibleOrder = {};
-  abiertos.forEach(([id,c]) => {
-    const base = String((c && c.name) || '').trim();
-    const key = (base || chatAnonName(id,c)).toLowerCase();
-    visibleCounts[key] = (visibleCounts[key] || 0) + 1;
-    visibleOrder[key] = visibleOrder[key] || [];
-    visibleOrder[key].push(id);
-  });
-
-  function visibleName(id,c){
-    const baseRaw = String((c && c.name) || '').trim();
-    const base = (baseRaw && !isGenericChatName(baseRaw)) ? baseRaw : chatAnonName(id,c);
-    const key = base.toLowerCase();
-    const arr = visibleOrder[key] || [];
-    const idx = arr.indexOf(id);
-    if((visibleCounts[key] || 0) > 1 && idx > 0) return base + ' ' + (idx + 1);
-    return base;
-  }
-
-  return '<div class="chat-tabs chat-inbox-side">' + abiertos.map(([id,c]) => {
+  return '<div class="chat-tabs chat-inbox-side">' + abiertos.slice(0,12).map(([id,c]) => {
     const status = chatStatusLabel(c);
     const time = chatLastActivityLabel(c);
-    const calling = !!(c.humanRequested && c.callUntil && !c.callAnsweredAt && !c.humanConfirm);
-    const preview = String((calling ? '📣 Llamada Javier · ' : (c.humanRequested ? 'Atención Javier · ' : '')) + (c.lastMsg || '')).trim();
+    const preview = String((c.humanRequested ? 'Atención Javier · ' : '') + (c.lastMsg || '')).trim();
     const cls = [
       'chat-tab',
       id===activeId ? 'active' : '',
-      calling ? 'calling' : '',
       c.unreadAdmin ? 'unread' : '',
       (c.humanRequested && !c.readByAdminAt) ? 'priority' : '',
       isChatUserOnline(c) ? 'online' : '',
       chatNeedsReply(c) ? 'waiting' : 'answered'
     ].filter(Boolean).join(' ');
-
-    return '<button class="'+cls+'" data-chat-id="'+escAttr(id)+'" onclick="window.abrirChatAdmin(\''+id+'\')">'
+    return '<button class="'+cls+'" onclick="window.abrirChatAdmin(\''+id+'\')">'
       + '<span class="chat-tab-light" title="'+escAttr(status)+'"></span>'
-      + '<span class="chat-tab-body"><span class="chat-tab-name">'+(calling?'📣 ':'')+escHtml(visibleName(id,c))+'</span>'
+      + '<span class="chat-tab-body"><span class="chat-tab-name">'+escHtml(chatVisibleName(c,id))+'</span>'
       + '<span class="chat-tab-preview">'+escHtml(preview || status)+'</span>'
       + '<span class="chat-tab-foot">'+escHtml(status)+(time?' · '+escHtml(time):'')+'</span></span>'
       + '<span class="chat-tab-close" title="Cerrar" onclick="event.stopPropagation();window.cerrarConversacionChat(\''+id+'\')">×</span>'
@@ -2312,16 +2269,7 @@ window.limpiarChatsDefinitivo = () => {
 
 window.cerrarConversacionChat = async (id) => {
   await update(ref(db,'tomauno/chats/'+id), {status:'cerrado', unreadAdmin:false, updatedAt:Date.now()});
-
-  // No mandar a bandeja si hay otra conversación abierta para seguir viendo.
-  const abiertos = Object.entries(chatsDB || {})
-    .filter(([cid,c]) => cid !== id && isValidChat(c) && c.status !== 'cerrado')
-    .sort((a,b)=>(b[1].updatedAt||0)-(a[1].updatedAt||0));
-
   if(currentOpenChatId && currentOpenChatId !== id && chatsDB[currentOpenChatId] && chatsDB[currentOpenChatId].status !== 'cerrado'){
-    abrirChatAdmin(currentOpenChatId, true);
-  }else if(abiertos.length){
-    currentOpenChatId = abiertos[0][0];
     abrirChatAdmin(currentOpenChatId, true);
   }else{
     currentOpenChatId = '';
@@ -2337,7 +2285,7 @@ window.abrirChatAdmin = (id, silent=false) => {
   const msgs = renderMsgs(chat, true, id);
   setChatPopover(
     adminChatTabsHtml(id) +
-    '<div class="chat-head"><div class="chat-avatar">👤</div><div><div class="chat-title"><span class="chat-online-dot '+(isChatUserOnline(chat)?'on':'')+'"></span>'+escHtml(chatVisibleName(chat,id))+'</div><div class="chat-subline">'+(chat.wp?'WhatsApp: '+escHtml(chat.wp)+' · ':'')+lastSeenText(chat)+'</div></div></div>' +
+    '<div class="chat-head"><div class="chat-avatar">👤</div><div><div class="chat-title"><span class="chat-online-dot '+(isChatUserOnline(chat)?'on':'')+'"></span>'+escHtml(chatVisibleName(chat))+'</div><div class="chat-subline">'+(chat.wp?'WhatsApp: '+escHtml(chat.wp)+' · ':'')+lastSeenText(chat)+'</div></div></div>' +
     '<div class="chat-panel"><div class="chat-msgs" id="chat-msgs">'+msgs+'</div>' +
     '<div class="chat-row"><input class="finput" id="chat-admin-text" placeholder="Responder..." value="'+escAttr(inputVal)+'" onkeydown="if(event.key===\'Enter\')window.enviarChatAdmin(\''+id+'\')"/><button class="chat-send" onclick="window.enviarChatAdmin(\''+id+'\')">➜</button></div>' +
     '<div class="chat-admin-tools"><button class="chat-filter auto '+(asistenteModo()==='automatico'?'on':'')+'" title="Activar/desactivar automático" onclick="window.toggleModoAsistenteChat()">🤖 '+(asistenteModo()==='automatico'?'ON':'OFF')+'</button><button class="chat-filter" title="Ayuda / Machete" onclick="window.mostrarAyudaAsistente()">/?</button><button class="chat-filter" title="Respuestas del cerebro" onclick="window.mostrarSelectorCerebroChat(\''+id+'\')">//</button><button class="chat-filter" title="Acciones rápidas" onclick="window.mostrarAccionesChatAdmin(\''+id+'\')">⚡</button><button id="chat-tools-toggle" class="chat-filter chat-tools-toggle '+(!chatToolsCollapsed?'on':'')+'" title="Mostrar/ocultar botones" onclick="window.toggleChatTools()">'+(chatToolsCollapsed?'▴':'▾')+'</button></div>' +
@@ -5187,25 +5135,7 @@ window.abrirChatTomauno = function(){
   unlockAudio();
   const popToggle = document.getElementById('chat-popover');
   if (popToggle && popToggle.classList.contains('open')) { window.cerrarChatPopover && window.cerrarChatPopover(); return; }
-
-  if (isAdminNotifier()) {
-    const abiertos = Object.entries(chatsDB || {})
-      .filter(([,c]) => isValidChat(c) && c.status !== 'cerrado')
-      .sort((a,b)=>{
-        const ca=a[1]||{}, cb=b[1]||{};
-        const sa=(ca.humanRequested?1000000000:0)+(ca.unreadAdmin?100000000:0)+(ca.updatedAt||0);
-        const sb=(cb.humanRequested?1000000000:0)+(cb.unreadAdmin?100000000:0)+(cb.updatedAt||0);
-        return sb-sa;
-      });
-
-    const preferred = currentOpenChatId && chatsDB[currentOpenChatId] && chatsDB[currentOpenChatId].status !== 'cerrado'
-      ? currentOpenChatId
-      : (abiertos[0] && abiertos[0][0]);
-
-    if(preferred) return abrirChatAdmin(preferred, true);
-    return abrirPanelChatsAdmin();
-  }
-
+  if (isAdminNotifier()) return window.abrirPanelChatsAdmin();
   document.getElementById('chat-fab')?.classList.remove('has-new');
   if (currentVisitorChatId && chatsDB[currentVisitorChatId] && chatsDB[currentVisitorChatId].status !== 'cerrado') return abrirChatVisitante(currentVisitorChatId);
   setChatPopover(
@@ -5213,10 +5143,12 @@ window.abrirChatTomauno = function(){
     '<div class="chat-panel"><div class="chat-msgs" id="chat-msgs">' +
     '<div class="chat-bubble admin"><div>Soy el asistente de Tomauno 😊<br/><b>¿Cómo es tu nombre?</b></div><div class="chat-meta">Ahora</div></div>' +
     '</div>' +
-    '<div class="chat-name-row"><input class="finput" id="chat-name" placeholder="Tu nombre" onkeydown="if(event.key===\'Enter\')window.iniciarChatConNombre()"/><button class="chat-send" onclick="window.iniciarChatConNombre()">➜</button></div>' +
-    '</div>'
+    '<div class="chat-name-row"><input class="finput" id="chat-name" placeholder="Tu nombre" onkeydown="if(event.key===\'Enter\')window.iniciarChatConNombre()"/><button class="chat-send" onclick="window.iniciarChatConNombre()">➜</button></div></div>'
   );
-  setTimeout(() => document.getElementById('chat-name')?.focus(), 80);
+  setTimeout(()=>{
+    const inp = document.getElementById('chat-name');
+    if(inp){ try{ inp.focus({preventScroll:true}); }catch(e){ inp.focus(); } }
+  }, 80);
 };
 
 window.cerrarConversacionChat = async function(id){
@@ -7869,10 +7801,7 @@ window.filterCursos = function(){
         catch(e){ try{ next.focus(); }catch(_e){} }
       }
       const newBox = document.getElementById('chat-msgs');
-      if(newBox){
-        const isVisitorView = !!document.querySelector('#chat-popover.open #chat-text') && !document.querySelector('#chat-popover.open #chat-admin-text');
-        newBox.scrollTop = isVisitorView ? newBox.scrollHeight : top;
-      }
+      if(newBox) newBox.scrollTop = top;
     }
     return r;
   }
@@ -7880,46 +7809,25 @@ window.filterCursos = function(){
     const pop = document.getElementById('chat-popover');
     if(!pop || !pop.classList.contains('open') || adminActiveFinal()) return;
     const chat = chatsDB && chatsDB[id || visitorChatIdFinal()];
-    const human = !!(chat && (chat.humanMode || Number(chat.manualUntil||0) > Date.now()));
+    const human = chatIsHumanFinal(chat);
     pop.classList.toggle('tu-human-chat', human);
     pop.classList.toggle('tu-auto-chat', !human);
-    const title = pop.querySelector('.chat-title');
     const sub = pop.querySelector('.chat-subline');
-    if(title) title.textContent = human ? 'JAVIER ONLINE' : 'ASISTENTE TOMAUNO';
-    if(sub) sub.textContent = human ? '🟢 Javier está en línea' : 'Asistente Tomauno';
+    if(sub) sub.textContent = human ? 'Javier está respondiendo' : 'Asistente Tomauno';
   }
 
   const prevScrollFinal = scrollChatSmart;
   scrollChatSmart = function(box){
-    const r = prevScrollFinal.apply(this, arguments);
-    if(box && !adminActiveFinal()){
-      setTimeout(() => { try{ box.scrollTop = box.scrollHeight; }catch(e){} }, 60);
-      setTimeout(() => { try{ box.scrollTop = box.scrollHeight; }catch(e){} }, 220);
-    }
-    return r;
+    if(visitorTypingNow()) return;
+    return prevScrollFinal.apply(this, arguments);
   };
   window.scrollChatSmart = scrollChatSmart;
 
   const prevUpdateMsgsFinal = updateChatMessagesOnly;
   updateChatMessagesOnly = function(id, adminView){
-    const visitor = !adminActiveFinal();
-    const r = visitorTypingNow()
-      ? preserveDraft(() => prevUpdateMsgsFinal.call(this, id, false))
-      : prevUpdateMsgsFinal.apply(this, arguments);
-
+    if(visitorTypingNow()) return preserveDraft(() => prevUpdateMsgsFinal.call(this, id, false));
+    const r = prevUpdateMsgsFinal.apply(this, arguments);
     setTimeout(renderLiveTypingFinal, 20);
-
-    if(visitor){
-      setTimeout(() => {
-        const box = document.getElementById('chat-msgs');
-        if(box) box.scrollTop = box.scrollHeight;
-      }, 80);
-      setTimeout(() => {
-        const box = document.getElementById('chat-msgs');
-        if(box) box.scrollTop = box.scrollHeight;
-      }, 240);
-    }
-
     return r;
   };
   window.updateChatMessagesOnly = updateChatMessagesOnly;
@@ -11008,7 +10916,7 @@ window.filterCursos = function(){
     return digits.length >= 8;
   }
 
-  var ringTimers = window.__tomaunoRingTimers = window.__tomaunoRingTimers || {};
+  var ringTimers = {};
   var ringStartedAt = {};
 
   function ringSound(){
@@ -11284,22 +11192,14 @@ window.filterCursos = function(){
   function visitorStatusLabel(){
     if(isAdmin()) return;
     var sub = q('#chat-popover.open .chat-subline');
-    var title = q('#chat-popover.open .chat-title');
-    if(!sub && !title) return;
+    if(!sub) return;
 
-    var id = '';
-    try{ id = window.currentVisitorChatId || currentVisitorChatId || sessionStorage.getItem('tomauno-chat-id') || ''; }catch(e){}
-    var c = {};
-    try{ c = (window.chatsDB || chatsDB || {})[id] || {}; }catch(e){}
-
-    var human = !!(c && (c.humanMode || Number(c.manualUntil||0) > Date.now()));
-
-    if(human){
-      if(title) title.textContent = 'JAVIER ONLINE';
-      if(sub) sub.textContent = '🟢 Javier está en línea';
+    if(isAutoMode()){
+      if(!/Asistente Tomauno|Consulta directa/i.test(sub.textContent || '')){
+        sub.textContent = 'Asistente Tomauno';
+      }
     }else{
-      if(title) title.textContent = 'ASISTENTE TOMAUNO';
-      if(sub) sub.textContent = 'Asistente Tomauno';
+      sub.textContent = '🟢 Javier puede responderte personalmente';
     }
   }
 
@@ -11692,7 +11592,7 @@ window.filterCursos = function(){
   }
 
   // 6) HUM: ring cada 10s y fallback al llegar a 00.
-  var ringTimers = window.__tomaunoRingTimers = window.__tomaunoRingTimers || {};
+  var ringTimers = {};
   var fallbackSent = {};
 
   function startHumanRing(id){
@@ -12209,7 +12109,7 @@ window.filterCursos = function(){
     return d.length >= 8;
   }
 
-  var ringTimers = window.__tomaunoRingTimers = window.__tomaunoRingTimers || {};
+  var ringTimers = {};
   var ringStarted = {};
   var humanSeen = {};
   var fallbackSent = {};
@@ -12715,7 +12615,7 @@ window.filterCursos = function(){
   }
 
   // 6) Sonido humano cada 10s.
-  var ringTimers = window.__tomaunoRingTimers = window.__tomaunoRingTimers || {};
+  var ringTimers = {};
   var ringStarted = {};
 
   function startHumanRing(id){
@@ -13097,7 +12997,7 @@ window.filterCursos = function(){
     return '✅ Perfecto. Ya quedó registrada tu consulta para Javier.\n\nMuy pronto se comunicará con vos.\n\nMuchas gracias.';
   }
 
-  var ringTimers = window.__tomaunoRingTimers = window.__tomaunoRingTimers || {};
+  var ringTimers = {};
   var ringStarted = {};
   var fallbackDone = {};
   var handledHumanText = {};
@@ -13412,7 +13312,7 @@ window.filterCursos = function(){
   var notified = {};
   var handledHumanText = {};
   var fallbackSent = {};
-  var ringTimers = window.__tomaunoRingTimers = window.__tomaunoRingTimers || {};
+  var ringTimers = {};
 
   function isAdmin(){
     return safe(function(){
@@ -13811,7 +13711,7 @@ window.filterCursos = function(){
   var visitorClosedUntil = 0;
   var userScrollLockUntil = 0;
   var audioCtx = null;
-  var humanRingTimers = window.__tomaunoHumanRingTimers = window.__tomaunoHumanRingTimers || {};
+  var humanRingTimers = {};
 
   function isAdmin(){
     return safe(function(){
@@ -14300,7 +14200,7 @@ window.filterCursos = function(){
   var bootAt = Date.now();
   var initialChatsLoaded = false;
   var knownChats = {};
-  var ringTimers = window.__tomaunoRingTimers = window.__tomaunoRingTimers || {};
+  var ringTimers = {};
   var fallbackSent = {};
   var handledHuman = {};
 
@@ -14645,7 +14545,7 @@ window.filterCursos = function(){
   var bootAt = Date.now();
   var initialChats = false;
   var knownChats = {};
-  var ringTimers = window.__tomaunoRingTimers = window.__tomaunoRingTimers || {};
+  var ringTimers = {};
   var fallbackDone = {};
 
   function isAdmin(){
@@ -15048,7 +14948,7 @@ window.filterCursos = function(){
   var bootAt = Date.now();
   var panelLockUntil = 0;
   var humanRingSeen = {};
-  var humanRingTimers = window.__tomaunoHumanRingTimers = window.__tomaunoHumanRingTimers || {};
+  var humanRingTimers = {};
   var lastVisitorFocusKey = '';
 
   function isAdmin(){
@@ -15653,37 +15553,50 @@ setInterval(cleanOldTrashButtons, 800);
 })();
 
 
-// TOMAUNO CHAT 7M — AJUSTES FINALES SEGUROS
+// TOMAUNO CHAT 7P — ROLLBACK ESTABLE
+// Base 7H: mantiene basurero real. Solo agrega HUM corto y cortar alarma al responder.
+// No toca scroll, panel, maximizado, duplicados, bandeja ni render de nombres.
 (function(){
 'use strict';
 
 function q(s,r){return (r||document).querySelector(s)}
 function isAdminView(){return !!q('#chat-popover.open #chat-admin-text,#chat-popover.open .chat-inbox-side,#chat-popover.open .chat-admin-tools')}
 function adminIdSafe(){try{return window.currentOpenChatId || currentOpenChatId || ''}catch(e){return ''}}
+
 function updateChatSafe(id,data){
   try{
-    if(window.chatsDB&&window.chatsDB[id]) Object.assign(window.chatsDB[id],data);
-    if(typeof chatsDB!=='undefined'&&chatsDB[id]) Object.assign(chatsDB[id],data);
-    if(typeof db!=='undefined'&&typeof ref!=='undefined'&&typeof update!=='undefined'){
-      return update(ref(db,'tomauno/chats/'+id),data).catch(()=>{});
+    if(window.chatsDB && window.chatsDB[id]) Object.assign(window.chatsDB[id], data);
+    if(typeof chatsDB !== 'undefined' && chatsDB[id]) Object.assign(chatsDB[id], data);
+    if(typeof db !== 'undefined' && typeof ref !== 'undefined' && typeof update !== 'undefined'){
+      return update(ref(db,'tomauno/chats/'+id), data).catch(()=>{});
     }
   }catch(e){}
   return Promise.resolve();
 }
-function stopAllHumanTimers(id){
-  try{ if(typeof stopRing==='function') stopRing(id); }catch(e){}
-  try{ if(typeof stopHumanRing==='function') stopHumanRing(id); }catch(e){}
+
+function stopCallSafe(id){
+  if(!id) return;
+
+  try{ if(typeof stopRing === 'function') stopRing(id); }catch(e){}
+  try{ if(typeof stopHumanRing === 'function') stopHumanRing(id); }catch(e){}
+
   try{
-    const bags=[window.__tomaunoRingTimers,window.__tomaunoHumanRingTimers,window.humanRingTimers,window.ringTimers].filter(Boolean);
-    bags.forEach(b=>{
-      if(b[id] && b[id]!==true) clearTimeout(b[id]);
-      delete b[id];
+    const timerBags = [
+      window.__tomaunoRingTimers,
+      window.__tomaunoHumanRingTimers,
+      window.ringTimers,
+      window.humanRingTimers
+    ].filter(Boolean);
+
+    timerBags.forEach(function(bag){
+      if(bag[id] && bag[id] !== true){
+        try{ clearTimeout(bag[id]); }catch(e){}
+        try{ clearInterval(bag[id]); }catch(e){}
+      }
+      delete bag[id];
     });
   }catch(e){}
-}
-function attendCall(id){
-  if(!id)return;
-  stopAllHumanTimers(id);
+
   updateChatSafe(id,{
     humanRequested:false,
     waitingHuman:false,
@@ -15696,306 +15609,41 @@ function attendCall(id){
 }
 
 const oldSend = window.enviarChatAdmin;
-if(typeof oldSend==='function'&&!oldSend.__chat7m){
-  const f=function(){
-    const id=adminIdSafe();
-    if(id) attendCall(id);
-    return oldSend.apply(this,arguments);
+if(typeof oldSend === 'function' && !oldSend.__chat7p){
+  const send7p = function(){
+    const id = adminIdSafe();
+    if(id) stopCallSafe(id);
+    return oldSend.apply(this, arguments);
   };
-  f.__chat7m=1; window.enviarChatAdmin=f; try{enviarChatAdmin=f}catch(e){}
+  send7p.__chat7p = 1;
+  window.enviarChatAdmin = send7p;
+  try{ enviarChatAdmin = send7p; }catch(e){}
 }
+
 const oldToggle = window.toggleModoAsistenteChat;
-if(typeof oldToggle==='function'&&!oldToggle.__chat7m){
-  const f=function(){
-    const id=adminIdSafe();
-    if(id) attendCall(id);
-    return oldToggle.apply(this,arguments);
+if(typeof oldToggle === 'function' && !oldToggle.__chat7p){
+  const toggle7p = function(){
+    const id = adminIdSafe();
+    if(id) stopCallSafe(id);
+    return oldToggle.apply(this, arguments);
   };
-  f.__chat7m=1; window.toggleModoAsistenteChat=f; try{toggleModoAsistenteChat=f}catch(e){}
+  toggle7p.__chat7p = 1;
+  window.toggleModoAsistenteChat = toggle7p;
+  try{ toggleModoAsistenteChat = toggle7p; }catch(e){}
 }
-document.addEventListener('input',e=>{
-  if(isAdminView()&&e.target&&e.target.closest&&e.target.closest('#chat-popover.open')){
-    attendCall(adminIdSafe());
-  }
-},true);
 
-// Maximizar/desmaximizar: al salir de expanded, limpiar estilos inline.
-const oldExpand = window.toggleChatExpanded;
-window.toggleChatExpanded = function(){
-  const p=document.getElementById('chat-popover');
-  if(!p) return oldExpand && oldExpand.apply(this,arguments);
-  const was=p.classList.contains('expanded');
-  if(typeof oldExpand==='function') oldExpand.apply(this,arguments);
-  else p.classList.toggle('expanded');
-
-  const now=p.classList.contains('expanded');
-  if(now){
-    p.classList.remove('dragged');
-    p.style.left='';
-    p.style.top='';
-    p.style.right='';
-    p.style.bottom='';
-    p.style.transform='';
-  }else{
-    p.classList.remove('dragged');
-    p.style.left='';
-    p.style.top='';
-    p.style.right='';
-    p.style.bottom='';
-    p.style.transform='';
-    p.style.width='';
-    p.style.height='';
-    p.style.maxWidth='';
-    p.style.maxHeight='';
-  }
-};
-
-// Fijar header visitante después de cualquier re-render.
-function fixVisitorHeader7m(){
-  const pop=document.getElementById('chat-popover');
-  if(!pop||!pop.classList.contains('open')||isAdminView()) return;
-  let id='';
-  try{id=window.currentVisitorChatId||currentVisitorChatId||sessionStorage.getItem('tomauno-chat-id')||''}catch(e){}
-  let c={};
-  try{c=(window.chatsDB||chatsDB||{})[id]||{}}catch(e){}
-  const human=!!(c && (c.humanMode || Number(c.manualUntil||0)>Date.now()));
-  const title=pop.querySelector('.chat-title');
-  const sub=pop.querySelector('.chat-subline');
-  if(title) title.textContent=human?'JAVIER ONLINE':'ASISTENTE TOMAUNO';
-  if(sub) sub.textContent=human?'🟢 Javier está en línea':'Asistente Tomauno';
-}
-setInterval(fixVisitorHeader7m,500);
-})();
-
-
-// TOMAUNO CHAT 7N — CIERRE PENDIENTES SIN TOCAR BASURERO REAL
-(function(){
-'use strict';
-
-function q(s,r){return (r||document).querySelector(s)}
-function qa(s,r){return Array.from((r||document).querySelectorAll(s))}
-function isAdminView(){return !!q('#chat-popover.open #chat-admin-text,#chat-popover.open .chat-inbox-side,#chat-popover.open .chat-admin-tools')}
-function isVisitorView(){return !!q('#chat-popover.open #chat-text')&&!q('#chat-popover.open #chat-admin-text')}
-function adminIdSafe(){try{return window.currentOpenChatId || currentOpenChatId || ''}catch(e){return ''}}
-function chatsSafe(){try{return window.chatsDB || chatsDB || {}}catch(e){return {}}}
-
-let manualInboxUntil = 0;
-let visitorObsBox = null;
-let visitorObs = null;
-
-// A) Botón Bandeja: cuando el usuario lo toca, debe quedarse en bandeja.
-document.addEventListener('click', function(e){
-  const btn = e.target && e.target.closest && e.target.closest('button,a');
-  if(!btn) return;
-  const txt = (btn.innerText || btn.textContent || btn.title || btn.getAttribute('aria-label') || '').toLowerCase().trim();
-  if(txt.includes('bandeja') || txt === '←' || txt.includes('volver')){
-    manualInboxUntil = Date.now() + 5000;
-    window.__tomaunoManualInboxUntil = manualInboxUntil;
+document.addEventListener('input', function(e){
+  if(isAdminView() && e.target && e.target.closest && e.target.closest('#chat-popover.open')){
+    stopCallSafe(adminIdSafe());
   }
 }, true);
 
-const prevOpenAdmin7n = window.abrirChatAdmin;
-if(typeof prevOpenAdmin7n === 'function' && !prevOpenAdmin7n.__chat7n){
-  const f = function(id,silent){
-    const lock = Math.max(manualInboxUntil, Number(window.__tomaunoManualInboxUntil || 0));
-    if(Date.now() < lock && silent) return;
-    return prevOpenAdmin7n.apply(this, arguments);
-  };
-  f.__chat7n = 1;
-  window.abrirChatAdmin = f;
-  try{ abrirChatAdmin = f; }catch(e){}
-}
-
-// B) Maximizar ADM centrado: usar clase CSS, no estilos inline pegados.
-// Al desmaximizar limpia clase y estilos.
-const prevToggleMax7n = window.toggleChatExpanded;
-window.toggleChatExpanded = function(){
-  const pop = document.getElementById('chat-popover');
-  if(!pop) return prevToggleMax7n && prevToggleMax7n.apply(this, arguments);
-
-  const admin = isAdminView();
-
-  if(admin){
-    const willExpand = !pop.classList.contains('expanded');
-    pop.classList.toggle('expanded', willExpand);
-    pop.classList.remove('dragged');
-
-    if(willExpand){
-      pop.classList.add('tu7n-center');
-      pop.style.left='';
-      pop.style.top='';
-      pop.style.right='';
-      pop.style.bottom='';
-      pop.style.transform='';
-      pop.style.width='';
-      pop.style.height='';
-      pop.style.maxWidth='';
-      pop.style.maxHeight='';
-    }else{
-      pop.classList.remove('tu7n-center');
-      pop.style.left='';
-      pop.style.top='';
-      pop.style.right='';
-      pop.style.bottom='';
-      pop.style.transform='';
-      pop.style.width='';
-      pop.style.height='';
-      pop.style.maxWidth='';
-      pop.style.maxHeight='';
-    }
-    return;
-  }
-
-  // visitante: deja el comportamiento previo intacto.
-  if(typeof prevToggleMax7n === 'function') return prevToggleMax7n.apply(this, arguments);
-  pop.classList.toggle('expanded');
-};
-
-function syncCenterClass(){
-  const pop = document.getElementById('chat-popover');
-  if(!pop || !isAdminView()) return;
-  if(pop.classList.contains('expanded')) pop.classList.add('tu7n-center');
-  else pop.classList.remove('tu7n-center');
-}
-
-// C) Scroll visitante: observar cambios reales del contenedor y bajar al final.
-// No toca ADM.
-function forceVisitorBottom(){
-  if(!isVisitorView()) return;
-  const box = document.getElementById('chat-msgs') || q('#chat-popover.open .chat-msgs');
-  if(!box) return;
-  box.scrollTop = box.scrollHeight;
-}
-function bindVisitorObserver(){
-  if(!isVisitorView()) return;
-  const box = document.getElementById('chat-msgs') || q('#chat-popover.open .chat-msgs');
-  if(!box || box === visitorObsBox) return;
-
-  if(visitorObs) try{ visitorObs.disconnect(); }catch(e){}
-  visitorObsBox = box;
-  visitorObs = new MutationObserver(() => {
-    forceVisitorBottom();
-    setTimeout(forceVisitorBottom,80);
-    setTimeout(forceVisitorBottom,240);
-  });
-  visitorObs.observe(box, {childList:true, subtree:true, characterData:true});
-  setTimeout(forceVisitorBottom,60);
-  setTimeout(forceVisitorBottom,220);
-}
-
-// Refuerzo sobre funciones conocidas.
-const prevUpdate7n = window.updateChatMessagesOnly;
-if(typeof prevUpdate7n === 'function' && !prevUpdate7n.__chat7n){
-  const f = function(id, adminView){
-    const r = prevUpdate7n.apply(this, arguments);
-    if(isVisitorView()){
-      setTimeout(forceVisitorBottom,60);
-      setTimeout(forceVisitorBottom,220);
-      setTimeout(forceVisitorBottom,600);
-    }
-    return r;
-  };
-  f.__chat7n = 1;
-  window.updateChatMessagesOnly = f;
-  try{ updateChatMessagesOnly = f; }catch(e){}
-}
-
-const prevOpenVisitor7n = window.abrirChatVisitante;
-if(typeof prevOpenVisitor7n === 'function' && !prevOpenVisitor7n.__chat7n){
-  const f = function(){
-    const r = prevOpenVisitor7n.apply(this, arguments);
-    setTimeout(bindVisitorObserver,80);
-    setTimeout(forceVisitorBottom,140);
-    setTimeout(forceVisitorBottom,400);
-    return r;
-  };
-  f.__chat7n = 1;
-  window.abrirChatVisitante = f;
-  try{ abrirChatVisitante = f; }catch(e){}
-}
-
-// D) Header visitante: última palabra, rápido, solo título/subtítulo.
-function fixVisitorHeader(){
-  if(!isVisitorView()) return;
-  let id = '';
-  try{id = window.currentVisitorChatId || currentVisitorChatId || sessionStorage.getItem('tomauno-chat-id') || ''}catch(e){}
-  const c = chatsSafe()[id] || {};
-  const human = !!(c.humanMode || Number(c.manualUntil||0) > Date.now());
-  const title = q('#chat-popover.open .chat-title');
-  const sub = q('#chat-popover.open .chat-subline');
-
-  if(human){
-    if(title && title.textContent !== 'JAVIER ONLINE') title.textContent = 'JAVIER ONLINE';
-    if(sub && sub.textContent !== '🟢 Javier está en línea') sub.textContent = '🟢 Javier está en línea';
-  }else{
-    if(title && title.textContent !== 'ASISTENTE TOMAUNO') title.textContent = 'ASISTENTE TOMAUNO';
-    if(sub && sub.textContent !== 'Asistente Tomauno') sub.textContent = 'Asistente Tomauno';
+function fixHumText(){
+  const btn = q('#chat-popover.open .chat-admin-tools .chat-filter.auto');
+  if(btn && /HUMANO/i.test(btn.textContent || '')){
+    btn.textContent = (btn.textContent || '').replace(/HUMANO/gi,'HUM');
   }
 }
 
-// E) Indicador llamada en panel, confiable.
-function markCallRows(){
-  const db = chatsSafe();
-  qa('.chat-tab,.chat-list-item,.chat-inbox-item,[data-chat-id]').forEach(row=>{
-    let id = row.getAttribute('data-chat-id') || row.dataset.chatId || '';
-    if(!id){
-      const on = row.getAttribute('onclick') || '';
-      const m = on.match(/abrirChatAdmin\('([^']+)'\)/);
-      if(m) id = m[1];
-    }
-    if(!id) return;
-    const c = db[id] || {};
-    const calling = !!(c.humanRequested && c.callUntil && !c.callAnsweredAt && !c.humanConfirm);
-    row.classList.toggle('tu7n-calling', calling);
-
-    if(calling && !row.querySelector('.tu7n-mega')){
-      const s = document.createElement('span');
-      s.className = 'tu7n-mega';
-      s.textContent = '📣';
-      s.title = 'Llamada a Javier';
-      const name = row.querySelector('.chat-tab-name,.chat-name,strong,b,.name') || row;
-      name.prepend(s);
-    }
-    if(!calling) qa('.tu7n-mega', row).forEach(x=>x.remove());
-  });
-}
-
-function css(){
-  if(document.getElementById('tu7n-css')) return;
-  const st = document.createElement('style');
-  st.id = 'tu7n-css';
-  st.textContent = `
-    html body #chat-popover.open.expanded.tu7n-center{
-      position:fixed!important;
-      left:50%!important;
-      top:50%!important;
-      right:auto!important;
-      bottom:auto!important;
-      transform:translate(-50%,-50%)!important;
-      width:min(1120px,calc(100vw - 42px))!important;
-      max-width:calc(100vw - 42px)!important;
-      height:min(82vh,820px)!important;
-      max-height:calc(100vh - 42px)!important;
-    }
-    .tu7n-calling{
-      border-color:#ffd54a!important;
-      box-shadow:inset 3px 0 0 #ffd54a!important;
-    }
-    .tu7n-mega{
-      display:inline-flex!important;
-      margin-right:4px!important;
-      color:#ffd54a!important;
-      filter:drop-shadow(0 0 5px rgba(255,213,74,.8))!important;
-    }
-  `;
-  document.head.appendChild(st);
-}
-css();
-
-setInterval(function(){
-  bindVisitorObserver();
-  fixVisitorHeader();
-  markCallRows();
-  syncCenterClass();
-}, 180);
+setInterval(fixHumText, 800);
 })();
