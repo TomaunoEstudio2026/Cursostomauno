@@ -19,14 +19,16 @@
 })();
 
 
-/* Tomauno fase4 llamada */
+
+
+/* Tomauno fase5 mínimo: ocultar botones activar alertas heredados */
 (function(){
-  function css(){
-    if(document.getElementById('tu-fase4-patch-css')) return;
-    var st=document.createElement('style');
-    st.id='tu-fase4-patch-css';
-    st.textContent='.chat-bubble.tu-human-wait{background:#fff!important;color:#111!important}.chat-attend-call{margin-top:10px;border:0!important;border-radius:999px!important;background:#e8000a!important;color:#fff!important;padding:8px 12px!important;font-weight:900!important;cursor:pointer!important}';
-    document.head.appendChild(st);
+  function clean(){
+    document.querySelectorAll('.tu-v28d-sound-unlock,.tu-call-sound-unlock,.tu-sound-unlock,.tu-v34-sound-unlock').forEach(function(n){n.remove();});
+    document.querySelectorAll('button').forEach(function(b){
+      if(/activar alertas|activar llamada|activar llamadas|activar sonido/i.test(b.innerText||'')) b.remove();
+    });
   }
-  if(document.readyState==='loading') document.addEventListener('DOMContentLoaded',css,{once:true}); else css();
+  if(document.readyState==='loading') document.addEventListener('DOMContentLoaded',clean,{once:true}); else clean();
+  setInterval(clean,1000);
 })();
