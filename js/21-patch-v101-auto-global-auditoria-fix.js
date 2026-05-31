@@ -21,7 +21,9 @@
 
 
 
-/* Tomauno fase5 mínimo: ocultar botones activar alertas heredados */
+
+
+/* Tomauno fase6 mínimo: ocultar botones activar alertas heredados */
 (function(){
   function clean(){
     document.querySelectorAll('.tu-v28d-sound-unlock,.tu-call-sound-unlock,.tu-sound-unlock,.tu-v34-sound-unlock').forEach(function(n){n.remove();});
