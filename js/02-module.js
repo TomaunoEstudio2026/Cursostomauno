@@ -10469,3 +10469,171 @@ setInterval(function(){
 },1000);
 
 })();
+
+
+// TOMAUNO FASE 12C — ESTADO AUTO + WHATSAPP/CONSULTA
+// Base 12B. Solo corrige:
+// 1) salir de waitingWhatsapp/waitingHumanContact después del primer dato recibido;
+// 2) al volver a AUTO limpiar humanMode/manualUntil/waitingHuman;
+// 3) no interceptar mensajes posteriores como si siguieran siendo consulta para Javier.
+(function(){
+'use strict';
+
+function q(s,r){return (r||document).querySelector(s)}
+function chats(){try{return window.chatsDB||chatsDB||{}}catch(e){return {}}}
+function admId(){try{return window.currentOpenChatId||currentOpenChatId||''}catch(e){return ''}}
+function ctime(){try{return typeof chatTimeSafe==='function'?chatTimeSafe():new Date().toLocaleTimeString('es-AR',{hour:'2-digit',minute:'2-digit'})}catch(e){return ''}}
+
+function upd(id,data){
+  try{
+    if(window.chatsDB&&window.chatsDB[id]) Object.assign(window.chatsDB[id],data);
+    if(typeof chatsDB!=='undefined'&&chatsDB[id]) Object.assign(chatsDB[id],data);
+    if(typeof db!=='undefined'&&typeof ref!=='undefined'&&typeof update!=='undefined'){
+      return update(ref(db,'tomauno/chats/'+id),data).catch(()=>{});
+    }
+  }catch(e){}
+  return Promise.resolve();
+}
+
+async function pushMsg(id,data){
+  try{
+    if(id&&typeof push==='function'&&typeof ref==='function'&&typeof db!=='undefined'){
+      return await push(ref(db,'tomauno/chats/'+id+'/messages'),data);
+    }
+  }catch(e){}
+}
+
+function isWaitingContact(c){
+  return !!(c && (
+    c.waitingWhatsapp === true ||
+    c.waitingHumanContact === true ||
+    c.pendingHumanContact === true
+  ));
+}
+
+function isAlreadyCaptured(c){
+  return !!(c && (
+    c.humanContactReceived === true ||
+    c.humanContactAt ||
+    c.waitingWhatsapp === false && c.waitingHumanContact === false && c.humanFallbackSent === true && c.humanContactText
+  ));
+}
+
+// Captura SOLO el primer mensaje después del fallback.
+// Luego limpia completamente los flags de espera para que el automático vuelva a funcionar.
+async function captureHumanContactOnce(id,text){
+  const c = chats()[id] || {};
+  if(!isWaitingContact(c)) return false;
+  if(isAlreadyCaptured(c)) return false;
+
+  await upd(id,{
+    waitingWhatsapp:false,
+    waitingHumanContact:false,
+    pendingHumanContact:false,
+    humanContactReceived:true,
+    humanContactText:String(text||'').trim(),
+    humanContactAt:Date.now(),
+    pendingHuman:true,
+    pendingAt:Number(c.pendingAt||Date.now()),
+    updatedAt:Date.now(),
+    lastMsg:'⭐ Consulta recibida para Javier'
+  });
+
+  await pushMsg(id,{
+    from:'admin',
+    auto:true,
+    humanContactReceived:true,
+    text:'Perfecto, gracias. Ya le dejo tu consulta a Javier para que pueda responderte apenas esté disponible.',
+    time:ctime(),
+    createdAt:Date.now()
+  });
+
+  try{
+    if(typeof updateChatMessagesOnly==='function'){
+      const admin = !!q('#chat-popover.open #chat-admin-text');
+      updateChatMessagesOnly(id, admin);
+    }
+  }catch(e){}
+
+  return true;
+}
+
+// Interceptar responderAutomaticoChat, pero solo para el primer mensaje pendiente de contacto.
+const oldResponder = window.responderAutomaticoChat || (typeof responderAutomaticoChat !== 'undefined' ? responderAutomaticoChat : null);
+if(typeof oldResponder === 'function' && !oldResponder.__fase12cContact){
+  const responder12c = async function(id,text){
+    try{
+      if(await captureHumanContactOnce(id,text)) return null;
+    }catch(e){}
+    return oldResponder.apply(this,arguments);
+  };
+  responder12c.__fase12cContact = 1;
+  window.responderAutomaticoChat = responder12c;
+  try{ responderAutomaticoChat = responder12c; }catch(e){}
+}
+
+// AUTO debe limpiar de verdad el modo humano.
+// Esto complementa el botón/atajo existente sin cambiar el diseño.
+function cleanAutoState(id){
+  if(!id) return;
+  return upd(id,{
+    humanMode:false,
+    manualUntil:0,
+    waitingHuman:false,
+    humanRequested:false,
+    callUntil:0,
+    javierOnline:false,
+    javierOnlineAt:0,
+    updatedAt:Date.now()
+  });
+}
+
+// Si el botón toggle deja el chat en AUTO, forzar limpieza real.
+// Detectamos el estado un instante después de ejecutarse el toggle original.
+const oldToggle = window.toggleModoAsistenteChat || (typeof toggleModoAsistenteChat !== 'undefined' ? toggleModoAsistenteChat : null);
+if(typeof oldToggle === 'function' && !oldToggle.__fase12cAuto){
+  const toggle12c = function(){
+    const id = admId();
+    const r = oldToggle.apply(this,arguments);
+    setTimeout(function(){
+      const c = chats()[id] || {};
+      const btnText = (document.querySelector('#chat-popover.open button[title*="AUTO"],#chat-popover.open button[title*="autom"],#chat-popover.open button')?.innerText || '').toLowerCase();
+      const looksAuto = btnText.includes('auto') || btnText.includes('autom');
+      const humanActive = !!(c.humanMode || Number(c.manualUntil||0)>Date.now());
+
+      // Si el usuario está intentando dejarlo automático pero quedaron flags humano, limpiarlos.
+      // También si el estado visual ya dice AUTO.
+      if(id && looksAuto && humanActive){
+        cleanAutoState(id);
+        try{ if(typeof toast==='function') toast('🤖 AUTO activado'); }catch(e){}
+      }
+    },180);
+    return r;
+  };
+  toggle12c.__fase12cAuto = 1;
+  window.toggleModoAsistenteChat = toggle12c;
+  try{ toggleModoAsistenteChat = toggle12c; }catch(e){}
+}
+
+// Ctrl+Espacio ya alternaba, pero si pasa de HUM a AUTO también limpiamos estado real.
+document.addEventListener('keydown',function(e){
+  if(!(e.ctrlKey && e.code === 'Space')) return;
+  setTimeout(function(){
+    const id = admId();
+    const c = chats()[id] || {};
+    const btnText = (document.querySelector('#chat-popover.open button[title*="AUTO"],#chat-popover.open button[title*="autom"],#chat-popover.open button')?.innerText || '').toLowerCase();
+    if(id && (btnText.includes('auto') || btnText.includes('autom')) && (c.humanMode || Number(c.manualUntil||0)>Date.now())){
+      cleanAutoState(id);
+    }
+  },220);
+},true);
+
+// Utilidad manual por si alguna conversación vieja quedó trabada.
+window.tomaunoForzarAutoChatActual = function(){
+  const id = admId();
+  if(!id) return;
+  cleanAutoState(id);
+  try{ if(typeof toast==='function') toast('🤖 AUTO limpiado para este chat'); }catch(e){}
+};
+
+})();
