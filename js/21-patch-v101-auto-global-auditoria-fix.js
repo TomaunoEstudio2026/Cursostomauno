@@ -36,5 +36,3 @@
   if(document.readyState==='loading') document.addEventListener('DOMContentLoaded',clean,{once:true}); else clean();
   setInterval(clean,1000);
 })();
-
-/* fase12 no agrega parches visuales */
