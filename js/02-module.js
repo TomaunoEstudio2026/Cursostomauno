@@ -10022,7 +10022,7 @@ window.atenderLlamadaJavier=async function(id){
   id=id||admId(); if(!id)return;
   stopCall(id);
   await upd(id,{humanRequested:false,waitingHuman:false,pendingHuman:true,pendingAt:Date.now(),priority:false,prioridad:false,callUntil:0,callAnsweredAt:Date.now(),humanMode:true,manualUntil:Date.now()+30*60*1000,javierOnline:true,javierOnlineAt:Date.now(),updatedAt:Date.now()});
-  await msg(id,{from:'admin',auto:true,humanAttend:true,text:'🟢 Javier está atendiendo esta consulta.',time:ctime(),createdAt:Date.now()});
+  await msg(id,{from:'admin',auto:true,humanAttend:true,text:'✅ JAVIER ATENDIÓ LA LLAMADA.',time:ctime(),createdAt:Date.now()});
   try{if(typeof updateChatMessagesOnly==='function')updateChatMessagesOnly(id,true)}catch(e){}
   try{if(typeof toast==='function')toast('👤 HUM activado · llamada atendida')}catch(e){}
 };
@@ -10489,6 +10489,251 @@ if(typeof oldToggle === 'function' && !oldToggle.__fase12e){
 // Watcher mínimo: solo vencimiento de llamada, sin tocar bandeja.
 setInterval(()=>{
   Object.entries(chats()).forEach(([id,c])=>finishCallOnce(id,c||{}));
+},1000);
+
+})();
+
+
+// TOMAUNO FASE 12F — FALLBACK + ATENDIDO + ESTADO HUM/AUTO
+// Base 12E. No toca bandeja, nombres, orden, scroll ni cursos.
+(function(){
+'use strict';
+
+function q(s,r){return (r||document).querySelector(s)}
+function chats(){try{return window.chatsDB||chatsDB||{}}catch(e){return {}}}
+function admId(){try{return window.currentOpenChatId||currentOpenChatId||''}catch(e){return ''}}
+function ctime(){try{return typeof chatTimeSafe==='function'?chatTimeSafe():new Date().toLocaleTimeString('es-AR',{hour:'2-digit',minute:'2-digit'})}catch(e){return ''}}
+
+function upd(id,data){
+  try{
+    if(window.chatsDB&&window.chatsDB[id]) Object.assign(window.chatsDB[id],data);
+    if(typeof chatsDB!=='undefined'&&chatsDB[id]) Object.assign(chatsDB[id],data);
+    if(typeof db!=='undefined'&&typeof ref!=='undefined'&&typeof update!=='undefined') {
+      return update(ref(db,'tomauno/chats/'+id),data).catch(()=>{});
+    }
+  }catch(e){}
+  return Promise.resolve();
+}
+
+async function pushMsg(id,data){
+  try{
+    if(id&&typeof push==='function'&&typeof ref==='function'&&typeof db!=='undefined'){
+      return await push(ref(db,'tomauno/chats/'+id+'/messages'),data);
+    }
+  }catch(e){}
+}
+
+function stopAudio(id){
+  try{if(typeof stopRing==='function')stopRing(id)}catch(e){}
+  try{if(typeof stopHumanRing==='function')stopHumanRing(id)}catch(e){}
+  try{
+    [window.__tuCallTimers,window.__tomaunoHumanRingTimers,window.__tomaunoRingTimers,window.humanRingTimers,window.ringTimers]
+      .filter(Boolean)
+      .forEach(b=>{if(b[id]){try{clearInterval(b[id])}catch(e){};try{clearTimeout(b[id])}catch(e){};delete b[id];}});
+  }catch(e){}
+}
+
+function msgs(c){
+  return Object.entries(c&&c.messages||{}).map(([mid,m])=>({mid,...m})).sort((a,b)=>Number(a.createdAt||0)-Number(b.createdAt||0));
+}
+function hasFallback(c){
+  return msgs(c).some(m => m.humanFallback || String(m.text||'').includes('Dejame tu número de WhatsApp') || String(m.text||'').includes('Javier puede estar ocupado'));
+}
+function hasContactReceived(c){
+  return !!(c && (c.humanContactReceived || c.humanContactAt || msgs(c).some(m => m.humanContactReceived)));
+}
+function hasAttended(c){
+  return !!(c && (c.callAnsweredByAdmin || c.humanMode || msgs(c).some(m => String(m.text||'').includes('JAVIER ATENDIÓ LA LLAMADA') || String(m.text||'').includes('Javier está atendiendo'))));
+}
+
+async function pushFallbackIfMissing(id,c){
+  if(!id||!c) return false;
+  if(hasFallback(c) || hasContactReceived(c) || hasAttended(c)) return false;
+
+  await upd(id,{
+    humanRequested:false,
+    waitingHuman:false,
+    priority:false,
+    prioridad:false,
+    callUntil:0,
+    callAnsweredAt:Date.now(),
+    humanFallbackSent:true,
+    waitingWhatsapp:true,
+    waitingHumanContact:true,
+    pendingHuman:true,
+    pendingAt:Number(c.pendingAt||Date.now()),
+    updatedAt:Date.now(),
+    lastMsg:'⭐ Consulta pendiente para Javier'
+  });
+
+  await pushMsg(id,{
+    from:'admin',
+    auto:true,
+    humanFallback:true,
+    text:'En este momento Javier puede estar ocupado.\n\n📱 Dejame tu número de WhatsApp y tu consulta para Javier. Muy pronto se comunicará con vos.',
+    time:ctime(),
+    createdAt:Date.now()
+  });
+
+  setTimeout(()=>{try{if(typeof updateChatMessagesOnly==='function')updateChatMessagesOnly(id,!!q('#chat-popover.open #chat-admin-text'))}catch(e){}},120);
+  return true;
+}
+
+// Refuerzo del vencimiento:
+// cubre cuando la base ya apagó humanRequested/ponía estrella, pero no llegó a mandar fallback.
+async function finishCallRobust(id,c){
+  if(!id||!c) return;
+
+  const expiredActive = !!(c.humanRequested && c.callUntil && !c.callAnsweredAt && Date.now()>=Number(c.callUntil));
+  const pendingNoMessage = !!(c.pendingHuman && !hasFallback(c) && !hasContactReceived(c) && !hasAttended(c) && (c.humanFallbackSent || c.waitingWhatsapp || c.waitingHumanContact || c.lastMsg==='⭐ Consulta pendiente para Javier'));
+
+  if(!expiredActive && !pendingNoMessage) return;
+
+  stopAudio(id);
+  await pushFallbackIfMissing(id,c);
+}
+
+// Confirmación de contacto una sola vez; después vuelve el automático.
+async function captureContactOnce(id,text){
+  const c = chats()[id] || {};
+  const waiting = !!(c.waitingWhatsapp || c.waitingHumanContact || c.pendingHumanContact);
+  if(!waiting) return false;
+
+  if(hasContactReceived(c)){
+    await upd(id,{waitingWhatsapp:false,waitingHumanContact:false,pendingHumanContact:false,updatedAt:Date.now()});
+    return false;
+  }
+
+  await upd(id,{
+    waitingWhatsapp:false,
+    waitingHumanContact:false,
+    pendingHumanContact:false,
+    humanContactReceived:true,
+    humanContactText:String(text||'').trim(),
+    humanContactAt:Date.now(),
+    pendingHuman:true,
+    pendingAt:Number(c.pendingAt||Date.now()),
+    updatedAt:Date.now(),
+    lastMsg:'✅ Consulta agendada para Javier'
+  });
+
+  await pushMsg(id,{
+    from:'admin',
+    auto:true,
+    humanContactReceived:true,
+    text:'✅ Consulta agendada. Gracias, ya le dejo tu mensaje a Javier para que pueda responderte apenas esté disponible.',
+    time:ctime(),
+    createdAt:Date.now()
+  });
+
+  try{if(typeof updateChatMessagesOnly==='function')updateChatMessagesOnly(id,!!q('#chat-popover.open #chat-admin-text'))}catch(e){}
+  return true;
+}
+
+const oldResponder = window.responderAutomaticoChat || (typeof responderAutomaticoChat !== 'undefined' ? responderAutomaticoChat : null);
+if(typeof oldResponder === 'function' && !oldResponder.__fase12f){
+  const responder12f = async function(id,text){
+    try{ if(await captureContactOnce(id,text)) return null; }catch(e){}
+    return oldResponder.apply(this,arguments);
+  };
+  responder12f.__fase12f = 1;
+  window.responderAutomaticoChat = responder12f;
+  try{responderAutomaticoChat = responder12f}catch(e){}
+}
+
+// Cuando se atiende, marcar explícitamente como HUM y refrescar el indicador real.
+// No cambia diseño, solo evita que el botón diga AUTO cuando internamente quedó HUM.
+async function markAttended(id){
+  if(!id) return;
+  stopAudio(id);
+  await upd(id,{
+    humanRequested:false,
+    waitingHuman:false,
+    priority:false,
+    prioridad:false,
+    callUntil:0,
+    callAnsweredAt:Date.now(),
+    callAnsweredByAdmin:true,
+    pendingHuman:true,
+    pendingAt:Date.now(),
+    humanMode:true,
+    manualUntil:Date.now()+30*60*1000,
+    javierOnline:true,
+    javierOnlineAt:Date.now(),
+    updatedAt:Date.now()
+  });
+
+  try{
+    const c = chats()[id] || {};
+    const already = msgs(c).some(m => String(m.text||'').includes('JAVIER ATENDIÓ LA LLAMADA'));
+    if(!already){
+      await pushMsg(id,{from:'admin',auto:true,humanAttend:true,text:'✅ JAVIER ATENDIÓ LA LLAMADA.',time:ctime(),createdAt:Date.now()});
+    }
+  }catch(e){}
+
+  setTimeout(()=>{
+    try{if(typeof updateChatMessagesOnly==='function')updateChatMessagesOnly(id,true)}catch(e){}
+    try{if(typeof window.abrirChatAdmin==='function')window.abrirChatAdmin(id,true)}catch(e){}
+  },120);
+}
+
+window.atenderLlamadaJavier = markAttended;
+
+const oldSend = window.enviarChatAdmin;
+if(typeof oldSend === 'function' && !oldSend.__fase12fAttend){
+  const send12f = function(){
+    const id = admId();
+    const c = chats()[id] || {};
+    if(id && c.humanRequested) markAttended(id);
+    return oldSend.apply(this,arguments);
+  };
+  send12f.__fase12fAttend = 1;
+  window.enviarChatAdmin = send12f;
+  try{enviarChatAdmin = send12f}catch(e){}
+}
+
+function cleanAuto(id){
+  if(!id) return;
+  return upd(id,{
+    humanMode:false,
+    manualUntil:0,
+    waitingHuman:false,
+    humanRequested:false,
+    callUntil:0,
+    javierOnline:false,
+    javierOnlineAt:0,
+    updatedAt:Date.now()
+  });
+}
+
+// Si toca botón de modo estando HUM, debe pasar realmente a AUTO.
+const oldToggle = window.toggleModoAsistenteChat || (typeof toggleModoAsistenteChat !== 'undefined' ? toggleModoAsistenteChat : null);
+if(typeof oldToggle === 'function' && !oldToggle.__fase12f){
+  const toggle12f = function(){
+    const id = admId();
+    const before = chats()[id] || {};
+    const wasHuman = !!(before.humanMode || Number(before.manualUntil||0)>Date.now());
+    const r = oldToggle.apply(this,arguments);
+
+    setTimeout(()=>{
+      const after = chats()[id] || {};
+      const stillHuman = !!(after.humanMode || Number(after.manualUntil||0)>Date.now());
+      if(id && wasHuman && stillHuman){
+        cleanAuto(id);
+        try{if(typeof toast==='function')toast('🤖 AUTO activado')}catch(e){}
+        try{if(typeof window.abrirChatAdmin==='function')window.abrirChatAdmin(id,true)}catch(e){}
+      }
+    },180);
+
+    return r;
+  };
+  toggle12f.__fase12f = 1;
+  window.toggleModoAsistenteChat = toggle12f;
+  try{toggleModoAsistenteChat = toggle12f}catch(e){}
+}
+
+setInterval(()=>{
+  Object.entries(chats()).forEach(([id,c])=>finishCallRobust(id,c||{}));
 },1000);
 
 })();
