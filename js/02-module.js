@@ -1709,15 +1709,37 @@ function notifyNative(title, body, tag){
   }catch(e){}
 }
 
+
+function tomaunoUltimoMensajeUsuarioChat(c){
+  try{
+    const arr = chatMsgs(c).filter(([,m]) => m && m.from === 'user' && !m.typing && !m.hidden && !m.deleted && !m.deletedForVisitor);
+    if(!arr.length) return null;
+    const last = arr[arr.length-1][1] || {};
+    return {
+      text: String(last.text || '').trim(),
+      ts: Number(last.createdAt || c?.updatedAt || 0)
+    };
+  }catch(e){ return null; }
+}
+
 function notifyAdminChat(title, body, chatId){
   const t = String(title || '');
-  const b = String(body || '');
-  const isHuman = /humana|Javier|LLAMADA/i.test(t + ' ' + b);
-  const isNewChat = /Nuevo chat web|Chat nuevo/i.test(t);
-  if(!isHuman && !isNewChat) return;
-  try{ isHuman && window.tomaunoHumanAlarm ? window.tomaunoHumanAlarm(chatId, b) : beep(); }catch(e){}
-  try{ showNotif(); showNotifBanner(isHuman ? '📣 LLAMADA PARA JAVIER' : title, body || 'Nuevo chat web'); }catch(e){}
-  notifyNative((isHuman ? '📣 ' : '💬 ') + (isHuman ? 'LLAMADA PARA JAVIER' : title), body || 'Nuevo mensaje desde la web', chatId ? 'tomauno-chat-' + chatId : 'tomauno-chat');
+  const c = chatId && chatsDB ? chatsDB[chatId] : null;
+  const lastUser = c ? tomaunoUltimoMensajeUsuarioChat(c) : null;
+  const isHuman = /humana|Javier|LLAMADA/i.test(t + ' ' + String(body || ''));
+
+  // Regla limpia:
+  // - Las llamadas humanas sí notifican.
+  // - Los mensajes web solo notifican si el último mensaje real viene del visitante.
+  if(!isHuman && (!lastUser || !lastUser.text)) return;
+
+  const cleanBody = isHuman
+    ? (body || 'Llamada humana')
+    : ((c?.name || 'Visitante') + ': ' + lastUser.text);
+
+  try{ isHuman && window.tomaunoHumanAlarm ? window.tomaunoHumanAlarm(chatId, cleanBody) : beep(); }catch(e){}
+  try{ showNotif(); showNotifBanner(isHuman ? '📣 LLAMADA PARA JAVIER' : 'Nuevo mensaje web', cleanBody || 'Nuevo chat web'); }catch(e){}
+  notifyNative((isHuman ? '📣 LLAMADA PARA JAVIER' : '💬 Nuevo mensaje web'), cleanBody || 'Nuevo mensaje desde la web', chatId ? 'tomauno-chat-' + chatId : 'tomauno-chat');
 }
 
 onValue(ref(db, 'tomauno/status'), snap => {
@@ -1756,7 +1778,10 @@ onValue(ref(db, 'tomauno/chats'), snap => {
       .sort((a,b)=>(b[1].updatedAt||0)-(a[1].updatedAt||0));
     if (nuevos.length) {
       const [newId, newest] = nuevos[0];
-      notifyAdminChat('Nuevo chat web', (newest?.name || 'Sin nombre') + ': ' + (newest?.lastMsg || 'Escribió desde la web'), newId);
+      {
+        const u = tomaunoUltimoMensajeUsuarioChat(newest);
+        if(u && u.text) notifyAdminChat('Nuevo chat web', (newest?.name || 'Sin nombre') + ': ' + u.text, newId);
+      }
       // Si el chat está minimizado, abrir automáticamente la conversación nueva para el admin.
       const popAuto = document.getElementById('chat-popover');
       if (!popAuto || !popAuto.classList.contains('open')) setTimeout(() => window.abrirChatAdmin && window.abrirChatAdmin(newId), 120);
@@ -6645,7 +6670,10 @@ window.filterCursos = function(){
     if(closed){ setTimeout(()=>window.abrirChatAdmin && window.abrirChatAdmin(top.id), 120); }
     // Si el mensaje viene de otro chat, avisar aunque estés en una conversación.
     if(closed || currentOpenChatId !== top.id || (nowTs()-Number(lastNotifyByChat[top.id]||0) > TEN_MIN)){
-      notifyAdminChat('Nuevo mensaje web', chatVisibleName(top.c,top.id)+': '+(top.c.lastMsg||'Escribió desde la web'), top.id);
+      {
+        const u = tomaunoUltimoMensajeUsuarioChat(top.c);
+        if(u && u.text) notifyAdminChat('Nuevo mensaje web', chatVisibleName(top.c,top.id)+': '+u.text, top.id);
+      }
     }
   });
 
@@ -8007,6 +8035,12 @@ window.filterCursos = function(){
   };
   window.showNotifBanner = showNotifBanner;
   notifyAdminChat = function(title, body, chatId){
+    const c = chatId && chatsDB ? chatsDB[chatId] : null;
+    const lastUser = c ? tomaunoUltimoMensajeUsuarioChat(c) : null;
+    const isHumanNotice = /humana|Javier|LLAMADA/i.test(String(title||'') + ' ' + String(body||''));
+    if(!isHumanNotice && (!lastUser || !lastUser.text)) return;
+    if(!isHumanNotice && c) body = (c.name || 'Visitante') + ': ' + lastUser.text;
+
     if(!adminActiveFinal()) return;
     if(adminViewingChatFinal(chatId)) return;
     const sig = String(chatId || '') + '|' + String(title || '') + '|' + String(body || '').slice(0,90);
@@ -10093,4 +10127,164 @@ function css(){
 css();
 
 setInterval(()=>qa('.chat-human-countdown').forEach(el=>{const st=Number(el.getAttribute('data-human-wait-start')||0);if(!st)return;const n=el.querySelector('.chat-human-countdown-num');if(n)n.textContent=Math.max(0,60-Math.floor((Date.now()-st)/1000))}),500);
+})();
+
+
+// TOMAUNO LIMPIO FASE 9B — NOTIFICACIONES DESDE ORIGEN
+// Las notificaciones de chat web ahora salen únicamente del último mensaje real from:"user".
+// No se notifican respuestas del asistente/ADM usando lastMsg.
+
+
+// TOMAUNO LIMPIO FASE 10 — NOMBRES DUPLICADOS VISIBLES
+// Base 9B. Solo agrega alias visual: Sofía, Sofía (2), Sofía (3).
+// No toca llamadas, notificaciones, sonido, HUM/AUTO ni scroll.
+(function(){
+'use strict';
+
+function q(s,r){return (r||document).querySelector(s)}
+function qa(s,r){return Array.from((r||document).querySelectorAll(s))}
+function chats(){try{return window.chatsDB||chatsDB||{}}catch(e){return {}}}
+
+function normName(s){
+  return String(s||'')
+    .toLowerCase()
+    .normalize('NFD').replace(/[\u0300-\u036f]/g,'')
+    .replace(/\s+/g,' ')
+    .trim();
+}
+function cleanDisplayName(s){
+  return String(s||'')
+    .replace(/^\s*[📣⭐]\s*/g,'')
+    .replace(/\s+\(\d+\)\s*$/,'')
+    .replace(/\s+/g,' ')
+    .trim();
+}
+function rowId(row){
+  let id = row.getAttribute('data-chat-id') || row.dataset.chatId || '';
+  if(id) return id;
+  const on = row.getAttribute('onclick') || '';
+  const m = on.match(/abrirChatAdmin\('([^']+)'\)/);
+  return m ? m[1] : '';
+}
+function nameNode(row){
+  return row.querySelector('.chat-tab-name,.chat-name,strong,b,.name') || null;
+}
+function baseNameFor(id,row){
+  const db = chats();
+  const c = db[id] || {};
+  const n = String(c.name || c.nombre || '').trim();
+  if(n) return cleanDisplayName(n);
+
+  const node = nameNode(row);
+  if(node){
+    // Clonar texto visible sin iconos/botones agregados
+    let text = '';
+    node.childNodes.forEach(ch => {
+      if(ch.nodeType === Node.TEXT_NODE) text += ch.textContent || '';
+    });
+    text = cleanDisplayName(text || node.textContent || '');
+    if(text) return text;
+  }
+  return 'Visitante';
+}
+
+function visibleRows(){
+  return qa('.chat-tab,[data-chat-id]').filter(row => {
+    const id = rowId(row);
+    if(!id) return false;
+    const style = window.getComputedStyle ? getComputedStyle(row) : null;
+    if(style && style.display === 'none') return false;
+    if(row.offsetParent === null && !(row.getClientRects && row.getClientRects().length)) return false;
+    return true;
+  });
+}
+
+function applyDuplicateNames(){
+  const rows = visibleRows();
+  if(!rows.length) return;
+
+  // Agrupar por nombre base solo entre filas visibles.
+  const groups = {};
+  rows.forEach(row => {
+    const id = rowId(row);
+    const base = baseNameFor(id,row);
+    const key = normName(base);
+    if(!key) return;
+    (groups[key] ||= []).push({row,id,base});
+  });
+
+  Object.values(groups).forEach(group => {
+    if(group.length <= 1){
+      group.forEach(item => setAlias(item.row,item.base,''));
+      return;
+    }
+
+    // Orden estable por fecha de creación/updatedAt si existe; si no, orden actual visible.
+    const db = chats();
+    group.sort((a,b)=>{
+      const ca = db[a.id] || {}, cb = db[b.id] || {};
+      const ta = Number(ca.createdAt || ca.firstSeenAt || ca.updatedAt || 0);
+      const tb = Number(cb.createdAt || cb.firstSeenAt || cb.updatedAt || 0);
+      if(ta && tb && ta !== tb) return ta - tb;
+      return 0;
+    });
+
+    group.forEach((item,idx)=>{
+      const suffix = idx === 0 ? '' : ' ('+(idx+1)+')';
+      setAlias(item.row,item.base,suffix);
+    });
+  });
+}
+
+function setAlias(row,base,suffix){
+  const node = nameNode(row);
+  if(!node) return;
+
+  // Guardar nombre base para no acumular (2) (2)
+  if(!node.dataset.tuBaseName) node.dataset.tuBaseName = cleanDisplayName(base || node.textContent || '');
+  const finalName = (base || node.dataset.tuBaseName || 'Visitante') + (suffix || '');
+
+  // Mantener iconos previos 📣/⭐ si existen y solo reemplazar texto principal.
+  let textNode = null;
+  node.childNodes.forEach(ch => {
+    if(ch.nodeType === Node.TEXT_NODE && String(ch.textContent||'').trim()) {
+      if(!textNode) textNode = ch;
+    }
+  });
+
+  if(textNode){
+    if(cleanDisplayName(textNode.textContent) !== finalName){
+      textNode.textContent = finalName;
+    }
+  }else{
+    // Si el nodo tiene iconos/botones al inicio, insertar texto después del último icono.
+    const txt = document.createTextNode(finalName);
+    if(node.firstChild) node.appendChild(txt);
+    else node.textContent = finalName;
+  }
+
+  node.dataset.tuAliasName = finalName;
+}
+
+// Usar MutationObserver para aplicar luego de renders, sin recrear DOM.
+let scheduled = false;
+function schedule(){
+  if(scheduled) return;
+  scheduled = true;
+  requestAnimationFrame(()=>{
+    scheduled = false;
+    applyDuplicateNames();
+  });
+}
+
+const obs = new MutationObserver(schedule);
+function bind(){
+  const pop = document.getElementById('chat-popover') || document.body;
+  try{ obs.observe(pop,{childList:true,subtree:true,characterData:true}); }catch(e){}
+  schedule();
+}
+if(document.readyState === 'loading') document.addEventListener('DOMContentLoaded',bind,{once:true});
+else bind();
+
+setInterval(schedule,1500);
 })();
