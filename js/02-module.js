@@ -2193,8 +2193,9 @@ function chatIsPendingHuman(c){
 }
 function chatPriorityRank(c){
   if(chatIsCallingHuman(c)) return 4;
-  if(chatIsPendingHuman(c)) return 3;
-  if(c && c.unreadAdmin) return 2;
+  if(c && c.unreadAdmin) return 3;
+  if(c && isChatUserOnline(c)) return 2;
+  if(chatIsPendingHuman(c)) return 1;
   return 0;
 }
 function sortChatsForInbox(entries){
@@ -2204,9 +2205,9 @@ function sortChatsForInbox(entries){
     return Number(b[1].updatedAt || 0) - Number(a[1].updatedAt || 0);
   });
 }
-function chatHumanIcon(c){
+function chatHumanIcon(c, id){
   if(chatIsCallingHuman(c)) return '📣 ';
-  if(chatIsPendingHuman(c)) return '⭐ ';
+  if(chatIsPendingHuman(c)) return '<span role="button" tabindex="0" class="tu-f8-icon tu-f8-star" title="Marcar pendiente como atendido" onclick="event.preventDefault();event.stopPropagation();window.marcarChatAtendido(\''+escAttr(id||'')+'\')">⭐</span> ';
   return '';
 }
 function chatHumanClass(c){
@@ -2258,7 +2259,7 @@ function abrirPanelChatsAdmin(){
     const statusText = calling ? 'llamada' : pending ? 'pendiente' : (c.unreadAdmin ? 'Nuevo' : (c.status || 'abierto'));
     const statusClass = calling ? 'call' : pending ? 'priority' : (c.unreadAdmin ? 'new' : c.status === 'abierto' ? 'on' : '');
     const preview = chatHumanPreviewPrefix(c) + (c.lastMsg || '');
-    return '<div class="'+classes+'" data-chat-id="'+escAttr(id)+'" onclick="window.abrirChatAdmin(\''+id+'\')"><div style="flex:1;min-width:0;"><div style="font-weight:800;font-size:14px;">'+chatHumanIcon(c)+(c.updatedAt && c.createdAt && (c.updatedAt-c.createdAt)>60000?'🔁 ':'')+escHtml(chatVisibleName(c,id))+'</div><div style="font-size:11px;color:var(--text3);margin-top:2px;max-width:245px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">'+escHtml(preview)+'</div>'+(c.wp?'<div style="font-size:11px;color:#25d366;margin-top:2px;">WP: '+escHtml(c.wp)+'</div>':'')+'</div><span class="chat-status '+statusClass+'">'+escHtml(statusText)+'</span><button class="chat-trash" title="Eliminar chat" onclick="event.stopPropagation();window.eliminarChatDefinitivo(\''+id+'\')">🗑️</button></div>';
+    return '<div class="'+classes+'" data-chat-id="'+escAttr(id)+'" onclick="window.abrirChatAdmin(\''+id+'\')"><div style="flex:1;min-width:0;"><div style="font-weight:800;font-size:14px;">'+chatHumanIcon(c,id)+(c.updatedAt && c.createdAt && (c.updatedAt-c.createdAt)>60000?'🔁 ':'')+escHtml(chatVisibleName(c,id))+'</div><div style="font-size:11px;color:var(--text3);margin-top:2px;max-width:245px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">'+escHtml(preview)+'</div>'+(c.wp?'<div style="font-size:11px;color:#25d366;margin-top:2px;">WP: '+escHtml(c.wp)+'</div>':'')+'</div><span class="chat-status '+statusClass+'">'+escHtml(statusText)+'</span><button class="chat-trash" title="Eliminar chat" onclick="event.stopPropagation();window.eliminarChatDefinitivo(\''+id+'\')">🗑️</button></div>';
   };
   setChatPopover(
     '<div class="chat-head"><div class="chat-avatar">📥</div><div><div class="chat-title">BANDEJA DE CHATS</div><div class="chat-subline">'+total+' conversación'+(total!==1?'es':'')+' desde la web</div></div><div class="chat-head-actions"><button class="chat-icon-btn" title="Activar/desactivar automático" onclick="window.toggleModoAsistenteChat()">🤖</button><button class="chat-icon-btn" title="Activar notificaciones" onclick="window.pedirPermisoNotificaciones()">🔔</button></div></div>' +
@@ -2269,7 +2270,7 @@ function abrirPanelChatsAdmin(){
     '<button class="chat-filter" onclick="window.verResumenConsultasChat()">📋 Resumen</button>' +
     '<button class="chat-clean-btn" onclick="window.limpiarChatsDefinitivo()">🧹 Limpiar chats</button>' +
     '</div>' +
-    (lista.length ? lista.map(itemHtml).join('') : '<div style="color:var(--text3);font-size:13px;padding:20px;text-align:center;">Sin chats en este filtro</div>')
+    '<div class="chat-inbox-list">'+(lista.length ? lista.map(itemHtml).join('') : '<div style="color:var(--text3);font-size:13px;padding:20px;text-align:center;">Sin chats en este filtro</div>')+'</div>'
   );
 }
 window.setChatListFilter = (f) => { chatListFilter = f || 'abiertos'; abrirPanelChatsAdmin(); };
@@ -2315,7 +2316,7 @@ function adminChatTabsHtml(activeId){
     ].filter(Boolean).join(' ');
     return '<button class="'+cls+'" data-chat-id="'+escAttr(id)+'" onclick="window.abrirChatAdmin(\''+id+'\')">'
       + '<span class="chat-tab-light" title="'+escAttr(status)+'"></span>'
-      + '<span class="chat-tab-body"><span class="chat-tab-name">'+chatHumanIcon(c)+escHtml(chatVisibleName(c,id))+'</span>'
+      + '<span class="chat-tab-body"><span class="chat-tab-name">'+chatHumanIcon(c,id)+escHtml(chatVisibleName(c,id))+'</span>'
       + '<span class="chat-tab-preview">'+escHtml(preview || status)+'</span>'
       + '<span class="chat-tab-foot">'+escHtml(status)+(time?' · '+escHtml(time):'')+'</span></span>'
       + '<span class="chat-tab-close" title="Cerrar" onclick="event.stopPropagation();window.cerrarConversacionChat(\''+id+'\')">×</span>'
@@ -5235,26 +5236,20 @@ window.abrirChatAdminHome = function(){
 window.abrirChatTomauno = function(){
   unlockAudio();
   const popToggle = document.getElementById('chat-popover');
-  if (popToggle && popToggle.classList.contains('open')) { window.cerrarChatPopover && window.cerrarChatPopover(); return; }
 
   if (isAdminNotifier()) {
     const abiertos = Object.entries(chatsDB || {})
       .filter(([,c]) => isValidChat(c) && c.status !== 'cerrado')
-      .sort((a,b)=>{
-        const ca=a[1]||{}, cb=b[1]||{};
-        const sa=(ca.humanRequested?1000000000:0)+(ca.unreadAdmin?100000000:0)+(ca.updatedAt||0);
-        const sb=(cb.humanRequested?1000000000:0)+(cb.unreadAdmin?100000000:0)+(cb.updatedAt||0);
-        return sb-sa;
-      });
+      .sort((a,b)=>sortChatsForInbox([a,b])[0]===a?-1:1);
 
-    const preferred = currentOpenChatId && chatsDB[currentOpenChatId] && chatsDB[currentOpenChatId].status !== 'cerrado'
-      ? currentOpenChatId
-      : (abiertos[0] && abiertos[0][0]);
+    const unread = abiertos.find(([,c]) => c && c.unreadAdmin);
+    const preferred = unread ? unread[0] : (currentOpenChatId && chatsDB[currentOpenChatId] && chatsDB[currentOpenChatId].status !== 'cerrado' ? currentOpenChatId : (abiertos[0] && abiertos[0][0]));
 
     if(preferred) return abrirChatAdmin(preferred, true);
     return abrirPanelChatsAdmin();
   }
 
+  if (popToggle && popToggle.classList.contains('open')) { window.cerrarChatPopover && window.cerrarChatPopover(); return; }
   document.getElementById('chat-fab')?.classList.remove('has-new');
   if (currentVisitorChatId && chatsDB[currentVisitorChatId] && chatsDB[currentVisitorChatId].status !== 'cerrado') return abrirChatVisitante(currentVisitorChatId);
   setChatPopover(
@@ -6702,11 +6697,12 @@ window.filterCursos = function(){
   const __notifyAdminChat_v3320 = notifyAdminChat;
   const lastNotifyByChat = {};
   notifyAdminChat = function(title, body, chatId){
+    const humanNotice = /humana|Javier|llamada|atenci/i.test(String(title||'') + ' ' + String(body||''));
     const pop = document.getElementById('chat-popover');
     const isOpen = !!(pop && pop.classList.contains('open'));
     const sameActive = isOpen && chatId && currentOpenChatId === chatId;
     const last = Number(lastNotifyByChat[chatId || '_global'] || 0);
-    const quiet = sameActive || (chatId && (nowTs() - last < TEN_MIN));
+    const quiet = !humanNotice && (sameActive || (chatId && (nowTs() - last < TEN_MIN)));
     if(quiet) return;
     lastNotifyByChat[chatId || '_global'] = nowTs();
     return __notifyAdminChat_v3320.apply(this, arguments);
@@ -7460,12 +7456,7 @@ window.filterCursos = function(){
   function mobile89(){ return !!(window.matchMedia && window.matchMedia('(max-width:700px)').matches); }
   function ensureVersion89(){
     try{
-      let tag=document.getElementById('tomauno-version-tag');
-      if(!tag){
-        const f=document.querySelector('footer .fcred')||document.querySelector('footer')||document.body;
-        tag=document.createElement('span'); tag.id='tomauno-version-tag'; tag.className='tomauno-version-tag'; f.appendChild(tag);
-      }
-      tag.textContent='Tomauno '+VERSION_89;
+      document.querySelectorAll('#tomauno-version-tag,.tomauno-version-tag').forEach(tag=>tag.remove());
     }catch(e){}
   }
   function setViewportVar89(){
@@ -7840,6 +7831,12 @@ window.filterCursos = function(){
         border-color:rgba(255,214,80,.55)!important;
         box-shadow:inset 3px 0 0 rgba(255,214,80,.95)!important;
       }
+      html body #chat-popover.open .chat-inbox-list{
+        max-height:calc(100vh - 190px)!important;
+        overflow-y:auto!important;
+        overscroll-behavior:contain!important;
+        padding-right:4px!important;
+      }
       html body #chat-popover.open.tu-human-chat,
       html body #chat-popover.open.tu-human-chat .chat-popover-inner{
         border-color:rgba(255,0,10,.85)!important;
@@ -8095,6 +8092,10 @@ window.filterCursos = function(){
       };
       banner.style.position = 'fixed';
       banner.appendChild(x);
+      setTimeout(() => {
+        const b = document.getElementById('notif-banner');
+        if(b) b.style.transform = 'translateX(340px)';
+      }, 3000);
     }, 0);
   };
   window.showNotifBanner = showNotifBanner;
@@ -8106,7 +8107,7 @@ window.filterCursos = function(){
     if(!isHumanNotice && c) body = chatVisibleName(c, chatId) + ': ' + lastUser.text;
 
     if(!adminActiveFinal()) return;
-    if(adminViewingChatFinal(chatId)) return;
+    if(!isHumanNotice && adminViewingChatFinal(chatId)) return;
     const sig = String(chatId || '') + '|' + String(title || '') + '|' + String(body || '').slice(0,90);
     const last = notifySeenFinal.get(sig) || 0;
     if(Date.now() - last < 6000) return;
@@ -9290,14 +9291,7 @@ window.filterCursos = function(){
   }
 
   function showSoundUnlock(){
-    safe(function(){
-      if(!isAdmin() || audioUnlocked || document.querySelector('.tu-sound-unlock')) return;
-      const btn = document.createElement('button');
-      btn.className = 'tu-sound-unlock';
-      btn.textContent = '🔊 Activar sonido';
-      btn.onclick = function(){ unlockAudio(false); tuBeepV26('normal'); };
-      document.body.appendChild(btn);
-    });
+    safe(function(){ document.querySelectorAll('.tu-sound-unlock,.tu-v28d-sound-unlock,.tu-call-sound-unlock,.tu-v34-sound-unlock').forEach(n=>n.remove()); });
   }
 
   function tuBeepV26(kind){
@@ -9549,33 +9543,7 @@ window.filterCursos = function(){
 
   // 7) Sonido: si navegador bloquea, mostrar activador más visible en admin.
   function showSoundHint(){
-    safe(function(){
-      if(!isAdmin()) return;
-      if(document.querySelector('.tu-sound-unlock')) return;
-      if(sessionStorage.getItem('tu-sound-ok') === '1') return;
-
-      const btn = document.createElement('button');
-      btn.className = 'tu-sound-unlock';
-      btn.textContent = '🔊 Activar alertas';
-      btn.onclick = function(){
-        try{ sessionStorage.setItem('tu-sound-ok','1'); }catch(e){}
-        btn.remove();
-        if(typeof beep === 'function') beep();
-        try{
-          const AC = window.AudioContext || window.webkitAudioContext;
-          if(AC){
-            const ctx = new AC();
-            const osc = ctx.createOscillator();
-            const gain = ctx.createGain();
-            osc.frequency.value = 880;
-            gain.gain.value = .12;
-            osc.connect(gain); gain.connect(ctx.destination);
-            osc.start(); osc.stop(ctx.currentTime + .12);
-          }
-        }catch(e){}
-      };
-      document.body.appendChild(btn);
-    });
+    safe(function(){ document.querySelectorAll('.tu-sound-unlock,.tu-v28d-sound-unlock,.tu-call-sound-unlock,.tu-v34-sound-unlock').forEach(n=>n.remove()); });
   }
 
   function css(){
@@ -10050,6 +10018,8 @@ window.tuSolicitarJavier=async function(id){
   await upd(id,{humanRequested:true,waitingHuman:true,pendingHuman:true,pendingAt:t,priority:true,prioridad:true,callUntil:t+60000,callAnsweredAt:0,humanWaitStartedAt:t,updatedAt:t,unreadAdmin:true,lastMsg:'📣 Llamada humana'});
   await msg(id,{from:'admin',auto:true,humanWait:true,text:'📣 Voy a intentar comunicarme con Javier. Aguardá un momento por favor.',time:ctime(),createdAt:t});
   startCall(id);
+  try{ if(typeof window.tomaunoHumanAlarm==='function') window.tomaunoHumanAlarm(id, cname(id,chats()[id]||{})+' está llamando a Javier'); }catch(e){}
+  try{ if(typeof notifyAdminChat==='function') notifyAdminChat('📣 Llamando a Javier', cname(id,chats()[id]||{})+' pidió atención humana', id); }catch(e){}
   if(isAdm()&&typeof showNotifBanner==='function'){
     const c=chats()[id]||{};
     showNotifBanner('📣 Llamada humana',cname(id,c)+' necesita atención','📣',()=>{if(typeof window.abrirChatAdmin==='function')window.abrirChatAdmin(id,true)});
@@ -10068,6 +10038,8 @@ window.atenderLlamadaJavier=async function(id){
   await upd(id,{humanRequested:false,waitingHuman:false,pendingHuman:false,pendingAt:0,priority:false,prioridad:false,callUntil:0,callAnsweredAt:Date.now(),humanMode:true,manualUntil:Date.now()+30*60*1000,javierOnline:true,javierOnlineAt:Date.now(),updatedAt:Date.now(),unreadAdmin:false});
   await msg(id,{from:'admin',auto:true,humanAttend:true,text:'🟢 JAVIER ATENDIÓ LA LLAMADA.',time:ctime(),createdAt:Date.now()});
   try{if(typeof updateChatMessagesOnly==='function')updateChatMessagesOnly(id,true)}catch(e){}
+  try{if(typeof applyChatModeButtonFinal==='function')applyChatModeButtonFinal(id)}catch(e){}
+  setTimeout(()=>{try{if(typeof applyChatModeButtonFinal==='function')applyChatModeButtonFinal(id)}catch(e){}},140);
   try{if(typeof toast==='function')toast('👤 HUM activado · llamada atendida')}catch(e){}
 };
 const oldSend=window.enviarChatAdmin;
@@ -10079,15 +10051,15 @@ if(typeof oldSend==='function'&&!oldSend.__fase8){
 // ⭐ resolver
 window.marcarChatAtendido=async function(id){
   if(!id)return;
-  await upd(id,{pendingHuman:false,pendingAt:0,resolvedAt:Date.now(),updatedAt:Date.now()});
+  await upd(id,{pendingHuman:false,pendingAt:0,waitingWhatsapp:false,waitingHumanContact:false,awaitingHumanContact:false,pendingHumanContact:false,humanFallbackSent:false,humanContactReceived:true,priority:false,prioridad:false,resolvedAt:Date.now(),updatedAt:Date.now()});
   try{if(typeof toast==='function')toast('✓ Pendiente marcado como atendido')}catch(e){}
-  markRows();
+  try{ if(typeof abrirPanelChatsAdmin === 'function' && !admId()) abrirPanelChatsAdmin(); }catch(e){}
 };
 const oldClose=window.cerrarConversacionChat;
 if(typeof oldClose==='function'&&!oldClose.__fase8){
   const cfn=function(id){
     const c=chats()[id]||{};
-    if(c.pendingHuman){try{if(typeof toast==='function')toast('⭐ Tiene pendientes. Tocá la estrella para marcarlo atendido antes de cerrar.')}catch(e){}; return;}
+    if(chatIsPendingHuman(c)){try{if(typeof toast==='function')toast('⭐ Tiene pendientes. Tocá la estrella para marcarlo atendido antes de cerrar.')}catch(e){}; return;}
     return oldClose.apply(this,arguments);
   };
   cfn.__fase8=1; window.cerrarConversacionChat=cfn; try{cerrarConversacionChat=cfn}catch(e){}
@@ -10511,21 +10483,10 @@ const oldToggle = window.toggleModoAsistenteChat || (typeof toggleModoAsistenteC
 if(typeof oldToggle === 'function' && !oldToggle.__fase12e){
   const toggle12e = function(){
     const id = admId();
-    const before = chats()[id] || {};
-    const wasHuman = !!(before.humanMode || Number(before.manualUntil||0)>Date.now());
-    const r = oldToggle.apply(this,arguments);
-
-    setTimeout(()=>{
-      const after = chats()[id] || {};
-      const stillHuman = !!(after.humanMode || Number(after.manualUntil||0)>Date.now());
-      // Si antes estaba humano y se tocó toggle, interpretamos que quiere volver a AUTO.
-      if(id && wasHuman && stillHuman){
-        cleanAuto(id);
-        try{if(typeof toast==='function')toast('🤖 AUTO activado')}catch(e){}
-      }
-    },180);
-
-    return r;
+    if(id && typeof window.tomaunoToggleModoChatActual === 'function'){
+      return window.tomaunoToggleModoChatActual(id);
+    }
+    return oldToggle.apply(this,arguments);
   };
   toggle12e.__fase12e = 1;
   window.toggleModoAsistenteChat = toggle12e;
