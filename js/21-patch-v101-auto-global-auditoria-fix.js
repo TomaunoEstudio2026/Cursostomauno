@@ -25,14 +25,19 @@
 
 
 
-/* Tomauno fase8 mínimo: ocultar botones activar/desactivar sonido heredados */
+
+/* Tomauno fase11 mínimo: ocultar botones activar/desactivar sonido heredados */
 (function(){
   function clean(){
     document.querySelectorAll('.tu-v28d-sound-unlock,.tu-call-sound-unlock,.tu-sound-unlock,.tu-v34-sound-unlock').forEach(function(n){n.remove();});
-    document.querySelectorAll('button').forEach(function(b){
-      if(/activar alertas|activar llamada|activar llamadas|activar sonido|desactivar sonido/i.test(b.innerText||'')) b.remove();
+    document.querySelectorAll('button,a,div,span').forEach(function(el){
+      var txt=(el.innerText||el.textContent||'').trim();
+      if(/^(activar alertas|activar llamada|activar llamadas|activar sonido|desactivar sonido)$/i.test(txt)){
+        var r=el.getBoundingClientRect?el.getBoundingClientRect():{width:0,height:0};
+        if(el.tagName==='BUTTON'||(r.width<260&&r.height<90)) el.remove();
+      }
     });
   }
   if(document.readyState==='loading') document.addEventListener('DOMContentLoaded',clean,{once:true}); else clean();
-  setInterval(clean,1000);
+  setInterval(clean,700);
 })();

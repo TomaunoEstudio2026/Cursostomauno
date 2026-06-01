@@ -10134,157 +10134,70 @@ setInterval(()=>qa('.chat-human-countdown').forEach(el=>{const st=Number(el.getA
 // Las notificaciones de chat web ahora salen únicamente del último mensaje real from:"user".
 // No se notifican respuestas del asistente/ADM usando lastMsg.
 
-
-// TOMAUNO LIMPIO FASE 10 — NOMBRES DUPLICADOS VISIBLES
-// Base 9B. Solo agrega alias visual: Sofía, Sofía (2), Sofía (3).
-// No toca llamadas, notificaciones, sonido, HUM/AUTO ni scroll.
+// TOMAUNO LIMPIO FASE 11 — LLAMADA / ALIAS / ESTABILIDAD
 (function(){
 'use strict';
-
 function q(s,r){return (r||document).querySelector(s)}
 function qa(s,r){return Array.from((r||document).querySelectorAll(s))}
 function chats(){try{return window.chatsDB||chatsDB||{}}catch(e){return {}}}
+function admId(){try{return window.currentOpenChatId||currentOpenChatId||''}catch(e){return ''}}
+function isAdm(){try{if(typeof isAdminNotifier==='function'&&isAdminNotifier())return true;if(localStorage.getItem('tomauno-admin-notify')==='1')return true}catch(e){}return !!q('#chat-popover.open #chat-admin-text,#chat-popover.open .chat-inbox-side,#chat-popover.open .chat-admin-tools')}
+function cname(id,c){c=c||{};return String(c.name||c.nombre||('Visitante '+String(id||'').slice(-4))).trim()}
+function ctime(){try{return typeof chatTimeSafe==='function'?chatTimeSafe():new Date().toLocaleTimeString('es-AR',{hour:'2-digit',minute:'2-digit'})}catch(e){return ''}}
+function upd(id,data){try{if(window.chatsDB&&window.chatsDB[id])Object.assign(window.chatsDB[id],data);if(typeof chatsDB!=='undefined'&&chatsDB[id])Object.assign(chatsDB[id],data);if(typeof db!=='undefined'&&typeof ref!=='undefined'&&typeof update!=='undefined')return update(ref(db,'tomauno/chats/'+id),data).catch(()=>{})}catch(e){}return Promise.resolve()}
+async function msg(id,data){try{if(id&&typeof push==='function'&&typeof ref==='function'&&typeof db!=='undefined')return await push(ref(db,'tomauno/chats/'+id+'/messages'),data)}catch(e){}}
+function messages(c){return Object.entries(c&&c.messages||{}).map(([id,m])=>({id,...m})).sort((a,b)=>Number(a.createdAt||0)-Number(b.createdAt||0))}
 
-function normName(s){
-  return String(s||'')
-    .toLowerCase()
-    .normalize('NFD').replace(/[\u0300-\u036f]/g,'')
-    .replace(/\s+/g,' ')
-    .trim();
-}
-function cleanDisplayName(s){
-  return String(s||'')
-    .replace(/^\s*[📣⭐]\s*/g,'')
-    .replace(/\s+\(\d+\)\s*$/,'')
-    .replace(/\s+/g,' ')
-    .trim();
-}
-function rowId(row){
-  let id = row.getAttribute('data-chat-id') || row.dataset.chatId || '';
-  if(id) return id;
-  const on = row.getAttribute('onclick') || '';
-  const m = on.match(/abrirChatAdmin\('([^']+)'\)/);
-  return m ? m[1] : '';
-}
-function nameNode(row){
-  return row.querySelector('.chat-tab-name,.chat-name,strong,b,.name') || null;
-}
-function baseNameFor(id,row){
-  const db = chats();
-  const c = db[id] || {};
-  const n = String(c.name || c.nombre || '').trim();
-  if(n) return cleanDisplayName(n);
+function cleanBtns(){qa('.tu-v28d-sound-unlock,.tu-call-sound-unlock,.tu-sound-unlock,.tu-v34-sound-unlock').forEach(n=>n.remove());qa('button,a,div,span').forEach(el=>{const t=(el.innerText||el.textContent||'').trim();if(/^(activar alertas|activar llamada|activar llamadas|activar sonido|desactivar sonido)$/i.test(t)){const r=el.getBoundingClientRect?el.getBoundingClientRect():{width:0,height:0};if(el.tagName==='BUTTON'||(r.width<260&&r.height<90))el.remove()}})}
+setInterval(cleanBtns,700);cleanBtns();
 
-  const node = nameNode(row);
-  if(node){
-    // Clonar texto visible sin iconos/botones agregados
-    let text = '';
-    node.childNodes.forEach(ch => {
-      if(ch.nodeType === Node.TEXT_NODE) text += ch.textContent || '';
-    });
-    text = cleanDisplayName(text || node.textContent || '');
-    if(text) return text;
-  }
-  return 'Visitante';
-}
+function normName(s){return String(s||'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/\s+/g,' ').trim()}
+function cleanName(s){return String(s||'').replace(/^\s*[📣⭐]\s*/g,'').replace(/\s+\(\d+\)\s*$/,'').replace(/\s+/g,' ').trim()}
+function rowId(row){let id=row.getAttribute('data-chat-id')||row.dataset.chatId||'';if(id)return id;const m=(row.getAttribute('onclick')||'').match(/abrirChatAdmin\('([^']+)'\)/);return m?m[1]:''}
+function nameNode(row){return row.querySelector('.chat-tab-name,.chat-name,strong,b,.name')||null}
+function visibleRows(){return qa('.chat-tab,[data-chat-id]').filter(row=>{const id=rowId(row);if(!id)return false;const st=getComputedStyle(row);if(st.display==='none')return false;if(row.offsetParent===null&&!(row.getClientRects&&row.getClientRects().length))return false;return true})}
+function baseNameFor(id,row){const c=chats()[id]||{};const n=String(c.name||c.nombre||'').trim();if(n)return cleanName(n);const node=nameNode(row);return node?(cleanName(node.textContent)||'Visitante'):'Visitante'}
+window.tuChatAliasMap=window.tuChatAliasMap||{};
+function computeAliases(){const groups={};visibleRows().forEach(row=>{const id=rowId(row),base=baseNameFor(id,row),key=normName(base);if(!key)return;(groups[key]||=[]).push({id,row,base})});Object.values(groups).forEach(g=>{const db=chats();g.sort((a,b)=>{const ca=db[a.id]||{},cb=db[b.id]||{};const ta=Number(ca.createdAt||ca.firstSeenAt||ca.updatedAt||0),tb=Number(cb.createdAt||cb.firstSeenAt||cb.updatedAt||0);return(ta&&tb&&ta!==tb)?ta-tb:0});g.forEach((it,i)=>{window.tuChatAliasMap[it.id]=it.base+(i===0?'':' ('+(i+1)+')')})})}
+function alias(id){return window.tuChatAliasMap?.[id]||cname(id,chats()[id]||{})}
+function setAliasText(row,id){const node=nameNode(row);if(!node)return;const finalName=alias(id);let tn=null;node.childNodes.forEach(ch=>{if(ch.nodeType===Node.TEXT_NODE&&String(ch.textContent||'').trim()&&!tn)tn=ch});if(tn){if(cleanName(tn.textContent)!==finalName)tn.textContent=finalName}else node.appendChild(document.createTextNode(finalName))}
+function updateHeaderAlias(){const id=admId();if(!id)return;const title=q('#chat-popover.open .chat-title,#chat-popover.open .chat-head-title,#chat-popover.open h2,#chat-popover.open h3');if(title&&title.textContent&&cleanName(title.textContent).toUpperCase()!==alias(id).toUpperCase())title.textContent=alias(id).toUpperCase()}
 
-function visibleRows(){
-  return qa('.chat-tab,[data-chat-id]').filter(row => {
-    const id = rowId(row);
-    if(!id) return false;
-    const style = window.getComputedStyle ? getComputedStyle(row) : null;
-    if(style && style.display === 'none') return false;
-    if(row.offsetParent === null && !(row.getClientRects && row.getClientRects().length)) return false;
-    return true;
-  });
-}
+function isInboxBtn(el){const t=(el.innerText||el.textContent||el.title||el.getAttribute('aria-label')||'').toLowerCase().trim();return t.includes('bandeja')||t==='←'||t.includes('volver')}
+['pointerdown','click'].forEach(ev=>document.addEventListener(ev,e=>{const b=e.target&&e.target.closest&&e.target.closest('button,a');if(!b||!isInboxBtn(b))return;window.__tomaunoForceInboxOnce=true;window.__tomaunoManualInboxUntil=Date.now()+3500;if(ev==='click'&&typeof window.abrirPanelChatsAdmin==='function')setTimeout(()=>window.abrirPanelChatsAdmin(true),0)},true));
 
-function applyDuplicateNames(){
-  const rows = visibleRows();
-  if(!rows.length) return;
+function norm(s){return String(s||'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/\s+/g,' ').trim()}
+window.tuEsPedidoHumano=function(text){const raw=String(text||'').trim().toLowerCase(),x=norm(text);if(!x)return false;if(/^(quien|quién|como se llama|cómo se llama|cual es|cuál es)\b/.test(raw))return false;if(/\bquien es\b|\bquién es\b|\bcomo se llama\b|\bcómo se llama\b/.test(raw))return false;return /\bquiero hablar con\b|\bpuedo hablar con\b|\bpodria hablar con\b|\bpodria comunicarme con\b|\bpuedo comunicarme con\b|\bcomunicarme con\b|\bcontactarme con\b|\bme pasas con\b|\bme pasas a\b|\bpasame con\b|\bpasame a\b|\bllama a\b|\bllamar a\b|\batencion humana\b|\batencion personalizada\b|\bhablar con una persona\b|\bhablar con alguien\b/.test(x)};
 
-  // Agrupar por nombre base solo entre filas visibles.
-  const groups = {};
-  rows.forEach(row => {
-    const id = rowId(row);
-    const base = baseNameFor(id,row);
-    const key = normName(base);
-    if(!key) return;
-    (groups[key] ||= []).push({row,id,base});
-  });
+window.__tuCallTimers=window.__tuCallTimers||{};
+function beepCall(){try{const Ctx=window.AudioContext||window.webkitAudioContext,ctx=new Ctx();[740,980,740,980].forEach((f,i)=>{const o=ctx.createOscillator(),g=ctx.createGain(),t=ctx.currentTime+i*.16;o.type='square';o.frequency.value=f;o.connect(g);g.connect(ctx.destination);g.gain.setValueAtTime(.0001,t);g.gain.exponentialRampToValueAtTime(.18,t+.025);g.gain.exponentialRampToValueAtTime(.0001,t+.13);o.start(t);o.stop(t+.15)})}catch(e){try{if(typeof beep==='function')beep()}catch(_){}}}
+function stopCall(id){if(!id)return;try{if(window.__tuCallTimers[id]){clearInterval(window.__tuCallTimers[id]);delete window.__tuCallTimers[id]}}catch(e){}try{if(typeof stopRing==='function')stopRing(id)}catch(e){}try{if(typeof stopHumanRing==='function')stopHumanRing(id)}catch(e){}}
+function startCall(id){if(!id||window.__tuCallTimers[id])return;if(isAdm())beepCall();window.__tuCallTimers[id]=setInterval(()=>{const c=chats()[id];if(!c||!c.humanRequested||!c.callUntil||c.callAnsweredAt){stopCall(id);return}if(isAdm())beepCall()},10000)}
 
-  Object.values(groups).forEach(group => {
-    if(group.length <= 1){
-      group.forEach(item => setAlias(item.row,item.base,''));
-      return;
-    }
+window.tuSolicitarJavier=async function(id){if(!id)return;const t=Date.now();await upd(id,{humanRequested:true,waitingHuman:true,pendingHuman:true,pendingAt:t,priority:true,prioridad:true,callUntil:t+60000,callAnsweredAt:0,humanWaitStartedAt:t,humanFallbackSent:false,updatedAt:t,unreadAdmin:true,lastMsg:'📣 Llamada humana'});await msg(id,{from:'admin',auto:true,humanWait:true,text:'📣 Voy a intentar comunicarme con Javier. Aguardá un momento por favor.',time:ctime(),createdAt:t});startCall(id);if(isAdm()&&typeof showNotifBanner==='function')showNotifBanner('📣 Llamada humana',alias(id)+' necesita atención','📣',()=>{if(typeof window.abrirChatAdmin==='function')window.abrirChatAdmin(id,true)})};
+const oldResp=window.responderAutomaticoChat||(typeof responderAutomaticoChat!=='undefined'?responderAutomaticoChat:null);if(typeof oldResp==='function'&&!oldResp.__fase11){const r=async function(id,text){try{if(window.tuEsPedidoHumano(text)){await window.tuSolicitarJavier(id);return null}}catch(e){}return oldResp.apply(this,arguments)};r.__fase11=1;window.responderAutomaticoChat=r;try{responderAutomaticoChat=r}catch(e){}}
 
-    // Orden estable por fecha de creación/updatedAt si existe; si no, orden actual visible.
-    const db = chats();
-    group.sort((a,b)=>{
-      const ca = db[a.id] || {}, cb = db[b.id] || {};
-      const ta = Number(ca.createdAt || ca.firstSeenAt || ca.updatedAt || 0);
-      const tb = Number(cb.createdAt || cb.firstSeenAt || cb.updatedAt || 0);
-      if(ta && tb && ta !== tb) return ta - tb;
-      return 0;
-    });
+window.atenderLlamadaJavier=async function(id){id=id||admId();if(!id)return;stopCall(id);await upd(id,{humanRequested:false,waitingHuman:false,pendingHuman:true,pendingAt:Date.now(),priority:false,prioridad:false,callUntil:0,callAnsweredAt:Date.now(),humanMode:true,manualUntil:Date.now()+30*60*1000,javierOnline:true,javierOnlineAt:Date.now(),updatedAt:Date.now()});await msg(id,{from:'admin',auto:true,humanAttend:true,text:'🟢 Javier en línea. Te está atendiendo personalmente.',time:ctime(),createdAt:Date.now()});try{if(typeof updateChatMessagesOnly==='function')updateChatMessagesOnly(id,true)}catch(e){}try{if(typeof toast==='function')toast('👤 HUM activado · llamada atendida')}catch(e){}};
+const oldSend=window.enviarChatAdmin;if(typeof oldSend==='function'&&!oldSend.__fase11){const s=function(){const id=admId(),c=chats()[id]||{};if(id&&c.humanRequested)window.atenderLlamadaJavier(id);return oldSend.apply(this,arguments)};s.__fase11=1;window.enviarChatAdmin=s;try{enviarChatAdmin=s}catch(e){}}
 
-    group.forEach((item,idx)=>{
-      const suffix = idx === 0 ? '' : ' ('+(idx+1)+')';
-      setAlias(item.row,item.base,suffix);
-    });
-  });
-}
+async function finishExpiredCall(id,c){if(!id||!c||c.humanFallbackSent)return;const t=Date.now();stopCall(id);await upd(id,{humanRequested:false,waitingHuman:false,priority:false,prioridad:false,callUntil:0,callAnsweredAt:t,pendingHuman:true,pendingAt:Number(c.pendingAt||t),humanFallbackSent:true,updatedAt:t,lastMsg:'⭐ Consulta pendiente'});await msg(id,{from:'admin',auto:true,humanFallback:true,text:'En este momento Javier puede estar ocupado.\n\n📱 Dejame tu número de WhatsApp y tu consulta para Javier. Muy pronto se comunicará con vos.',time:ctime(),createdAt:t});setTimeout(()=>{try{if(typeof updateChatMessagesOnly==='function')updateChatMessagesOnly(id,!!q('#chat-popover.open #chat-admin-text'))}catch(e){}try{if(typeof abrirChatVisitante==='function'&&!q('#chat-popover.open #chat-admin-text'))abrirChatVisitante(id,true)}catch(e){}try{if(typeof window.abrirChatAdmin==='function'&&admId()===id)window.abrirChatAdmin(id,true)}catch(e){}},120)}
 
-function setAlias(row,base,suffix){
-  const node = nameNode(row);
-  if(!node) return;
+window.marcarChatAtendido=async function(id){if(!id)return;await upd(id,{pendingHuman:false,pendingAt:0,resolvedAt:Date.now(),updatedAt:Date.now()});try{if(typeof toast==='function')toast('✓ Pendiente marcado como atendido')}catch(e){}markRows()};
+const oldClose=window.cerrarConversacionChat;if(typeof oldClose==='function'&&!oldClose.__fase11){const cfn=function(id){const c=chats()[id]||{};if(c.pendingHuman){try{if(typeof toast==='function')toast('⭐ Tiene pendientes. Tocá la estrella para marcarlo atendido antes de cerrar.')}catch(e){};return}return oldClose.apply(this,arguments)};cfn.__fase11=1;window.cerrarConversacionChat=cfn;try{cerrarConversacionChat=cfn}catch(e){}}
 
-  // Guardar nombre base para no acumular (2) (2)
-  if(!node.dataset.tuBaseName) node.dataset.tuBaseName = cleanDisplayName(base || node.textContent || '');
-  const finalName = (base || node.dataset.tuBaseName || 'Visitante') + (suffix || '');
+document.addEventListener('keydown',e=>{if(!(e.ctrlKey&&e.code==='Space'))return;const id=admId();if(!id)return;e.preventDefault();e.stopPropagation();const c=chats()[id]||{},hum=!!(c.humanMode||Number(c.manualUntil||0)>Date.now());if(hum){upd(id,{humanMode:false,manualUntil:0,javierOnline:false,javierOnlineAt:0,updatedAt:Date.now()});try{if(typeof toast==='function')toast('🤖 AUTO activado')}catch(_){}}else{upd(id,{humanMode:true,manualUntil:Date.now()+30*60*1000,javierOnline:true,javierOnlineAt:Date.now(),updatedAt:Date.now()});try{if(typeof toast==='function')toast('👤 HUM activado')}catch(_){}}setTimeout(()=>{try{if(typeof window.abrirChatAdmin==='function')window.abrirChatAdmin(id,true)}catch(e){}},120)},true);
 
-  // Mantener iconos previos 📣/⭐ si existen y solo reemplazar texto principal.
-  let textNode = null;
-  node.childNodes.forEach(ch => {
-    if(ch.nodeType === Node.TEXT_NODE && String(ch.textContent||'').trim()) {
-      if(!textNode) textNode = ch;
-    }
-  });
+function lastUser(c){const arr=messages(c).filter(m=>m.from==='user'&&!m.hidden&&!m.deleted&&!m.deletedForVisitor);return arr.length?arr[arr.length-1]:null}
+const oldBanner=window.showNotifBanner;if(typeof oldBanner==='function'&&!oldBanner.__fase11){const b=function(title,body,icon,onClick){if(!isAdm())return;const joined=String(title||'')+' '+String(body||'');if(/voy a intentar|javier en línea|javier en linea|ocupado|dejame tu número|dejame tu numero|atendiendo/i.test(joined))return;if(/llamada/i.test(joined))return oldBanner.call(this,title,body,icon,onClick);let found='';Object.entries(chats()).some(([id,c])=>{const u=lastUser(c);if(!u||!u.text)return false;if(String(body||'').includes(u.text)||String(body||'').includes(cname(id,c)+': '+u.text)){found=id;return true}return false});if(!found)return;return oldBanner.call(this,title,alias(found)+': '+String(lastUser(chats()[found]).text||''),icon,()=>{if(typeof window.abrirChatAdmin==='function')window.abrirChatAdmin(found,true)})};b.__fase11=1;window.showNotifBanner=b;try{showNotifBanner=b}catch(e){}}
 
-  if(textNode){
-    if(cleanDisplayName(textNode.textContent) !== finalName){
-      textNode.textContent = finalName;
-    }
-  }else{
-    // Si el nodo tiene iconos/botones al inicio, insertar texto después del último icono.
-    const txt = document.createTextNode(finalName);
-    if(node.firstChild) node.appendChild(txt);
-    else node.textContent = finalName;
-  }
+let lastCount=0;setInterval(()=>{const pop=q('#chat-popover.open');if(!pop||q('#chat-admin-text',pop))return;const ms=qa('.chat-bubble',pop);if(ms.length===lastCount)return;lastCount=ms.length;const txt=(ms[ms.length-1]?.innerText||'').toLowerCase();if(txt.includes('en qué puedo ayudarte')||txt.includes('en que puedo ayudarte'))setTimeout(()=>{const inp=q('#chat-text',pop);if(inp)try{inp.focus({preventScroll:true})}catch(e){inp.focus()}},120)},500);
 
-  node.dataset.tuAliasName = finalName;
-}
+function markRows(){computeAliases();const db=chats();visibleRows().forEach(row=>{const id=rowId(row);if(!id)return;const c=db[id]||{};const calling=!!(c.humanRequested&&c.callUntil&&!c.callAnsweredAt&&Number(c.callUntil)>Date.now());const pending=!!c.pendingHuman&&!calling;row.classList.toggle('tu-f11-calling',calling);row.classList.toggle('tu-f11-pending',pending);qa('.tu-f7-mega,.tu-f8-icon,.tu-f9-icon,.tu-f10-icon,.tu-f11-icon',row).forEach(x=>x.remove());const node=nameNode(row);if(!node)return;if(calling){const s=document.createElement('span');s.className='tu-f11-icon tu-f11-mega';s.textContent='📣 ';s.title='Llamada activa';node.prepend(s)}else if(pending){const bt=document.createElement('button');bt.type='button';bt.className='tu-f11-icon tu-f11-star';bt.textContent='⭐';bt.title='Marcar pendiente como atendido';bt.onclick=ev=>{ev.preventDefault();ev.stopPropagation();window.marcarChatAtendido(id)};node.prepend(bt)}setAliasText(row,id)});updateHeaderAlias()}
+let lastSort=0;function sortRows(){if(Date.now()-lastSort<6000)return;const db=chats();qa('.chat-tabs,.chat-inbox-list').forEach(cont=>{if(cont.matches(':hover'))return;const rows=qa('.chat-tab,[data-chat-id]',cont);if(rows.length<2)return;rows.map((row,i)=>{const id=rowId(row),c=db[id]||{};const call=!!(c.humanRequested&&c.callUntil&&!c.callAnsweredAt&&Number(c.callUntil)>Date.now());const pend=!!c.pendingHuman&&!call;return{row,i,score:(call?1e12:0)+(pend?5e11:0)+Number(c.updatedAt||0)}}).sort((a,b)=>b.score-a.score||a.i-b.i).forEach(x=>cont.appendChild(x.row))});lastSort=Date.now()}
 
-// Usar MutationObserver para aplicar luego de renders, sin recrear DOM.
-let scheduled = false;
-function schedule(){
-  if(scheduled) return;
-  scheduled = true;
-  requestAnimationFrame(()=>{
-    scheduled = false;
-    applyDuplicateNames();
-  });
-}
+setInterval(()=>{const now=Date.now();Object.entries(chats()).forEach(([id,c])=>{c=c||{};if(c.humanRequested&&c.callUntil&&!c.callAnsweredAt&&Number(c.callUntil)>now)startCall(id);else stopCall(id);if(c.humanRequested&&c.callUntil&&!c.callAnsweredAt&&Number(c.callUntil)<=now)finishExpiredCall(id,c)});markRows();sortRows()},1200);
 
-const obs = new MutationObserver(schedule);
-function bind(){
-  const pop = document.getElementById('chat-popover') || document.body;
-  try{ obs.observe(pop,{childList:true,subtree:true,characterData:true}); }catch(e){}
-  schedule();
-}
-if(document.readyState === 'loading') document.addEventListener('DOMContentLoaded',bind,{once:true});
-else bind();
+function css(){if(q('#tu-fase11-css'))return;const st=document.createElement('style');st.id='tu-fase11-css';st.textContent=['.chat-bubble.tu-human-wait{background:#fff!important;color:#111!important;border:1px solid rgba(232,0,10,.25)!important;}','.chat-bubble.tu-human-wait .chat-meta{color:#555!important;}','.chat-human-countdown{margin-top:8px;font-size:12px;font-weight:900;color:#e8000a!important;}','.chat-bubble.tu-human-attend{background:#e9fff1!important;color:#111!important;border:1px solid rgba(0,160,80,.25)!important;}','.chat-attend-call{margin-top:10px;border:0!important;border-radius:999px!important;background:#e8000a!important;color:#fff!important;padding:8px 12px!important;font-weight:900!important;cursor:pointer!important;}','.tu-f11-calling{border-color:#ff2020!important;box-shadow:inset 3px 0 0 #ff2020!important;animation:tuF11Pulse 1.15s infinite!important;}','.tu-f11-pending{border-color:#ffd54a!important;box-shadow:inset 3px 0 0 #ffd54a!important;}','.tu-f11-icon{display:inline-flex!important;align-items:center!important;justify-content:center!important;margin-right:5px!important;vertical-align:middle!important;}','.tu-f11-star{border:0!important;background:transparent!important;color:#ffd54a!important;padding:0!important;cursor:pointer!important;font-size:14px!important;filter:drop-shadow(0 0 5px rgba(255,213,74,.7))!important;}','.tu-f11-mega{color:#ff3636!important;filter:drop-shadow(0 0 6px rgba(255,30,30,.75))!important;}','@keyframes tuF11Pulse{0%,100%{box-shadow:inset 3px 0 0 #ff2020,0 0 0 rgba(255,32,32,0)}50%{box-shadow:inset 3px 0 0 #ff2020,0 0 14px rgba(255,32,32,.55)}}'].join('\\n');document.head.appendChild(st)}css();
 
-setInterval(schedule,1500);
+setInterval(()=>qa('.chat-human-countdown').forEach(el=>{const st=Number(el.getAttribute('data-human-wait-start')||0);if(!st)return;const n=el.querySelector('.chat-human-countdown-num');if(n)n.textContent=Math.max(0,60-Math.floor((Date.now()-st)/1000))}),500);
 })();
