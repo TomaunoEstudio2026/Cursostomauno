@@ -2049,7 +2049,7 @@ window.chatGoToSection = (id) => {
 };
 function renderMsgs(chat, adminView=false, chatId=''){
   return chatMsgs(chat).filter(([mid,m]) => !(m && (m.hidden || m.deleted || m.deletedForVisitor))).map(([mid,m]) => {
-    const editBtn = adminView && m.from === 'admin' ? '<button class="chat-edit-mini" title="Editar respuesta" onclick="event.stopPropagation();window.editarMensajeChat(\''+chatId+'\',\''+mid+'\')">✎</button>' : '';
+    const editBtn = adminView && m.from === 'admin' && !m.humanWait && !m.humanAttend ? '<button class="chat-edit-mini" title="Editar respuesta" onclick="event.stopPropagation();window.editarMensajeChat(\''+chatId+'\',\''+mid+'\')">✎</button>' : '';
     const deleteBtn = adminView && (m.from === 'admin' || m.from === 'system') && !m.typing ? '<button class="chat-delete-mini" title="Borrar para el visitante" onclick="event.stopPropagation();window.borrarMensajeChatParaVisitante(\''+chatId+'\',\''+mid+'\')">🗑️</button>' : '';
     const cls = m.typing ? 'typing' : (m.humanWait ? 'admin tu-human-wait' : (m.humanAttend ? 'admin tu-human-attend' : (m.from==='admin'?'admin':m.from==='system'?'system':'user')));
     const actions = (!m.typing && !m.humanWait && !m.humanAttend && (m.from==='admin' || m.from==='system')) ? chatActionButtonsForMessage(m.text || '') : '';
@@ -2057,8 +2057,7 @@ function renderMsgs(chat, adminView=false, chatId=''){
     const waitStart = m.humanWait ? Number(chat?.humanWaitStartedAt || m.createdAt || 0) : 0;
     const waitCountdown = (m.humanWait && waitStart && !attended) ? '<div class="chat-human-countdown" data-human-wait-start="'+waitStart+'"><span class="chat-human-countdown-num">60</span>s para intentar conectar con Javier</div>' : '';
     const attendBtn = adminView && m.humanWait && !attended ? '<button class="chat-attend-call" onclick="event.stopPropagation();window.atenderLlamadaJavier(\''+chatId+'\')">📞 ATENDIENDO</button>' : '';
-    const attendedNote = m.humanWait && attended ? '<div class="chat-human-attended-note">🟢 Javier está atendiendo esta consulta.</div>' : '';
-    return '<div class="chat-bubble '+cls+'" data-message-id="'+escAttr(mid)+'" data-msg-id="'+escAttr(mid)+'"><div>'+chatLinkify(m.text||'')+editBtn+deleteBtn+'</div>'+waitCountdown+attendedNote+attendBtn+actions+(m.from==='system'?'':'<div class="chat-meta">'+escHtml(m.time||'')+'</div>')+'</div>';
+    return '<div class="chat-bubble '+cls+'" data-message-id="'+escAttr(mid)+'" data-msg-id="'+escAttr(mid)+'"><div>'+chatLinkify(m.text||'')+editBtn+deleteBtn+'</div>'+waitCountdown+attendBtn+actions+(m.from==='system'?'':'<div class="chat-meta">'+escHtml(m.time||'')+'</div>')+'</div>';
   }).join('');
 }
 function scrollChatSmart(box){
@@ -9878,292 +9877,59 @@ setInterval(fixVisitorHeader,700);
 
 })();
 
-// TOMAUNO LIMPIO FASE 6 — LLAMADA => HUM / ATAJO / NOTIFICACIONES
-// Solo llamada, ATENDIENDO, detector humano, notificaciones y Ctrl+Espacio.
+// TOMAUNO LIMPIO FASE 7 — NOTIF SOLO ADM / BANDEJA / LLAMADA
+// No toca scroll, maximizado ni duplicados.
 (function(){
 'use strict';
-
 function q(s,r){return (r||document).querySelector(s)}
 function qa(s,r){return Array.from((r||document).querySelectorAll(s))}
 function adminIdSafe(){try{return window.currentOpenChatId || currentOpenChatId || ''}catch(e){return ''}}
 function chatsSafe(){try{return window.chatsDB || chatsDB || {}}catch(e){return {}}}
-function chatName(id,c){c=c||{};return String(c.name||c.nombre||('Visitante '+String(id||'').slice(-4))).trim();}
-function chatTime(){
-  try{return typeof chatTimeSafe==='function'?chatTimeSafe():new Date().toLocaleTimeString('es-AR',{hour:'2-digit',minute:'2-digit'});}
-  catch(e){return '';}
-}
-function updateChatSafe(id,data){
-  try{
-    if(window.chatsDB && window.chatsDB[id]) Object.assign(window.chatsDB[id], data);
-    if(typeof chatsDB !== 'undefined' && chatsDB[id]) Object.assign(chatsDB[id], data);
-    if(typeof db !== 'undefined' && typeof ref !== 'undefined' && typeof update !== 'undefined'){
-      return update(ref(db,'tomauno/chats/'+id), data).catch(()=>{});
-    }
-  }catch(e){}
-  return Promise.resolve();
-}
-async function pushMessage(id,data){
-  try{
-    if(id && typeof push==='function' && typeof ref==='function' && typeof db!=='undefined'){
-      return await push(ref(db,'tomauno/chats/'+id+'/messages'), data);
-    }
-  }catch(e){}
-}
+function isAdminCtx(){try{if(typeof isAdminNotifier==='function'&&isAdminNotifier())return true;if(localStorage.getItem('tomauno-admin-notify')==='1')return true;}catch(e){}return !!q('#chat-popover.open #chat-admin-text,#chat-popover.open .chat-inbox-side,#chat-popover.open .chat-admin-tools')}
+function chatName(id,c){c=c||{};return String(c.name||c.nombre||('Visitante '+String(id||'').slice(-4))).trim()}
+function chatTime(){try{return typeof chatTimeSafe==='function'?chatTimeSafe():new Date().toLocaleTimeString('es-AR',{hour:'2-digit',minute:'2-digit'})}catch(e){return ''}}
+function updateChatSafe(id,data){try{if(window.chatsDB&&window.chatsDB[id])Object.assign(window.chatsDB[id],data);if(typeof chatsDB!=='undefined'&&chatsDB[id])Object.assign(chatsDB[id],data);if(typeof db!=='undefined'&&typeof ref!=='undefined'&&typeof update!=='undefined')return update(ref(db,'tomauno/chats/'+id),data).catch(()=>{})}catch(e){}return Promise.resolve()}
+async function pushMessage(id,data){try{if(id&&typeof push==='function'&&typeof ref==='function'&&typeof db!=='undefined')return await push(ref(db,'tomauno/chats/'+id+'/messages'),data)}catch(e){}}
 
-function removeAlertButtons(){
-  qa('.tu-v28d-sound-unlock,.tu-call-sound-unlock,.tu-sound-unlock,.tu-v34-sound-unlock').forEach(n=>n.remove());
-  qa('button').forEach(b=>{
-    if(/activar alertas|activar llamada|activar llamadas|activar sonido/i.test(b.innerText||'')) b.remove();
-  });
-}
-setInterval(removeAlertButtons,800);
-removeAlertButtons();
+function removeAlertButtons(){qa('.tu-v28d-sound-unlock,.tu-call-sound-unlock,.tu-sound-unlock,.tu-v34-sound-unlock').forEach(n=>n.remove());qa('button').forEach(b=>{if(/activar alertas|activar llamada|activar llamadas|activar sonido/i.test(b.innerText||''))b.remove()})}
+setInterval(removeAlertButtons,800);removeAlertButtons();
 
-function norm(s){
-  return String(s||'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/\s+/g,' ').trim();
-}
-window.tuEsPedidoHumano = function(text){
-  const raw = String(text||'').trim().toLowerCase();
-  const x = norm(text);
-  if(!x) return false;
+document.addEventListener('pointerdown',function(e){const btn=e.target&&e.target.closest&&e.target.closest('button,a');if(!btn)return;const txt=(btn.innerText||btn.textContent||btn.title||btn.getAttribute('aria-label')||'').toLowerCase().trim();if(txt.includes('bandeja')||txt==='←'||txt.includes('volver')){window.__tomaunoForceInboxOnce=true;window.__tomaunoManualInboxUntil=Date.now()+2500}},true);
+document.addEventListener('click',function(e){const btn=e.target&&e.target.closest&&e.target.closest('button,a');if(!btn)return;const txt=(btn.innerText||btn.textContent||btn.title||btn.getAttribute('aria-label')||'').toLowerCase().trim();if(txt.includes('bandeja')||txt==='←'||txt.includes('volver')){window.__tomaunoForceInboxOnce=true;window.__tomaunoManualInboxUntil=Date.now()+2500;if(typeof window.abrirPanelChatsAdmin==='function')setTimeout(()=>window.abrirPanelChatsAdmin(true),0)}},true);
 
-  if(/^(quien|quién|como se llama|cómo se llama|cual es|cuál es)\b/.test(raw)) return false;
-  if(/\bquien es\b|\bquién es\b|\bcomo se llama\b|\bcómo se llama\b/.test(raw)) return false;
+let lastMsgCount=0;
+function focusAfterGreeting(){const pop=q('#chat-popover.open');if(!pop||q('#chat-admin-text',pop))return;const msgs=qa('.chat-bubble',pop);if(msgs.length!==lastMsgCount){lastMsgCount=msgs.length;const last=msgs[msgs.length-1];const txt=(last&&last.innerText||'').toLowerCase();if(txt.includes('en qué puedo ayudarte')||txt.includes('en que puedo ayudarte')){setTimeout(()=>{const inp=q('#chat-text',pop);if(inp)try{inp.focus({preventScroll:true})}catch(e){inp.focus()}},120)}}}
+setInterval(focusAfterGreeting,500);
 
-  return (
-    /\bquiero hablar con\b/.test(x) ||
-    /\bpuedo hablar con\b/.test(x) ||
-    /\bpodria hablar con\b/.test(x) ||
-    /\bpodria comunicarme con\b/.test(x) ||
-    /\bpuedo comunicarme con\b/.test(x) ||
-    /\bcomunicarme con\b/.test(x) ||
-    /\bcontactarme con\b/.test(x) ||
-    /\bme pasas con\b/.test(x) ||
-    /\bme pasas a\b/.test(x) ||
-    /\bpasame con\b/.test(x) ||
-    /\bpasame a\b/.test(x) ||
-    /\bllama a\b/.test(x) ||
-    /\bllamar a\b/.test(x) ||
-    /\batencion humana\b/.test(x) ||
-    /\batencion personalizada\b/.test(x) ||
-    /\bhablar con una persona\b/.test(x) ||
-    /\bhablar con alguien\b/.test(x)
-  );
-};
+function norm(s){return String(s||'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/\s+/g,' ').trim()}
+window.tuEsPedidoHumano=function(text){const raw=String(text||'').trim().toLowerCase();const x=norm(text);if(!x)return false;if(/^(quien|quién|como se llama|cómo se llama|cual es|cuál es)\b/.test(raw))return false;if(/\bquien es\b|\bquién es\b|\bcomo se llama\b|\bcómo se llama\b/.test(raw))return false;return /\bquiero hablar con\b|\bpuedo hablar con\b|\bpodria hablar con\b|\bpodria comunicarme con\b|\bpuedo comunicarme con\b|\bcomunicarme con\b|\bcontactarme con\b|\bme pasas con\b|\bme pasas a\b|\bpasame con\b|\bpasame a\b|\bllama a\b|\bllamar a\b|\batencion humana\b|\batencion personalizada\b|\bhablar con una persona\b|\bhablar con alguien\b/.test(x)};
 
-window.__tuCallTimers = window.__tuCallTimers || {};
-function playCallSound(){
-  try{
-    const Ctx = window.AudioContext || window.webkitAudioContext;
-    const ctx = new Ctx();
-    [740,980,740,980].forEach((freq,i)=>{
-      const osc=ctx.createOscillator();
-      const gain=ctx.createGain();
-      osc.type='square';
-      osc.frequency.value=freq;
-      osc.connect(gain);
-      gain.connect(ctx.destination);
-      const t=ctx.currentTime+i*0.16;
-      gain.gain.setValueAtTime(0.0001,t);
-      gain.gain.exponentialRampToValueAtTime(0.18,t+0.025);
-      gain.gain.exponentialRampToValueAtTime(0.0001,t+0.13);
-      osc.start(t); osc.stop(t+0.15);
-    });
-  }catch(e){try{if(typeof beep==='function')beep();}catch(_){}}
-}
-function stopCallSound(id){
-  if(!id) return;
-  try{ if(window.__tuCallTimers[id]){clearInterval(window.__tuCallTimers[id]);delete window.__tuCallTimers[id];} }catch(e){}
-  try{ if(typeof stopRing==='function') stopRing(id); }catch(e){}
-  try{ if(typeof stopHumanRing==='function') stopHumanRing(id); }catch(e){}
-}
-function startCallSound(id){
-  if(!id || window.__tuCallTimers[id]) return;
-  playCallSound();
-  window.__tuCallTimers[id]=setInterval(()=>{
-    const c=chatsSafe()[id];
-    if(!c || !c.humanRequested || !c.callUntil || c.callAnsweredAt){stopCallSound(id);return;}
-    playCallSound();
-  },10000);
-}
+window.__tuCallTimers=window.__tuCallTimers||{};
+function playCallSound(){try{const Ctx=window.AudioContext||window.webkitAudioContext;const ctx=new Ctx();[740,980,740,980].forEach((freq,i)=>{const osc=ctx.createOscillator();const gain=ctx.createGain();osc.type='square';osc.frequency.value=freq;osc.connect(gain);gain.connect(ctx.destination);const t=ctx.currentTime+i*.16;gain.gain.setValueAtTime(.0001,t);gain.gain.exponentialRampToValueAtTime(.18,t+.025);gain.gain.exponentialRampToValueAtTime(.0001,t+.13);osc.start(t);osc.stop(t+.15)})}catch(e){try{if(typeof beep==='function')beep()}catch(_){}}}
+function stopCallSound(id){if(!id)return;try{if(window.__tuCallTimers[id]){clearInterval(window.__tuCallTimers[id]);delete window.__tuCallTimers[id]}}catch(e){}try{if(typeof stopRing==='function')stopRing(id)}catch(e){}try{if(typeof stopHumanRing==='function')stopHumanRing(id)}catch(e){}}
+function startCallSound(id){if(!id||window.__tuCallTimers[id])return;if(isAdminCtx())playCallSound();window.__tuCallTimers[id]=setInterval(()=>{const c=chatsSafe()[id];if(!c||!c.humanRequested||!c.callUntil||c.callAnsweredAt){stopCallSound(id);return}if(isAdminCtx())playCallSound()},10000)}
 
-window.tuSolicitarJavier = async function(id){
-  if(!id) return;
-  const started=Date.now();
-  const until=started+60000;
-  await updateChatSafe(id,{
-    humanRequested:true,
-    waitingHuman:true,
-    priority:true,
-    prioridad:true,
-    callUntil:until,
-    callAnsweredAt:0,
-    humanWaitStartedAt:started,
-    updatedAt:started,
-    unreadAdmin:true,
-    lastMsg:'📣 Llamada humana'
-  });
-  await pushMessage(id,{
-    from:'admin',
-    auto:true,
-    humanWait:true,
-    text:'📣 Voy a intentar comunicarme con Javier. Aguardá un momento por favor.',
-    time:chatTime(),
-    createdAt:started
-  });
-  startCallSound(id);
-  try{
-    if(typeof showNotifBanner==='function'){
-      const c=chatsSafe()[id]||{};
-      showNotifBanner('📣 Llamada humana', chatName(id,c)+' necesita atención', '📣', () => {
-        if(typeof window.abrirChatAdmin==='function') window.abrirChatAdmin(id,true);
-      });
-    }
-  }catch(e){}
-};
+window.tuSolicitarJavier=async function(id){if(!id)return;const started=Date.now();const until=started+60000;await updateChatSafe(id,{humanRequested:true,waitingHuman:true,priority:true,prioridad:true,callUntil:until,callAnsweredAt:0,humanWaitStartedAt:started,updatedAt:started,unreadAdmin:true,lastMsg:'📣 Llamada humana'});await pushMessage(id,{from:'admin',auto:true,humanWait:true,text:'📣 Voy a intentar comunicarme con Javier. Aguardá un momento por favor.',time:chatTime(),createdAt:started});startCallSound(id);if(isAdminCtx())showCallNotif(id)}
+function showCallNotif(id){if(!isAdminCtx())return;const c=chatsSafe()[id]||{};try{if(typeof showNotifBanner==='function')showNotifBanner('📣 Llamada humana',chatName(id,c)+' necesita atención','📣',()=>{if(typeof window.abrirChatAdmin==='function')window.abrirChatAdmin(id,true)})}catch(e){}}
 
-const oldResponder = window.responderAutomaticoChat || (typeof responderAutomaticoChat !== 'undefined' ? responderAutomaticoChat : null);
-if(typeof oldResponder === 'function' && !oldResponder.__fase6Human){
-  const responder6 = async function(id,text){
-    try{
-      if(window.tuEsPedidoHumano(text)){
-        await window.tuSolicitarJavier(id);
-        return null;
-      }
-    }catch(e){}
-    return oldResponder.apply(this,arguments);
-  };
-  responder6.__fase6Human=1;
-  window.responderAutomaticoChat=responder6;
-  try{responderAutomaticoChat=responder6;}catch(e){}
-}
+const oldResponder=window.responderAutomaticoChat||(typeof responderAutomaticoChat!=='undefined'?responderAutomaticoChat:null);
+if(typeof oldResponder==='function'&&!oldResponder.__fase7Human){const responder7=async function(id,text){try{if(window.tuEsPedidoHumano(text)){await window.tuSolicitarJavier(id);return null}}catch(e){}return oldResponder.apply(this,arguments)};responder7.__fase7Human=1;window.responderAutomaticoChat=responder7;try{responderAutomaticoChat=responder7}catch(e){}}
 
-window.atenderLlamadaJavier = async function(id){
-  id = id || adminIdSafe();
-  if(!id) return;
-  stopCallSound(id);
-  await updateChatSafe(id,{
-    humanRequested:false,
-    waitingHuman:false,
-    priority:false,
-    prioridad:false,
-    callUntil:0,
-    callAnsweredAt:Date.now(),
-    humanMode:true,
-    manualUntil:Date.now()+30*60*1000,
-    javierOnline:true,
-    javierOnlineAt:Date.now(),
-    updatedAt:Date.now()
-  });
+window.atenderLlamadaJavier=async function(id){id=id||adminIdSafe();if(!id)return;stopCallSound(id);await updateChatSafe(id,{humanRequested:false,waitingHuman:false,priority:false,prioridad:false,callUntil:0,callAnsweredAt:Date.now(),humanMode:true,manualUntil:Date.now()+30*60*1000,javierOnline:true,javierOnlineAt:Date.now(),updatedAt:Date.now()});await pushMessage(id,{from:'admin',auto:true,humanAttend:true,text:'🟢 Javier está atendiendo esta consulta.',time:chatTime(),createdAt:Date.now()});try{if(typeof updateChatMessagesOnly==='function')updateChatMessagesOnly(id,true)}catch(e){}try{if(typeof toast==='function')toast('👤 HUM activado · llamada atendida')}catch(e){}}
 
-  await pushMessage(id,{
-    from:'admin',
-    auto:true,
-    humanAttend:true,
-    text:'🟢 Javier está atendiendo esta consulta.',
-    time:chatTime(),
-    createdAt:Date.now()
-  });
+const oldSend=window.enviarChatAdmin;if(typeof oldSend==='function'&&!oldSend.__fase7Call){const send7=function(){const id=adminIdSafe();const c=chatsSafe()[id]||{};if(id&&c.humanRequested)window.atenderLlamadaJavier(id);return oldSend.apply(this,arguments)};send7.__fase7Call=1;window.enviarChatAdmin=send7;try{enviarChatAdmin=send7}catch(e){}}
 
-  try{ if(typeof updateChatMessagesOnly==='function') updateChatMessagesOnly(id,true); }catch(e){}
-  try{ if(typeof toast==='function') toast('👤 HUM activado · llamada atendida'); }catch(e){}
-};
+document.addEventListener('keydown',function(e){if(!(e.ctrlKey&&e.code==='Space'))return;const id=adminIdSafe();if(!id)return;e.preventDefault();e.stopPropagation();const c=chatsSafe()[id]||{};const isHuman=!!(c.humanMode||Number(c.manualUntil||0)>Date.now());if(isHuman){updateChatSafe(id,{humanMode:false,manualUntil:0,javierOnline:false,javierOnlineAt:0,updatedAt:Date.now()});try{if(typeof toast==='function')toast('🤖 AUTO activado')}catch(_){}}else{updateChatSafe(id,{humanMode:true,manualUntil:Date.now()+30*60*1000,javierOnline:true,javierOnlineAt:Date.now(),updatedAt:Date.now()});try{if(typeof toast==='function')toast('👤 HUM activado')}catch(_){}}setTimeout(()=>{try{if(typeof window.abrirChatAdmin==='function')window.abrirChatAdmin(id,true)}catch(e){}},120)},true);
 
-const oldSend = window.enviarChatAdmin;
-if(typeof oldSend === 'function' && !oldSend.__fase6Call){
-  const send6 = function(){
-    const id=adminIdSafe();
-    const c=chatsSafe()[id]||{};
-    if(id && c.humanRequested) window.atenderLlamadaJavier(id);
-    return oldSend.apply(this,arguments);
-  };
-  send6.__fase6Call=1;
-  window.enviarChatAdmin=send6;
-  try{enviarChatAdmin=send6;}catch(e){}
-}
+const oldBanner=window.showNotifBanner;if(typeof oldBanner==='function'&&!oldBanner.__fase7Filter){const banner7=function(title,msg,icon,onClick){if(!isAdminCtx())return;let t=String(title||''),m=String(msg||'');const joined=(t+' '+m).toLowerCase();if(joined.includes('asistente')||joined.includes('javier responder')||joined.includes('voy a intentar comunicarme')||joined.includes('atendiendo esta consulta')||joined.includes('dejame tu número de whatsapp')||joined.includes('dejame tu numero de whatsapp'))return;const parts=m.split(':').map(x=>x.trim()).filter(Boolean);if(parts.length===2&&parts[0].toLowerCase()===parts[1].toLowerCase()){t='Nuevo visitante';m=parts[0];icon='👋'}return oldBanner.call(this,t,m,icon,onClick)};banner7.__fase7Filter=1;window.showNotifBanner=banner7;try{showNotifBanner=banner7}catch(e){}}
 
-document.addEventListener('keydown',function(e){
-  if(!(e.ctrlKey && e.code==='Space')) return;
-  const id=adminIdSafe();
-  if(!id) return;
-  e.preventDefault();
-  e.stopPropagation();
-
-  const c=chatsSafe()[id]||{};
-  const isHuman=!!(c.humanMode || Number(c.manualUntil||0)>Date.now());
-  if(isHuman){
-    updateChatSafe(id,{humanMode:false,manualUntil:0,javierOnline:false,javierOnlineAt:0,updatedAt:Date.now()});
-    try{ if(typeof toast==='function') toast('🤖 AUTO activado'); }catch(_){}
-  }else{
-    updateChatSafe(id,{humanMode:true,manualUntil:Date.now()+30*60*1000,javierOnline:true,javierOnlineAt:Date.now(),updatedAt:Date.now()});
-    try{ if(typeof toast==='function') toast('👤 HUM activado'); }catch(_){}
-  }
-},true);
-
-const oldBanner = window.showNotifBanner;
-if(typeof oldBanner === 'function' && !oldBanner.__fase6Filter){
-  const banner6 = function(title,msg,icon,onClick){
-    let t=String(title||'');
-    let m=String(msg||'');
-    const joined=(t+' '+m).toLowerCase();
-
-    if(
-      joined.includes('asistente') ||
-      joined.includes('javier responder') ||
-      joined.includes('voy a intentar comunicarme') ||
-      joined.includes('atendiendo esta consulta') ||
-      joined.includes('dejame tu número de whatsapp') ||
-      joined.includes('dejame tu numero de whatsapp') ||
-      m.length>95
-    ) return;
-
-    const parts=m.split(':').map(x=>x.trim()).filter(Boolean);
-    if(parts.length===2 && parts[0].toLowerCase()===parts[1].toLowerCase()){
-      t='Nuevo visitante';
-      m=parts[0];
-      icon='👋';
-    }
-    return oldBanner.call(this,t,m,icon,onClick);
-  };
-  banner6.__fase6Filter=1;
-  window.showNotifBanner=banner6;
-  try{showNotifBanner=banner6;}catch(e){}
-}
-
-function watchCalls(){
-  Object.entries(chatsSafe()).forEach(([id,c])=>{
-    c=c||{};
-    if(c.humanRequested && c.callUntil && !c.callAnsweredAt && Number(c.callUntil)>Date.now()) startCallSound(id);
-    else stopCallSound(id);
-  });
-}
+function watchCalls(){Object.entries(chatsSafe()).forEach(([id,c])=>{c=c||{};if(c.humanRequested&&c.callUntil&&!c.callAnsweredAt&&Number(c.callUntil)>Date.now()){startCallSound(id);markCallRows()}else stopCallSound(id)})}
 setInterval(watchCalls,1500);
 
-function css(){
-  if(document.getElementById('tu-fase6-call-css')) return;
-  const st=document.createElement('style');
-  st.id='tu-fase6-call-css';
-  st.textContent=[
-    '.chat-bubble.tu-human-wait{background:#fff!important;color:#111!important;border:1px solid rgba(232,0,10,.25)!important;}',
-    '.chat-bubble.tu-human-wait .chat-meta{color:#555!important;}',
-    '.chat-human-countdown{margin-top:8px;font-size:12px;font-weight:900;color:#e8000a!important;}',
-    '.chat-human-attended-note{margin-top:8px;font-size:12px;font-weight:900;color:#0a8f45!important;}',
-    '.chat-bubble.tu-human-attend{background:#e9fff1!important;color:#111!important;border:1px solid rgba(0,160,80,.25)!important;}',
-    '.chat-attend-call{margin-top:10px;border:0!important;border-radius:999px!important;background:#e8000a!important;color:#fff!important;padding:8px 12px!important;font-weight:900!important;cursor:pointer!important;}'
-  ].join('\n');
-  document.head.appendChild(st);
-}
+function markCallRows(){const calls=chatsSafe();qa('.chat-tab,[data-chat-id]').forEach(row=>{const id=row.getAttribute('data-chat-id')||row.dataset.chatId||'';if(!id)return;const c=calls[id]||{};const calling=!!(c.humanRequested&&c.callUntil&&!c.callAnsweredAt);row.classList.toggle('tu-f7-calling',calling);const name=row.querySelector('.chat-tab-name,.chat-name,strong,b')||row;if(calling&&!name.querySelector('.tu-f7-mega')){const s=document.createElement('span');s.className='tu-f7-mega';s.textContent='📣 ';s.title='Llamada humana';name.prepend(s)}if(!calling)qa('.tu-f7-mega',name).forEach(x=>x.remove())})}
+
+function css(){if(document.getElementById('tu-fase7-css'))return;const st=document.createElement('style');st.id='tu-fase7-css';st.textContent=['.chat-bubble.tu-human-wait{background:#fff!important;color:#111!important;border:1px solid rgba(232,0,10,.25)!important;}','.chat-bubble.tu-human-wait .chat-meta{color:#555!important;}','.chat-human-countdown{margin-top:8px;font-size:12px;font-weight:900;color:#e8000a!important;}','.chat-bubble.tu-human-attend{background:#e9fff1!important;color:#111!important;border:1px solid rgba(0,160,80,.25)!important;}','.chat-attend-call{margin-top:10px;border:0!important;border-radius:999px!important;background:#e8000a!important;color:#fff!important;padding:8px 12px!important;font-weight:900!important;cursor:pointer!important;}','.tu-f7-calling{border-color:#ffd54a!important;box-shadow:inset 3px 0 0 #ffd54a!important;}','.tu-f7-mega{color:#ffd54a!important;filter:drop-shadow(0 0 5px rgba(255,213,74,.8))!important;}'].join('\\n');document.head.appendChild(st)}
 css();
-
-function tickCountdown(){
-  qa('.chat-human-countdown').forEach(el=>{
-    const start=Number(el.getAttribute('data-human-wait-start')||0);
-    if(!start) return;
-    const left=Math.max(0,60-Math.floor((Date.now()-start)/1000));
-    const num=el.querySelector('.chat-human-countdown-num');
-    if(num) num.textContent=left;
-  });
-}
+function tickCountdown(){qa('.chat-human-countdown').forEach(el=>{const start=Number(el.getAttribute('data-human-wait-start')||0);if(!start)return;const left=Math.max(0,60-Math.floor((Date.now()-start)/1000));const num=el.querySelector('.chat-human-countdown-num');if(num)num.textContent=left})}
 setInterval(tickCountdown,500);
-
 })();
