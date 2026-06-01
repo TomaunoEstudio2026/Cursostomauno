@@ -1770,6 +1770,19 @@ onValue(ref(db, 'tomauno/chats'), snap => {
 
   if (knownChatIds === null) {
     knownChatIds = new Set(chatEntries.map(([id]) => id));
+    if(isAdminNotifier()){
+      const recientes = chatEntries
+        .filter(([id,c]) => !notifiedChatIds.has(id) && c.unreadAdmin && c.status !== 'cerrado')
+        .map(([id,c]) => ({id,c,u:tomaunoUltimoMensajeUsuarioChat(c)}))
+        .filter(x => x.u && x.u.text && Number(x.u.createdAt || x.c.updatedAt || 0) > Date.now() - 120000)
+        .sort((a,b)=>Number(b.u.createdAt||b.c.updatedAt||0)-Number(a.u.createdAt||a.c.updatedAt||0));
+      if(recientes.length){
+        const top = recientes[0];
+        notifyAdminChat('Nuevo chat web', (top.c?.name || 'Sin nombre') + ': ' + top.u.text, top.id);
+        recientes.forEach(x => notifiedChatIds.add(x.id));
+        try{ localStorage.setItem('tomauno-chat-notified', JSON.stringify([...notifiedChatIds])); }catch(e){}
+      }
+    }
   } else if (isAdminNotifier()) {
     // Notificar una sola vez por conversación cuando aparece el primer mensaje no leído para admin.
     // Aunque el chat ya haya sido creado segundos antes al poner el nombre.
@@ -3438,21 +3451,29 @@ function showNotif() {
 }
 
 function showNotifBanner(titulo, detalle, icono='🔴', onClick=null) {
-  let banner = document.getElementById('notif-banner');
-  if (!banner) {
-    banner = document.createElement('div');
-    banner.id = 'notif-banner';
-    banner.style.cssText = 'position:fixed;top:72px;right:16px;z-index:800;background:#111;border:1.5px solid var(--red);border-radius:14px;padding:14px 18px;max-width:320px;box-shadow:0 8px 30px rgba(0,0,0,.6);transform:translateX(340px);transition:transform .4s cubic-bezier(.4,0,.2,1);cursor:pointer;';
-    banner.onclick = () => { if (typeof banner._action === 'function') { banner.style.transform='translateX(340px)'; banner._action(); } else banner.style.transform = 'translateX(340px)'; };
-    document.body.appendChild(banner);
+  let stack = document.getElementById('notif-stack');
+  if (!stack) {
+    stack = document.createElement('div');
+    stack.id = 'notif-stack';
+    stack.style.cssText = 'position:fixed;top:72px;right:16px;z-index:99999;display:flex;flex-direction:column;gap:10px;max-width:340px;max-height:calc(100vh - 95px);overflow-y:auto;overscroll-behavior:contain;padding-right:4px;';
+    document.body.appendChild(stack);
   }
-  banner._action = onClick;
+  const banner = document.createElement('div');
+  banner.className = 'notif-banner-item';
+  banner.id = 'notif-banner';
+  banner.style.cssText = 'position:relative;background:#111;border:1.5px solid var(--red);border-radius:14px;padding:14px 44px 14px 18px;box-shadow:0 8px 30px rgba(0,0,0,.6);cursor:pointer;';
   banner.innerHTML =
+    '<button class="notif-close-x" title="Cerrar notificación" style="position:absolute;top:7px;right:8px;width:24px;height:24px;border:0;border-radius:50%;background:rgba(255,255,255,.16);color:#fff;font-size:17px;font-weight:900;cursor:pointer;line-height:22px;">×</button>' +
     '<div style="font-size:10px;color:var(--red);font-weight:800;letter-spacing:.1em;text-transform:uppercase;margin-bottom:6px;">' + icono + ' ' + escHtml(titulo || 'Notificación') + '</div>' +
     '<div style="font-size:14px;font-weight:700;color:#fff;margin-bottom:3px;line-height:1.35;">' + escHtml(detalle || '') + '</div>' +
-    '<div style="font-size:10px;color:var(--text3);margin-top:6px;">' + new Date().toLocaleTimeString('es-AR', {hour:'2-digit', minute:'2-digit'}) + ' · Clic para cerrar</div>';
-  setTimeout(() => banner.style.transform = 'translateX(0)', 50);
-  clearTimeout(banner._timer);
+    '<div style="font-size:10px;color:var(--text3);margin-top:6px;">' + new Date().toLocaleTimeString('es-AR', {hour:'2-digit', minute:'2-digit'}) + ' · Clic para abrir</div>';
+  banner.onclick = () => { if (typeof onClick === 'function') onClick(); };
+  banner.querySelector('.notif-close-x').onclick = ev => {
+    ev.preventDefault(); ev.stopPropagation();
+    banner.remove();
+  };
+  stack.prepend(banner);
+  Array.from(stack.children).slice(8).forEach(n => n.remove());
 }
 
 function showConfirm(msg, onOk) {
@@ -3693,6 +3714,34 @@ window.compartirEvento = (id) => {
   const url = window.location.origin + window.location.pathname + '#evento-' + id;
   navigator.clipboard.writeText(url).then(() => toast('Link copiado'));
 };
+
+window.copiarLinkEvento = window.compartirEvento;
+window.compartirServicio = (id) => {
+  const url = window.location.origin + window.location.pathname + '#servicio-' + id;
+  navigator.clipboard.writeText(url).then(() => toast('Link copiado'));
+};
+window.copiarLinkServicio = window.compartirServicio;
+
+function abrirLinkDirectoTomauno(){
+  const hash = String(location.hash || '');
+  if(hash.indexOf('#evento-') === 0){
+    const id = hash.replace('#evento-', '');
+    setTimeout(() => {
+      if(eventosDB && eventosDB[id] && window.abrirDetalleEvento) window.abrirDetalleEvento(id);
+      else document.getElementById('sec-eventos')?.scrollIntoView({behavior:'smooth', block:'start'});
+    }, 450);
+  }
+  if(hash.indexOf('#servicio-') === 0){
+    const id = hash.replace('#servicio-', '');
+    setTimeout(() => {
+      if(serviciosDB && serviciosDB[id] && window.abrirServicioDB) window.abrirServicioDB(id);
+      else document.getElementById('sec-servicios')?.scrollIntoView({behavior:'smooth', block:'start'});
+    }, 450);
+  }
+}
+window.addEventListener('hashchange', abrirLinkDirectoTomauno);
+window.addEventListener('load', abrirLinkDirectoTomauno);
+setTimeout(abrirLinkDirectoTomauno, 900);
 
 
 function genSlotsEvento(e) {
@@ -3992,7 +4041,7 @@ window.updPagoOrg = async (inscId, estado) => {
 window.exportarExcelOrg = (evId) => {
   const lista = Object.values(evInscDB).filter(i => i.evId===evId);
   const e = eventosDB[evId];
-  const cols = ['Nombre','DNI','WhatsApp','Instagram','Fecha','Pago','Monto'];
+  const cols = ['Nombre','DNI','WhatsApp','Instagram','Email','Localidad','Edad','Turno','Fecha','Pago','Monto'];
   const sep = ';';
   const q = v => '"' + String(v||'').replace(/"/g,'""') + '"';
   const rows = [
@@ -4005,7 +4054,7 @@ window.exportarExcelOrg = (evId) => {
   lista.forEach(i => {
     const est = (i.pagos&&i.pagos[0])?i.pagos[0].estado:'pendiente';
     const monto = pagoEventoInfo(i, e).monto;
-    rows.push([i.nombre,i.dni,i.wp,i.ig||'',i.fecha,est,monto].map(q).join(sep));
+    rows.push([i.nombre,i.dni,i.wp,i.ig||'',i.email||'',i.localidad||'',i.edad||'',i.turno||'',i.fecha,est,monto].map(q).join(sep));
   });
   const csv = '\ufeff' + rows.join('\r\n');
   const a = document.createElement('a');
@@ -4020,7 +4069,7 @@ window.exportarPDFOrg = (evId) => {
   const rows = lista.map(i => {
     const est = (i.pagos&&i.pagos[0])?i.pagos[0].estado:'pendiente';
     const monto = pagoEventoInfo(i, e).monto;
-    return '<tr><td>'+(i.nombre||'')+'</td><td>'+(i.dni||'')+'</td><td>'+(i.wp||'')+'</td><td>'+est+'</td><td>$ '+Number(monto).toLocaleString('es-AR')+'</td></tr>';
+    return '<tr><td>'+(i.nombre||'')+'</td><td>'+(i.dni||'')+'</td><td>'+(i.wp||'')+'</td><td>'+(i.ig||'')+'</td><td>'+(i.email||'')+'</td><td>'+(i.localidad||'')+'</td><td>'+(i.turno||'')+'</td><td>'+est+'</td><td>$ '+Number(monto).toLocaleString('es-AR')+'</td></tr>';
   }).join('');
   const win = window.open('','_blank');
   if (win) {
@@ -4065,7 +4114,7 @@ window.exportarPDFEvento = (evId) => {
   }).join('');
   const win = window.open('','_blank');
   if (win) {
-    win.document.write('<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Inscriptos</title><link rel="stylesheet" href="css/05-style-05.css"/></head><body><div style="background:#111;color:#fff;padding:16px 18px;border-radius:10px;margin-bottom:14px;"><h1 style="margin:0;font-size:22px;">TOMA<span style="color:#e8000a;">UNO</span></h1><div style="font-size:13px;margin-top:5px;">Planilla de evento: <strong>'+(e?e.titulo:'Evento')+'</strong>'+(e&&e.fecha?' · '+e.fecha:'')+'</div></div><p><strong>'+lista.length+'</strong> inscriptos · Generado: '+new Date().toLocaleDateString('es-AR')+'</p><table><thead><tr><th>Nombre</th><th>DNI</th><th>WP</th><th>Pago</th><th>Monto</th></tr></thead><tbody>'+rows+'</tbody></table></body></html>');
+    win.document.write('<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Inscriptos</title><link rel="stylesheet" href="css/05-style-05.css"/></head><body><div style="background:#111;color:#fff;padding:16px 18px;border-radius:10px;margin-bottom:14px;"><h1 style="margin:0;font-size:22px;">TOMA<span style="color:#e8000a;">UNO</span></h1><div style="font-size:13px;margin-top:5px;">Planilla de evento: <strong>'+(e?e.titulo:'Evento')+'</strong>'+(e&&e.fecha?' · '+e.fecha:'')+'</div></div><p><strong>'+lista.length+'</strong> inscriptos · Generado: '+new Date().toLocaleDateString('es-AR')+'</p><table><thead><tr><th>Nombre</th><th>DNI</th><th>WP</th><th>IG</th><th>Email</th><th>Localidad</th><th>Turno</th><th>Pago</th><th>Monto</th></tr></thead><tbody>'+rows+'</tbody></table></body></html>');
     win.document.close();
     setTimeout(()=>win.print(),400);
   }
@@ -4111,6 +4160,42 @@ window.guardarPagosEvento = (evId) => {
   setTimeout(()=>{ if(evId && window.verPlanillaEventoAdmin) window.verPlanillaEventoAdmin(evId); }, 250);
 };
 
+window.editarInscEvento = (inscId) => {
+  const i = evInscDB[inscId]; if(!i) return;
+  document.getElementById('mcontent').innerHTML =
+    '<div class="mtitle" style="margin-bottom:14px;">EDITAR INSCRIPTO</div>' +
+    '<div class="frow2"><div><label class="flbl">Nombre</label><input class="finput" id="eei-nombre" value="'+escAttr(i.nombre||'')+'"/></div><div><label class="flbl">DNI</label><input class="finput" id="eei-dni" value="'+escAttr(i.dni||'')+'"/></div></div>' +
+    '<div class="frow2"><div><label class="flbl">WhatsApp</label><input class="finput" id="eei-wp" value="'+escAttr(i.wp||'')+'"/></div><div><label class="flbl">Instagram</label><input class="finput" id="eei-ig" value="'+escAttr(i.ig||'')+'"/></div></div>' +
+    '<div class="frow2"><div><label class="flbl">Email</label><input class="finput" id="eei-email" value="'+escAttr(i.email||'')+'"/></div><div><label class="flbl">Localidad</label><input class="finput" id="eei-localidad" value="'+escAttr(i.localidad||'')+'"/></div></div>' +
+    '<div class="frow2"><div><label class="flbl">Edad</label><input class="finput" id="eei-edad" value="'+escAttr(i.edad||'')+'"/></div><div><label class="flbl">Turno</label><input class="finput" id="eei-turno" value="'+escAttr(i.turno||'')+'"/></div></div>' +
+    '<button class="btn-main" onclick="window.guardarInscEventoEdit(\''+inscId+'\')">Guardar cambios</button>' +
+    '<button class="btn-out" onclick="window.verPlanillaEventoAdmin(\''+(i.evId||'')+'\')" style="margin-top:8px;">Cancelar</button>';
+};
+window.guardarInscEventoEdit = async (inscId) => {
+  const prev = evInscDB[inscId] || {};
+  const data = {
+    nombre:document.getElementById('eei-nombre')?.value || '',
+    dni:document.getElementById('eei-dni')?.value || '',
+    wp:document.getElementById('eei-wp')?.value || '',
+    ig:document.getElementById('eei-ig')?.value || '',
+    email:document.getElementById('eei-email')?.value || '',
+    localidad:document.getElementById('eei-localidad')?.value || '',
+    edad:document.getElementById('eei-edad')?.value || '',
+    turno:document.getElementById('eei-turno')?.value || ''
+  };
+  await update(ref(db,'tomauno/evRegs/'+inscId), data);
+  toast('Inscripto actualizado', true);
+  setTimeout(()=>window.verPlanillaEventoAdmin(prev.evId),180);
+};
+window.eliminarInscEvento = (inscId) => {
+  const evId = evInscDB[inscId]?.evId || '';
+  showConfirm('¿Eliminar este inscripto del evento?', async () => {
+    await remove(ref(db,'tomauno/evRegs/'+inscId));
+    toast('Inscripto eliminado', true);
+    setTimeout(()=>window.verPlanillaEventoAdmin(evId),180);
+  });
+};
+
 window.verPlanillaEventoAdmin = (id) => {
   const e = eventosDB[id];
   const lista = Object.entries(evInscDB).filter(([,i])=>i.evId===id).sort((a,b)=>(b[1].creado||0)-(a[1].creado||0));
@@ -4137,7 +4222,7 @@ window.verPlanillaEventoAdmin = (id) => {
     html += '<div style="color:var(--text3);padding:18px 0;">Sin inscriptos aún</div>';
   } else {
     html += '<div style="overflow-x:hidden;"><table style="width:100%;border-collapse:collapse;font-size:12px;table-layout:fixed;">' +
-      '<thead><tr><th style="padding:7px;text-align:left;color:var(--text3);width:24%;">Nombre</th><th style="padding:7px;text-align:left;color:var(--text3);width:12%;">DNI</th><th style="padding:7px;text-align:left;color:var(--text3);width:15%;">WP</th><th style="padding:7px;text-align:left;color:var(--text3);width:18%;">IG</th><th style="padding:7px;text-align:left;color:var(--text3);width:16%;">Pago</th><th style="padding:7px;text-align:left;color:var(--text3);width:15%;">Monto</th></tr></thead><tbody>';
+      '<thead><tr><th style="padding:7px;text-align:left;color:var(--text3);width:20%;">Nombre</th><th style="padding:7px;text-align:left;color:var(--text3);width:10%;">DNI</th><th style="padding:7px;text-align:left;color:var(--text3);width:14%;">WP</th><th style="padding:7px;text-align:left;color:var(--text3);width:14%;">IG</th><th style="padding:7px;text-align:left;color:var(--text3);width:13%;">Turno</th><th style="padding:7px;text-align:left;color:var(--text3);width:13%;">Pago</th><th style="padding:7px;text-align:left;color:var(--text3);width:10%;">Monto</th><th style="padding:7px;text-align:left;color:var(--text3);width:6%;"></th></tr></thead><tbody>';
     lista.forEach(([ik,i]) => {
       const p = pagoEventoInfo(i,e);
       const clr = p.estado==='pagado'?'#4caf7d':p.estado==='parcial'?'#f5c842':'#e05252';
@@ -4145,9 +4230,11 @@ window.verPlanillaEventoAdmin = (id) => {
       html += '<tr style="border-bottom:1px solid #181818;"><td style="padding:7px;">'+(i.nombre||'')+'</td>' +
         '<td style="padding:7px;">'+(i.dni||'')+'</td>' +
         '<td style="padding:7px;"><a rel="noopener noreferrer" href="https://wa.me/549'+(i.wp||'').replace(/[^0-9]/g,'')+'" target="_blank" style="color:#25d366;">'+(i.wp||'')+'</a></td>' +
-        '<td style="padding:7px;">'+(i.ig?'<a rel="noopener noreferrer" href="https://instagram.com/'+i.ig.replace('@','')+'" target="_blank" class="ig-link">@'+i.ig.replace('@','')+'</a>':'-')+'</td>' +
+        '<td style="padding:7px;">'+(i.ig?'<a rel="noopener noreferrer" href="https://instagram.com/'+i.ig.replace('@','')+'" target="_blank" class="ig-link">@'+i.ig.replace('@','')+'</a>':'-')+(i.email?'<div style="color:var(--text3);font-size:10px;">'+escHtml(i.email)+'</div>':'')+(i.localidad?'<div style="color:var(--text3);font-size:10px;">'+escHtml(i.localidad)+'</div>':'')+'</td>' +
+        '<td style="padding:7px;">'+escHtml(i.turno||'-')+'</td>' +
         '<td style="padding:7px;"><select style="background:transparent;border:none;color:'+clr+';font-size:11px;font-weight:700;cursor:pointer;font-family:var(--font);outline:none;" onchange="window.updPagoOrg(\'' + ik + '\',this.value)"><option value="pendiente" '+(p.estado==='pendiente'?'selected':'')+' style="background:#111;">Pendiente</option><option value="parcial" '+(p.estado==='parcial'?'selected':'')+' style="background:#111;">Parcial</option><option value="pagado" '+(p.estado==='pagado'?'selected':'')+' style="background:#111;">Pagado</option></select></td>' +
-        '<td style="padding:7px;"><input type="number" value="'+montoActual+'" placeholder="0" onchange="window.updMontoPagoEvento(\'' + ik + '\',this.value)" style="width:95px;background:#0d0d0d;border:1px solid var(--border);color:#fff;border-radius:8px;padding:6px;font-family:var(--font);"/></td></tr>';
+        '<td style="padding:7px;"><input type="number" value="'+montoActual+'" placeholder="0" onchange="window.updMontoPagoEvento(\'' + ik + '\',this.value)" style="width:80px;background:#0d0d0d;border:1px solid var(--border);color:#fff;border-radius:8px;padding:6px;font-family:var(--font);"/></td>' +
+        '<td style="padding:7px;display:flex;gap:5px;"><button class="bsm bl" title="Editar" onclick="window.editarInscEvento(\''+ik+'\')">✎</button><button class="bsm re" title="Eliminar" onclick="window.eliminarInscEvento(\''+ik+'\')">×</button></td></tr>';
     });
     html += '</tbody></table></div>';
   }
@@ -8040,7 +8127,10 @@ window.filterCursos = function(){
     [40, 160, 420].forEach(ms => setTimeout(() => {
       const txt = document.getElementById('chat-text');
       const nam = document.getElementById('chat-name');
-      if(txt) txt.value = '';
+      if(txt){
+        txt.value = '';
+        try{ txt.focus({preventScroll:true}); txt.setSelectionRange(0,0); }catch(e){ try{ txt.focus(); }catch(_e){} }
+      }
       if(nam) nam.value = '';
     }, ms));
   };
@@ -8092,10 +8182,6 @@ window.filterCursos = function(){
       };
       banner.style.position = 'fixed';
       banner.appendChild(x);
-      setTimeout(() => {
-        const b = document.getElementById('notif-banner');
-        if(b) b.style.transform = 'translateX(340px)';
-      }, 3000);
     }, 0);
   };
   window.showNotifBanner = showNotifBanner;
