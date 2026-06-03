@@ -306,6 +306,8 @@ window.abrirInscripcion = (id, inscId = '') => {
     '<div class="tutor-box"><input class="finput" id="f-tnombre" placeholder="Nombre del tutor/a" value="'+escAttr(edit?.tutorNombre || '')+'"/><input class="finput" id="f-twp" placeholder="WhatsApp del tutor/a *" type="tel" value="'+escAttr(edit?.tutorWp || '')+'"/></div>' +
     '</div>' +
     opcionesCursoHtml(c, edit?.opcionesElegidas || []) +
+    '<div class="mlbl">Detalle del pedido / aclaraciones</div>' +
+    '<textarea class="finput" id="f-detalle-pedido" rows="3" placeholder="Ej: Quiero 2 fotos impresas de la misma coreografia, o pago una parte ahora">'+escHtml(edit?.detallePedido || '')+'</textarea>' +
     '<div style="font-size:11px;color:var(--text3);margin:6px 0 14px;">* Campos obligatorios</div>' +
     '<button class="btn-main" onclick="window.confirmarInsc(\'' + id + '\')">✅ Confirmar inscripción</button>' +
     '<button class="btn-out" onclick="window.closeModal()">Cancelar</button>';
@@ -400,6 +402,7 @@ window.confirmarInsc = async (id) => {
   const email = document.getElementById('f-email')?.value.trim() || '';
   const campoEspecialLabel = campoEspecialLabelCurso(c);
   const campoEspecialValor = campoEspecialLabel ? (document.getElementById('f-campo-especial')?.value.trim() || '') : '';
+  const detallePedido = document.getElementById('f-detalle-pedido')?.value.trim() || '';
   const opciones = leerOpcionesSeleccionadasCurso();
   await push(ref(db, 'tomauno/inscripciones'), {
     cursoId: id, cursoTitulo: c.titulo || '',
@@ -409,6 +412,7 @@ window.confirmarInsc = async (id) => {
     altura: altura, medidas: medidas, email: email,
     campoEspecialLabel: campoEspecialLabel,
     campoEspecialValor: campoEspecialValor,
+    detallePedido: detallePedido,
     fecha: new Date().toLocaleDateString('es-AR'),
     hora: new Date().toLocaleTimeString('es-AR', {hour:'2-digit', minute:'2-digit'}),
     creado: Date.now(),
@@ -487,6 +491,7 @@ window.guardarInscCursoEdit = async (inscId) => {
     email: document.getElementById('f-email')?.value.trim() || '',
     campoEspecialLabel: campoEspecialLabel,
     campoEspecialValor: campoEspecialLabel ? (document.getElementById('f-campo-especial')?.value.trim() || '') : '',
+    detallePedido: document.getElementById('f-detalle-pedido')?.value.trim() || '',
     opcionesElegidas: opciones.opcionesElegidas,
     opcionesTotal: opciones.opcionesTotal,
     actualizado: Date.now()
@@ -934,7 +939,7 @@ function getAlumnosFiltrados() {
   if (filtro) lista = lista.filter(([, i]) => i.cursoId === filtro);
   if (q) lista = lista.filter(([,i]) => {
     const cur = cursos[i.cursoId] || {};
-    const hay = [i.nombre,i.dni,i.edad,i.ig,i.wp,i.tutorWp,i.localidad,i.campoEspecialLabel,i.campoEspecialValor,i.cursoTitulo,cur.titulo,i.turno,resumenOpcionesElegidas(i),i.opcionesTotal].join(' ').toLowerCase();
+    const hay = [i.nombre,i.dni,i.edad,i.ig,i.wp,i.tutorWp,i.localidad,i.campoEspecialLabel,i.campoEspecialValor,i.detallePedido,i.cursoTitulo,cur.titulo,i.turno,resumenOpcionesElegidas(i),i.opcionesTotal].join(' ').toLowerCase();
     return hay.includes(q);
   });
   return {filtro, lista};
@@ -1060,6 +1065,9 @@ window.renderAlumnos = () => {
     if (label && i.campoEspecialValor && row.cells[1] && !row.cells[1].querySelector('.campo-especial-row')) {
       row.cells[1].insertAdjacentHTML('beforeend', '<div class="student-sub campo-especial-row" style="color:#8fc7ff;white-space:normal;">'+escHtml(label)+': '+escHtml(i.campoEspecialValor)+'</div>');
     }
+    if (i && i.detallePedido && row.cells[1] && !row.cells[1].querySelector('.detalle-pedido-row')) {
+      row.cells[1].insertAdjacentHTML('beforeend', '<div class="student-sub detalle-pedido-row" style="color:#d7d7d7;white-space:normal;">Detalle: '+escHtml(i.detallePedido)+'</div>');
+    }
   });
 };
 
@@ -1131,6 +1139,7 @@ window.enviarTicketPagoAlumno = (id) => {
     'Curso: ' + cursoNombre + '\n' +
     'DNI: ' + (i.dni || '-') + '\n\n' +
     (ops.length ? '*Opciones elegidas:*\n' + detalleOps + '\nTotal opciones: ' + dineroOpt(i.opcionesTotal || 0) + '\n\n' : '') +
+    (i.detallePedido ? '*Detalle del pedido:*\n' + i.detallePedido + '\n\n' : '') +
     '*Pagos registrados:*\n' + (detalle || 'Sin pagos registrados') + '\n\n' +
     'Total contratado: $ ' + contratado.toLocaleString('es-AR') + '\n' +
     'Total abonado/registrado: $ ' + total.toLocaleString('es-AR') + '\n' +
@@ -1143,7 +1152,8 @@ window.enviarTicketPagoAlumno = (id) => {
     monto: dineroOpt(o.precio),
     fecha: '-'
   }));
-  const rows = optionRows.concat(pagos.map((p, idx) => ({
+  const detalleRows = i.detallePedido ? [{label: 'Detalle: ' + String(i.detallePedido).slice(0, 32), estado: 'Info', monto: '-', fecha: '-'}] : [];
+  const rows = optionRows.concat(detalleRows).concat(pagos.map((p, idx) => ({
     label: p.label || ('Pago ' + (idx+1)),
     estado: estadoPagoTxt(p.estado),
     monto: p.monto ? ('$ ' + Number(String(p.monto).replace(',','.')).toLocaleString('es-AR')) : '$ 0',
@@ -1363,13 +1373,13 @@ window.exportarPDF = () => {
 window.exportarExcel = () => {
   const {filtro, lista} = getAlumnosFiltrados();
   const cn = filtro && cursos[filtro] ? cursos[filtro].titulo : 'Todos los cursos';
-  const cols = ['Nro','Nombre','DNI','Edad','Curso','Campo especial','Valor especial','Instagram','WhatsApp','Fecha','Opciones','Total contratado','Total abonado','Saldo'];
+  const cols = ['Nro','Nombre','DNI','Edad','Curso','Campo especial','Valor especial','Detalle pedido','Instagram','WhatsApp','Fecha','Opciones','Total contratado','Total abonado','Saldo'];
   const rows = lista.map(([,i], idx) => {
     const cur = cursos[i.cursoId];
     const pinfo = getPagoAlumnoInfo(i, cur);
-    return [idx+1, i.nombre||'', i.dni||'', i.edad||'', i.cursoTitulo || cur?.titulo || '', i.campoEspecialLabel || campoEspecialLabelCurso(cur), i.campoEspecialValor || '', i.ig||'', i.wp||'', i.fecha||'', resumenOpcionesElegidas(i), totalContratadoAlumno(i, cur), pinfo.monto, saldoAlumno(i, cur)];
+    return [idx+1, i.nombre||'', i.dni||'', i.edad||'', i.cursoTitulo || cur?.titulo || '', i.campoEspecialLabel || campoEspecialLabelCurso(cur), i.campoEspecialValor || '', i.detallePedido || '', i.ig||'', i.wp||'', i.fecha||'', resumenOpcionesElegidas(i), totalContratadoAlumno(i, cur), pinfo.monto, saldoAlumno(i, cur)];
   });
-  rows.push(['TOTAL','','','','','','','','','','', rows.reduce((a,r)=>a+(Number(r[11])||0),0), rows.reduce((a,r)=>a+(Number(r[12])||0),0), rows.reduce((a,r)=>a+(Number(r[13])||0),0)]);
+  rows.push(['TOTAL','','','','','','','','','','','', rows.reduce((a,r)=>a+(Number(r[12])||0),0), rows.reduce((a,r)=>a+(Number(r[13])||0),0), rows.reduce((a,r)=>a+(Number(r[14])||0),0)]);
   descargarExcelCsv('tomauno_inscripciones_' + String(cn).replace(/[^a-zA-Z0-9]/g,'_') + '.csv', 'Tomauno - Inscripciones - ' + cn, cols, rows);
 };
 
@@ -1382,11 +1392,11 @@ window.exportarPDF = () => {
     const cur = cursos[i.cursoId];
     const pinfo = getPagoAlumnoInfo(i, cur);
     const especial = (i.campoEspecialLabel || campoEspecialLabelCurso(cur)) && i.campoEspecialValor ? (i.campoEspecialLabel || campoEspecialLabelCurso(cur)) + ': ' + i.campoEspecialValor : '-';
-    return '<tr><td>'+(idx+1)+'</td><td>'+escHtml(i.nombre||'')+'</td><td>'+escHtml(i.dni||'')+'</td><td>'+escHtml(i.edad||'')+'</td><td>'+escHtml(i.cursoTitulo || cur?.titulo || '')+'</td><td>'+escHtml(especial)+'</td><td>'+escHtml(resumenOpcionesElegidas(i) || '-')+'</td><td>$ '+totalContratadoAlumno(i, cur).toLocaleString('es-AR')+'</td><td>$ '+pinfo.monto.toLocaleString('es-AR')+'</td><td>$ '+saldoAlumno(i, cur).toLocaleString('es-AR')+'</td></tr>';
+    return '<tr><td>'+(idx+1)+'</td><td>'+escHtml(i.nombre||'')+'</td><td>'+escHtml(i.dni||'')+'</td><td>'+escHtml(i.edad||'')+'</td><td>'+escHtml(i.cursoTitulo || cur?.titulo || '')+'</td><td>'+escHtml(especial)+'</td><td>'+escHtml(i.detallePedido || '-')+'</td><td>'+escHtml(resumenOpcionesElegidas(i) || '-')+'</td><td>$ '+totalContratadoAlumno(i, cur).toLocaleString('es-AR')+'</td><td>$ '+pinfo.monto.toLocaleString('es-AR')+'</td><td>$ '+saldoAlumno(i, cur).toLocaleString('es-AR')+'</td></tr>';
   }).join('');
   const win = window.open('', '_blank');
   if(!win) return;
-  win.document.write('<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Tomauno</title><link rel="stylesheet" href="css/03-style-03.css"/></head><body><div class="head"><div class="brand">TOMA<span>UNO</span></div><div class="course-title">'+escHtml(cn)+'</div><div class="meta">Planilla de alumnos - '+new Date().toLocaleDateString('es-AR')+'</div></div><div class="summary"><div class="box">Inscriptos: '+lista.length+'</div><div class="box">Abonado: $ '+totalAbonado.toLocaleString('es-AR')+'</div><div class="box">Saldo: $ '+totalSaldo.toLocaleString('es-AR')+'</div></div><table><thead><tr><th>#</th><th>Nombre</th><th>DNI</th><th>Edad</th><th>Curso</th><th>Campo especial</th><th>Opciones</th><th>Total</th><th>Abonado</th><th>Saldo</th></tr></thead><tbody>'+rows+'</tbody></table></body></html>');
+  win.document.write('<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Tomauno</title><link rel="stylesheet" href="css/03-style-03.css"/></head><body><div class="head"><div class="brand">TOMA<span>UNO</span></div><div class="course-title">'+escHtml(cn)+'</div><div class="meta">Planilla de alumnos - '+new Date().toLocaleDateString('es-AR')+'</div></div><div class="summary"><div class="box">Inscriptos: '+lista.length+'</div><div class="box">Abonado: $ '+totalAbonado.toLocaleString('es-AR')+'</div><div class="box">Saldo: $ '+totalSaldo.toLocaleString('es-AR')+'</div></div><table><thead><tr><th>#</th><th>Nombre</th><th>DNI</th><th>Edad</th><th>Curso</th><th>Campo especial</th><th>Detalle pedido</th><th>Opciones</th><th>Total</th><th>Abonado</th><th>Saldo</th></tr></thead><tbody>'+rows+'</tbody></table></body></html>');
   win.document.close();
   setTimeout(() => win.print(), 400);
 };
