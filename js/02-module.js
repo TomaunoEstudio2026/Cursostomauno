@@ -304,6 +304,7 @@ window.abrirInscripcion = (id) => {
     '<div class="mlbl" style="color:#f5c842;">⚠️ Menor de edad — Datos del tutor/a</div>' +
     '<div class="tutor-box"><input class="finput" id="f-tnombre" placeholder="Nombre del tutor/a"/><input class="finput" id="f-twp" placeholder="WhatsApp del tutor/a *" type="tel"/></div>' +
     '</div>' +
+    opcionesCursoHtml(c) +
     '<div style="font-size:11px;color:var(--text3);margin:6px 0 14px;">* Campos obligatorios</div>' +
     '<button class="btn-main" onclick="window.confirmarInsc(\'' + id + '\')">✅ Confirmar inscripción</button>' +
     '<button class="btn-out" onclick="window.closeModal()">Cancelar</button>';
@@ -316,6 +317,48 @@ window.chkMenor = () => {
   const b = document.getElementById('tutor-box');
   if (b) b.style.display = e > 0 && e < 18 ? 'block' : 'none';
 };
+
+function parseOpcionesTexto(raw){
+  return String(raw || '')
+    .split(/[\n;]+/)
+    .map(x => x.trim())
+    .filter(Boolean)
+    .map(line => {
+      const parts = line.split(',');
+      const nombre = (parts.shift() || '').trim();
+      const precioRaw = parts.join(',').trim();
+      const precio = parseInt(String(precioRaw).replace(/\$/g,'').replace(/\./g,'').replace(/[^\d-]/g,''), 10) || 0;
+      return nombre ? {nombre, precio} : null;
+    })
+    .filter(Boolean);
+}
+function dineroOpt(n){ return '$ ' + Number(n || 0).toLocaleString('es-AR'); }
+function resumenOpcionesElegidas(i){
+  const ops = Array.isArray(i?.opcionesElegidas) ? i.opcionesElegidas : [];
+  if(!ops.length) return '';
+  return ops.map(o => (o.nombre || '') + (o.precio ? ' (' + dineroOpt(o.precio) + ')' : '')).join(' · ');
+}
+function opcionesCursoHtml(c){
+  const ops = parseOpcionesTexto(c?.opcionesTexto || c?.serviciosTexto || '');
+  if(!ops.length) return '';
+  return '<div class="mlbl">Opciones / servicios</div><div id="curso-opciones-box" style="background:#0d0d0d;border:1px solid var(--border);border-radius:12px;padding:10px;margin:4px 0 12px;">' +
+    ops.map((o,idx) => '<label style="display:flex;align-items:center;gap:8px;padding:7px 2px;font-size:13px;color:#fff;cursor:pointer;"><input type="checkbox" class="curso-opcion-check" data-nombre="'+escAttr(o.nombre)+'" data-precio="'+o.precio+'" onchange="window.actualizarTotalOpcionesCurso()" style="accent-color:var(--red);"><span style="flex:1;">'+escHtml(o.nombre)+'</span><strong style="color:var(--red);">'+dineroOpt(o.precio)+'</strong></label>').join('') +
+    '<div style="border-top:1px solid var(--border);margin-top:6px;padding-top:8px;font-size:13px;font-weight:900;color:#fff;display:flex;justify-content:space-between;"><span>Total seleccionado</span><span id="curso-opciones-total">$ 0</span></div>' +
+    '</div>';
+}
+window.actualizarTotalOpcionesCurso = () => {
+  const checks = Array.from(document.querySelectorAll('.curso-opcion-check:checked'));
+  const total = checks.reduce((acc, el) => acc + (parseInt(el.dataset.precio || '0', 10) || 0), 0);
+  const out = document.getElementById('curso-opciones-total');
+  if(out) out.textContent = dineroOpt(total);
+};
+function leerOpcionesSeleccionadasCurso(){
+  const ops = Array.from(document.querySelectorAll('.curso-opcion-check:checked')).map(el => ({
+    nombre: el.dataset.nombre || '',
+    precio: parseInt(el.dataset.precio || '0', 10) || 0
+  })).filter(o => o.nombre);
+  return {opcionesElegidas: ops, opcionesTotal: ops.reduce((a,o)=>a+Number(o.precio||0),0)};
+}
 
 window.confirmarInsc = async (id) => {
   const nom = document.getElementById('f-nom')?.value.trim();
@@ -336,6 +379,7 @@ window.confirmarInsc = async (id) => {
   const altura = document.getElementById('f-altura')?.value.trim() || '';
   const medidas = document.getElementById('f-medidas')?.value.trim() || '';
   const email = document.getElementById('f-email')?.value.trim() || '';
+  const opciones = leerOpcionesSeleccionadasCurso();
   await push(ref(db, 'tomauno/inscripciones'), {
     cursoId: id, cursoTitulo: c.titulo || '',
     nombre: nom, dni: dni || '', edad: edad, ig: ig, wp: wp,
@@ -344,6 +388,9 @@ window.confirmarInsc = async (id) => {
     altura: altura, medidas: medidas, email: email,
     fecha: new Date().toLocaleDateString('es-AR'),
     hora: new Date().toLocaleTimeString('es-AR', {hour:'2-digit', minute:'2-digit'}),
+    creado: Date.now(),
+    opcionesElegidas: opciones.opcionesElegidas,
+    opcionesTotal: opciones.opcionesTotal,
     pagos: genPagos(c)
   });
   const waText = [
@@ -358,6 +405,11 @@ window.confirmarInsc = async (id) => {
   if (altura) waText.push('📏 Altura: ' + altura);
   if (medidas) waText.push('📐 Medidas: ' + medidas);
   if (email) waText.push('📧 Email: ' + email);
+  if (opciones.opcionesElegidas.length) {
+    waText.push('', '🧾 *Opciones elegidas:*');
+    opciones.opcionesElegidas.forEach(o => waText.push('- ' + o.nombre + ': ' + dineroOpt(o.precio)));
+    waText.push('💰 *Total opciones:* ' + dineroOpt(opciones.opcionesTotal));
+  }
   waText.push('📱 WP Alumno: ' + wp);
   if (twp) waText.push('👨‍👩‍👧 WP Tutor: ' + twp);
   window._pendingWaUrl = 'https://api.whatsapp.com/send?phone=5493764354522&text=' + waEncode(waText.join('\n'));
@@ -799,7 +851,7 @@ function getAlumnosFiltrados() {
   if (filtro) lista = lista.filter(([, i]) => i.cursoId === filtro);
   if (q) lista = lista.filter(([,i]) => {
     const cur = cursos[i.cursoId] || {};
-    const hay = [i.nombre,i.dni,i.edad,i.ig,i.wp,i.tutorWp,i.localidad,i.cursoTitulo,cur.titulo,i.turno].join(' ').toLowerCase();
+    const hay = [i.nombre,i.dni,i.edad,i.ig,i.wp,i.tutorWp,i.localidad,i.cursoTitulo,cur.titulo,i.turno,resumenOpcionesElegidas(i),i.opcionesTotal].join(' ').toLowerCase();
     return hay.includes(q);
   });
   return {filtro, lista};
@@ -887,11 +939,12 @@ window.renderAlumnos = () => {
     const estadoClass = pinfo.estado === 'pagado' ? 'pay-ok' : pinfo.estado === 'parcial' ? 'pay-pa' : 'pay-pe';
     const estadoTxt = pinfo.estado === 'pagado' ? 'Con pagos' : pinfo.estado === 'parcial' ? 'Parcial' : 'Pendiente';
     const resumenPagos = '✅ ' + pinfo.pagadas + ' · ⚡ ' + pinfo.parciales + ' · ⏳ ' + pinfo.pendientes + (pinfo.monto ? ' · $ ' + pinfo.monto.toLocaleString('es-AR') : '');
+    const resumenOps = resumenOpcionesElegidas(i);
     const waText = 'Hola ' + (i.nombre||'').split(' ')[0] + '! Te escribimos de Tomauno para confirmarte tu pre-inscripción a ' + cursoNombre + '. En breve nos comunicamos con los detalles. Muchas gracias!';
     const waLink = 'https://wa.me/549' + (i.wp||'').replace(/\D/g,'') + '?text=' + waEncode(waText);
     return '<tr>' +
       '<td class="row-index">' + (idx+1) + '</td>' +
-      '<td title="' + escHtml(i.nombre||'') + '"><div class="student-name">' + escHtml(i.nombre||'-') + '</div><div class="student-sub">' + escHtml(i.fecha||'') + (i.hora?' · '+escHtml(i.hora):'') + '</div>' + (i.turno ? '<div class="student-sub" style="color:var(--red);">⏰ '+escHtml(i.turno)+'</div>' : '') + '</td>' +
+      '<td title="' + escHtml(i.nombre||'') + '"><div class="student-name">' + escHtml(i.nombre||'-') + '</div><div class="student-sub">' + escHtml(i.fecha||'') + (i.hora?' · '+escHtml(i.hora):'') + '</div>' + (i.turno ? '<div class="student-sub" style="color:var(--red);">⏰ '+escHtml(i.turno)+'</div>' : '') + (resumenOps ? '<div class="student-sub" style="color:#f5c842;white-space:normal;">🧾 '+escHtml(resumenOps)+' · Total '+dineroOpt(i.opcionesTotal)+'</div>' : '') + '</td>' +
       '<td>' + escHtml(i.edad||'-') + '</td>' +
       '<td>' + escHtml(i.dni||'-') + '</td>' +
       (mostrarCurso ? '<td><div class="course-cell" title="' + escHtml(cursoNombre) + '">' + escHtml(cursoNombre) + '</div></td>' : '') +
@@ -958,6 +1011,8 @@ window.enviarTicketPagoAlumno = (id) => {
   const cursoNombre = i.cursoTitulo || cur?.titulo || 'Curso';
   const pagos = i.pagos || [];
   const total = pagos.reduce((acc,p) => acc + ((p.estado === 'pagado' || p.estado === 'parcial') ? (parseFloat(String(p.monto||'').replace(',','.')) || 0) : 0), 0);
+  const ops = Array.isArray(i.opcionesElegidas) ? i.opcionesElegidas : [];
+  const detalleOps = ops.map(o => '- ' + (o.nombre || '') + ': ' + dineroOpt(o.precio)).join('\n');
   const detalle = pagos.map((p, idx) => {
     const icon = p.estado === 'pagado' ? '✅' : p.estado === 'parcial' ? '⚡' : '⏳';
     const monto = p.monto ? ('$ ' + Number(String(p.monto).replace(',','.')).toLocaleString('es-AR')) : '$ 0';
@@ -968,16 +1023,23 @@ window.enviarTicketPagoAlumno = (id) => {
     'Alumno/a: ' + (i.nombre || '-') + '\n' +
     'Curso: ' + cursoNombre + '\n' +
     'DNI: ' + (i.dni || '-') + '\n\n' +
+    (ops.length ? '*Opciones elegidas:*\n' + detalleOps + '\nTotal opciones: ' + dineroOpt(i.opcionesTotal || 0) + '\n\n' : '') +
     '*Pagos registrados:*\n' + (detalle || 'Sin pagos registrados') + '\n\n' +
     'Total abonado/registrado: $ ' + total.toLocaleString('es-AR') + '\n\n' +
     'Gracias por formar parte de Tomauno.';
   const wp = (i.wp || '').replace(/\D/g,'');
-  const rows = pagos.map((p, idx) => ({
+  const optionRows = ops.map(o => ({
+    label: o.nombre || 'Opción',
+    estado: 'Elegido',
+    monto: dineroOpt(o.precio),
+    fecha: '-'
+  }));
+  const rows = optionRows.concat(pagos.map((p, idx) => ({
     label: p.label || ('Pago ' + (idx+1)),
     estado: estadoPagoTxt(p.estado),
     monto: p.monto ? ('$ ' + Number(String(p.monto).replace(',','.')).toLocaleString('es-AR')) : '$ 0',
     fecha: p.fechaPago || '-'
-  }));
+  })));
   document.getElementById('mcontent').innerHTML =
     '<div class="mtitle" style="margin-bottom:8px;">TICKET DE PAGOS</div>' +
     '<div class="msub" style="margin-bottom:16px;">' + escHtml(i.nombre || '-') + ' · ' + escHtml(cursoNombre) + '</div>' +
@@ -1013,7 +1075,7 @@ function drawTicketCanvas(data){
   ctx.fillStyle='#e8000a';ctx.fillRect(50,y-45,800,42);
   ctx.font='900 18px Arial';ctx.fillStyle='#fff';ctx.fillText('CONCEPTO',72,y-18);ctx.fillText('ESTADO',410,y-18);ctx.fillText('FECHA',570,y-18);ctx.fillText('MONTO',735,y-18);
   ctx.font='700 18px Arial';
-  data.rows.forEach((r,idx)=>{ctx.fillStyle=idx%2?'#fff':'#f3f3f3';ctx.fillRect(50,y,800,52);ctx.strokeStyle='#e1e1e1';ctx.strokeRect(50,y,800,52);ctx.fillStyle='#222';ctx.fillText(String(r.label).slice(0,28),72,y+33);ctx.fillStyle=r.estado==='Pagado'?'#078b42':r.estado==='Parcial'?'#c09000':'#b5000a';ctx.fillText(r.estado,410,y+33);ctx.fillStyle='#222';ctx.fillText(r.fecha,570,y+33);ctx.textAlign='right';ctx.fillText(r.monto,825,y+33);ctx.textAlign='left';y+=52;});
+  data.rows.forEach((r,idx)=>{ctx.fillStyle=idx%2?'#fff':'#f3f3f3';ctx.fillRect(50,y,800,52);ctx.strokeStyle='#e1e1e1';ctx.strokeRect(50,y,800,52);ctx.fillStyle='#222';ctx.fillText(String(r.label).slice(0,28),72,y+33);ctx.fillStyle=r.estado==='Pagado'?'#078b42':r.estado==='Parcial'?'#c09000':r.estado==='Elegido'?'#e8000a':'#b5000a';ctx.fillText(r.estado,410,y+33);ctx.fillStyle='#222';ctx.fillText(r.fecha,570,y+33);ctx.textAlign='right';ctx.fillText(r.monto,825,y+33);ctx.textAlign='left';y+=52;});
   ctx.fillStyle='#111';ctx.fillRect(520,940,330,78);ctx.font='800 22px Arial';ctx.fillStyle='#fff';ctx.fillText('TOTAL REGISTRADO',545,972);ctx.font='900 34px Arial';ctx.fillStyle='#ff151f';ctx.textAlign='right';ctx.fillText('$ '+Number(data.total||0).toLocaleString('es-AR'),825,1005);ctx.textAlign='left';
   ctx.font='700 18px Arial';ctx.fillStyle='#555';ctx.fillText('Gracias por formar parte de Tomauno.',60,1025);ctx.fillText('Pedro Méndez 2069 · Posadas · @tomaunomodels · 3764354522',60,1060);
 }
@@ -1114,26 +1176,26 @@ window.exportarExcel = () => {
       const l = p.label || 'Pago';
       if(!seen.has(l)){ seen.add(l); paymentLabels.push(l); }
     }));
-    const cols = ['N°','Nombre','DNI','Edad','Instagram','WhatsApp','Fecha', ...paymentLabels, 'Total alumno'];
+    const cols = ['N°','Nombre','DNI','Edad','Instagram','WhatsApp','Fecha','Opciones','Total opciones', ...paymentLabels, 'Total alumno'];
     const rows = lista.map(([,i], idx) => {
       const pagos = i.pagos || [];
       const amounts = paymentLabels.map(l => payAmount(pagos.find(p => (p.label || 'Pago') === l)));
       const totalAlumno = amounts.reduce((a,b)=>a+b,0);
-      return [idx+1, i.nombre||'', i.dni||'', i.edad||'', i.ig||'', i.wp||'', i.fecha||'', ...amounts, totalAlumno];
+      return [idx+1, i.nombre||'', i.dni||'', i.edad||'', i.ig||'', i.wp||'', i.fecha||'', resumenOpcionesElegidas(i), i.opcionesTotal || 0, ...amounts, totalAlumno];
     });
     const totals = paymentLabels.map(l => lista.reduce((a,[,i]) => a + payAmount((i.pagos||[]).find(p => (p.label || 'Pago') === l)), 0));
-    rows.push(['TOTAL POR CONCEPTO','','','','','','', ...totals, totals.reduce((a,b)=>a+b,0)]);
+    rows.push(['TOTAL POR CONCEPTO','','','','','','','','', ...totals, totals.reduce((a,b)=>a+b,0)]);
     descargarExcelCsv('tomauno_pagos_' + cn.replace(/[^a-zA-Z0-9]/g,'_') + '.csv', 'Tomauno — Pagos — ' + cn, cols, rows);
     return;
   }
 
-  const cols = ['N°','Nombre','DNI','Edad','Curso','Instagram','WhatsApp','Fecha','Total registrado'];
+  const cols = ['N°','Nombre','DNI','Edad','Curso','Instagram','WhatsApp','Fecha','Opciones','Total opciones','Total registrado'];
   const rows = lista.map(([,i], idx) => {
     const cur = cursos[i.cursoId];
     const total = (i.pagos || []).reduce((a,p)=>a+payAmount(p),0);
-    return [idx+1, i.nombre||'', i.dni||'', i.edad||'', i.cursoTitulo || cur?.titulo || '', i.ig||'', i.wp||'', i.fecha||'', total];
+    return [idx+1, i.nombre||'', i.dni||'', i.edad||'', i.cursoTitulo || cur?.titulo || '', i.ig||'', i.wp||'', i.fecha||'', resumenOpcionesElegidas(i), i.opcionesTotal || 0, total];
   });
-  rows.push(['TOTAL GENERAL','','','','','','','', rows.reduce((a,r)=>a+(Number(r[8])||0),0)]);
+  rows.push(['TOTAL GENERAL','','','','','','','','','', rows.reduce((a,r)=>a+(Number(r[10])||0),0)]);
   descargarExcelCsv('tomauno_inscripciones_todos_los_cursos.csv', 'Tomauno — Pagos — Todos los cursos', cols, rows);
 };
 
@@ -1161,24 +1223,24 @@ window.exportarPDF = () => {
 
   let head, rows, totalsRow = '';
   if (selected) {
-    head = '<tr><th>#</th><th>Nombre</th><th>DNI</th><th>Edad</th><th>IG</th><th>WP</th><th>Fecha</th>' + paymentLabels.map(l => '<th>' + escHtml(l) + '</th>').join('') + '<th>Total</th></tr>';
+    head = '<tr><th>#</th><th>Nombre</th><th>DNI</th><th>Edad</th><th>IG</th><th>WP</th><th>Fecha</th><th>Opciones</th><th>Total opciones</th>' + paymentLabels.map(l => '<th>' + escHtml(l) + '</th>').join('') + '<th>Total</th></tr>';
     rows = lista.map(([,i], idx) => {
       const pagos = i.pagos || [];
       const totalAlumno = pagos.reduce((a,p)=>a+payAmount(p),0);
-      return '<tr><td>' + (idx+1) + '</td><td>' + escHtml(i.nombre||'') + '</td><td>' + escHtml(i.dni||'') + '</td><td>' + escHtml(i.edad||'') + '</td><td>@' + escHtml(i.ig||'') + '</td><td>' + escHtml(i.wp||'') + '</td><td>' + escHtml(i.fecha||'') + '</td>' +
+      return '<tr><td>' + (idx+1) + '</td><td>' + escHtml(i.nombre||'') + '</td><td>' + escHtml(i.dni||'') + '</td><td>' + escHtml(i.edad||'') + '</td><td>@' + escHtml(i.ig||'') + '</td><td>' + escHtml(i.wp||'') + '</td><td>' + escHtml(i.fecha||'') + '</td><td>' + escHtml(resumenOpcionesElegidas(i) || '-') + '</td><td>$ ' + Number(i.opcionesTotal || 0).toLocaleString('es-AR') + '</td>' +
         paymentLabels.map(l => '<td>' + payCell(pagos.find(p => (p.label || 'Pago') === l)) + '</td>').join('') +
         '<td><strong>$ ' + totalAlumno.toLocaleString('es-AR') + '</strong></td></tr>';
     }).join('');
     const totals = paymentLabels.map(l => lista.reduce((a,[,i]) => a + payAmount((i.pagos||[]).find(p => (p.label || 'Pago') === l)), 0));
     const grand = totals.reduce((a,b)=>a+b,0);
-    totalsRow = '<tr class="total-row"><td colspan="7">TOTAL POR CONCEPTO</td>' + totals.map(t => '<td>$ ' + t.toLocaleString('es-AR') + '</td>').join('') + '<td>$ ' + grand.toLocaleString('es-AR') + '</td></tr>';
+    totalsRow = '<tr class="total-row"><td colspan="9">TOTAL POR CONCEPTO</td>' + totals.map(t => '<td>$ ' + t.toLocaleString('es-AR') + '</td>').join('') + '<td>$ ' + grand.toLocaleString('es-AR') + '</td></tr>';
   } else {
-    head = '<tr><th>#</th><th>Nombre</th><th>DNI</th><th>Edad</th><th>Curso</th><th>IG</th><th>WP</th><th>Fecha</th><th>Pago</th><th>Monto</th></tr>';
+    head = '<tr><th>#</th><th>Nombre</th><th>DNI</th><th>Edad</th><th>Curso</th><th>IG</th><th>WP</th><th>Fecha</th><th>Opciones</th><th>Total opciones</th><th>Pago</th><th>Monto</th></tr>';
     rows = lista.map(([,i], idx) => {
       const cur = cursos[i.cursoId];
       const p = getPagoAlumnoInfo(i, cur);
       const estadoTxt = p.estado === 'pagado' ? 'Con pagos' : p.estado === 'parcial' ? 'Parcial' : 'Pendiente';
-      return '<tr><td>' + (idx+1) + '</td><td>' + escHtml(i.nombre||'') + '</td><td>' + escHtml(i.dni||'') + '</td><td>' + escHtml(i.edad||'') + '</td><td>' + escHtml(i.cursoTitulo || cur?.titulo || '') + '</td><td>@' + escHtml(i.ig||'') + '</td><td>' + escHtml(i.wp||'') + '</td><td>' + escHtml(i.fecha||'') + '</td><td>' + estadoTxt + '</td><td>$ ' + Number(p.monto||0).toLocaleString('es-AR') + '</td></tr>';
+      return '<tr><td>' + (idx+1) + '</td><td>' + escHtml(i.nombre||'') + '</td><td>' + escHtml(i.dni||'') + '</td><td>' + escHtml(i.edad||'') + '</td><td>' + escHtml(i.cursoTitulo || cur?.titulo || '') + '</td><td>@' + escHtml(i.ig||'') + '</td><td>' + escHtml(i.wp||'') + '</td><td>' + escHtml(i.fecha||'') + '</td><td>' + escHtml(resumenOpcionesElegidas(i) || '-') + '</td><td>$ ' + Number(i.opcionesTotal || 0).toLocaleString('es-AR') + '</td><td>' + estadoTxt + '</td><td>$ ' + Number(p.monto||0).toLocaleString('es-AR') + '</td></tr>';
     }).join('');
   }
   const total = lista.reduce((a,[,i]) => a + getPagoAlumnoInfo(i, cursos[i.cursoId]).monto, 0);
@@ -5498,7 +5560,7 @@ window.cerrarTodosChatsAbiertos = function(){
   if(hora && !document.getElementById('nc-profesor')){
     const wrap = document.createElement('div');
     wrap.className = 'fgroup';
-    wrap.innerHTML = '<label class="flbl">Profesor / disertante / responsable</label><input class="finput" id="nc-profesor" placeholder="Ej: Javier Móttola"/>';
+    wrap.innerHTML = '<label class="flbl">Profesor / disertante / responsable</label><input class="finput" id="nc-profesor" placeholder="Ej: Javier Móttola"/><label class="flbl" style="margin-top:8px;">Opciones / servicios seleccionables</label><textarea class="finput" id="nc-opciones-texto" rows="4" placeholder="Mini sesión, 14000&#10;1 impresión, 6000&#10;Video backstage, 18000"></textarea><div style="font-size:10px;color:var(--text3);margin-top:-4px;">Un ítem por línea. También acepta: nombre, precio; nombre, precio</div>';
     const row = hora.closest('.frow2');
     if(row) row.insertAdjacentElement('afterend', wrap);
   }
@@ -5534,6 +5596,7 @@ window.agregarCurso = async function(){
     descansos: document.getElementById('nc-descansos')?.value.trim() || '',
     duracion: parseInt(document.getElementById('nc-dur')?.value) || 30,
     grupoWA: document.getElementById('nc-grupo-wa')?.value.trim() || '',
+    opcionesTexto: document.getElementById('nc-opciones-texto')?.value.trim() || '',
     camposReq: {
       dni: document.getElementById('nc-req-dni')?.checked ?? true,
       edad: document.getElementById('nc-req-edad')?.checked ?? true,
@@ -5544,7 +5607,7 @@ window.agregarCurso = async function(){
     },
     finalizado: false, oculto: false, creado: Date.now()
   });
-  ['nc-titulo','nc-desc','nc-costo','nc-cupos','nc-fecha','nc-hora','nc-profesor','nc-lugar','nc-ig','nc-wp','nc-img','nc-extra-text','nc-extra-url','nc-meses','nc-grupo-wa','nc-icon','nc-descansos'].forEach(id => {
+  ['nc-titulo','nc-desc','nc-costo','nc-cupos','nc-fecha','nc-hora','nc-profesor','nc-opciones-texto','nc-lugar','nc-ig','nc-wp','nc-img','nc-extra-text','nc-extra-url','nc-meses','nc-grupo-wa','nc-icon','nc-descansos'].forEach(id => {
     const el = document.getElementById(id); if (el) el.value = '';
   });
   toast('✅ Curso publicado');
@@ -5558,15 +5621,16 @@ window.editCurso = function(id){
     const desc = document.getElementById('ec-desc');
     const c = cursos[id] || {};
     if(desc && !document.getElementById('ec-profesor')){
-      desc.insertAdjacentHTML('afterend','<label class="flbl">Profesor / disertante / responsable</label><input class="finput" id="ec-profesor" value="'+escAttr(c.profesor || c.disertante || c.organizador || c.docente || '')+'" placeholder="Ej: Javier Móttola"/>');
+      desc.insertAdjacentHTML('afterend','<label class="flbl">Profesor / disertante / responsable</label><input class="finput" id="ec-profesor" value="'+escAttr(c.profesor || c.disertante || c.organizador || c.docente || '')+'" placeholder="Ej: Javier Móttola"/><label class="flbl" style="margin-top:8px;">Opciones / servicios seleccionables</label><textarea class="finput" id="ec-opciones-texto" rows="4" placeholder="Mini sesión, 14000&#10;1 impresión, 6000">'+escHtml(c.opcionesTexto || c.serviciosTexto || '')+'</textarea><div style="font-size:10px;color:var(--text3);margin-top:-4px;">Un ítem por línea. También acepta: nombre, precio; nombre, precio</div>');
     }
   },30);
 };
 const __guardarEdit_v339 = window.guardarEdit;
 window.guardarEdit = async function(id){
   const prof = document.getElementById('ec-profesor')?.value.trim() || '';
+  const opcionesTexto = document.getElementById('ec-opciones-texto')?.value.trim() || '';
   await __guardarEdit_v339(id);
-  await update(ref(db,'tomauno/cursos/'+id), {profesor:prof, disertante:prof});
+  await update(ref(db,'tomauno/cursos/'+id), {profesor:prof, disertante:prof, opcionesTexto});
 };
 
 function isAckAI(q){ return /^(si|sí|dale|ok|oki|bueno|perfecto|genial|gracias|muchas gracias|de acuerdo|listo)$/i.test(String(q||'').trim()); }
