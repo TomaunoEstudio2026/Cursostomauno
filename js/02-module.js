@@ -2664,7 +2664,7 @@ function renderMsgs(chat, adminView=false, chatId=''){
     const cls = m.typing ? 'typing' : (m.humanWait ? 'admin tu-human-wait' : (m.humanAttend ? 'admin tu-human-attend' : (m.from==='admin'?'admin':m.from==='system'?'system':'user')));
     const actions = (!m.typing && !m.humanWait && !m.humanAttend && (m.from==='admin' || m.from==='system')) ? chatActionButtonsForMessage(m.text || '') : '';
     const attended = !!(chat && (chat.callAnsweredAt || (!chat.humanRequested && m.humanWait && Number(chat.callUntil||0) === 0)));
-    const waitStart = m.humanWait ? Number(chat?.humanWaitStartedAt || m.createdAt || 0) : 0;
+    const waitStart = m.humanWait ? (Number(chat?.callUntil || 0) ? Number(chat.callUntil) - 60000 : Number(chat?.humanWaitStartedAt || m.createdAt || 0)) : 0;
     const waitCountdown = (m.humanWait && waitStart && !attended) ? '<div class="chat-human-countdown" data-human-wait-start="'+waitStart+'"><span class="chat-human-countdown-num">60</span>s para intentar conectar con Javier</div>' : '';
     const attendBtn = adminView && m.humanWait && !attended ? '<button class="chat-attend-call" onclick="event.stopPropagation();window.atenderLlamadaJavier(\''+chatId+'\')">📞 ATENDIENDO</button>' : '';
     return '<div class="chat-bubble '+cls+'" data-message-id="'+escAttr(mid)+'" data-msg-id="'+escAttr(mid)+'"><div>'+chatLinkify(m.text||'')+editBtn+deleteBtn+'</div>'+waitCountdown+attendBtn+actions+(m.from==='system'?'':'<div class="chat-meta">'+escHtml(m.time||'')+'</div>')+'</div>';
@@ -11243,6 +11243,19 @@ function refreshActiveChatHeader(id){
   }catch(e){}
 }
 
+function cleanupLegacyHumanAlert12e(){
+  try{
+    document.querySelectorAll('body > div').forEach(el => {
+      if(el.id === 'notif-stack' || el.closest('#notif-stack') || el.id === 'chat-popover') return;
+      const txt = String(el.innerText || el.textContent || '');
+      if(/ATENCI[ÓO]N/i.test(txt) && /Abrir chat/i.test(txt)){
+        el.remove();
+      }
+    });
+  }catch(e){}
+}
+setInterval(cleanupLegacyHumanAlert12e, 500);
+
 const oldUpdateHeader12e = typeof updateChatMessagesOnly === 'function' ? updateChatMessagesOnly : null;
 if(oldUpdateHeader12e && !oldUpdateHeader12e.__header12e){
   const updateHeader12e = function(id, adminView){
@@ -11259,5 +11272,23 @@ if(oldUpdateHeader12e && !oldUpdateHeader12e.__header12e){
 setInterval(()=>{
   Object.entries(chats()).forEach(([id,c])=>finishCallOnce(id,c||{}));
 },1000);
+
+document.addEventListener('click', function(ev){
+  const fab = ev.target && ev.target.closest && ev.target.closest('#chat-fab');
+  if(!fab || !isAdminNotifier()) return;
+  ev.preventDefault();
+  ev.stopPropagation();
+  if(ev.stopImmediatePropagation) ev.stopImmediatePropagation();
+  try{
+    const pop = q('#chat-popover');
+    if(pop){
+      pop.classList.remove('expanded','dragged','resizable','tu-mobile-fullscreen');
+      pop.style.display = '';
+    }
+    if(typeof abrirPanelChatsAdmin === 'function') abrirPanelChatsAdmin();
+  }catch(e){
+    try{ if(typeof window.abrirChatAdminHome === 'function') window.abrirChatAdminHome(); }catch(_e){}
+  }
+}, true);
 
 })();
