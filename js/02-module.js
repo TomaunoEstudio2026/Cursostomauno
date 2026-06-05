@@ -2626,6 +2626,19 @@ try{
       const lastUser = typeof tomaunoUltimoMensajeUsuarioChat === 'function' ? tomaunoUltimoMensajeUsuarioChat(c) : null;
       if(!lastUser || !lastUser.text) return;
       ctrlMAdminNoticeSeen[id] = 1;
+      try{
+        const muted = new Set(JSON.parse(localStorage.getItem('tomauno-chat-notified-open') || '[]'));
+        if(muted.has(id)){
+          update(ref(db,'tomauno/chats/'+id), {ctrlMNeedsAdminNotice:false}).catch(()=>{});
+          return;
+        }
+        muted.add(id);
+        localStorage.setItem('tomauno-chat-notified-open', JSON.stringify([...muted]));
+        if(typeof notifiedChatIds !== 'undefined'){
+          notifiedChatIds.add(id);
+          localStorage.setItem('tomauno-chat-notified', JSON.stringify([...notifiedChatIds]));
+        }
+      }catch(e){}
       try{ if(typeof beepStrongFinal === 'function') beepStrongFinal(); else if(typeof beep === 'function') beep(); }catch(e){}
       try{ if(typeof showNotif === 'function') showNotif(); }catch(e){}
       try{
@@ -8823,7 +8836,14 @@ window.filterCursos = function(){
     if(!adminActiveFinal()) return;
     beepStrongFinal();
     if(adminViewingChatFinal(chatId)) return;
-    try{ notifyAdminChat('Atención humana solicitada', body || 'Hay una persona esperando a Javier', chatId); }catch(e){}
+    try{
+      showNotif();
+      const c = chatId && chatsDB ? (chatsDB[chatId] || {}) : {};
+      const name = typeof chatVisibleName === 'function' ? chatVisibleName(c, chatId) : (c.name || 'Visitante');
+      showNotifBanner('LLAMADA ENTRANTE', name + ' pide atención de Javier', '📣', () => {
+        if(chatId && typeof window.abrirChatAdmin === 'function') window.abrirChatAdmin(chatId, true);
+      });
+    }catch(e){}
   };
 
   window.tomaunoToggleModoChatActual = async function(id){
@@ -10530,7 +10550,10 @@ function iniciarLlamadaJavier(id){
   callTimers[id]=setInterval(function(){
     var c=chatsSafe()[id]||{};
     if(!(c.humanRequested && c.callUntil && Number(c.callUntil)>Date.now() && !c.callAnsweredAt)){
-      window.detenerLlamadaJavier(id);
+      if(callTimers[id]){
+        clearInterval(callTimers[id]);
+        delete callTimers[id];
+      }
       return;
     }
     playCallSound();
@@ -11256,6 +11279,100 @@ function cleanupLegacyHumanAlert12e(){
 }
 setInterval(cleanupLegacyHumanAlert12e, 500);
 
+function forceChatModeButton12e(id){
+  try{
+    id = id || admId();
+    const c = chats()[id] || {};
+    const btn = q('#chat-popover.open .chat-admin-tools .chat-filter.auto');
+    if(!btn || !id) return;
+    const human = !!(c.humanMode || Number(c.manualUntil || 0) > Date.now());
+    btn.classList.toggle('on', !human);
+    btn.textContent = human ? '👤 HUM' : '🤖 AUTO';
+    btn.title = human ? 'Este chat está en atención humana. Clic para volver a automático.' : 'Este chat está en automático. Clic para tomarlo manualmente.';
+  }catch(e){}
+}
+
+function ensureAdminEventsButton12e(){
+  try{
+    const id = admId();
+    const tools = q('#chat-popover.open .chat-admin-tools');
+    if(!id || !tools || tools.querySelector('[data-tu-admin-events]')) return;
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'chat-filter';
+    btn.dataset.tuAdminEvents = '1';
+    btn.title = 'Eventos';
+    btn.textContent = '📅 Eventos';
+    btn.onclick = ev => {
+      ev.preventDefault();
+      ev.stopPropagation();
+      if(typeof window.enviarChatAdmin === 'function') window.enviarChatAdmin(id, 'Eventos activos');
+    };
+    const toggle = tools.querySelector('#chat-tools-toggle');
+    tools.insertBefore(btn, toggle || null);
+  }catch(e){}
+}
+setInterval(() => { forceChatModeButton12e(admId()); ensureAdminEventsButton12e(); }, 700);
+
+const oldAttend12e = window.atenderLlamadaJavier;
+if(typeof oldAttend12e === 'function' && !oldAttend12e.__forceMode12e){
+  const attend12e = async function(id){
+    const r = await oldAttend12e.apply(this, arguments);
+    const chatId = id || admId();
+    [40, 180, 520].forEach(ms => setTimeout(() => forceChatModeButton12e(chatId), ms));
+    return r;
+  };
+  attend12e.__forceMode12e = 1;
+  window.atenderLlamadaJavier = attend12e;
+}
+
+function latestAdminMessage12e(c){
+  try{
+    return Object.values(c && c.messages || {})
+      .filter(m => m && m.from === 'admin' && !m.typing && String(m.text||'').trim())
+      .sort((a,b) => Number(b.createdAt||0) - Number(a.createdAt||0))[0] || null;
+  }catch(e){ return null; }
+}
+
+try{
+  const visitorSoundSeen12e = {};
+  onValue(ref(db,'tomauno/chats'), snap => {
+    try{
+      if(isAdminNotifier()) return;
+      const id = currentVisitorChatId || sessionStorage.getItem('tomauno-chat-id') || '';
+      if(!id || !snap.exists()) return;
+      const c = (snap.val() || {})[id] || {};
+      const m = latestAdminMessage12e(c);
+      if(!m || !m.createdAt) return;
+      const key = id + '|' + m.createdAt + '|' + String(m.text||'').slice(0,40);
+      if(visitorSoundSeen12e[key]) return;
+      visitorSoundSeen12e[key] = 1;
+      if(Date.now() - Number(m.createdAt || 0) > 1000 * 60 * 4) return;
+      if(!c.unreadVisitor && !m.humanInvite) return;
+      try{ if(typeof beepStrongFinal === 'function') beepStrongFinal(); else if(typeof beep === 'function') beep(); }catch(e){}
+      try{ if(navigator.vibrate) navigator.vibrate(120); }catch(e){}
+    }catch(e){}
+  });
+}catch(e){}
+
+const oldBannerDedupe12e = window.showNotifBanner || (typeof showNotifBanner !== 'undefined' ? showNotifBanner : null);
+if(typeof oldBannerDedupe12e === 'function' && !oldBannerDedupe12e.__dedupe12e){
+  const seenBanner12e = new Map();
+  const banner12e = function(title, detail, icon, onClick){
+    const isChat = /chat|mensaje|llamada/i.test(String(title||'') + ' ' + String(icon||''));
+    const sig = String(detail || '').replace(/\s+/g,' ').trim().toLowerCase();
+    if(isChat && sig){
+      const last = seenBanner12e.get(sig) || 0;
+      if(Date.now() - last < 7000) return;
+      seenBanner12e.set(sig, Date.now());
+    }
+    return oldBannerDedupe12e.apply(this, arguments);
+  };
+  banner12e.__dedupe12e = 1;
+  window.showNotifBanner = banner12e;
+  try{ showNotifBanner = banner12e; }catch(e){}
+}
+
 const oldUpdateHeader12e = typeof updateChatMessagesOnly === 'function' ? updateChatMessagesOnly : null;
 if(oldUpdateHeader12e && !oldUpdateHeader12e.__header12e){
   const updateHeader12e = function(id, adminView){
@@ -11281,11 +11398,25 @@ document.addEventListener('click', function(ev){
   if(ev.stopImmediatePropagation) ev.stopImmediatePropagation();
   try{
     const pop = q('#chat-popover');
+    if(pop && pop.classList.contains('open')){
+      if(typeof window.cerrarChatPopover === 'function') window.cerrarChatPopover();
+      return;
+    }
     if(pop){
       pop.classList.remove('expanded','dragged','resizable','tu-mobile-fullscreen');
       pop.style.display = '';
     }
-    if(typeof abrirPanelChatsAdmin === 'function') abrirPanelChatsAdmin();
+    const list = Object.entries(chats())
+      .filter(([,c]) => c && (typeof isValidChat !== 'function' || isValidChat(c)) && c.status !== 'cerrado')
+      .sort((a,b) => {
+        try{ return (typeof sortChatsForInbox === 'function' ? sortChatsForInbox([a,b])[0] === a : Number(b[1].updatedAt||0) <= Number(a[1].updatedAt||0)) ? -1 : 1; }
+        catch(e){ return Number(b[1].updatedAt||0) - Number(a[1].updatedAt||0); }
+      });
+    const active = admId();
+    const unread = list.find(([,c]) => c && c.unreadAdmin);
+    const preferred = (active && chats()[active] && chats()[active].status !== 'cerrado') ? active : (unread ? unread[0] : (list[0] && list[0][0]));
+    if(preferred && typeof window.abrirChatAdmin === 'function') window.abrirChatAdmin(preferred, true);
+    else if(typeof abrirPanelChatsAdmin === 'function') abrirPanelChatsAdmin();
   }catch(e){
     try{ if(typeof window.abrirChatAdminHome === 'function') window.abrirChatAdminHome(); }catch(_e){}
   }
