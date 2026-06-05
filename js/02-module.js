@@ -2487,6 +2487,16 @@ window.abrirCtrlMInvite = () => {
   setTimeout(()=>document.getElementById('chat-ctrl-m-text')?.focus(),80);
 };
 
+function ctrlMVisitorLabel(){
+  try{
+    const raw = String(PRESENCE_ID || sessionStorage.getItem('tomauno_presence_id') || '');
+    const code = (raw.split('_').pop() || raw.slice(-4) || Math.random().toString(36).slice(2,6)).toUpperCase();
+    return 'Visitante ' + code.slice(0,4);
+  }catch(e){
+    return 'Visitante web';
+  }
+}
+
 window.responderCtrlMInvite = async () => {
   const invite = currentCtrlMInvite;
   const inp = document.getElementById('chat-ctrl-m-text');
@@ -2494,8 +2504,9 @@ window.responderCtrlMInvite = async () => {
   if(!invite || !text) return;
   if(inp) inp.value = '';
   const now = Date.now();
+  const visitorName = ctrlMVisitorLabel();
   const chatRef = await push(ref(db,'tomauno/chats'), {
-    name:'Visitante web',
+    name:visitorName,
     wp:'',
     status:'abierto',
     createdAt:now,
@@ -2514,7 +2525,7 @@ window.responderCtrlMInvite = async () => {
   currentVisitorChatId = chatRef.key;
   try{
     sessionStorage.setItem('tomauno-chat-id', currentVisitorChatId);
-    sessionStorage.setItem('tomauno-chat-name', 'Visitante web');
+    sessionStorage.setItem('tomauno-chat-name', visitorName);
     sessionStorage.setItem('tomauno-ctrl-m-invite-seen', invite.id);
   }catch(e){}
   await push(ref(db,'tomauno/chats/'+currentVisitorChatId+'/messages'), {
@@ -9670,6 +9681,7 @@ window.filterCursos = function(){
       const writing = active && (active.id === 'chat-text' || active.id === 'chat-name');
       // Si está escribiendo, solo bajamos si force=true o si ya estaba cerca del fondo.
       const nearBottom = (box.scrollHeight - box.scrollTop - box.clientHeight) < 210;
+      if(!nearBottom && Date.now() < Number(box.dataset.tuVisitorReadingUntil || 0)) return;
       if(force || !writing || nearBottom){
         requestAnimationFrame(function(){
           box.scrollTop = box.scrollHeight;
@@ -10024,7 +10036,13 @@ window.filterCursos = function(){
     safe(function(){
       const b = box();
       if(!b) return;
-      if(!isAdmin() && Date.now() < visitorReadingUntil) return;
+      const allowForce = b.dataset.tuForceBottomOnce === '1';
+      if(allowForce) delete b.dataset.tuForceBottomOnce;
+      if(!allowForce && !isAdmin() && Date.now() < visitorReadingUntil) return;
+      if(!allowForce && !isAdmin()){
+        const distanceBottom = b.scrollHeight - b.scrollTop - b.clientHeight;
+        if(distanceBottom > 180) return;
+      }
       requestAnimationFrame(function(){
         b.scrollTop = b.scrollHeight + (extra || 220);
         setTimeout(function(){ b.scrollTop = b.scrollHeight + (extra || 220); }, 80);
@@ -10044,9 +10062,15 @@ window.filterCursos = function(){
       if(visitor && isMobile()){
         p.classList.add('tu-mobile-fullscreen');
         p.classList.remove('expanded');
-        forceBottom(260);
+        if(!p.dataset.tuMobileOpened){
+          p.dataset.tuMobileOpened = '1';
+          const b = box();
+          if(b) b.dataset.tuForceBottomOnce = '1';
+          forceBottom(260);
+        }
       }else{
         p.classList.remove('tu-mobile-fullscreen');
+        delete p.dataset.tuMobileOpened;
       }
     });
   }
@@ -10064,7 +10088,10 @@ window.filterCursos = function(){
       if(key !== lastKey){
         lastKey = key;
         // En visitante siempre baja; en admin solo si está cerca del fondo.
-        if(!isAdmin()) forceBottom(280);
+        if(!isAdmin()){
+          const b = box();
+          if(b && (b.scrollHeight - b.scrollTop - b.clientHeight) < 180) forceBottom(280);
+        }
         else{
           const b = box();
           if(b && (b.scrollHeight - b.scrollTop - b.clientHeight) < 230) forceBottom(240);
