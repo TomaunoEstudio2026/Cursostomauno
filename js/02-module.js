@@ -2445,6 +2445,8 @@ function renderCtrlMInviteBox(invite){
       '<button class="ctrl-m-invite-close" title="Cerrar" onclick="window.descartarCtrlMInvite()">x</button>' +
     '</div>';
   document.body.appendChild(box);
+  try{ beep(); }catch(e){}
+  try{ navigator.vibrate && navigator.vibrate(120); }catch(e){}
 }
 
 window.descartarCtrlMInvite = async () => {
@@ -2483,7 +2485,7 @@ window.abrirCtrlMInvite = () => {
     '<div class="chat-panel ctrl-m-invite-panel"><div class="chat-msgs" id="chat-msgs">' +
       '<div class="chat-bubble admin"><div>'+chatLinkify(invite.message || CTRL_M_INVITE_DEFAULT)+'</div><div class="chat-meta">Ahora</div></div>' +
     '</div>' +
-    '<div class="chat-row"><input class="finput" id="chat-ctrl-m-text" placeholder="Responder a Javier..." onkeydown="if(event.key===\'Enter\')window.responderCtrlMInvite()"/><button class="chat-send" onclick="window.responderCtrlMInvite()">➜</button></div></div>'
+    '<div class="chat-row"><input class="finput" id="chat-ctrl-m-text" placeholder="Responder a Javier..." onkeydown="if(event.key===\'Enter\'){event.preventDefault();window.responderCtrlMInvite();}"/><button class="chat-send" onclick="window.responderCtrlMInvite()">➜</button></div></div>'
   );
   setTimeout(()=>document.getElementById('chat-ctrl-m-text')?.focus(),80);
 };
@@ -3973,7 +3975,7 @@ function showNotif() {
   if (d) { d.style.display = 'inline-block'; setTimeout(() => d.style.display = 'none', 10000); }
 }
 
-function showNotifBanner(titulo, detalle, icono='🔴', onClick=null) {
+function showNotifBanner(titulo, detalle, icono='CHAT', onClick=null) {
   let stack = document.getElementById('notif-stack');
   if (!stack) {
     stack = document.createElement('div');
@@ -3984,16 +3986,14 @@ function showNotifBanner(titulo, detalle, icono='🔴', onClick=null) {
   const banner = document.createElement('div');
   banner.className = 'notif-banner-item';
   banner.id = 'notif-banner';
-  banner.style.cssText = 'position:relative;background:#111;border:1.5px solid var(--red);border-radius:14px;padding:14px 44px 14px 18px;box-shadow:0 8px 30px rgba(0,0,0,.6);cursor:pointer;';
+  banner.style.cssText = 'position:relative;background:#111;border:1.5px solid var(--red);border-radius:14px;padding:14px 18px;box-shadow:0 8px 30px rgba(0,0,0,.6);cursor:pointer;';
   banner.innerHTML =
-    '<button class="notif-close-x" title="Cerrar notificación" style="position:absolute;top:7px;right:8px;width:24px;height:24px;border:0;border-radius:50%;background:rgba(255,255,255,.16);color:#fff;font-size:17px;font-weight:900;cursor:pointer;line-height:22px;">×</button>' +
-    '<div style="font-size:10px;color:var(--red);font-weight:800;letter-spacing:.1em;text-transform:uppercase;margin-bottom:6px;">' + icono + ' ' + escHtml(titulo || 'Notificación') + '</div>' +
+    '<div style="font-size:10px;color:var(--red);font-weight:800;letter-spacing:.1em;text-transform:uppercase;margin-bottom:6px;">' + icono + ' ' + escHtml(titulo || 'Notificacion') + '</div>' +
     '<div style="font-size:14px;font-weight:700;color:#fff;margin-bottom:3px;line-height:1.35;">' + escHtml(detalle || '') + '</div>' +
-    '<div style="font-size:10px;color:var(--text3);margin-top:6px;">' + new Date().toLocaleTimeString('es-AR', {hour:'2-digit', minute:'2-digit'}) + ' · Clic para abrir</div>';
-  banner.onclick = () => { if (typeof onClick === 'function') onClick(); };
-  banner.querySelector('.notif-close-x').onclick = ev => {
-    ev.preventDefault(); ev.stopPropagation();
+    '<div style="font-size:10px;color:var(--text3);margin-top:6px;">' + new Date().toLocaleTimeString('es-AR', {hour:'2-digit', minute:'2-digit'}) + ' - Clic para abrir</div>';
+  banner.onclick = () => {
     banner.remove();
+    if (typeof onClick === 'function') onClick();
   };
   stack.prepend(banner);
   Array.from(stack.children).slice(8).forEach(n => n.remove());
@@ -8697,24 +8697,6 @@ window.filterCursos = function(){
   const prevShowNotifBannerFinal = showNotifBanner;
   showNotifBanner = function(titulo, detalle, icono='CHAT', onClick=null){
     prevShowNotifBannerFinal.call(this, titulo, detalle, icono, onClick);
-    setTimeout(() => {
-      const banner = document.getElementById('notif-banner');
-      if(!banner || banner.querySelector('.notif-close-x')) return;
-      const x = document.createElement('button');
-      x.className = 'notif-close-x';
-      x.type = 'button';
-      x.textContent = '×';
-      x.title = 'Cerrar notificación';
-      x.style.cssText = 'position:absolute;top:7px;right:8px;width:24px;height:24px;border:0;border-radius:50%;background:rgba(255,255,255,.16);color:#fff;font-size:17px;font-weight:900;cursor:pointer;line-height:22px;';
-      x.onclick = ev => {
-        ev.preventDefault();
-        ev.stopPropagation();
-        if(ev.stopImmediatePropagation) ev.stopImmediatePropagation();
-        banner.style.transform = 'translateX(340px)';
-      };
-      banner.style.position = 'fixed';
-      banner.appendChild(x);
-    }, 0);
   };
   window.showNotifBanner = showNotifBanner;
   notifyAdminChat = function(title, body, chatId){
@@ -8971,7 +8953,8 @@ window.filterCursos = function(){
 
     const detectedName = safeDetectedNameFinal(text, existingChat);
     const keepName = hasRealVisitorNameFinal(existingChat) ? limpiarNombreChat(existingChat.name || '') : '';
-    const repairedName = limpiarNombreChat(keepName || detectedName || fallbackName || chatAnonName(id, existingChat));
+    const askedNameNow = lastAdminAskedName(existingChat);
+    const repairedName = limpiarNombreChat((askedNameNow && detectedName) ? detectedName : (keepName || detectedName || fallbackName || chatAnonName(id, existingChat)));
     const now = Date.now();
 
     try{
@@ -9012,7 +8995,7 @@ window.filterCursos = function(){
     await update(ref(db,'tomauno/chats/'+id), upd);
     try{ chatsDB[id] = Object.assign({}, chatsDB[id] || existingChat || {}, upd); }catch(e){}
 
-    try{ if(detectedName && !keepName) sessionStorage.setItem('tomauno-chat-name', detectedName); }catch(e){}
+    try{ if(detectedName && (!keepName || askedNameNow)) sessionStorage.setItem('tomauno-chat-name', detectedName); }catch(e){}
 
     try{ updateChatMessagesOnly(id, false); }catch(e){}
     setTimeout(()=>{ try{ updateChatMessagesOnly(id, false); }catch(e){} }, 120);
@@ -9020,7 +9003,7 @@ window.filterCursos = function(){
     window.__tomaunoVisitorSendingUntil = Date.now() + 900;
 
     // Si el texto fue solo el nombre, no responder como si fuera consulta.
-    if(detectedName && lastAdminAskedName(existingChat)) return;
+    if(detectedName && askedNameNow) return;
 
     setTimeout(() => responderAutomaticoChat(id, text), 280);
   }
