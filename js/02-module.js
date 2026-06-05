@@ -308,8 +308,6 @@ window.abrirInscripcion = (id, inscId = '') => {
     opcionesCursoHtml(c, edit?.opcionesElegidas || []) +
     '<div class="mlbl">Detalle del pedido / aclaraciones</div>' +
     '<textarea class="finput" id="f-detalle-pedido" rows="3" placeholder="Ej: Quiero 2 fotos impresas de la misma coreografia, o pago una parte ahora">'+escHtml(edit?.detallePedido || '')+'</textarea>' +
-    '<div class="mlbl">Total real acordado (opcional)</div>' +
-    '<input class="finput" id="f-total-manual" type="number" placeholder="Ej: 43000" value="'+escAttr(edit?.totalManual || '')+'"/>' +
     '<div style="font-size:11px;color:var(--text3);margin:6px 0 14px;">* Campos obligatorios</div>' +
     '<button class="btn-main" onclick="window.confirmarInsc(\'' + id + '\')">✅ Confirmar inscripción</button>' +
     '<button class="btn-out" onclick="window.closeModal()">Cancelar</button>';
@@ -405,7 +403,6 @@ window.confirmarInsc = async (id) => {
   const campoEspecialLabel = campoEspecialLabelCurso(c);
   const campoEspecialValor = campoEspecialLabel ? (document.getElementById('f-campo-especial')?.value.trim() || '') : '';
   const detallePedido = document.getElementById('f-detalle-pedido')?.value.trim() || '';
-  const totalManual = parseFloat(String(document.getElementById('f-total-manual')?.value || '').replace(',','.')) || 0;
   const opciones = leerOpcionesSeleccionadasCurso();
   await push(ref(db, 'tomauno/inscripciones'), {
     cursoId: id, cursoTitulo: c.titulo || '',
@@ -416,7 +413,6 @@ window.confirmarInsc = async (id) => {
     campoEspecialLabel: campoEspecialLabel,
     campoEspecialValor: campoEspecialValor,
     detallePedido: detallePedido,
-    totalManual: totalManual || null,
     fecha: new Date().toLocaleDateString('es-AR'),
     hora: new Date().toLocaleTimeString('es-AR', {hour:'2-digit', minute:'2-digit'}),
     creado: Date.now(),
@@ -496,7 +492,6 @@ window.guardarInscCursoEdit = async (inscId) => {
     campoEspecialLabel: campoEspecialLabel,
     campoEspecialValor: campoEspecialLabel ? (document.getElementById('f-campo-especial')?.value.trim() || '') : '',
     detallePedido: document.getElementById('f-detalle-pedido')?.value.trim() || '',
-    totalManual: (parseFloat(String(document.getElementById('f-total-manual')?.value || '').replace(',','.')) || 0) || null,
     opcionesElegidas: opciones.opcionesElegidas,
     opcionesTotal: opciones.opcionesTotal,
     actualizado: Date.now()
@@ -1040,7 +1035,8 @@ window.renderAlumnos = () => {
     const resumenPagos = '✅ ' + pinfo.pagadas + ' · ⚡ ' + pinfo.parciales + ' · ⏳ ' + pinfo.pendientes + (pinfo.monto ? ' · $ ' + pinfo.monto.toLocaleString('es-AR') : '');
     const resumenOps = resumenOpcionesElegidas(i);
     const especialLabel = i.campoEspecialLabel || campoEspecialLabelCurso(cur);
-    const especialTxt = especialLabel && i.campoEspecialValor ? '<div class="student-sub" style="color:#8fc7ff;white-space:normal;">' + escHtml(especialLabel) + ': ' + escHtml(i.campoEspecialValor) + '</div>' : '';
+    const especialValor = String(i.campoEspecialValor || '').trim();
+    const especialTxt = especialLabel && especialValor ? '<div class="student-sub" style="color:#8fc7ff;white-space:normal;">' + escHtml(especialLabel) + ': ' + escHtml(especialValor) + '</div>' : '';
     const pactado = totalContratadoAlumno(i, cur);
     const saldo = saldoAlumno(i, cur);
     const waText = 'Hola ' + (i.nombre||'').split(' ')[0] + '! Te escribimos de Tomauno para confirmarte tu pre-inscripción a ' + cursoNombre + '. En breve nos comunicamos con los detalles. Muchas gracias!';
@@ -1072,8 +1068,9 @@ window.renderAlumnos = () => {
     }
     const cur = i ? cursos[i.cursoId] : null;
     const label = i ? (i.campoEspecialLabel || campoEspecialLabelCurso(cur)) : '';
-    if (label && i.campoEspecialValor && row.cells[1] && !row.cells[1].querySelector('.campo-especial-row')) {
-      row.cells[1].insertAdjacentHTML('beforeend', '<div class="student-sub campo-especial-row" style="color:#8fc7ff;white-space:normal;">'+escHtml(label)+': '+escHtml(i.campoEspecialValor)+'</div>');
+    const cleanEspecial = String(i.campoEspecialValor || '').trim();
+    if (label && cleanEspecial && row.cells[1] && !row.cells[1].querySelector('.campo-especial-row')) {
+      row.cells[1].insertAdjacentHTML('beforeend', '<div class="student-sub campo-especial-row" style="color:#8fc7ff;white-space:normal;">'+escHtml(label)+': '+escHtml(cleanEspecial)+'</div>');
     }
     const igCell = row.cells[mostrarCurso ? 5 : 4];
     if (i && i.localidad && igCell && !igCell.querySelector('.localidad-row')) {
@@ -1245,7 +1242,7 @@ function drawTicketCanvas(data){
   ctx.fillStyle='#e8000a';ctx.beginPath();ctx.arc(770,0,210,0,Math.PI*2);ctx.fill();
   ctx.fillStyle='#111';ctx.beginPath();ctx.arc(875,1120,300,0,Math.PI*2);ctx.fill();ctx.fillStyle='#e8000a';ctx.beginPath();ctx.arc(760,1210,260,0,Math.PI*2);ctx.fill();
   ctx.font='900 54px Arial';ctx.fillStyle='#fff';ctx.fillText('TOMA',50,82);ctx.fillStyle='#ff151f';ctx.fillText('UNO',220,82);
-  ctx.font='700 18px Arial';ctx.fillStyle='rgba(255,255,255,.75)';ctx.fillText('Cursos & Capacitaciones',52,116);
+  ctx.font='700 18px Arial';ctx.fillStyle='rgba(255,255,255,.75)';ctx.fillText('Cursos & Servicios',52,116);
   ctx.font='900 42px Arial';ctx.fillStyle='#fff';ctx.textAlign='right';ctx.fillText('TICKET DE PAGOS',850,104);ctx.textAlign='left';
   ctx.font='700 18px Arial';ctx.fillStyle='rgba(255,255,255,.85)';ctx.textAlign='right';ctx.fillText('Emitido: '+String(data.fechaTicket||''),850,136);ctx.textAlign='left';
   ctx.fillStyle='#f7f7f7';ctx.fillRect(50,230,800,185);
@@ -1437,14 +1434,60 @@ window.exportarPDF = () => {
 window.exportarExcel = () => {
   const {filtro, lista} = getAlumnosFiltrados();
   const cn = filtro && cursos[filtro] ? cursos[filtro].titulo : 'Todos los cursos';
+  const selectedCourse = filtro && cursos[filtro] ? cursos[filtro] : null;
+  const cr = Object.assign({dni:true, edad:true, ig:true, email:false, altura:false, medidas:false}, selectedCourse?.camposReq || {});
   const especialHeader = (filtro && cursos[filtro] ? campoEspecialLabelCurso(cursos[filtro]) : '') || (lista.map(([,i]) => i.campoEspecialLabel || campoEspecialLabelCurso(cursos[i.cursoId])).find(Boolean)) || 'Dato especial';
-  const cols = ['Nro','Nombre','DNI','Edad','Curso',especialHeader,'Detalle pedido','Localidad','Instagram','WhatsApp alumno','Tutor','WhatsApp tutor','Email','Altura','Medidas','Fecha','Opciones','Total contratado','Total abonado','Saldo'];
+  const hasEspecial = lista.some(([,i]) => String(i.campoEspecialValor || '').trim());
+  const hasDetalle = lista.some(([,i]) => i.detallePedido);
+  const hasOpciones = lista.some(([,i]) => resumenOpcionesElegidas(i));
+  const hasTutor = lista.some(([,i]) => i.tutorNombre || i.tutorWp);
+  const includeAll = !selectedCourse;
+  const cols = ['Nro','Nombre'];
+  if(includeAll || cr.dni !== false) cols.push('DNI');
+  if(includeAll || cr.edad !== false) cols.push('Edad');
+  cols.push('Curso');
+  if(hasEspecial) cols.push(especialHeader);
+  if(hasDetalle) cols.push('Detalle pedido');
+  cols.push('Localidad');
+  if(includeAll || cr.ig !== false) cols.push('Instagram');
+  cols.push('WhatsApp alumno');
+  if(includeAll || hasTutor){ cols.push('Tutor','WhatsApp tutor'); }
+  if(includeAll || cr.email) cols.push('Email');
+  if(includeAll || cr.altura) cols.push('Altura');
+  if(includeAll || cr.medidas) cols.push('Medidas');
+  cols.push('Fecha');
+  if(hasOpciones) cols.push('Opciones');
+  cols.push('Total contratado','Total abonado','Saldo');
   const rows = lista.map(([,i], idx) => {
     const cur = cursos[i.cursoId];
     const pinfo = getPagoAlumnoInfo(i, cur);
-    return [idx+1, i.nombre||'', i.dni||'', i.edad||'', i.cursoTitulo || cur?.titulo || '', i.campoEspecialValor || '', i.detallePedido || '', i.localidad || '', i.ig||'', i.wp||'', i.tutorNombre||'', i.tutorWp||'', i.email||'', i.altura||'', i.medidas||'', i.fecha||'', resumenOpcionesElegidas(i), totalContratadoAlumno(i, cur), pinfo.monto, saldoAlumno(i, cur)];
+    const row = [idx+1, i.nombre||''];
+    if(includeAll || cr.dni !== false) row.push(i.dni||'');
+    if(includeAll || cr.edad !== false) row.push(i.edad||'');
+    row.push(i.cursoTitulo || cur?.titulo || '');
+    if(hasEspecial) row.push(i.campoEspecialValor || '');
+    if(hasDetalle) row.push(i.detallePedido || '');
+    row.push(i.localidad || '');
+    if(includeAll || cr.ig !== false) row.push(i.ig||'');
+    row.push(i.wp||'');
+    if(includeAll || hasTutor) row.push(i.tutorNombre||'', i.tutorWp||'');
+    if(includeAll || cr.email) row.push(i.email||'');
+    if(includeAll || cr.altura) row.push(i.altura||'');
+    if(includeAll || cr.medidas) row.push(i.medidas||'');
+    row.push(i.fecha||'');
+    if(hasOpciones) row.push(resumenOpcionesElegidas(i));
+    row.push(totalContratadoAlumno(i, cur), pinfo.monto, saldoAlumno(i, cur));
+    return row;
   });
-  rows.push(['TOTAL','','','','','','','','','','','','','','','','', rows.reduce((a,r)=>a+(Number(r[17])||0),0), rows.reduce((a,r)=>a+(Number(r[18])||0),0), rows.reduce((a,r)=>a+(Number(r[19])||0),0)]);
+  const totalIdx = cols.indexOf('Total contratado');
+  const abonadoIdx = cols.indexOf('Total abonado');
+  const saldoIdx = cols.indexOf('Saldo');
+  const totalRow = Array(cols.length).fill('');
+  totalRow[0] = 'TOTAL';
+  totalRow[totalIdx] = rows.reduce((a,r)=>a+(Number(r[totalIdx])||0),0);
+  totalRow[abonadoIdx] = rows.reduce((a,r)=>a+(Number(r[abonadoIdx])||0),0);
+  totalRow[saldoIdx] = rows.reduce((a,r)=>a+(Number(r[saldoIdx])||0),0);
+  rows.push(totalRow);
   descargarExcelCsv('tomauno_inscripciones_' + String(cn).replace(/[^a-zA-Z0-9]/g,'_') + '.csv', 'Tomauno - Inscripciones - ' + cn, cols, rows);
 };
 
@@ -1457,7 +1500,8 @@ window.exportarPDF = () => {
   const rows = lista.map(([id,i], idx) => {
     const cur = cursos[i.cursoId];
     const pinfo = getPagoAlumnoInfo(i, cur);
-    const especial = (i.campoEspecialLabel || campoEspecialLabelCurso(cur)) && i.campoEspecialValor ? (i.campoEspecialLabel || campoEspecialLabelCurso(cur)) + ': ' + i.campoEspecialValor : '-';
+    const especialValor = String(i.campoEspecialValor || '').trim();
+    const especial = (i.campoEspecialLabel || campoEspecialLabelCurso(cur)) && especialValor ? especialValor : '-';
     return '<tr><td>'+(idx+1)+'</td><td>'+escHtml(i.nombre||'')+'</td><td>'+escHtml(i.dni||'')+'</td><td>'+escHtml(i.edad||'')+'</td><td>'+escHtml(i.cursoTitulo || cur?.titulo || '')+'</td><td>'+escHtml(especial)+'</td><td>'+escHtml(i.detallePedido || '-')+'</td><td>'+escHtml(resumenOpcionesElegidas(i) || '-')+'</td><td>$ '+totalContratadoAlumno(i, cur).toLocaleString('es-AR')+'</td><td>$ '+pinfo.monto.toLocaleString('es-AR')+'</td><td>$ '+saldoAlumno(i, cur).toLocaleString('es-AR')+'</td></tr>';
   }).join('');
   const win = window.open('', '_blank');
@@ -4828,7 +4872,7 @@ function drawAgendaCanvas(canvas, mode = 'story', scalePreview = false) {
   ctx.fillText('UNO', 158 + tomaW + 8, logoY+4);
   ctx.font = '800 ' + (mode === 'post' ? 18 : 23) + 'px Outfit, Arial, sans-serif';
   ctx.fillStyle = 'rgba(255,255,255,.50)';
-  ctx.fillText('CURSOS & CAPACITACIONES', 160, logoY+42);
+  ctx.fillText('CURSOS & SERVICIOS', 160, logoY+42);
   ctx.font = '900 ' + (mode === 'post' ? 22 : 28) + 'px Outfit, Arial, sans-serif';
   ctx.fillStyle = '#ff0712';
   ctx.fillText('Tomauno está con vos!!', 160, logoY + (mode === 'post' ? 72 : 82));
