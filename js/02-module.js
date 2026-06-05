@@ -26,9 +26,9 @@ sessionStorage.setItem('tomauno_presence_id', PRESENCE_ID);
 let presenceDB = {};
 try {
   const presenceRef = ref(db, 'tomauno/presence/' + PRESENCE_ID);
-  set(presenceRef, {online:true, admin:false, ts:Date.now(), ua:navigator.userAgent.slice(0,80)});
+  set(presenceRef, {online:true, ts:Date.now(), ua:navigator.userAgent.slice(0,80)}).catch(()=>{});
   onDisconnect(presenceRef).remove();
-  setInterval(() => update(presenceRef, {online:true, admin:isAdminNotifier(), ts:Date.now()}).catch(()=>{}), 30000);
+  setInterval(() => update(presenceRef, {online:true, ts:Date.now()}).catch(()=>{}), 30000);
   onValue(ref(db, 'tomauno/presence'), snap => {
     const now = Date.now();
     presenceDB = snap.exists() ? (snap.val() || {}) : {};
@@ -75,7 +75,7 @@ window.submitPin = () => {
 function toggleAdmin(show) {
   if(show){ window._adminWasActive=true; adminOk=true; try{localStorage.setItem('tomauno-admin-notify','1');}catch(e){} }
   if(adminOk){ try{ update(ref(db,'tomauno/status'), {adminOnline:true, adminLast: Date.now()}); }catch(e){} }
-  try{ update(ref(db,'tomauno/presence/'+PRESENCE_ID), {admin:isAdminNotifier(), ts:Date.now()}); }catch(e){}
+  try{ update(ref(db,'tomauno/presence/'+PRESENCE_ID), {ts:Date.now()}); }catch(e){}
   setTimeout(updateAdminLiveIndicator, 80);
   document.getElementById('admin-section').style.display = show ? 'block' : 'none';
   ['hero','sec-cursos','sec-eventos','sec-servicios','sec-galeria','sec-testimonios','sec-faq','sec-ubicacion'].forEach(id => {
@@ -5846,6 +5846,7 @@ window.abrirChatTomauno = function(){
 
   if (popToggle && popToggle.classList.contains('open')) { window.cerrarChatPopover && window.cerrarChatPopover(); return; }
   document.getElementById('chat-fab')?.classList.remove('has-new');
+  if(currentVisitorInvite && Number(currentVisitorInvite.expiresAt || 0) > Date.now()) return window.abrirInvitacionVisitante();
   if (currentVisitorChatId && chatsDB[currentVisitorChatId] && chatsDB[currentVisitorChatId].status !== 'cerrado') return abrirChatVisitante(currentVisitorChatId);
   setChatPopover(
     '<div class="chat-head"><div class="chat-avatar">ðŸ’¬</div><div><div class="chat-title">CHAT TOMAUNO</div><div class="chat-subline">Consulta directa desde la web</div></div></div>' +
