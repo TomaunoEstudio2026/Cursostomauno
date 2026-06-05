@@ -308,6 +308,8 @@ window.abrirInscripcion = (id, inscId = '') => {
     opcionesCursoHtml(c, edit?.opcionesElegidas || []) +
     '<div class="mlbl">Detalle del pedido / aclaraciones</div>' +
     '<textarea class="finput" id="f-detalle-pedido" rows="3" placeholder="Ej: Quiero 2 fotos impresas de la misma coreografia, o pago una parte ahora">'+escHtml(edit?.detallePedido || '')+'</textarea>' +
+    '<div class="mlbl">Total real acordado (opcional)</div>' +
+    '<input class="finput" id="f-total-manual" type="number" placeholder="Ej: 43000" value="'+escAttr(edit?.totalManual || '')+'"/>' +
     '<div style="font-size:11px;color:var(--text3);margin:6px 0 14px;">* Campos obligatorios</div>' +
     '<button class="btn-main" onclick="window.confirmarInsc(\'' + id + '\')">✅ Confirmar inscripción</button>' +
     '<button class="btn-out" onclick="window.closeModal()">Cancelar</button>';
@@ -403,6 +405,7 @@ window.confirmarInsc = async (id) => {
   const campoEspecialLabel = campoEspecialLabelCurso(c);
   const campoEspecialValor = campoEspecialLabel ? (document.getElementById('f-campo-especial')?.value.trim() || '') : '';
   const detallePedido = document.getElementById('f-detalle-pedido')?.value.trim() || '';
+  const totalManual = parseFloat(String(document.getElementById('f-total-manual')?.value || '').replace(',','.')) || 0;
   const opciones = leerOpcionesSeleccionadasCurso();
   await push(ref(db, 'tomauno/inscripciones'), {
     cursoId: id, cursoTitulo: c.titulo || '',
@@ -413,6 +416,7 @@ window.confirmarInsc = async (id) => {
     campoEspecialLabel: campoEspecialLabel,
     campoEspecialValor: campoEspecialValor,
     detallePedido: detallePedido,
+    totalManual: totalManual || null,
     fecha: new Date().toLocaleDateString('es-AR'),
     hora: new Date().toLocaleTimeString('es-AR', {hour:'2-digit', minute:'2-digit'}),
     creado: Date.now(),
@@ -492,6 +496,7 @@ window.guardarInscCursoEdit = async (inscId) => {
     campoEspecialLabel: campoEspecialLabel,
     campoEspecialValor: campoEspecialLabel ? (document.getElementById('f-campo-especial')?.value.trim() || '') : '',
     detallePedido: document.getElementById('f-detalle-pedido')?.value.trim() || '',
+    totalManual: (parseFloat(String(document.getElementById('f-total-manual')?.value || '').replace(',','.')) || 0) || null,
     opcionesElegidas: opciones.opcionesElegidas,
     opcionesTotal: opciones.opcionesTotal,
     actualizado: Date.now()
@@ -768,7 +773,7 @@ window.editCurso = (id) => {
     '<label class="flbl">Descripción</label>' +
     '<textarea class="finput" id="ec-desc" rows="5">' + (c.desc || '') + '</textarea>' +
     '<label class="flbl">Campo especial del formulario</label>' +
-    '<input class="finput" id="ec-campo-especial-label" value="' + escAttr(c.campoEspecialLabel || c.campoEspecial || '') + '" placeholder="Ej: Instituto / Escuela, Categoria, Color de ojos"/>' +
+    '<input class="finput" id="ec-campo-especial-label" value="' + escAttr(c.campoEspecialLabel || c.campoEspecial || '') + '" placeholder="Nombre del campo adicional"/>' +
     '<div style="font-size:10px;color:var(--text3);margin:-4px 0 10px;">Si queda vacio, no aparece en el formulario publico.</div>' +
     '<div class="frow2">' +
     '<div><label class="flbl">Costo ($)</label><input class="finput" id="ec-costo" type="number" value="' + (c.costo || '') + '"/></div>' +
@@ -923,6 +928,8 @@ function getPagoAlumnoInfo(i, cur) {
 }
 
 function totalContratadoAlumno(i, cur){
+  const manual = parseFloat(String(i?.totalManual || '').replace(',','.')) || 0;
+  if (manual > 0) return manual;
   const opcionesTotal = Number(i?.opcionesTotal || 0);
   if (opcionesTotal > 0) return opcionesTotal;
   return Number(cur?.costo || 0) || 0;
@@ -1001,6 +1008,7 @@ window.renderAlumnos = () => {
   }
 
   const totalMonto = lista.reduce((acc, [,i]) => acc + getPagoAlumnoInfo(i, cursos[i.cursoId]).monto, 0);
+  const totalContratado = lista.reduce((acc, [,i]) => acc + totalContratadoAlumno(i, cursos[i.cursoId]), 0);
   const totalSaldo = lista.reduce((acc, [,i]) => acc + saldoAlumno(i, cursos[i.cursoId]), 0);
   const conPago = lista.filter(([,i]) => getPagoAlumnoInfo(i, cursos[i.cursoId]).estado === 'pagado').length;
   const parcial = lista.filter(([,i]) => getPagoAlumnoInfo(i, cursos[i.cursoId]).estado === 'parcial').length;
@@ -1013,6 +1021,7 @@ window.renderAlumnos = () => {
       '<div class="admin-metric"><div class="admin-metric-n" style="color:#4caf7d;">' + conPago + '</div><div class="admin-metric-l">Con pago</div></div>' +
       '<div class="admin-metric"><div class="admin-metric-n" style="color:#f5c842;">' + parcial + '</div><div class="admin-metric-l">Parciales</div></div>' +
       '<div class="admin-metric"><div class="admin-metric-n" style="color:#e05252;">' + pendientesPersonas + '</div><div class="admin-metric-l">Pendientes</div></div>' +
+      '<div class="admin-metric"><div class="admin-metric-n" style="color:#fff;">$ ' + totalContratado.toLocaleString('es-AR') + '</div><div class="admin-metric-l">Total pactado</div></div>' +
       '<div class="admin-metric"><div class="admin-metric-n" style="color:#4caf7d;">$ ' + totalMonto.toLocaleString('es-AR') + '</div><div class="admin-metric-l">Total registrado</div></div>' +
       '<div class="admin-metric"><div class="admin-metric-n" style="color:#f5c842;">$ ' + totalSaldo.toLocaleString('es-AR') + '</div><div class="admin-metric-l">Saldo</div></div>' +
     '</div>';
@@ -1032,6 +1041,7 @@ window.renderAlumnos = () => {
     const resumenOps = resumenOpcionesElegidas(i);
     const especialLabel = i.campoEspecialLabel || campoEspecialLabelCurso(cur);
     const especialTxt = especialLabel && i.campoEspecialValor ? '<div class="student-sub" style="color:#8fc7ff;white-space:normal;">' + escHtml(especialLabel) + ': ' + escHtml(i.campoEspecialValor) + '</div>' : '';
+    const pactado = totalContratadoAlumno(i, cur);
     const saldo = saldoAlumno(i, cur);
     const waText = 'Hola ' + (i.nombre||'').split(' ')[0] + '! Te escribimos de Tomauno para confirmarte tu pre-inscripción a ' + cursoNombre + '. En breve nos comunicamos con los detalles. Muchas gracias!';
     const waLink = 'https://wa.me/549' + (i.wp||'').replace(/\D/g,'') + '?text=' + waEncode(waText);
@@ -1044,7 +1054,7 @@ window.renderAlumnos = () => {
       '<td>' + (i.ig ? '<a rel="noopener noreferrer" href="https://instagram.com/'+escHtml(i.ig.replace('@',''))+'" target="_blank" class="ig-link">@'+escHtml(i.ig.replace('@',''))+'</a>' : '<span class="tds">-</span>') + '</td>' +
       '<td><a rel="noopener noreferrer" href="https://wa.me/549' + (i.wp||'').replace(/\D/g,'') + '" target="_blank" class="wabtn">' + escHtml(i.wp||'-') + '</a></td>' +
       '<td>' + (i.tutorWp ? '<a rel="noopener noreferrer" href="https://wa.me/549'+i.tutorWp.replace(/\D/g,'')+'" target="_blank" class="wabtn" style="font-size:10px;">'+escHtml(i.tutorWp)+'</a>' : '<span class="tds">-</span>') + '</td>' +
-      '<td><div class="pay-summary"><span class="pay-pill ' + estadoClass + '">' + estadoTxt + '</span><span class="pay-summary-text" title="' + escHtml(resumenPagos) + '">' + escHtml(resumenPagos) + (saldo ? ' - Saldo ' + dineroOpt(saldo) : '') + '</span><button class="pay-chip-btn" onclick="window.abrirPagosAlumno(\'' + k + '\')">Pagos</button></div></td>' +
+      '<td><div class="pay-summary"><span class="pay-pill ' + estadoClass + '">' + estadoTxt + '</span><span class="pay-summary-text" title="' + escHtml(resumenPagos) + '">Pactado ' + dineroOpt(pactado) + ' · Abonado ' + dineroOpt(pinfo.monto) + (saldo ? ' · Saldo ' + dineroOpt(saldo) : '') + '</span><button class="pay-chip-btn" onclick="window.abrirPagosAlumno(\'' + k + '\')">Pagos</button></div></td>' +
       '<td><div class="action-mini"><a rel="noopener noreferrer" href="' + waLink + '" target="_blank" class="bsm gr" style="text-decoration:none;">WA</a><button class="bsm bl" onclick="window.enviarTicketPagoAlumno(\'' + k + '\')">Ticket</button><button class="bsm re" onclick="window.delInsc(\'' + k + '\')">✕</button></div></td>' +
       '</tr>';
   }).join('') +
@@ -1065,6 +1075,13 @@ window.renderAlumnos = () => {
     if (label && i.campoEspecialValor && row.cells[1] && !row.cells[1].querySelector('.campo-especial-row')) {
       row.cells[1].insertAdjacentHTML('beforeend', '<div class="student-sub campo-especial-row" style="color:#8fc7ff;white-space:normal;">'+escHtml(label)+': '+escHtml(i.campoEspecialValor)+'</div>');
     }
+    const igCell = row.cells[mostrarCurso ? 5 : 4];
+    if (i && i.localidad && igCell && !igCell.querySelector('.localidad-row')) {
+      igCell.insertAdjacentHTML('beforeend', '<div class="student-sub localidad-row" style="color:var(--text3);font-size:10px;white-space:normal;">Localidad: '+escHtml(i.localidad)+'</div>');
+    }
+    if (i && i.totalManual && row.cells[1] && !row.cells[1].querySelector('.total-manual-row')) {
+      row.cells[1].insertAdjacentHTML('beforeend', '<div class="student-sub total-manual-row" style="color:#f5c842;white-space:normal;">Total real: '+dineroOpt(i.totalManual)+'</div>');
+    }
     if (i && i.detallePedido && row.cells[1] && !row.cells[1].querySelector('.detalle-pedido-row')) {
       row.cells[1].insertAdjacentHTML('beforeend', '<div class="student-sub detalle-pedido-row" style="color:#d7d7d7;white-space:normal;">Detalle: '+escHtml(i.detallePedido)+'</div>');
     }
@@ -1077,26 +1094,54 @@ window.abrirPagosAlumno = (id) => {
   const pinfo = getPagoAlumnoInfo(i, cur);
   const montoDefault = Number(cur?.costo || 0) || '';
   const pagos = pinfo.pagos.map(p => ({...p, monto: (p.monto === undefined || p.monto === null || p.monto === '') ? montoDefault : p.monto}));
-  if (JSON.stringify(pagos) !== JSON.stringify(i.pagos || [])) { update(ref(db, 'tomauno/inscripciones/' + id), {pagos}).catch(()=>{}); }
   document.getElementById('mcontent').innerHTML =
     '<div class="mtitle">PAGOS</div>' +
     '<div class="msub" style="margin-bottom:16px;">' + escHtml(i.nombre||'Alumno') + ' · ' + escHtml(i.cursoTitulo || cur?.titulo || '') + '</div>' +
+    '<div style="background:#0d0d0d;border:1px solid var(--border);border-radius:12px;padding:10px;margin-bottom:12px;">' +
+      '<label class="flbl">Total real acordado</label>' +
+      '<div style="display:flex;gap:8px;align-items:center;"><input class="mini-input" id="pay-total-manual" type="number" value="' + escAttr(i.totalManual || totalContratadoAlumno(i, cur) || '') + '" placeholder="Total real"/><button class="bsm bl" onclick="window.guardarTotalAlumno(\'' + id + '\')">Guardar total</button></div>' +
+      '<div style="font-size:10px;color:var(--text3);margin-top:6px;">Usalo cuando el detalle del pedido cambia el total automatico.</div>' +
+    '</div>' +
     '<div style="display:grid;gap:10px;">' +
     pagos.map((p, idx) => {
       const clr = p.estado==='pagado'?'#4caf7d':p.estado==='parcial'?'#f5c842':'#e05252';
       return '<div style="display:grid;grid-template-columns:1fr 120px 120px;gap:8px;align-items:center;background:#0d0d0d;border:1px solid var(--border);border-radius:12px;padding:10px;">' +
         '<div><div style="font-size:12px;font-weight:800;color:#fff;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">' + escHtml(p.label||'Pago') + '</div><div style="font-size:10px;color:var(--text3);margin-top:2px;">Cuota / concepto</div></div>' +
-        '<select class="mini-input" style="color:' + clr + ';font-weight:800;" onchange="window.updPago(\'' + id + '\',' + idx + ',this.value)">' +
+        '<select class="mini-input pago-estado-input" data-idx="' + idx + '" style="color:' + clr + ';font-weight:800;">' +
           '<option value="pendiente" ' + (p.estado==='pendiente'?'selected':'') + '>Pendiente</option>' +
           '<option value="parcial" ' + (p.estado==='parcial'?'selected':'') + '>Parcial</option>' +
           '<option value="pagado" ' + (p.estado==='pagado'?'selected':'') + '>Pagado</option>' +
         '</select>' +
-        '<input class="mini-input" type="number" value="' + escHtml((p.monto === undefined || p.monto === null || p.monto === '') ? montoDefault : p.monto) + '" placeholder="Monto" onchange="window.updMontoPagoAlumno(\'' + id + '\',' + idx + ',this.value)" />' +
+        '<input class="mini-input pago-monto-input" data-idx="' + idx + '" type="number" value="' + escHtml((p.monto === undefined || p.monto === null || p.monto === '') ? montoDefault : p.monto) + '" placeholder="Monto" />' +
       '</div>';
     }).join('') +
     '</div>' +
-    '<div style="display:flex;gap:8px;margin-top:14px;"><button class="btn-out" style="flex:1;" onclick="window.addCuota(\'' + id + '\')">+ Agregar cuota</button><button class="btn-main" style="flex:1;" onclick="window.closeModal()">Listo</button></div>';
+    '<div style="display:flex;gap:8px;margin-top:14px;"><button class="btn-out" style="flex:1;" onclick="window.addCuota(\'' + id + '\')">+ Agregar cuota</button><button class="btn-main" style="flex:1;" onclick="window.guardarPagosAlumno(\'' + id + '\')">Guardar pagos</button></div>';
   openModal();
+};
+
+window.guardarTotalAlumno = async (id) => {
+  const totalManual = parseFloat(String(document.getElementById('pay-total-manual')?.value || '').replace(',','.')) || 0;
+  await update(ref(db, 'tomauno/inscripciones/' + id), {totalManual: totalManual || null});
+  toast('Total actualizado', true);
+  renderAlumnos();
+};
+
+window.guardarPagosAlumno = async (id) => {
+  const insc = inscripciones[id]; if (!insc) return;
+  const pagos = [...(insc.pagos || [])];
+  document.querySelectorAll('.pago-estado-input').forEach(el => {
+    const idx = parseInt(el.dataset.idx, 10);
+    if (!Number.isFinite(idx) || !pagos[idx]) return;
+    const estado = el.value || 'pendiente';
+    const montoEl = document.querySelector('.pago-monto-input[data-idx="' + idx + '"]');
+    const monto = montoEl ? montoEl.value : pagos[idx].monto;
+    pagos[idx] = {...pagos[idx], estado, monto, fechaPago: (estado === 'pagado' || estado === 'parcial') ? (pagos[idx].fechaPago || new Date().toLocaleDateString('es-AR')) : (pagos[idx].fechaPago || '')};
+  });
+  await update(ref(db, 'tomauno/inscripciones/' + id), {pagos});
+  closeModal();
+  renderAlumnos();
+  toast('Pagos guardados', true);
 };
 
 window.updMontoPagoAlumno = async (id, idx, monto) => {
@@ -1126,6 +1171,7 @@ window.enviarTicketPagoAlumno = (id) => {
   const total = pagos.reduce((acc,p) => acc + ((p.estado === 'pagado' || p.estado === 'parcial') ? (parseFloat(String(p.monto||'').replace(',','.')) || 0) : 0), 0);
   const contratado = totalContratadoAlumno(i, cur);
   const saldo = saldoAlumno(i, cur);
+  const fechaTicket = new Date().toLocaleDateString('es-AR') + ' ' + new Date().toLocaleTimeString('es-AR', {hour:'2-digit', minute:'2-digit'});
   const ops = Array.isArray(i.opcionesElegidas) ? i.opcionesElegidas : [];
   const detalleOps = ops.map(o => '- ' + (o.nombre || '') + ': ' + dineroOpt(o.precio)).join('\n');
   const detalle = pagos.map((p, idx) => {
@@ -1136,6 +1182,7 @@ window.enviarTicketPagoAlumno = (id) => {
   }).join('\n');
   const msg = '*Historial de pagos - Tomauno*\n\n' +
     'Alumno/a: ' + (i.nombre || '-') + '\n' +
+    'Fecha ticket: ' + fechaTicket + '\n' +
     'Curso: ' + cursoNombre + '\n' +
     'DNI: ' + (i.dni || '-') + '\n\n' +
     (ops.length ? '*Opciones elegidas:*\n' + detalleOps + '\nTotal opciones: ' + dineroOpt(i.opcionesTotal || 0) + '\n\n' : '') +
@@ -1152,8 +1199,7 @@ window.enviarTicketPagoAlumno = (id) => {
     monto: dineroOpt(o.precio),
     fecha: '-'
   }));
-  const detalleRows = i.detallePedido ? [{label: 'Detalle: ' + String(i.detallePedido).slice(0, 32), estado: 'Info', monto: '-', fecha: '-'}] : [];
-  const rows = optionRows.concat(detalleRows).concat(pagos.map((p, idx) => ({
+  const rows = optionRows.concat(pagos.map((p, idx) => ({
     label: p.label || ('Pago ' + (idx+1)),
     estado: estadoPagoTxt(p.estado),
     monto: p.monto ? ('$ ' + Number(String(p.monto).replace(',','.')).toLocaleString('es-AR')) : '$ 0',
@@ -1171,13 +1217,29 @@ window.enviarTicketPagoAlumno = (id) => {
     '<button class="btn-out" onclick="window.closeModal()">Cerrar</button>';
   openModal();
   window._ticketText = msg;
-  setTimeout(()=>drawTicketCanvas({alumno:i.nombre||'-', curso:cursoNombre, dni:i.dni||'-', wp:i.wp||'-', total, contratado, saldo, rows}), 50);
+  setTimeout(()=>drawTicketCanvas({alumno:i.nombre||'-', curso:cursoNombre, dni:i.dni||'-', wp:i.wp||'-', fechaTicket, detallePedido:i.detallePedido||'', total, contratado, saldo, rows}), 50);
 };
 
 function drawTicketCanvas(data){
   const c=document.getElementById('ticket-canvas'); if(!c) return;
   const ctx=c.getContext('2d');
   const W=c.width,H=c.height;
+  const wrapTicketText = (text, x, y, maxWidth, lineHeight) => {
+    const words = String(text || '').split(/\s+/).filter(Boolean);
+    let line = '';
+    words.forEach(word => {
+      const test = line ? line + ' ' + word : word;
+      if (ctx.measureText(test).width > maxWidth && line) {
+        ctx.fillText(line, x, y);
+        line = word;
+        y += lineHeight;
+      } else {
+        line = test;
+      }
+    });
+    if (line) ctx.fillText(line, x, y);
+    return y + lineHeight;
+  };
   ctx.fillStyle='#ffffff';ctx.fillRect(0,0,W,H);
   const grad=ctx.createLinearGradient(0,0,W,220);grad.addColorStop(0,'#050505');grad.addColorStop(1,'#b5000a');ctx.fillStyle=grad;ctx.fillRect(0,0,W,190);
   ctx.fillStyle='#e8000a';ctx.beginPath();ctx.arc(770,0,210,0,Math.PI*2);ctx.fill();
@@ -1185,6 +1247,7 @@ function drawTicketCanvas(data){
   ctx.font='900 54px Arial';ctx.fillStyle='#fff';ctx.fillText('TOMA',50,82);ctx.fillStyle='#ff151f';ctx.fillText('UNO',220,82);
   ctx.font='700 18px Arial';ctx.fillStyle='rgba(255,255,255,.75)';ctx.fillText('Cursos & Capacitaciones',52,116);
   ctx.font='900 42px Arial';ctx.fillStyle='#fff';ctx.textAlign='right';ctx.fillText('TICKET DE PAGOS',850,104);ctx.textAlign='left';
+  ctx.font='700 18px Arial';ctx.fillStyle='rgba(255,255,255,.85)';ctx.textAlign='right';ctx.fillText('Emitido: '+String(data.fechaTicket||''),850,136);ctx.textAlign='left';
   ctx.fillStyle='#f7f7f7';ctx.fillRect(50,230,800,185);
   ctx.strokeStyle='#ddd';ctx.strokeRect(50,230,800,185);
   ctx.font='700 18px Arial';ctx.fillStyle='#777';ctx.fillText('ALUMNO/A',75,265);ctx.fillText('CURSO',75,330);ctx.fillText('DNI',555,265);ctx.fillText('WHATSAPP',555,330);
@@ -1194,8 +1257,9 @@ function drawTicketCanvas(data){
   ctx.fillStyle='#e8000a';ctx.fillRect(50,y-45,800,42);
   ctx.font='900 18px Arial';ctx.fillStyle='#fff';ctx.fillText('CONCEPTO',72,y-18);ctx.fillText('ESTADO',410,y-18);ctx.fillText('FECHA',570,y-18);ctx.fillText('MONTO',735,y-18);
   ctx.font='700 18px Arial';
-  data.rows.forEach((r,idx)=>{ctx.fillStyle=idx%2?'#fff':'#f3f3f3';ctx.fillRect(50,y,800,52);ctx.strokeStyle='#e1e1e1';ctx.strokeRect(50,y,800,52);ctx.fillStyle='#222';ctx.fillText(String(r.label).slice(0,28),72,y+33);ctx.fillStyle=r.estado==='Pagado'?'#078b42':r.estado==='Parcial'?'#c09000':r.estado==='Elegido'?'#e8000a':'#b5000a';ctx.fillText(r.estado,410,y+33);ctx.fillStyle='#222';ctx.fillText(r.fecha,570,y+33);ctx.textAlign='right';ctx.fillText(r.monto,825,y+33);ctx.textAlign='left';y+=52;});
-  ctx.fillStyle='#111';ctx.fillRect(500,900,350,120);ctx.font='800 20px Arial';ctx.fillStyle='#fff';ctx.fillText('TOTAL CONTRATADO',525,930);ctx.textAlign='right';ctx.fillText('$ '+Number(data.contratado||0).toLocaleString('es-AR'),825,930);ctx.textAlign='left';ctx.fillText('ABONADO',525,965);ctx.textAlign='right';ctx.fillText('$ '+Number(data.total||0).toLocaleString('es-AR'),825,965);ctx.textAlign='left';ctx.fillStyle='#ff151f';ctx.font='900 26px Arial';ctx.fillText('SALDO',525,1003);ctx.textAlign='right';ctx.fillText('$ '+Number(data.saldo||0).toLocaleString('es-AR'),825,1003);ctx.textAlign='left';
+  data.rows.forEach((r,idx)=>{ctx.fillStyle=idx%2?'#fff':'#f3f3f3';ctx.fillRect(50,y,800,58);ctx.strokeStyle='#e1e1e1';ctx.strokeRect(50,y,800,58);ctx.font='700 16px Arial';ctx.fillStyle='#222';wrapTicketText(String(r.label),72,y+24,300,18);ctx.font='700 18px Arial';ctx.fillStyle=r.estado==='Pagado'?'#078b42':r.estado==='Parcial'?'#c09000':r.estado==='Elegido'?'#e8000a':'#b5000a';ctx.fillText(r.estado,410,y+36);ctx.fillStyle='#222';ctx.fillText(r.fecha,570,y+36);ctx.textAlign='right';ctx.fillText(r.monto,825,y+36);ctx.textAlign='left';y+=58;});
+  if (data.detallePedido) { ctx.font='800 18px Arial';ctx.fillStyle='#777';ctx.fillText('DETALLE DEL PEDIDO',60,805);ctx.font='700 18px Arial';ctx.fillStyle='#222';wrapTicketText(data.detallePedido,60,835,390,24); }
+  ctx.fillStyle='#111';ctx.fillRect(455,880,395,132);ctx.font='800 18px Arial';ctx.fillStyle='#fff';ctx.fillText('TOTAL',480,915);ctx.textAlign='right';ctx.fillText('$ '+Number(data.contratado||0).toLocaleString('es-AR'),825,915);ctx.textAlign='left';ctx.fillText('ABONADO',480,955);ctx.textAlign='right';ctx.fillText('$ '+Number(data.total||0).toLocaleString('es-AR'),825,955);ctx.textAlign='left';ctx.fillStyle='#ff151f';ctx.font='900 26px Arial';ctx.fillText('SALDO',480,995);ctx.textAlign='right';ctx.fillText('$ '+Number(data.saldo||0).toLocaleString('es-AR'),825,995);ctx.textAlign='left';
   ctx.font='700 18px Arial';ctx.fillStyle='#555';ctx.fillText('Gracias por formar parte de Tomauno.',60,1025);ctx.fillText('Pedro Méndez 2069 · Posadas · @tomaunomodels · 3764354522',60,1060);
 }
 
@@ -1373,19 +1437,21 @@ window.exportarPDF = () => {
 window.exportarExcel = () => {
   const {filtro, lista} = getAlumnosFiltrados();
   const cn = filtro && cursos[filtro] ? cursos[filtro].titulo : 'Todos los cursos';
-  const cols = ['Nro','Nombre','DNI','Edad','Curso','Campo especial','Valor especial','Detalle pedido','Instagram','WhatsApp','Fecha','Opciones','Total contratado','Total abonado','Saldo'];
+  const especialHeader = (filtro && cursos[filtro] ? campoEspecialLabelCurso(cursos[filtro]) : '') || (lista.map(([,i]) => i.campoEspecialLabel || campoEspecialLabelCurso(cursos[i.cursoId])).find(Boolean)) || 'Dato especial';
+  const cols = ['Nro','Nombre','DNI','Edad','Curso',especialHeader,'Detalle pedido','Localidad','Instagram','WhatsApp alumno','Tutor','WhatsApp tutor','Email','Altura','Medidas','Fecha','Opciones','Total contratado','Total abonado','Saldo'];
   const rows = lista.map(([,i], idx) => {
     const cur = cursos[i.cursoId];
     const pinfo = getPagoAlumnoInfo(i, cur);
-    return [idx+1, i.nombre||'', i.dni||'', i.edad||'', i.cursoTitulo || cur?.titulo || '', i.campoEspecialLabel || campoEspecialLabelCurso(cur), i.campoEspecialValor || '', i.detallePedido || '', i.ig||'', i.wp||'', i.fecha||'', resumenOpcionesElegidas(i), totalContratadoAlumno(i, cur), pinfo.monto, saldoAlumno(i, cur)];
+    return [idx+1, i.nombre||'', i.dni||'', i.edad||'', i.cursoTitulo || cur?.titulo || '', i.campoEspecialValor || '', i.detallePedido || '', i.localidad || '', i.ig||'', i.wp||'', i.tutorNombre||'', i.tutorWp||'', i.email||'', i.altura||'', i.medidas||'', i.fecha||'', resumenOpcionesElegidas(i), totalContratadoAlumno(i, cur), pinfo.monto, saldoAlumno(i, cur)];
   });
-  rows.push(['TOTAL','','','','','','','','','','','', rows.reduce((a,r)=>a+(Number(r[12])||0),0), rows.reduce((a,r)=>a+(Number(r[13])||0),0), rows.reduce((a,r)=>a+(Number(r[14])||0),0)]);
+  rows.push(['TOTAL','','','','','','','','','','','','','','','','', rows.reduce((a,r)=>a+(Number(r[17])||0),0), rows.reduce((a,r)=>a+(Number(r[18])||0),0), rows.reduce((a,r)=>a+(Number(r[19])||0),0)]);
   descargarExcelCsv('tomauno_inscripciones_' + String(cn).replace(/[^a-zA-Z0-9]/g,'_') + '.csv', 'Tomauno - Inscripciones - ' + cn, cols, rows);
 };
 
 window.exportarPDF = () => {
   const {filtro, lista} = getAlumnosFiltrados();
   const cn = filtro && cursos[filtro] ? cursos[filtro].titulo : 'Todos los cursos';
+  const especialHeader = (filtro && cursos[filtro] ? campoEspecialLabelCurso(cursos[filtro]) : '') || (lista.map(([,i]) => i.campoEspecialLabel || campoEspecialLabelCurso(cursos[i.cursoId])).find(Boolean)) || 'Dato especial';
   const totalAbonado = lista.reduce((a,[,i]) => a + getPagoAlumnoInfo(i, cursos[i.cursoId]).monto, 0);
   const totalSaldo = lista.reduce((a,[,i]) => a + saldoAlumno(i, cursos[i.cursoId]), 0);
   const rows = lista.map(([id,i], idx) => {
@@ -1396,7 +1462,7 @@ window.exportarPDF = () => {
   }).join('');
   const win = window.open('', '_blank');
   if(!win) return;
-  win.document.write('<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Tomauno</title><link rel="stylesheet" href="css/03-style-03.css"/></head><body><div class="head"><div class="brand">TOMA<span>UNO</span></div><div class="course-title">'+escHtml(cn)+'</div><div class="meta">Planilla de alumnos - '+new Date().toLocaleDateString('es-AR')+'</div></div><div class="summary"><div class="box">Inscriptos: '+lista.length+'</div><div class="box">Abonado: $ '+totalAbonado.toLocaleString('es-AR')+'</div><div class="box">Saldo: $ '+totalSaldo.toLocaleString('es-AR')+'</div></div><table><thead><tr><th>#</th><th>Nombre</th><th>DNI</th><th>Edad</th><th>Curso</th><th>Campo especial</th><th>Detalle pedido</th><th>Opciones</th><th>Total</th><th>Abonado</th><th>Saldo</th></tr></thead><tbody>'+rows+'</tbody></table></body></html>');
+  win.document.write('<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Tomauno</title><link rel="stylesheet" href="css/03-style-03.css"/></head><body><div class="head"><div class="brand">TOMA<span>UNO</span></div><div class="course-title">'+escHtml(cn)+'</div><div class="meta">Planilla de alumnos - '+new Date().toLocaleDateString('es-AR')+'</div></div><div class="summary"><div class="box">Inscriptos: '+lista.length+'</div><div class="box">Abonado: $ '+totalAbonado.toLocaleString('es-AR')+'</div><div class="box">Saldo: $ '+totalSaldo.toLocaleString('es-AR')+'</div></div><table><thead><tr><th>#</th><th>Nombre</th><th>DNI</th><th>Edad</th><th>Curso</th><th>'+escHtml(especialHeader)+'</th><th>Detalle pedido</th><th>Opciones</th><th>Total</th><th>Abonado</th><th>Saldo</th></tr></thead><tbody>'+rows+'</tbody></table></body></html>');
   win.document.close();
   setTimeout(() => win.print(), 400);
 };
@@ -5711,7 +5777,7 @@ window.cerrarTodosChatsAbiertos = function(){
   if(hora && !document.getElementById('nc-profesor')){
     const wrap = document.createElement('div');
     wrap.className = 'fgroup';
-    wrap.innerHTML = '<label class="flbl">Profesor / disertante / responsable</label><input class="finput" id="nc-profesor" placeholder="Ej: Javier Mottola"/><label class="flbl" style="margin-top:8px;">Campo especial del formulario</label><input class="finput" id="nc-campo-especial-label" placeholder="Ej: Instituto / Escuela, Categoria, Color de ojos"/><div style="font-size:10px;color:var(--text3);margin-top:-4px;">Si queda vacio, no aparece en el formulario publico.</div><label class="flbl" style="margin-top:8px;">Opciones / servicios seleccionables</label><textarea class="finput" id="nc-opciones-texto" rows="4" placeholder="Mini sesion, 14000&#10;1 impresion, 6000&#10;Video backstage, 18000"></textarea><div style="font-size:10px;color:var(--text3);margin-top:-4px;">Un item por linea. Tambien acepta: nombre, precio; nombre, precio</div>';
+    wrap.innerHTML = '<label class="flbl">Profesor / disertante / responsable</label><input class="finput" id="nc-profesor" placeholder="Ej: Javier Mottola"/><label class="flbl" style="margin-top:8px;">Campo especial del formulario</label><input class="finput" id="nc-campo-especial-label" placeholder="Nombre del campo adicional"/><div style="font-size:10px;color:var(--text3);margin-top:-4px;">Si queda vacio, no aparece en el formulario publico.</div><label class="flbl" style="margin-top:8px;">Opciones / servicios seleccionables</label><textarea class="finput" id="nc-opciones-texto" rows="4" placeholder="Mini sesion, 14000&#10;1 impresion, 6000&#10;Video backstage, 18000"></textarea><div style="font-size:10px;color:var(--text3);margin-top:-4px;">Un item por linea. Tambien acepta: nombre, precio; nombre, precio</div>';
     const row = hora.closest('.frow2');
     if(row) row.insertAdjacentElement('afterend', wrap);
   }
@@ -5773,7 +5839,7 @@ window.editCurso = function(id){
     const desc = document.getElementById('ec-desc');
     const c = cursos[id] || {};
     if(desc && !document.getElementById('ec-profesor')){
-      desc.insertAdjacentHTML('afterend','<label class="flbl">Profesor / disertante / responsable</label><input class="finput" id="ec-profesor" value="'+escAttr(c.profesor || c.disertante || c.organizador || c.docente || '')+'" placeholder="Ej: Javier Mottola"/><label class="flbl" style="margin-top:8px;">Opciones / servicios seleccionables</label><textarea class="finput" id="ec-opciones-texto" rows="4" placeholder="Mini sesion, 14000&#10;1 impresion, 6000">'+escHtml(c.opcionesTexto || c.serviciosTexto || '')+'</textarea><div style="font-size:10px;color:var(--text3);margin-top:-4px;">Un item por linea. Tambien acepta: nombre, precio; nombre, precio</div>');
+      desc.insertAdjacentHTML('afterend','<label class="flbl">Profesor / disertante / responsable</label><input class="finput" id="ec-profesor" value="'+escAttr(c.profesor || c.disertante || c.organizador || c.docente || '')+'" placeholder="Ej: Javier Mottola"/><label class="flbl" style="margin-top:8px;">Opciones / servicios seleccionables</label><textarea class="finput" id="ec-opciones-texto" rows="4" placeholder="Nombre, precio">'+escHtml(c.opcionesTexto || c.serviciosTexto || '')+'</textarea><div style="font-size:10px;color:var(--text3);margin-top:-4px;">Un item por linea. Tambien acepta: nombre, precio; nombre, precio</div>');
     }
   },30);
 };
