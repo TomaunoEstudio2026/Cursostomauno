@@ -2517,7 +2517,8 @@ window.responderCtrlMInvite = async () => {
     manualUntil:now + 3600000,
     javierOnline:true,
     javierOnlineAt:now,
-    ctrlMInvite:true
+    ctrlMInvite:true,
+    ctrlMNeedsAdminNotice:true
   });
   currentVisitorChatId = chatRef.key;
   try{
@@ -2535,6 +2536,13 @@ window.responderCtrlMInvite = async () => {
   await push(ref(db,'tomauno/chats/'+currentVisitorChatId+'/messages'), {from:'user', text, time:chatTime(), createdAt:Date.now()});
   try{ await remove(ref(db,'tomauno/ctrlMInvites/'+PRESENCE_ID)); }catch(e){}
   abrirChatVisitante(currentVisitorChatId, true);
+  [80, 220, 520].forEach(ms => setTimeout(() => {
+    const txt = document.getElementById('chat-text');
+    if(txt){
+      try{ txt.focus({preventScroll:true}); txt.setSelectionRange(txt.value.length, txt.value.length); }
+      catch(e){ try{ txt.focus(); }catch(_e){} }
+    }
+  }, ms));
 };
 
 document.addEventListener('keydown', function(ev){
@@ -2571,7 +2579,7 @@ window.abrirMensajeCtrlMVisitantes = async () => {
   document.getElementById('mcontent').innerHTML =
     '<div class="mtitle">MENSAJE A VISITANTES</div>' +
     '<div class="msub" style="margin-bottom:12px;">Se enviara solo a los '+visitors.length+' visitante'+(visitors.length!==1?'s':'')+' activo'+(visitors.length!==1?'s':'')+' de este momento. No queda automatico.</div>' +
-    '<textarea class="finput" id="ctrl-m-visitor-message" style="min-height:130px;">'+escHtml(CTRL_M_INVITE_DEFAULT)+'</textarea>' +
+    '<textarea class="finput" id="ctrl-m-visitor-message" style="min-height:130px;" onkeydown="if(event.key===\'Enter\'&&!event.shiftKey){event.preventDefault();window.enviarMensajeCtrlMVisitantes()}">'+escHtml(CTRL_M_INVITE_DEFAULT)+'</textarea>' +
     '<button class="btn-main" onclick="window.enviarMensajeCtrlMVisitantes()">Enviar ahora</button>' +
     '<button class="btn-out" onclick="window.closeModal()">Cancelar</button>';
   openModal();
@@ -2595,12 +2603,42 @@ window.enviarMensajeCtrlMVisitantes = async () => {
 };
 
 document.addEventListener('keydown', ev => {
+  if(ev.key === 'Enter' && !ev.shiftKey && ev.target && ev.target.id === 'ctrl-m-visitor-message'){
+    ev.preventDefault();
+    ev.stopPropagation();
+    window.enviarMensajeCtrlMVisitantes();
+    return;
+  }
   if((ev.ctrlKey || ev.metaKey) && String(ev.key || '').toLowerCase() === 'm'){
     if(!isAdminNotifier()) return;
     ev.preventDefault();
     window.abrirMensajeCtrlMVisitantes();
   }
 });
+
+try{
+  const ctrlMAdminNoticeSeen = {};
+  onValue(ref(db,'tomauno/chats'), snap => {
+    if(!isAdminNotifier() || !snap.exists()) return;
+    const data = snap.val() || {};
+    Object.entries(data).forEach(([id,c]) => {
+      if(!c || !c.ctrlMNeedsAdminNotice || ctrlMAdminNoticeSeen[id]) return;
+      const lastUser = typeof tomaunoUltimoMensajeUsuarioChat === 'function' ? tomaunoUltimoMensajeUsuarioChat(c) : null;
+      if(!lastUser || !lastUser.text) return;
+      ctrlMAdminNoticeSeen[id] = 1;
+      try{ if(typeof beepStrongFinal === 'function') beepStrongFinal(); else if(typeof beep === 'function') beep(); }catch(e){}
+      try{ if(typeof showNotif === 'function') showNotif(); }catch(e){}
+      try{
+        if(typeof showNotifBanner === 'function'){
+          showNotifBanner('Nuevo mensaje web', chatVisibleName(c,id) + ': ' + lastUser.text, 'CHAT', () => {
+            if(typeof window.abrirChatAdmin === 'function') window.abrirChatAdmin(id);
+          });
+        }
+      }catch(e){}
+      try{ update(ref(db,'tomauno/chats/'+id), {ctrlMNeedsAdminNotice:false}).catch(()=>{}); }catch(e){}
+    });
+  });
+}catch(e){}
 
 function chatActionButtonsForMessage(text){
   const t = normAI(text || '');
@@ -2918,7 +2956,7 @@ window.abrirChatAdmin = (id, silent=false) => {
     '<div class="chat-row"><input class="finput" id="chat-admin-text" placeholder="Responder..." value="'+escAttr(inputVal)+'" onkeydown="if(event.key===\'Enter\')window.enviarChatAdmin(\''+id+'\')"/><button class="chat-send" onclick="window.enviarChatAdmin(\''+id+'\')">➜</button></div>' +
     '<div class="chat-admin-tools"><button class="chat-filter auto '+(asistenteModo()==='automatico'?'on':'')+'" title="Cambiar AUTO/HUM" onclick="window.toggleModoAsistenteChat()">'+(asistenteModo()==='automatico'?'👤 HUM':'🤖 AUTO')+'</button><button class="chat-filter" title="Ayuda / Machete" onclick="window.mostrarAyudaAsistente()">/?</button><button class="chat-filter" title="Respuestas del cerebro" onclick="window.mostrarSelectorCerebroChat(\''+id+'\')">//</button><button class="chat-filter" title="Acciones rápidas" onclick="window.mostrarAccionesChatAdmin(\''+id+'\')">⚡</button><button id="chat-tools-toggle" class="chat-filter chat-tools-toggle '+(!chatToolsCollapsed?'on':'')+'" title="Mostrar/ocultar botones" onclick="window.toggleChatTools()">'+(chatToolsCollapsed?'▴':'▾')+'</button></div>' +
     '<div class="chat-tools-block">' + quickRepliesHtml() +
-    '<div class="chat-admin-actions"><button class="btn-out" title="Bandeja" onclick="abrirPanelChatsAdmin()"><span class="ico">←</span></button><button class="btn-out" title="Editar nombre" onclick="window.editarNombreChat(\''+id+'\')"><span class="ico">✏️</span></button><button class="btn-out" title="Copiar conversación" onclick="window.copiarHistorialChat(\''+id+'\')"><span class="ico">📋</span></button><button class="btn-out" title="Exportar TXT" onclick="window.exportarHistorialChat(\''+id+'\')"><span class="ico">⬇️</span></button><button class="btn-out danger" title="Cerrar chat" onclick="window.cerrarConversacionChat(\''+id+'\')"><span class="ico">✕</span></button><button class="btn-out danger" title="Borrar chat" onclick="window.eliminarChatDefinitivo(\''+id+'\')"><span class="ico">🗑️</span></button>' + (chat.wp?'<a class="btn-out" title="WhatsApp" style="text-align:center;text-decoration:none;color:#25d366;border-color:rgba(37,211,102,.35);" target="_blank" rel="noopener noreferrer" href="https://wa.me/549'+String(chat.wp||'').replace(/\D/g,'')+'"><span class="ico">💬</span></a>':'') + '</div></div></div>'
+    '<div class="chat-admin-actions"><button class="btn-out" title="Bandeja" onclick="abrirPanelChatsAdmin()"><span class="ico">←</span></button><button class="btn-out" title="Editar nombre" onclick="window.editarNombreChat(\''+id+'\')"><span class="ico">✏️</span></button><button class="btn-out" title="Copiar conversación" onclick="window.copiarHistorialChat(\''+id+'\')"><span class="ico">📋</span></button><button class="btn-out" title="Exportar TXT" onclick="window.exportarHistorialChat(\''+id+'\')"><span class="ico">⬇️</span></button><button class="btn-out" title="Eventos" onclick="window.enviarChatAdmin(\''+id+'\',\'Eventos activos\')"><span class="ico">📅</span></button><button class="btn-out danger" title="Borrar chat" onclick="window.eliminarChatDefinitivo(\''+id+'\')"><span class="ico">🗑️</span></button>' + (chat.wp?'<a class="btn-out" title="WhatsApp" style="text-align:center;text-decoration:none;color:#25d366;border-color:rgba(37,211,102,.35);" target="_blank" rel="noopener noreferrer" href="https://wa.me/549'+String(chat.wp||'').replace(/\D/g,'')+'"><span class="ico">💬</span></a>':'') + '</div></div></div>'
   );
   update(ref(db,'tomauno/chats/'+id), {unreadAdmin:false, unread:false, hasNew:false, hasNewAdmin:false, waitingHuman:false, priority:false, prioridad:false, readByAdminAt:Date.now(), adminReadAt:Date.now(), lastReadAdminAt:Date.now()}).catch(()=>{});
   setTimeout(()=>{const el=document.getElementById('chat-msgs'); if(el) scrollChatSmart(el); const inp=document.getElementById('chat-admin-text'); if(inp && (!silent || wasFocused)){ inp.focus(); inp.setSelectionRange(inp.value.length, inp.value.length); }},60);
@@ -3912,8 +3950,14 @@ async function responderAutomaticoChat(chatId, userText){
 
     const lastAuto = chatMsgs(chat).slice().reverse().find(([,m]) => m && m.from === 'admin' && m.auto);
     if(lastAuto && normAI(lastAuto[1].text||'') === normAI(respuesta)){
-      respuesta = 'Creo que mi respuesta anterior no fue lo suficientemente precisa. ¿Querés que te muestre opciones relacionadas o preferís que Javier te responda personalmente?';
-      pendingTopics = pendingTopics && pendingTopics.length ? pendingTopics : [];
+      const alt = (pendingTopics || []).find(p => p && p.respuesta && normAI(p.respuesta) !== normAI(respuesta));
+      if(alt){
+        respuesta = alt.respuesta;
+        pendingTopics = (pendingTopics || []).filter(p => p !== alt);
+      }else{
+        respuesta = 'Creo que mi respuesta anterior no fue lo suficientemente precisa. ¿Querés que te muestre opciones relacionadas o preferís que Javier te responda personalmente?';
+        pendingTopics = pendingTopics && pendingTopics.length ? pendingTopics : [];
+      }
     }
 
     const typingRef = await push(ref(db,'tomauno/chats/'+chatId+'/messages'), {from:'system', text:'Tomauno está escribiendo', time:chatTime(), createdAt:Date.now(), typing:true});
@@ -7254,7 +7298,13 @@ window.filterCursos = function(){
 
       const lastAuto2 = chatMsgs(chat).slice().reverse().find(([,m]) => m && m.from === 'admin' && m.auto);
       if(lastAuto2 && qnorm(lastAuto2[1].text||'') === qnorm(respuesta)){
-        respuesta = 'Claro 😊 Te lo vuelvo a orientar mejor. ¿Querés que te muestre cursos, servicios, ubicación o contacto? También podés contarme puntualmente qué necesitás y te ayudo.';
+        const alt = (pendingTopics || []).find(p => p && p.respuesta && qnorm(p.respuesta) !== qnorm(respuesta));
+        if(alt){
+          respuesta = alt.respuesta;
+          pendingTopics = (pendingTopics || []).filter(p => p !== alt);
+        }else{
+          respuesta = 'Claro 😊 Te lo vuelvo a orientar mejor. ¿Querés que te muestre cursos, servicios, ubicación o contacto? También podés contarme puntualmente qué necesitás y te ayudo.';
+        }
       }
       if(qnorm(chat.lastAutoUserText || '') === q && (nowTs() - Number(chat.lastAutoAt || 0)) < 10000) return;
 
@@ -10693,11 +10743,6 @@ window.tuSolicitarJavier=async function(id){
   await msg(id,{from:'admin',auto:true,humanWait:true,text:'📣 Voy a intentar comunicarme con Javier. Aguardá un momento por favor.',time:ctime(),createdAt:t});
   startCall(id);
   try{ if(typeof window.tomaunoHumanAlarm==='function') window.tomaunoHumanAlarm(id, cname(id,chats()[id]||{})+' está llamando a Javier'); }catch(e){}
-  try{ if(typeof notifyAdminChat==='function') notifyAdminChat('📣 Llamando a Javier', cname(id,chats()[id]||{})+' pidió atención humana', id); }catch(e){}
-  if(isAdm()&&typeof showNotifBanner==='function'){
-    const c=chats()[id]||{};
-    showNotifBanner('📣 Llamada humana',cname(id,c)+' necesita atención','📣',()=>{if(typeof window.abrirChatAdmin==='function')window.abrirChatAdmin(id,true)});
-  }
 };
 const oldResp=window.responderAutomaticoChat||(typeof responderAutomaticoChat!=='undefined'?responderAutomaticoChat:null);
 if(typeof oldResp==='function'&&!oldResp.__fase8){
@@ -11052,6 +11097,10 @@ async function finishCallOnce(id,c){
       callUntil:0,
       callAnsweredAt:Date.now(),
       humanFallbackSent:true,
+      humanMode:false,
+      manualUntil:0,
+      javierOnline:false,
+      javierOnlineAt:0,
       waitingWhatsapp:true,
       waitingHumanContact:true,
       pendingHuman:true,
@@ -11069,6 +11118,10 @@ async function finishCallOnce(id,c){
     callUntil:0,
     callAnsweredAt:Date.now(),
     humanFallbackSent:true,
+    humanMode:false,
+    manualUntil:0,
+    javierOnline:false,
+    javierOnlineAt:0,
     waitingWhatsapp:true,
     waitingHumanContact:true,
     pendingHuman:true,
@@ -11103,6 +11156,10 @@ async function captureContactOnce(id,text){
     waitingWhatsapp:false,
     waitingHumanContact:false,
     pendingHumanContact:false,
+    humanMode:false,
+    manualUntil:0,
+    javierOnline:false,
+    javierOnlineAt:0,
     humanContactReceived:true,
     humanContactText:String(text||'').trim(),
     humanContactAt:Date.now(),
@@ -11166,6 +11223,36 @@ if(typeof oldToggle === 'function' && !oldToggle.__fase12e){
   toggle12e.__fase12e = 1;
   window.toggleModoAsistenteChat = toggle12e;
   try{toggleModoAsistenteChat = toggle12e}catch(e){}
+}
+
+function refreshActiveChatHeader(id){
+  try{
+    const pop = q('#chat-popover.open');
+    const c = chats()[id || admId()] || {};
+    if(!pop || !id || !c) return;
+    if(q('#chat-admin-text', pop)){
+      const title = q('.chat-title', pop);
+      const sub = q('.chat-subline', pop);
+      if(title && typeof chatVisibleName === 'function'){
+        title.innerHTML = '<span class="chat-online-dot '+(typeof isChatUserOnline === 'function' && isChatUserOnline(c) ? 'on' : '')+'"></span>' + escHtml(chatVisibleName(c,id));
+      }
+      if(sub && typeof lastSeenText === 'function'){
+        sub.textContent = (c.wp ? 'WhatsApp: '+c.wp+' · ' : '') + lastSeenText(c);
+      }
+    }
+  }catch(e){}
+}
+
+const oldUpdateHeader12e = typeof updateChatMessagesOnly === 'function' ? updateChatMessagesOnly : null;
+if(oldUpdateHeader12e && !oldUpdateHeader12e.__header12e){
+  const updateHeader12e = function(id, adminView){
+    const r = oldUpdateHeader12e.apply(this, arguments);
+    refreshActiveChatHeader(id);
+    return r;
+  };
+  updateHeader12e.__header12e = 1;
+  updateChatMessagesOnly = updateHeader12e;
+  try{window.updateChatMessagesOnly = updateHeader12e}catch(e){}
 }
 
 // Watcher mínimo: solo vencimiento de llamada, sin tocar bandeja.
