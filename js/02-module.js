@@ -2476,6 +2476,7 @@ initCtrlMInviteListener();
 window.abrirCtrlMInvite = () => {
   const invite = currentCtrlMInvite;
   if(!invite || Number(invite.expiresAt || 0) < Date.now()) return window.abrirChatTomauno();
+  try{ if(invite.id) sessionStorage.setItem('tomauno-ctrl-m-invite-seen', invite.id); }catch(e){}
   closeCtrlMInviteBox();
   setChatPopover(
     '<div class="chat-head"><div class="chat-avatar">VIS</div><div><div class="chat-title">JAVIER TOMAUNO</div><div class="chat-subline">Respuesta directa desde la web</div></div></div>' +
@@ -5998,6 +5999,7 @@ function chatInferCategoryFromHistory(chat){
 // El basurero de la bandeja elimina directo, sin confirmación.
 window.eliminarChatDefinitivo = async function(id){
   await remove(ref(db,'tomauno/chats/'+id));
+  try{ if(window.__tomaunoClearChatNotifyFinal) window.__tomaunoClearChatNotifyFinal(id); }catch(e){}
   try{ notifiedChatIds.delete(id); localStorage.setItem('tomauno-chat-notified', JSON.stringify([...notifiedChatIds])); }catch(e){}
   if(currentOpenChatId === id) currentOpenChatId = '';
   toast('🗑️ Chat eliminado');
@@ -8322,7 +8324,7 @@ window.filterCursos = function(){
   }
   function looksLikeRealNameFinal(text){
     const raw = String(text || '').trim();
-    const clean = limpiarNombreChat(raw.replace(/^(me llamo|mi nombre es|nombre es)\s+/i,'').trim());
+    const clean = limpiarNombreChat(raw.replace(/^(me llamo|mi nombre es|nombre es|soy)\s+/i,'').trim());
     if(clean && clean !== raw) return looksLikeRealNameFinal(clean);
     if(!raw || raw.length < 2 || raw.length > 36) return false;
     if(/[?¿!¡@#:/\\0-9]/.test(raw)) return false;
@@ -8338,11 +8340,11 @@ window.filterCursos = function(){
   }
   function safeDetectedNameFinal(text, chat){
     const raw = String(text || '').trim();
-    if(!raw || /[?Â¿!Â¡@#:/\\0-9]/.test(raw)) return '';
-    if(/^soy\s+/i.test(raw)) return '';
-    if(/\b(info|curso|cursos|precio|precios|manualidades|quiero|consulta|consultar|contacto|javier|servicio|servicios|ubicacion|telefono|whatsapp|donde|cuando|cuanto|pasas|tenes|hola|buenas)\b/i.test(raw)) return '';
-    const explicit = /^(me llamo|mi nombre es|nombre es)\s+/i.test(raw);
+    if(!raw || /[?!@#:/\\0-9]/.test(raw)) return '';
     const asked = lastAdminAskedName(chat);
+    if(/^soy\s+/i.test(raw) && !asked) return '';
+    if(/\b(info|curso|cursos|precio|precios|manualidades|quiero|consulta|consultar|contacto|javier|servicio|servicios|ubicacion|telefono|whatsapp|donde|cuando|cuanto|pasas|tenes|hola|buenas)\b/i.test(raw)) return '';
+    const explicit = /^(me llamo|mi nombre es|nombre es)\s+/i.test(raw) || (asked && /^soy\s+/i.test(raw));
     if(!explicit && !asked) return '';
     const n = isJustNameReply(text, chat);
     return looksLikeRealNameFinal(n) ? limpiarNombreChat(n) : '';
@@ -8690,6 +8692,8 @@ window.filterCursos = function(){
 
   const prevNotifyFinal = notifyAdminChat;
   const notifySeenFinal = new Map();
+  const notifiedConversationFinal = (() => { try{ return new Set(JSON.parse(localStorage.getItem('tomauno-chat-notified-open') || '[]')); }catch(e){ return new Set(); } })();
+  window.__tomaunoClearChatNotifyFinal = function(id){ try{ if(id){ notifiedConversationFinal.delete(id); notifiedChatIds.delete(id); localStorage.setItem('tomauno-chat-notified-open', JSON.stringify([...notifiedConversationFinal])); localStorage.setItem('tomauno-chat-notified', JSON.stringify([...notifiedChatIds])); } }catch(e){} };
   const prevShowNotifBannerFinal = showNotifBanner;
   showNotifBanner = function(titulo, detalle, icono='CHAT', onClick=null){
     prevShowNotifBannerFinal.call(this, titulo, detalle, icono, onClick);
@@ -8722,10 +8726,12 @@ window.filterCursos = function(){
 
     if(!adminActiveFinal()) return;
     if(!isHumanNotice && adminViewingChatFinal(chatId)) return;
+    if(!isHumanNotice && chatId && notifiedConversationFinal.has(chatId)) return;
     const sig = String(chatId || '') + '|' + String(title || '') + '|' + String(body || '').slice(0,90);
     const last = notifySeenFinal.get(sig) || 0;
     if(Date.now() - last < 6000) return;
     notifySeenFinal.set(sig, Date.now());
+    if(!isHumanNotice && chatId){ notifiedConversationFinal.add(chatId); try{ localStorage.setItem('tomauno-chat-notified-open', JSON.stringify([...notifiedConversationFinal])); }catch(e){} }
     try{ beepStrongFinal(); }catch(e){ try{ beep(); }catch(_e){} }
     try{
       showNotif();
@@ -9502,8 +9508,8 @@ window.filterCursos = function(){
   }
 
   // Botones rápidos en visitante.
-  function quickButton(label, value){
-    return '<button type="button" class="tu-quick-btn" data-tu-msg="'+label+'">'+value+'</button>';
+  function quickButton(label, value, icon){
+    return '<button type="button" class="tu-quick-btn tu-quick-compact" title="'+value+'" aria-label="'+value+'" data-tu-msg="'+label+'"><span>'+icon+'</span><em>'+value+'</em></button>';
   }
 
   function ensureVisitorQuickButtons(){
@@ -9519,10 +9525,11 @@ window.filterCursos = function(){
       const bar = document.createElement('div');
       bar.className = 'tu-quick-actions';
       bar.innerHTML =
-        quickButton('Cursos activos','Cursos') +
-        quickButton('Eventos activos','Eventos') +
-        quickButton('Servicios disponibles','Servicios') +
-        quickButton('Ubicación','Ubicación');
+        quickButton('Cursos activos','Cursos','&#127891;') +
+        quickButton('Eventos activos','Eventos','&#128197;') +
+        quickButton('Servicios disponibles','Servicios','&#128736;') +
+        quickButton('Ubicacion','Ubicacion','&#128205;') +
+        quickButton('Quiero hablar con Javier','Javier','&#128100;');
 
       row.parentNode.insertBefore(bar, row);
     });
@@ -9632,9 +9639,9 @@ window.filterCursos = function(){
   setInterval(soundForHumanRequest, 1300);
   setInterval(applyAdminStates, 900);
   setInterval(keepTypingVisible, 250);
-  setInterval(ensureVisitorQuickButtons, 900);
+  setInterval(ensureVisitorQuickButtons, 120);
   setInterval(centerAdminFullscreen, 500);
-  setTimeout(function(){ applyAdminStates(); ensureVisitorQuickButtons(); centerAdminFullscreen(); }, 600);
+  setTimeout(function(){ applyAdminStates(); ensureVisitorQuickButtons(); centerAdminFullscreen(); }, 80);
 })();
 
 
@@ -9982,6 +9989,11 @@ window.filterCursos = function(){
         if(!best) return;
         const age = ts() - Number(best.createdAt || 0);
         if(age > 1000 * 60 * 4) return;
+        try{
+          const muted = new Set(JSON.parse(localStorage.getItem('tomauno-chat-notified-open') || '[]'));
+          if(muted.has(id)) return;
+          if(window.currentOpenChatId === id) return;
+        }catch(e){}
         const key = id + '|' + String(best.createdAt||'') + '|' + String(best.text||'').slice(0,80);
         if(heard[key]) return;
         heard[key] = 1;
@@ -10713,6 +10725,7 @@ if(typeof oldClose==='function'&&!oldClose.__fase8){
   const cfn=function(id){
     const c=chats()[id]||{};
     if(chatIsPendingHuman(c)){try{if(typeof toast==='function')toast('⭐ Tiene pendientes. Tocá la estrella para marcarlo atendido antes de cerrar.')}catch(e){}; return;}
+    try{ if(window.__tomaunoClearChatNotifyFinal) window.__tomaunoClearChatNotifyFinal(id); }catch(e){}
     return oldClose.apply(this,arguments);
   };
   cfn.__fase8=1; window.cerrarConversacionChat=cfn; try{cerrarConversacionChat=cfn}catch(e){}
