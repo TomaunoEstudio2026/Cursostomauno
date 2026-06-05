@@ -2488,13 +2488,7 @@ window.abrirCtrlMInvite = () => {
 };
 
 function ctrlMVisitorLabel(){
-  try{
-    const raw = String(PRESENCE_ID || sessionStorage.getItem('tomauno_presence_id') || '');
-    const code = (raw.split('_').pop() || raw.slice(-4) || Math.random().toString(36).slice(2,6)).toUpperCase();
-    return 'Visitante ' + code.slice(0,4);
-  }catch(e){
-    return 'Visitante web';
-  }
+  return 'Visitante web';
 }
 
 window.responderCtrlMInvite = async () => {
@@ -2906,7 +2900,7 @@ window.abrirChatAdmin = (id, silent=false) => {
   const msgs = renderMsgs(chat, true, id);
   setChatPopover(
     adminChatTabsHtml(id) +
-    '<div class="chat-head"><div class="chat-avatar">👤</div><div><div class="chat-title"><span class="chat-online-dot '+(isChatUserOnline(chat)?'on':'')+'"></span>'+escHtml(chatVisibleName(chat))+'</div><div class="chat-subline">'+(chat.wp?'WhatsApp: '+escHtml(chat.wp)+' · ':'')+lastSeenText(chat)+'</div></div></div>' +
+    '<div class="chat-head"><div class="chat-avatar">👤</div><div><div class="chat-title"><span class="chat-online-dot '+(isChatUserOnline(chat)?'on':'')+'"></span>'+escHtml(chatVisibleName(chat,id))+'</div><div class="chat-subline">'+(chat.wp?'WhatsApp: '+escHtml(chat.wp)+' · ':'')+lastSeenText(chat)+'</div></div></div>' +
     '<div class="chat-panel"><div class="chat-msgs" id="chat-msgs">'+msgs+'</div>' +
     '<div class="chat-row"><input class="finput" id="chat-admin-text" placeholder="Responder..." value="'+escAttr(inputVal)+'" onkeydown="if(event.key===\'Enter\')window.enviarChatAdmin(\''+id+'\')"/><button class="chat-send" onclick="window.enviarChatAdmin(\''+id+'\')">➜</button></div>' +
     '<div class="chat-admin-tools"><button class="chat-filter auto '+(asistenteModo()==='automatico'?'on':'')+'" title="Cambiar AUTO/HUM" onclick="window.toggleModoAsistenteChat()">'+(asistenteModo()==='automatico'?'👤 HUM':'🤖 AUTO')+'</button><button class="chat-filter" title="Ayuda / Machete" onclick="window.mostrarAyudaAsistente()">/?</button><button class="chat-filter" title="Respuestas del cerebro" onclick="window.mostrarSelectorCerebroChat(\''+id+'\')">//</button><button class="chat-filter" title="Acciones rápidas" onclick="window.mostrarAccionesChatAdmin(\''+id+'\')">⚡</button><button id="chat-tools-toggle" class="chat-filter chat-tools-toggle '+(!chatToolsCollapsed?'on':'')+'" title="Mostrar/ocultar botones" onclick="window.toggleChatTools()">'+(chatToolsCollapsed?'▴':'▾')+'</button></div>' +
@@ -8328,7 +8322,7 @@ window.filterCursos = function(){
   }
   function looksLikeRealNameFinal(text){
     const raw = String(text || '').trim();
-    const clean = limpiarNombreChat(raw.replace(/^(me llamo|mi nombre es|soy)\s+/i,'').trim());
+    const clean = limpiarNombreChat(raw.replace(/^(me llamo|mi nombre es|nombre es)\s+/i,'').trim());
     if(clean && clean !== raw) return looksLikeRealNameFinal(clean);
     if(!raw || raw.length < 2 || raw.length > 36) return false;
     if(/[?¿!¡@#:/\\0-9]/.test(raw)) return false;
@@ -8345,8 +8339,9 @@ window.filterCursos = function(){
   function safeDetectedNameFinal(text, chat){
     const raw = String(text || '').trim();
     if(!raw || /[?Â¿!Â¡@#:/\\0-9]/.test(raw)) return '';
+    if(/^soy\s+/i.test(raw)) return '';
     if(/\b(info|curso|cursos|precio|precios|manualidades|quiero|consulta|consultar|contacto|javier|servicio|servicios|ubicacion|telefono|whatsapp|donde|cuando|cuanto|pasas|tenes|hola|buenas)\b/i.test(raw)) return '';
-    const explicit = /^(soy|me llamo|mi nombre es|nombre es)\s+/i.test(raw);
+    const explicit = /^(me llamo|mi nombre es|nombre es)\s+/i.test(raw);
     const asked = lastAdminAskedName(chat);
     if(!explicit && !asked) return '';
     const n = isJustNameReply(text, chat);
@@ -9527,8 +9522,7 @@ window.filterCursos = function(){
         quickButton('Cursos activos','Cursos') +
         quickButton('Eventos activos','Eventos') +
         quickButton('Servicios disponibles','Servicios') +
-        quickButton('Ubicación','Ubicación') +
-        quickButton('Quiero hablar con Javier','HUM');
+        quickButton('Ubicación','Ubicación');
 
       row.parentNode.insertBefore(bar, row);
     });
@@ -9720,6 +9714,7 @@ window.filterCursos = function(){
 
   // ── 2) BOTONES VISITANTE MÁS COMPACTOS ───────────────────────────────────
   function compactQuickButtons(){
+    return;
     safe(function(){
       if(isAdmin()) return;
       const wrap = document.querySelector('#chat-popover.open .tu-quick-actions');
@@ -9876,6 +9871,14 @@ window.filterCursos = function(){
   const oldBuscarRespuestaAsistenteV26 = (typeof buscarRespuestaAsistente === 'function') ? buscarRespuestaAsistente : null;
   buscarRespuestaAsistente = function(text){
     const q = normalize(text);
+    if(/(quien|qui.n).{0,45}(dueno|due.o|javier|fundador|director|propietario)|((dueno|due.o|javier|fundador|director|propietario).{0,70}(tomauno|academia|estudio))|((tomauno|academia|estudio).{0,70}(dueno|due.o|javier|fundador|director|propietario))/.test(q)){
+      try{
+        const matches = knowledgeMatchesAI(q);
+        const good = matches.find(m => /javier|duen|fundador|director|propietario|tomauno/i.test([m.k.titulo||'',m.k.keys||'',m.k.command||''].join(' ')));
+        if(good && good.k && good.k.respuesta) return good.k.respuesta;
+      }catch(e){}
+      return 'Tomauno esta dirigido por Javier. Si queres, tambien puedo pasarte su contacto directo.';
+    }
     if(/(quien|quién|profe|profesor|profesora|docente|disertante|organizador|organiza|quien da|quien dicta)/.test(q)){
       const m = bestPublishedTitleMatchAI(text);
       if(m && typeof contactoEntidadAI === 'function'){
@@ -10124,6 +10127,7 @@ window.filterCursos = function(){
 
   // 4) Botones rápidos en móvil: primera fila chica. Si estorban, pueden esconderse.
   function tuneQuickActions(){
+    return;
     safe(function(){
       const p = pop();
       if(!p || !p.classList.contains('open') || isAdmin()) return;
@@ -10551,6 +10555,7 @@ window.borrarMensajeChatParaVisitante = async function(chatId,msgId){
 
 // Header visitante consistente.
 function fixVisitorHeader(){
+  return;
   var pop=document.getElementById('chat-popover');
   if(!pop || !pop.classList.contains('open') || isAdminView()) return;
   var id='';
