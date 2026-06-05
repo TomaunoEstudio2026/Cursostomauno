@@ -2278,6 +2278,7 @@ window.abrirChatTomauno = () => {
     return abrirPanelChatsAdmin();
   }
   document.getElementById('chat-fab')?.classList.remove('has-new');
+  if(currentCtrlMInvite && Number(currentCtrlMInvite.expiresAt || 0) > Date.now()) return window.abrirCtrlMInvite();
   if (currentVisitorChatId && chatsDB[currentVisitorChatId] && chatsDB[currentVisitorChatId].status !== 'cerrado') return abrirChatVisitante(currentVisitorChatId);
   setChatPopover(
     '<div class="chat-head"><div class="chat-avatar">💬</div><div><div class="chat-title">CHAT TOMAUNO</div><div class="chat-subline">Consulta directa desde la web</div></div></div>' +
@@ -2391,6 +2392,188 @@ function chatLinkify(text, chat){
   });
   return safe.replace(/\n/g,'<br>');
 }
+
+const CTRL_M_INVITE_DEFAULT = 'Hola, soy Javier de Tomauno. Si necesitas ayuda con algun curso o servicio, aqui estoy para responderte.';
+let currentCtrlMInvite = null;
+
+function ctrlMInviteStyle(){
+  if(document.getElementById('ctrl-m-invite-style')) return;
+  const st = document.createElement('style');
+  st.id = 'ctrl-m-invite-style';
+  st.textContent = [
+    '.ctrl-m-invite{position:fixed;right:22px;bottom:112px;z-index:99998;width:min(340px,calc(100vw - 28px));background:#151515;border:1px solid rgba(232,0,10,.75);border-radius:16px;box-shadow:0 18px 40px rgba(0,0,0,.55);padding:14px;color:#fff;font-family:inherit;}',
+    '.ctrl-m-invite strong{display:block;color:#fff;font-size:13px;text-transform:uppercase;letter-spacing:.06em;margin-bottom:6px;}',
+    '.ctrl-m-invite p{margin:0;color:rgba(255,255,255,.86);font-size:13px;line-height:1.35;}',
+    '.ctrl-m-invite-actions{display:flex;gap:8px;margin-top:12px;}',
+    '.ctrl-m-invite-actions button{border:0;border-radius:999px;padding:9px 12px;font-weight:900;cursor:pointer;}',
+    '.ctrl-m-invite-reply{background:#e8000a;color:#fff;flex:1;}',
+    '.ctrl-m-invite-close{background:#2a2a2a;color:#fff;width:42px;}',
+    '#chat-popover.open .ctrl-m-invite-panel{display:flex;flex-direction:column;gap:10px;}',
+    '#chat-popover.open .ctrl-m-invite-panel .chat-msgs{min-height:260px;}'
+  ].join('');
+  document.head.appendChild(st);
+}
+
+function closeCtrlMInviteBox(){
+  const el = document.getElementById('ctrl-m-invite-box');
+  if(el) el.remove();
+}
+
+function renderCtrlMInviteBox(invite){
+  if(isAdminNotifier() || currentVisitorChatId) return;
+  ctrlMInviteStyle();
+  currentCtrlMInvite = invite;
+  closeCtrlMInviteBox();
+  const box = document.createElement('div');
+  box.id = 'ctrl-m-invite-box';
+  box.className = 'ctrl-m-invite';
+  box.innerHTML =
+    '<strong>Javier de Tomauno</strong>' +
+    '<p>'+escHtml(invite.message || CTRL_M_INVITE_DEFAULT)+'</p>' +
+    '<div class="ctrl-m-invite-actions">' +
+      '<button class="ctrl-m-invite-reply" onclick="window.abrirCtrlMInvite()">Responder</button>' +
+      '<button class="ctrl-m-invite-close" title="Cerrar" onclick="window.descartarCtrlMInvite()">x</button>' +
+    '</div>';
+  document.body.appendChild(box);
+}
+
+window.descartarCtrlMInvite = async () => {
+  const invite = currentCtrlMInvite;
+  closeCtrlMInviteBox();
+  if(invite?.id){
+    try{ sessionStorage.setItem('tomauno-ctrl-m-invite-seen', invite.id); }catch(e){}
+  }
+  try{ await remove(ref(db,'tomauno/ctrlMInvites/'+PRESENCE_ID)); }catch(e){}
+};
+
+function initCtrlMInviteListener(){
+  try{
+    onValue(ref(db,'tomauno/ctrlMInvites/'+PRESENCE_ID), snap => {
+      if(isAdminNotifier() || currentVisitorChatId) return closeCtrlMInviteBox();
+      if(!snap.exists()) return;
+      const invite = snap.val() || {};
+      if(!invite.active || Number(invite.expiresAt || 0) < Date.now()){
+        remove(ref(db,'tomauno/ctrlMInvites/'+PRESENCE_ID)).catch(()=>{});
+        return closeCtrlMInviteBox();
+      }
+      try{ if(sessionStorage.getItem('tomauno-ctrl-m-invite-seen') === invite.id) return; }catch(e){}
+      renderCtrlMInviteBox(invite);
+    }, () => {});
+  }catch(e){}
+}
+initCtrlMInviteListener();
+
+window.abrirCtrlMInvite = () => {
+  const invite = currentCtrlMInvite;
+  if(!invite || Number(invite.expiresAt || 0) < Date.now()) return window.abrirChatTomauno();
+  closeCtrlMInviteBox();
+  setChatPopover(
+    '<div class="chat-head"><div class="chat-avatar">VIS</div><div><div class="chat-title">JAVIER TOMAUNO</div><div class="chat-subline">Respuesta directa desde la web</div></div></div>' +
+    '<div class="chat-panel ctrl-m-invite-panel"><div class="chat-msgs" id="chat-msgs">' +
+      '<div class="chat-bubble admin"><div>'+chatLinkify(invite.message || CTRL_M_INVITE_DEFAULT)+'</div><div class="chat-meta">Ahora</div></div>' +
+    '</div>' +
+    '<div class="chat-row"><input class="finput" id="chat-ctrl-m-text" placeholder="Responder a Javier..." onkeydown="if(event.key===\'Enter\')window.responderCtrlMInvite()"/><button class="chat-send" onclick="window.responderCtrlMInvite()">➜</button></div></div>'
+  );
+  setTimeout(()=>document.getElementById('chat-ctrl-m-text')?.focus(),80);
+};
+
+window.responderCtrlMInvite = async () => {
+  const invite = currentCtrlMInvite;
+  const inp = document.getElementById('chat-ctrl-m-text');
+  const text = String(inp?.value || '').trim();
+  if(!invite || !text) return;
+  if(inp) inp.value = '';
+  const now = Date.now();
+  const chatRef = await push(ref(db,'tomauno/chats'), {
+    name:'Visitante web',
+    wp:'',
+    status:'abierto',
+    createdAt:now,
+    updatedAt:now,
+    lastMsg:text,
+    unreadAdmin:true,
+    unreadVisitor:false,
+    userOnline:true,
+    userLastSeen:now,
+    humanMode:true,
+    manualUntil:now + 3600000,
+    javierOnline:true,
+    javierOnlineAt:now,
+    ctrlMInvite:true
+  });
+  currentVisitorChatId = chatRef.key;
+  try{
+    sessionStorage.setItem('tomauno-chat-id', currentVisitorChatId);
+    sessionStorage.setItem('tomauno-chat-name', 'Visitante web');
+    sessionStorage.setItem('tomauno-ctrl-m-invite-seen', invite.id);
+  }catch(e){}
+  await push(ref(db,'tomauno/chats/'+currentVisitorChatId+'/messages'), {
+    from:'admin',
+    text:invite.message || CTRL_M_INVITE_DEFAULT,
+    time:chatTime(),
+    createdAt:Number(invite.createdAt || now),
+    humanInvite:true
+  });
+  await push(ref(db,'tomauno/chats/'+currentVisitorChatId+'/messages'), {from:'user', text, time:chatTime(), createdAt:Date.now()});
+  try{ await remove(ref(db,'tomauno/ctrlMInvites/'+PRESENCE_ID)); }catch(e){}
+  abrirChatVisitante(currentVisitorChatId, true);
+};
+
+async function ctrlMActiveVisitors(){
+  try{
+    const snap = await get(ref(db,'tomauno/presence'));
+    const all = snap.exists() ? (snap.val() || {}) : {};
+    const now = Date.now();
+    return Object.entries(all).filter(([id,v]) =>
+      id !== PRESENCE_ID &&
+      v &&
+      v.online &&
+      Number(v.ts || 0) &&
+      now - Number(v.ts || 0) < 90000
+    );
+  }catch(e){
+    return [];
+  }
+}
+
+window.abrirMensajeCtrlMVisitantes = async () => {
+  if(!isAdminNotifier()) return;
+  const visitors = await ctrlMActiveVisitors();
+  if(!visitors.length){ toast('No hay visitantes activos para enviar mensaje'); return; }
+  document.getElementById('mcontent').innerHTML =
+    '<div class="mtitle">MENSAJE A VISITANTES</div>' +
+    '<div class="msub" style="margin-bottom:12px;">Se enviara solo a los '+visitors.length+' visitante'+(visitors.length!==1?'s':'')+' activo'+(visitors.length!==1?'s':'')+' de este momento. No queda automatico.</div>' +
+    '<textarea class="finput" id="ctrl-m-visitor-message" style="min-height:130px;">'+escHtml(CTRL_M_INVITE_DEFAULT)+'</textarea>' +
+    '<button class="btn-main" onclick="window.enviarMensajeCtrlMVisitantes()">Enviar ahora</button>' +
+    '<button class="btn-out" onclick="window.closeModal()">Cancelar</button>';
+  openModal();
+  setTimeout(()=>document.getElementById('ctrl-m-visitor-message')?.focus(),80);
+};
+
+window.enviarMensajeCtrlMVisitantes = async () => {
+  const visitors = await ctrlMActiveVisitors();
+  const message = String(document.getElementById('ctrl-m-visitor-message')?.value || '').trim();
+  if(!message){ toast('Escribi el mensaje'); return; }
+  if(!visitors.length){ closeModal(); toast('No hay visitantes activos'); return; }
+  const now = Date.now();
+  const inviteId = 'ctrlm_' + now + '_' + Math.random().toString(36).slice(2,7);
+  const updates = {};
+  visitors.forEach(([id]) => {
+    updates[id] = {id:inviteId, message, active:true, createdAt:now, expiresAt:now + 5 * 60 * 1000};
+  });
+  await update(ref(db,'tomauno/ctrlMInvites'), updates);
+  closeModal();
+  toast('Mensaje enviado a '+visitors.length+' visitante'+(visitors.length!==1?'s':''), true);
+};
+
+document.addEventListener('keydown', ev => {
+  if((ev.ctrlKey || ev.metaKey) && String(ev.key || '').toLowerCase() === 'm'){
+    if(!isAdminNotifier()) return;
+    ev.preventDefault();
+    window.abrirMensajeCtrlMVisitantes();
+  }
+});
+
 function chatActionButtonsForMessage(text){
   const t = normAI(text || '');
   const btns = parseChatActions(text || '');
@@ -5661,6 +5844,7 @@ window.abrirChatTomauno = function(){
 
   if (popToggle && popToggle.classList.contains('open')) { window.cerrarChatPopover && window.cerrarChatPopover(); return; }
   document.getElementById('chat-fab')?.classList.remove('has-new');
+  if(currentCtrlMInvite && Number(currentCtrlMInvite.expiresAt || 0) > Date.now()) return window.abrirCtrlMInvite();
   if (currentVisitorChatId && chatsDB[currentVisitorChatId] && chatsDB[currentVisitorChatId].status !== 'cerrado') return abrirChatVisitante(currentVisitorChatId);
   setChatPopover(
     '<div class="chat-head"><div class="chat-avatar">💬</div><div><div class="chat-title">CHAT TOMAUNO</div><div class="chat-subline">Consulta directa desde la web</div></div></div>' +
