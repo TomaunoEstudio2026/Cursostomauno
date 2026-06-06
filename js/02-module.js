@@ -1,6 +1,6 @@
 // Extraído de <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
-import { getDatabase, ref, onValue, update, push, remove, set, onDisconnect, get } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js";
+import { getDatabase, ref, onValue, update, push, remove, set, onDisconnect, get, runTransaction } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js";
 
 function setDbStatus(s){
   const el=document.getElementById('db-status'),lb=document.getElementById('db-label');
@@ -19,6 +19,16 @@ const app = initializeApp({
   appId: "1:828746191058:web:00f74a7502f7ce2121dd0b"
 });
 const db = getDatabase(app);
+
+window.__tomaunoClaimHumanFallback = async function(chatId){
+  if(!chatId) return false;
+  try{
+    const res = await runTransaction(ref(db,'tomauno/chats/'+chatId+'/humanFallbackLockAt'), current => current ? undefined : Date.now());
+    return !!res.committed;
+  }catch(e){
+    return false;
+  }
+};
 
 // ── PRESENCIA / USUARIOS ONLINE ─────────────────────────────────────────────
 const PRESENCE_ID = sessionStorage.getItem('tomauno_presence_id') || ('web_' + Date.now() + '_' + Math.random().toString(36).slice(2,8));
@@ -8000,6 +8010,7 @@ window.filterCursos = function(){
         const c = snap.val() || {};
         if(!c.humanRequested || !c.humanWaitStartedAt) return;
         if(c.humanFallbackSent) return;
+        if(window.__tomaunoClaimHumanFallback && !(await window.__tomaunoClaimHumanFallback(chatId))) return;
         if(manualAdminAfter52(c, c.humanWaitStartedAt)) return;
         try{ window.tomaunoHumanAlarm && window.tomaunoHumanAlarm(chatId, (chatVisibleName(c,chatId)||'Visitante')+': sigue esperando a Javier después de 60 segundos'); }catch(e){}
         try{ notifyAdminChat && notifyAdminChat('Atención humana pendiente', (chatVisibleName(c,chatId)||'Visitante')+': sigue esperando a Javier', chatId); }catch(e){}
@@ -8782,7 +8793,14 @@ window.filterCursos = function(){
   notifyAdminChat = function(title, body, chatId){
     const c = chatId && chatsDB ? chatsDB[chatId] : null;
     const lastUser = c ? tomaunoUltimoMensajeUsuarioChat(c) : null;
-    const isHumanNotice = /humana|Javier|LLAMADA/i.test(String(title||'') + ' ' + String(body||''));
+    let isHumanNotice = /humana|Javier|LLAMADA/i.test(String(title||'') + ' ' + String(body||''));
+    try{
+      if(!isHumanNotice && lastUser && typeof window.tuEsPedidoHumano === 'function' && window.tuEsPedidoHumano(lastUser.text)){
+        isHumanNotice = true;
+        title = 'LLAMADA ENTRANTE';
+        body = (c ? chatVisibleName(c, chatId) : 'Visitante') + ' pide atención de Javier';
+      }
+    }catch(e){}
     if(!isHumanNotice && (!lastUser || !lastUser.text)) return;
     if(!isHumanNotice && c) body = chatVisibleName(c, chatId) + ': ' + lastUser.text;
 
@@ -11103,15 +11121,20 @@ function hasContactReceived(c){
   return !!(c && (c.humanContactReceived || c.humanContactAt || msgs(c).some(m => m.humanContactReceived)));
 }
 
+function hasFallback12e(c){
+  return msgs(c).some(m => m.humanFallback || /dejame tu n[uúÃº]mero de whatsapp|dejame tu numero de whatsapp|consulta pendiente para javier/i.test(String(m.text||'')));
+}
+
 async function finishCallOnce(id,c){
   if(!id || !c) return;
   if(!c.humanRequested || !c.callUntil || c.callAnsweredAt) return;
   if(Date.now() < Number(c.callUntil)) return;
 
   stopAudio(id);
+  if(window.__tomaunoClaimHumanFallback && !(await window.__tomaunoClaimHumanFallback(id))) return;
 
   // Si algún código base ya generó fallback, no duplicar. Solo normalizar flags.
-  if(c.humanFallbackSent || hasFallback(c)){
+  if(c.humanFallbackSent || hasFallback(c) || hasFallback12e(c)){
     await upd(id,{
       humanRequested:false,
       waitingHuman:false,
