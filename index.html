@@ -325,6 +325,7 @@
       <button class="atab" onclick="setAtab('galeria-adm')">🖼️ Galeria</button>
       <button class="atab" onclick="setAtab('agenda-adm')">📲 Agenda redes</button>
       <button class="atab" onclick="setAtab('asistente-adm')">🤖 Asistente</button>
+      <button class="atab" id="admin-historial-btn" onclick="setAtab('historial-adm')">&#128344; Historial <span class="tab-badge" id="historial-badge" style="display:none;"></span></button>
       <button class="atab" onclick="setAtab('apps-adm')">🚀 Apps</button>
     </div>
 
@@ -657,6 +658,18 @@
       </div>
     </div>
 
+    <!-- HISTORIAL ADMIN -->
+    <div id="atab-historial-adm" style="display:none;">
+      <div class="acard">
+        <div class="acard-title" style="display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;">
+          <span>&#128344; Historial de actividad</span>
+          <button class="bsm bl" onclick="window.renderHistorialAdmin && window.renderHistorialAdmin()">Actualizar</button>
+        </div>
+        <div id="historial-summary" style="font-size:12px;color:var(--text3);margin-bottom:14px;">Actividad reciente de la web</div>
+        <div id="historial-list" style="display:flex;flex-direction:column;gap:8px;"></div>
+      </div>
+    </div>
+
     <!-- APPS ADMIN -->
     <div id="atab-apps-adm" style="display:none;">
       <div class="acard">
@@ -820,4 +833,3 @@
      Base: v98 conectada. No toca Firebase/imports ni estado admin.
      Objetivo: cualquier visitante lee AUTO desde Firebase y usa ese modo aunque Javier no tenga admin abierto. -->
 <script id="patch-v101-auto-global-auditoria-fix" src="js/21-patch-v101-auto-global-auditoria-fix.js"></script>
-
