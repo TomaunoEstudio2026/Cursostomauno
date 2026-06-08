@@ -305,6 +305,7 @@
       <div class="admin-title">PANEL <em>ADMIN</em></div>
       <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;justify-content:flex-end;">
         <button onclick="window.pedirPermisoNotificaciones && window.pedirPermisoNotificaciones()" style="background:#1a1a1a;border:1px solid var(--border);color:var(--text2);padding:9px 14px;border-radius:20px;cursor:pointer;font-family:var(--font);font-size:12px;font-weight:700;">🔔 Activar notificaciones</button>
+        <button id="admin-historial-top-btn" onclick="setAtab('historial-adm')" title="Historial de actividad" style="background:#1a1a1a;border:1px solid var(--border);color:var(--text2);padding:9px 14px;border-radius:20px;cursor:pointer;font-family:var(--font);font-size:12px;font-weight:800;">&#128344; Historial <span id="historial-top-badge" style="display:none;"></span></button>
         <button onclick="cerrarAdmin()" style="background:var(--gray3);border:none;color:var(--text2);padding:9px 18px;border-radius:20px;cursor:pointer;font-family:var(--font);font-size:13px;font-weight:600;">← Salir</button>
       </div>
     </div>
@@ -666,6 +667,14 @@
           <button class="bsm bl" onclick="window.renderHistorialAdmin && window.renderHistorialAdmin()">Actualizar</button>
         </div>
         <div id="historial-summary" style="font-size:12px;color:var(--text3);margin-bottom:14px;">Actividad reciente de la web</div>
+        <div class="historial-filters">
+          <button type="button" data-activity-filter="24h" onclick="window.filtrarHistorialTomauno && window.filtrarHistorialTomauno('24h')">24 hs</button>
+          <button type="button" data-activity-filter="week" onclick="window.filtrarHistorialTomauno && window.filtrarHistorialTomauno('week')">Semana</button>
+          <button type="button" data-activity-filter="insc" onclick="window.filtrarHistorialTomauno && window.filtrarHistorialTomauno('insc')">Inscripciones</button>
+          <button type="button" data-activity-filter="chat" onclick="window.filtrarHistorialTomauno && window.filtrarHistorialTomauno('chat')">Chat</button>
+          <button type="button" data-activity-filter="consulta" onclick="window.filtrarHistorialTomauno && window.filtrarHistorialTomauno('consulta')">Javier</button>
+          <button type="button" data-activity-filter="all" onclick="window.filtrarHistorialTomauno && window.filtrarHistorialTomauno('all')">Todo</button>
+        </div>
         <div id="historial-list" style="display:flex;flex-direction:column;gap:8px;"></div>
       </div>
     </div>
