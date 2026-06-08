@@ -2597,7 +2597,11 @@ function chatQuickList(){
     .filter(([,q]) => q && q.activo !== false && q.label && q.text)
     .sort((a,b)=>(a[1].orden||0)-(b[1].orden||0))
     .map(([,q]) => ({label:q.label, text:q.text}));
-  return custom.length ? custom : DEFAULT_CHAT_QUICK;
+  const list = custom.length ? custom : DEFAULT_CHAT_QUICK;
+  if(!list.some(q => /eventos?/i.test(String(q.label || '') + ' ' + String(q.text || '')))){
+    return list.concat([{label:'📅 Eventos', text:'📅 Te paso los eventos activos publicados en la web.\n#eventos'}]);
+  }
+  return list;
 }
 function quickReplyIcon(label){
   const m = String(label || '').match(/[\u{1F300}-\u{1FAFF}\u{2600}-\u{27BF}]/u);
