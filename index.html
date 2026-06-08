@@ -31,7 +31,7 @@
     </div>
     <div>
       <div class="logo-txt">TOMA<em>UNO</em></div>
-      <div class="logo-sub">Estudio Fotográfico <span id="admin-live-indicator" class="admin-live-indicator"><span id="admin-live-text">ADM *</span></span></div>
+      <div class="logo-sub">Estudio Fotográfico <span id="admin-live-indicator" class="admin-live-indicator"><span id="admin-live-text">ADM *</span></span><button id="admin-historial-top-btn" onclick="window.irAAdminTab ? window.irAAdminTab('historial-adm') : setAtab('historial-adm')" title="Historial de actividad" style="display:none;background:#111;border:1px solid var(--border);color:var(--text2);width:28px;height:28px;border-radius:50%;cursor:pointer;font-family:var(--font);font-size:13px;font-weight:900;align-items:center;justify-content:center;position:relative;">&#128344;<span id="historial-top-badge" style="display:none;"></span></button></div>
     </div>
   </a>
   <div style="display:flex;align-items:center;gap:6px;">
@@ -41,6 +41,7 @@
       <a href="#" class="nav-link" onclick="navScroll('sec-servicios');return false;">Servicios</a>
       <a href="#" class="nav-link" onclick="navScroll('sec-testimonios');return false;">Testimonios</a>
       <a href="#" class="nav-link" onclick="navScroll('sec-galeria');return false;">El Estudio</a>
+      <a rel="noopener noreferrer" href="https://tomaunovideos.vercel.app/" target="_blank" class="nav-link">Videos</a>
       <div class="ig-drop" id="ig-drop">
         <button class="ig-drop-btn" onclick="toggleIgDrop()">📸 Instagram <span class="arr">▼</span></button>
         <div class="ig-drop-menu">
@@ -58,7 +59,6 @@
       <a rel="noopener noreferrer" href="https://wa.me/5493764354522?text=Buenos%20d%C3%ADas%2C%20vengo%20de%20la%20web%20de%20Tomauno%2C%20quisiera%20consultar..." target="_blank" class="nav-link nav-cta">Contacto</a>
     </div>
     <span id="notif-dot"></span>
-    <button id="admin-historial-top-btn" onclick="setAtab('historial-adm')" title="Historial de actividad" style="display:none;background:#111;border:1px solid var(--border);color:var(--text2);width:28px;height:28px;border-radius:50%;cursor:pointer;font-family:var(--font);font-size:13px;font-weight:900;align-items:center;justify-content:center;position:relative;">&#128344;<span id="historial-top-badge" style="display:none;"></span></button>
     <div id="db-status" class="connecting"><span id="db-dot"></span><span id="db-label">Conectando</span></div>
     <button class="nav-ham" id="nav-ham" onclick="toggleMob()" aria-label="Abrir menú">
       <span></span><span></span><span></span>
@@ -73,6 +73,7 @@
   <a href="#" class="mob-link" onclick="navScroll('sec-servicios');toggleMob();return false;">🛠️ Servicios</a>
   <a href="#" class="mob-link" onclick="navScroll('sec-testimonios');toggleMob();return false;">⭐ Testimonios</a>
   <a href="#" class="mob-link" onclick="navScroll('sec-galeria');toggleMob();return false;">📍 El Estudio</a>
+  <a rel="noopener noreferrer" href="https://tomaunovideos.vercel.app/" target="_blank" class="mob-link">Videos</a>
   <a rel="noopener noreferrer" href="https://instagram.com/tomaunoestudio" target="_blank" class="mob-link">📷 @tomaunoestudio</a>
   <a rel="noopener noreferrer" href="https://instagram.com/tomaunomodels" target="_blank" class="mob-link">👗 @tomaunomodels</a>
   <a rel="noopener noreferrer" href="https://instagram.com/tomaunocapacitaciones" target="_blank" class="mob-link">🎓 @tomaunocapacitaciones</a>
