@@ -128,7 +128,17 @@ setInterval(updateAdminLiveIndicator, 5000);
 let cursos = {}, inscripciones = {}, serviciosDB = {}, servicioRegsDB = {}, testimoniosDB = {}, prevCount = 0, prevEventosCount = 0, prevTestCount = 0, prevServiciosCount = 0, prevEvRegsCount = 0, eventosDB = {}, evInscDB = {}, activityDB = {}, chatsDB = {}, adminStatus = {adminOnline:false, adminLast:0};
 
 const ACTIVITY_SEEN_KEY = 'tomauno-activity-seen-at';
-let activitySeenAt = (() => { try { return Number(localStorage.getItem(ACTIVITY_SEEN_KEY) || 0); } catch(e) { return 0; } })();
+const ACTIVITY_FILTER_KEY = 'tomauno-activity-filter';
+let activitySeenAt = (() => {
+  try {
+    const raw = localStorage.getItem(ACTIVITY_SEEN_KEY);
+    if(raw) return Number(raw || 0);
+    const now = Date.now();
+    localStorage.setItem(ACTIVITY_SEEN_KEY, String(now));
+    return now;
+  } catch(e) { return Date.now(); }
+})();
+let activityFilter = (() => { try { return localStorage.getItem(ACTIVITY_FILTER_KEY) || '24h'; } catch(e) { return '24h'; } })();
 
 function activityTs(v){
   const n = Number(v || 0);
@@ -335,18 +345,91 @@ window.abrirActividadTomauno = function(id){
 
 function ensureHistorialAdminUi(){
   if(!document.getElementById('admin-section')) return;
-  if(!document.getElementById('historial-admin-style')){
-    const st = document.createElement('style');
+  let st = document.getElementById('historial-admin-style');
+  if(!st){
+    st = document.createElement('style');
     st.id = 'historial-admin-style';
-    st.textContent = '#admin-historial-btn.has-activity{border-color:rgba(232,0,10,.8)!important;box-shadow:0 0 0 1px rgba(232,0,10,.28),0 0 18px rgba(232,0,10,.18)!important}.activity-new{border-color:rgba(232,0,10,.75)!important;background:rgba(232,0,10,.06)!important}.activity-clock{color:#f5c842}';
     document.head.appendChild(st);
   }
+  st.textContent = '#admin-historial-btn.has-activity,#admin-historial-top-btn.has-activity{border-color:rgba(232,0,10,.8)!important;box-shadow:0 0 0 1px rgba(232,0,10,.28),0 0 18px rgba(232,0,10,.18)!important}.activity-new{border-color:rgba(232,0,10,.75)!important;background:rgba(232,0,10,.06)!important}.activity-clock{color:#f5c842}.activity-row{padding:15px 16px!important;border-left:5px solid rgba(255,255,255,.16)!important;cursor:pointer!important}.activity-title{font-size:16px!important;color:#fff!important;line-height:1.35!important}.activity-detail{font-size:14px!important;color:rgba(255,255,255,.82)!important;line-height:1.45!important}.activity-detail b{color:#fff!important}.activity-date{font-size:12px!important;color:rgba(255,255,255,.58)!important;margin-top:5px!important}.activity-pill{display:inline-flex;align-items:center;border-radius:999px;padding:3px 9px;margin-right:7px;font-size:10px;font-weight:900;text-transform:uppercase;background:rgba(255,255,255,.09);color:#fff}.activity-kind-chat{border-left-color:#4aa3ff!important}.activity-kind-inscripcion{border-left-color:#4caf7d!important}.activity-kind-evento_insc{border-left-color:#f5c842!important}.activity-kind-servicio{border-left-color:#a78bfa!important}.activity-kind-consulta,.activity-kind-consulta_pendiente{border-left-color:#ff4d4d!important}.activity-kind-testimonio{border-left-color:#ff78c8!important}.historial-filters{display:flex!important;gap:8px!important;flex-wrap:wrap!important;margin:0 0 16px!important}.historial-filters button{appearance:none!important;border:1px solid rgba(255,255,255,.12)!important;background:#101010!important;color:rgba(255,255,255,.78)!important;border-radius:999px!important;padding:9px 13px!important;font-size:12px!important;font-weight:900!important;font-family:var(--font)!important;cursor:pointer!important}.historial-filters button.on{background:var(--red)!important;border-color:var(--red)!important;color:#fff!important}#historial-top-badge,#historial-badge{align-items:center;justify-content:center;min-width:18px;height:18px;margin-left:6px;padding:0 5px;border-radius:999px;background:#e8000a;color:#fff;font-size:10px;font-weight:900;}#admin-historial-top-btn{display:none}body.tomauno-admin-active #admin-historial-top-btn{display:inline-flex!important}#admin-historial-top-btn #historial-top-badge{position:absolute;right:-7px;top:-7px;margin:0!important}';
   updateActivityIndicator();
 }
 window.ensureHistorialAdminUi = ensureHistorialAdminUi;
 window.renderHistorialAdmin = renderHistorialAdmin;
 setTimeout(ensureHistorialAdminUi, 600);
 setInterval(ensureHistorialAdminUi, 3000);
+
+// Historial admin: filtro y lectura visual mejorada.
+(function(){
+  function kindLabel(item){
+    return item.kind === 'chat' ? 'Chat' :
+      item.kind === 'evento_insc' ? 'Evento' :
+      item.kind === 'servicio' ? 'Servicio' :
+      (item.kind === 'consulta' || item.kind === 'consulta_pendiente') ? 'Javier' :
+      item.kind === 'testimonio' ? 'Resena' : 'Curso';
+  }
+  function applyFilter(items){
+    const sinceDay = Date.now() - 1000 * 60 * 60 * 24;
+    const sinceWeek = Date.now() - 1000 * 60 * 60 * 24 * 7;
+    return items.filter(item => {
+      if(activityFilter === '24h') return item.ts >= sinceDay;
+      if(activityFilter === 'week') return item.ts >= sinceWeek;
+      if(activityFilter === 'chat') return item.kind === 'chat';
+      if(activityFilter === 'insc') return item.kind === 'inscripcion' || item.kind === 'evento_insc' || item.kind === 'servicio';
+      if(activityFilter === 'consulta') return item.kind === 'consulta' || item.kind === 'consulta_pendiente';
+      return true;
+    });
+  }
+  updateActivityIndicator = function(){
+    const items = activityItemsFromState();
+    const unread = items.filter(x => x.ts > activitySeenAt).length;
+    const topBtn = document.getElementById('admin-historial-top-btn');
+    if(topBtn) topBtn.style.display = (typeof isAdminNotifier === 'function' && isAdminNotifier()) ? 'inline-flex' : 'none';
+    [document.getElementById('historial-badge'), document.getElementById('historial-top-badge')].filter(Boolean).forEach(badge => {
+      badge.textContent = unread ? String(Math.min(unread, 99)) : '';
+      badge.style.display = unread ? 'inline-flex' : 'none';
+    });
+    [document.getElementById('admin-historial-btn'), document.getElementById('admin-historial-top-btn')].filter(Boolean).forEach(btn => btn.classList.toggle('has-activity', unread > 0));
+  };
+  renderHistorialAdmin = function(){
+    ensureHistorialAdminUi();
+    const box = document.getElementById('historial-list');
+    if(!box) return;
+    const items = activityItemsFromState();
+    const sinceDay = Date.now() - 1000 * 60 * 60 * 24;
+    const recientes = items.filter(x => x.ts >= sinceDay);
+    const filtered = applyFilter(items);
+    const list = filtered.slice(0, 160);
+    box.innerHTML = list.length ? list.map(item => {
+      const fresh = item.ts > activitySeenAt;
+      return '<div class="admin-ci activity-row activity-kind-'+escAttr(item.kind)+' '+(fresh?'activity-new':'')+'" onclick="window.abrirActividadTomauno(\''+escAttr(item.id)+'\')">' +
+        '<div class="admin-ci-info">' +
+          '<div class="admin-ci-tit activity-title">'+(fresh ? '<span class="activity-clock">&#128344;</span> ' : '')+'<span class="activity-pill">'+escHtml(kindLabel(item))+'</span> '+escHtml(item.title || 'Actividad')+'</div>' +
+          '<div class="admin-ci-sub activity-detail"><b>'+escHtml(item.name || '-')+'</b>'+(item.detail ? '<br><span>'+escHtml(String(item.detail).slice(0,220))+'</span>' : '')+'</div>' +
+          '<div class="admin-ci-sub activity-date">'+escHtml(activityDateLabel(item.ts))+'</div>' +
+        '</div>' +
+    '</div>';
+    }).join('') : '<div style="color:var(--text2);font-size:14px;padding:18px;text-align:center;">Sin actividad para este filtro.</div>';
+    const summary = document.getElementById('historial-summary');
+    if(summary) summary.textContent = recientes.length + ' actividad' + (recientes.length !== 1 ? 'es' : '') + ' en las ultimas 24 hs - mostrando ' + list.length + ' de ' + filtered.length + ' - ' + items.length + ' total';
+    activitySeenAt = Date.now();
+    try{ localStorage.setItem(ACTIVITY_SEEN_KEY, String(activitySeenAt)); }catch(e){}
+    updateActivityIndicator();
+  };
+  window.filtrarHistorialTomauno = function(filter){
+    activityFilter = filter || '24h';
+    try{ localStorage.setItem(ACTIVITY_FILTER_KEY, activityFilter); }catch(e){}
+    document.querySelectorAll('[data-activity-filter]').forEach(btn => btn.classList.toggle('on', btn.dataset.activityFilter === activityFilter));
+    renderHistorialAdmin();
+  };
+  const oldEnsure = ensureHistorialAdminUi;
+  ensureHistorialAdminUi = function(){
+    oldEnsure();
+    document.querySelectorAll('[data-activity-filter]').forEach(btn => btn.classList.toggle('on', btn.dataset.activityFilter === activityFilter));
+  };
+  window.ensureHistorialAdminUi = ensureHistorialAdminUi;
+  window.renderHistorialAdmin = renderHistorialAdmin;
+})();
 
 onValue(ref(db, 'tomauno/cursos'), s => {
   setDbStatus('online');
@@ -533,8 +616,8 @@ window.abrirInscripcion = (id, inscId = '') => {
   const edit = inscId && inscripciones[inscId] ? inscripciones[inscId] : null;
   const cr = Object.assign({dni:true, edad:true, ig:true, email:false, altura:false, medidas:false}, c.camposReq || {});
   const esSes = c.tipo === 'sesiones';
-  const dniField = (!esSes && cr.dni !== false) ? '<input class="finput" id="f-dni" placeholder="DNI *" type="number" value="'+escAttr(edit?.dni || '')+'"/>' : '<input type="hidden" id="f-dni" value="'+escAttr(edit?.dni || '0')+'"/>';
-  const edadField = cr.edad !== false ? '<input class="finput" id="f-edad" placeholder="Edad *" type="number" oninput="window.chkMenor()" value="'+escAttr(edit?.edad || '')+'"/>' : '<input type="hidden" id="f-edad" value="'+escAttr(edit?.edad || '18')+'"/>';
+  const dniField = (!esSes && cr.dni !== false) ? '<input class="finput" id="f-dni" placeholder="DNI *" type="text" inputmode="numeric" autocomplete="off" value="'+escAttr(edit?.dni || '')+'"/>' : '<input type="hidden" id="f-dni" value="'+escAttr(edit?.dni || '0')+'"/>';
+  const edadField = cr.edad !== false ? '<input class="finput" id="f-edad" placeholder="Edad *" type="text" inputmode="numeric" autocomplete="off" oninput="window.chkMenor()" value="'+escAttr(edit?.edad || '')+'"/>' : '<input type="hidden" id="f-edad" value="'+escAttr(edit?.edad || '18')+'"/>';
   const igField = cr.ig !== false ? '<input class="finput" id="f-ig" placeholder="Instagram (sin @)" value="'+escAttr(edit?.ig || '')+'"/>' : '';
   const emailField = cr.email ? '<input class="finput" id="f-email" placeholder="Email *" type="email" value="'+escAttr(edit?.email || '')+'"/>' : '';
   const alturaRow = (cr.altura || cr.medidas)
@@ -555,7 +638,7 @@ window.abrirInscripcion = (id, inscId = '') => {
     '<div class="mlbl">Detalle del pedido / aclaraciones</div>' +
     '<textarea class="finput" id="f-detalle-pedido" rows="3" placeholder="Ej: Quiero 2 fotos impresas de la misma coreografia, o pago una parte ahora">'+escHtml(edit?.detallePedido || '')+'</textarea>' +
     '<div style="font-size:11px;color:var(--text3);margin:6px 0 14px;">* Campos obligatorios</div>' +
-    '<button class="btn-main" onclick="window.confirmarInsc(\'' + id + '\')">✅ Confirmar inscripción</button>' +
+    '<button class="btn-main" id="btn-confirmar-insc" onclick="window.confirmarInsc(\'' + id + '\')">✅ Confirmar inscripción</button>' +
     '<button class="btn-out" onclick="window.closeModal()">Cancelar</button>';
   openModal();
   if (edit) {
@@ -650,6 +733,9 @@ window.confirmarInsc = async (id) => {
   const campoEspecialValor = campoEspecialLabel ? (document.getElementById('f-campo-especial')?.value.trim() || '') : '';
   const detallePedido = document.getElementById('f-detalle-pedido')?.value.trim() || '';
   const opciones = leerOpcionesSeleccionadasCurso();
+  const submitBtn = document.getElementById('btn-confirmar-insc');
+  if(submitBtn){ submitBtn.disabled = true; submitBtn.textContent = 'Guardando...'; }
+  try{
   await push(ref(db, 'tomauno/inscripciones'), {
     cursoId: id, cursoTitulo: c.titulo || '',
     nombre: nom, dni: dni || '', edad: edad, ig: ig, wp: wp,
@@ -666,6 +752,11 @@ window.confirmarInsc = async (id) => {
     opcionesTotal: opciones.opcionesTotal,
     pagos: genPagos(c)
   });
+  }catch(e){
+    if(submitBtn){ submitBtn.disabled = false; submitBtn.textContent = '✅ Confirmar inscripción'; }
+    toast('No se pudo guardar. Intentá nuevamente.');
+    return;
+  }
   const waText = [
     '🔴 *NUEVA PRE-INSCRIPCIÓN WEB TOMAUNO*',
     '📚 *Curso:* ' + (c.titulo || '') + (c.fecha ? ' - ' + fFecha(c.fecha) : '') + (c.hora ? ' ' + c.hora : ''),
@@ -793,8 +884,8 @@ window.selTurno = (el) => {
     '<div class="mlbl">Tus datos</div>' +
     '<input class="finput" id="f-nom" placeholder="Nombre y apellido *"/>' +
     '<div class="frow2">' +
-    '<input class="finput" id="f-dni" placeholder="DNI *" type="number"/>' +
-    '<input class="finput" id="f-edad" placeholder="Edad *" type="number" oninput="window.chkMenor()"/>' +
+    '<input class="finput" id="f-dni" placeholder="DNI *" type="text" inputmode="numeric" autocomplete="off"/>' +
+    '<input class="finput" id="f-edad" placeholder="Edad *" type="text" inputmode="numeric" autocomplete="off" oninput="window.chkMenor()"/>' +
     '</div>' +
     '<input class="finput" id="f-ig" placeholder="Instagram (sin @) *"/>' +
     '<input class="finput" id="f-wp" placeholder="WhatsApp * ej: 3764123456" type="tel"/>' +
@@ -1968,7 +2059,7 @@ window.abrirReservaServicio = (id, turno) => {
     '<input type="hidden" id="fsv-turno" value="' + turno + '"/>' +
     '<input class="finput" id="fsv-nom" placeholder="Nombre y apellido *"/>' +
     '<input type="hidden" id="fsv-dni" value=""/>' +
-    '<input class="finput" id="fsv-edad" placeholder="Edad *" type="number"/>' +
+    '<input class="finput" id="fsv-edad" placeholder="Edad *" type="text" inputmode="numeric" autocomplete="off"/>' +
     (cr.ig !== false ? '<input class="finput" id="fsv-ig" placeholder="Instagram (sin @)"/>' : '') +
     (cr.email ? '<input class="finput" id="fsv-email" placeholder="Email *" type="email"/>' : '') +
     '<input class="finput" id="fsv-wp" placeholder="WhatsApp * ej: 3764123456" type="tel"/>' +
@@ -2179,6 +2270,18 @@ window.abrirFormTestimonio = () => {
     '<button class="btn-out" onclick="window.closeModal()">Cancelar</button>';
   openModal();
 };
+
+function abrirTestimonioDesdeHash(){
+  try{
+    const h = String(location.hash || '').replace('#','').toLowerCase();
+    if(h !== 'testimonio' && h !== 'resena' && h !== 'reseña') return;
+    const sec = document.getElementById('sec-testimonios');
+    if(sec) sec.scrollIntoView({behavior:'smooth', block:'start'});
+    setTimeout(() => { if(typeof window.abrirFormTestimonio === 'function') window.abrirFormTestimonio(); }, 450);
+  }catch(e){}
+}
+window.addEventListener('hashchange', abrirTestimonioDesdeHash);
+setTimeout(abrirTestimonioDesdeHash, 700);
 
 window.enviarReview = async () => {
   const texto = document.getElementById('rv-texto')?.value.trim();
@@ -4270,6 +4373,7 @@ window.closeModal = () => {
   ov.style.display = 'none';
   const box=ov.querySelector('.mbox');
   if(box && box.dataset.compactPin){ box.style.maxWidth=''; box.style.padding=''; delete box.dataset.compactPin; }
+  if(box && box.dataset.wideEvent){ box.style.maxWidth=''; box.style.width=''; delete box.dataset.wideEvent; }
 };
 document.addEventListener('keydown', e => { if (e.key === 'Escape') closeModal(); });
 
@@ -4650,8 +4754,8 @@ window.abrirInscEvento = (id, turnoElegido='') => {
     '<div class="mlbl">Tus datos</div>' +
     '<input class="finput" id="fev-nom" placeholder="Nombre y apellido *"/>' +
     '<input class="finput" id="fev-wp" placeholder="WhatsApp * ej: 3764123456" type="tel"/>' +
-    '<input class="finput" id="fev-dni" placeholder="DNI *" type="number"/>' +
-    '<input class="finput" id="fev-edad" placeholder="Edad *" type="number" oninput="window.chkMenor()"/>' +
+    '<input class="finput" id="fev-dni" placeholder="DNI *" type="text" inputmode="numeric" autocomplete="off"/>' +
+    '<input class="finput" id="fev-edad" placeholder="Edad *" type="text" inputmode="numeric" autocomplete="off" oninput="window.chkMenor()"/>' +
     '<input class="finput" id="fev-localidad" placeholder="Localidad (opcional)"/>' +
     '<input class="finput" id="fev-ig" placeholder="Instagram (sin @)"/>' +
     '<div id="tutor-box" style="display:none;">' +
@@ -4720,7 +4824,7 @@ window.abrirFormEvento = () => {
     '<label class="flbl">Nombre del organizador *</label>' +
     '<input class="finput" id="nev-org-nombre" placeholder="Tu nombre y apellido"/>' +
     '<label class="flbl">DNI del organizador * (será tu clave de acceso)</label>' +
-    '<input class="finput" id="nev-org-dni" placeholder="Tu DNI" type="number"/>' +
+    '<input class="finput" id="nev-org-dni" placeholder="Tu DNI" type="text" inputmode="numeric" autocomplete="off"/>' +
     '<label class="flbl">WhatsApp del organizador *</label>' +
     '<input class="finput" id="nev-org-wp" placeholder="3764123456" type="tel"/>' +
     '<label class="flbl">Instagram del evento (sin @)</label>' +
@@ -5066,8 +5170,8 @@ window.verPlanillaEventoAdmin = (id) => {
   if (!lista.length) {
     html += '<div style="color:var(--text3);padding:18px 0;">Sin inscriptos aún</div>';
   } else {
-    html += '<div style="overflow-x:hidden;"><table style="width:100%;border-collapse:collapse;font-size:12px;table-layout:fixed;">' +
-      '<thead><tr><th style="padding:7px;text-align:left;color:var(--text3);width:20%;">Nombre</th><th style="padding:7px;text-align:left;color:var(--text3);width:10%;">DNI</th><th style="padding:7px;text-align:left;color:var(--text3);width:14%;">WP</th><th style="padding:7px;text-align:left;color:var(--text3);width:14%;">IG</th><th style="padding:7px;text-align:left;color:var(--text3);width:13%;">Turno</th><th style="padding:7px;text-align:left;color:var(--text3);width:13%;">Pago</th><th style="padding:7px;text-align:left;color:var(--text3);width:10%;">Monto</th><th style="padding:7px;text-align:left;color:var(--text3);width:6%;"></th></tr></thead><tbody>';
+    html += '<div style="overflow-x:auto;padding-bottom:6px;"><table style="width:100%;min-width:1120px;border-collapse:collapse;font-size:12px;table-layout:fixed;">' +
+      '<thead><tr><th style="padding:7px;text-align:left;color:var(--text3);width:20%;">Nombre</th><th style="padding:7px;text-align:left;color:var(--text3);width:10%;">DNI</th><th style="padding:7px;text-align:left;color:var(--text3);width:14%;">WP</th><th style="padding:7px;text-align:left;color:var(--text3);width:14%;">IG</th><th style="padding:7px;text-align:left;color:var(--text3);width:12%;">Turno</th><th style="padding:7px;text-align:left;color:var(--text3);width:12%;">Pago</th><th style="padding:7px;text-align:left;color:var(--text3);width:9%;">Monto</th><th style="padding:7px;text-align:left;color:var(--text3);width:9%;">Acc.</th></tr></thead><tbody>';
     lista.forEach(([ik,i]) => {
       const p = pagoEventoInfo(i,e);
       const clr = p.estado==='pagado'?'#4caf7d':p.estado==='parcial'?'#f5c842':'#e05252';
@@ -5086,6 +5190,8 @@ window.verPlanillaEventoAdmin = (id) => {
   html += '<button class="btn-out" onclick="window.closeModal()" style="margin-top:16px;">Cerrar</button>';
   document.getElementById('mcontent').innerHTML = html;
   openModal();
+  const box = document.querySelector('#moverlay .mbox');
+  if(box){ box.style.maxWidth = '1280px'; box.style.width = 'min(1280px, calc(100vw - 36px))'; box.dataset.wideEvent = '1'; }
 };
 
 window.verInscEventoAdmin = (id) => {
