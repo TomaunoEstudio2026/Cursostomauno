@@ -125,12 +125,233 @@ function updateAdminLiveIndicator(){
 }
 setInterval(updateAdminLiveIndicator, 5000);
 
-let cursos = {}, inscripciones = {}, serviciosDB = {}, servicioRegsDB = {}, testimoniosDB = {}, prevCount = 0, prevEventosCount = 0, prevTestCount = 0, prevServiciosCount = 0, prevEvRegsCount = 0, eventosDB = {}, evInscDB = {};
+let cursos = {}, inscripciones = {}, serviciosDB = {}, servicioRegsDB = {}, testimoniosDB = {}, prevCount = 0, prevEventosCount = 0, prevTestCount = 0, prevServiciosCount = 0, prevEvRegsCount = 0, eventosDB = {}, evInscDB = {}, activityDB = {}, chatsDB = {}, adminStatus = {adminOnline:false, adminLast:0};
+
+const ACTIVITY_SEEN_KEY = 'tomauno-activity-seen-at';
+let activitySeenAt = (() => { try { return Number(localStorage.getItem(ACTIVITY_SEEN_KEY) || 0); } catch(e) { return 0; } })();
+
+function activityTs(v){
+  const n = Number(v || 0);
+  return Number.isFinite(n) && n > 0 ? n : 0;
+}
+
+function activityDateLabel(ts){
+  const d = new Date(activityTs(ts) || Date.now());
+  return d.toLocaleDateString('es-AR') + ' ' + d.toLocaleTimeString('es-AR', {hour:'2-digit', minute:'2-digit'});
+}
+
+function activityRowId(prefix, id, ts){
+  return String(prefix || 'act') + '_' + String(id || 'x').replace(/[^\w-]/g,'_') + '_' + String(activityTs(ts) || '').slice(0,13);
+}
+
+window.registrarActividadTomauno = async function(kind, data={}){
+  try{
+    if(!kind) return;
+    const ts = activityTs(data.ts) || Date.now();
+    const id = data.id || activityRowId(kind, data.targetId || data.name || 'item', ts);
+    await update(ref(db, 'tomauno/activity/' + id), {
+      kind,
+      ts,
+      title: String(data.title || ''),
+      name: String(data.name || ''),
+      detail: String(data.detail || ''),
+      targetType: String(data.targetType || ''),
+      targetId: String(data.targetId || ''),
+      createdAt: Date.now()
+    });
+  }catch(e){}
+};
+
+function activityItemsFromState(){
+  const rows = [];
+  Object.entries(inscripciones || {}).forEach(([id,i]) => {
+    const ts = activityTs(i.creado || i.createdAt);
+    if(!ts) return;
+    rows.push({
+      id:'curso_' + id,
+      ts,
+      kind:'inscripcion',
+      title:'Nueva inscripcion',
+      name:i.nombre || 'Alumno',
+      detail:i.cursoTitulo || 'Curso',
+      targetType:'curso',
+      targetId:i.cursoId || ''
+    });
+  });
+  Object.entries(evInscDB || {}).forEach(([id,i]) => {
+    const ts = activityTs(i.creado || i.createdAt);
+    if(!ts) return;
+    rows.push({
+      id:'evento_insc_' + id,
+      ts,
+      kind:'evento_insc',
+      title:'Inscripcion a evento',
+      name:i.nombre || 'Alumno',
+      detail:i.evTitulo || 'Evento',
+      targetType:'evento',
+      targetId:i.evId || ''
+    });
+  });
+  Object.entries(servicioRegsDB || {}).forEach(([id,i]) => {
+    const ts = activityTs(i.creado || i.createdAt || i.fechaTs);
+    if(!ts) return;
+    rows.push({
+      id:'servicio_reg_' + id,
+      ts,
+      kind:'servicio',
+      title:'Solicitud de servicio',
+      name:i.nombre || i.name || 'Cliente',
+      detail:i.titulo || i.servicioTitulo || i.servicio || 'Servicio',
+      targetType:'servicios',
+      targetId:''
+    });
+  });
+  Object.entries(testimoniosDB || {}).forEach(([id,t]) => {
+    const ts = activityTs(t.creado || t.createdAt);
+    if(!ts) return;
+    rows.push({
+      id:'testimonio_' + id,
+      ts,
+      kind:'testimonio',
+      title:'Resena pendiente',
+      name:t.name || 'Alumno',
+      detail:t.course || t.text || '',
+      targetType:'testimonios',
+      targetId:''
+    });
+  });
+  Object.entries(chatsDB || {}).forEach(([id,c]) => {
+    if(!c || c.status === 'cerrado') return;
+    const msgs = typeof chatMsgs === 'function' ? chatMsgs(c) : [];
+    const userMsgs = msgs.filter(([,m]) => m && m.from === 'user' && !m.typing && String(m.text || '').trim());
+    const last = userMsgs.length ? userMsgs[userMsgs.length - 1][1] : null;
+    if(last){
+      const text = String(last.text || '').trim();
+      const isCallOnly = typeof window.tuEsPedidoHumano === 'function' && window.tuEsPedidoHumano(text);
+      if(!isCallOnly){
+        const ts = activityTs(last.createdAt || c.updatedAt);
+        rows.push({
+          id:'chat_' + id + '_' + String(ts || ''),
+          ts,
+          kind:'chat',
+          title:'Mensaje de chat',
+          name:(typeof chatVisibleName === 'function' ? chatVisibleName(c,id) : (c.name || 'Visitante')),
+          detail:text,
+          targetType:'chat',
+          targetId:id
+        });
+      }
+    }
+    if(c.humanContactReceived && c.humanContactText){
+      const ts = activityTs(c.humanContactAt || c.updatedAt);
+      rows.push({
+        id:'consulta_javier_' + id,
+        ts,
+        kind:'consulta',
+        title:'Consulta pendiente para Javier',
+        name:(typeof chatVisibleName === 'function' ? chatVisibleName(c,id) : (c.name || 'Visitante')),
+        detail:c.humanContactText,
+        targetType:'chat',
+        targetId:id
+      });
+    }
+  });
+  Object.entries(activityDB || {}).forEach(([id,a]) => {
+    if(!a || !a.ts) return;
+    rows.push({
+      id:'db_' + id,
+      ts:activityTs(a.ts),
+      kind:a.kind || 'actividad',
+      title:a.title || 'Actividad',
+      name:a.name || '',
+      detail:a.detail || '',
+      targetType:a.targetType || '',
+      targetId:a.targetId || ''
+    });
+  });
+  const seen = new Map();
+  return rows
+    .filter(r => r && r.ts)
+    .sort((a,b) => b.ts - a.ts)
+    .filter(r => {
+      if(seen.has(r.id)) return false;
+      seen.set(r.id, 1);
+      return true;
+    });
+}
+
+function openActivityTarget(item){
+  if(!item) return;
+  if(item.targetType === 'chat' && item.targetId && typeof window.abrirChatAdmin === 'function') return window.abrirChatAdmin(item.targetId, true);
+  if(item.targetType === 'curso' && item.targetId && typeof window.irAPlanillaCurso === 'function') return window.irAPlanillaCurso(item.targetId);
+  if(item.targetType === 'evento' && item.targetId && typeof window.irAPlanillaEvento === 'function') return window.irAPlanillaEvento(item.targetId);
+  if(item.targetType === 'servicios' && typeof window.irAAdminTab === 'function') return window.irAAdminTab('servicios-adm');
+  if(item.targetType === 'testimonios' && typeof window.irAAdminTab === 'function') return window.irAAdminTab('testimonios-adm');
+}
+
+function updateActivityIndicator(){
+  const items = activityItemsFromState();
+  const unread = items.filter(x => x.ts > activitySeenAt).length;
+  const badge = document.getElementById('historial-badge');
+  if(badge){
+    badge.textContent = unread ? String(Math.min(unread, 99)) : '';
+    badge.style.display = unread ? 'inline-flex' : 'none';
+  }
+  const btn = document.getElementById('admin-historial-btn');
+  if(btn) btn.classList.toggle('has-activity', unread > 0);
+}
+
+function renderHistorialAdmin(){
+  ensureHistorialAdminUi();
+  const box = document.getElementById('historial-list');
+  if(!box) return;
+  const items = activityItemsFromState();
+  const sinceDay = Date.now() - 1000 * 60 * 60 * 24;
+  const recientes = items.filter(x => x.ts >= sinceDay);
+  const list = items.slice(0, 160);
+  const openBtn = item => item.targetType ? '<button class="bsm bl" onclick="window.abrirActividadTomauno(\''+escAttr(item.id)+'\')">Abrir</button>' : '';
+  box.innerHTML = list.length ? list.map(item => {
+    const fresh = item.ts > activitySeenAt;
+    return '<div class="admin-ci '+(fresh?'activity-new':'')+'">' +
+      '<div class="admin-ci-info">' +
+        '<div class="admin-ci-tit">'+(fresh ? '<span class="activity-clock">&#128344;</span> ' : '')+escHtml(item.title || 'Actividad')+'</div>' +
+        '<div class="admin-ci-sub"><b>'+escHtml(item.name || '-')+'</b>'+(item.detail ? ' · '+escHtml(String(item.detail).slice(0,180)) : '')+'</div>' +
+        '<div class="admin-ci-sub">'+escHtml(activityDateLabel(item.ts))+'</div>' +
+      '</div>' +
+      '<div style="display:flex;gap:6px;align-items:center;">'+openBtn(item)+'</div>' +
+    '</div>';
+  }).join('') : '<div style="color:var(--text3);font-size:13px;padding:18px;text-align:center;">Sin actividad registrada todavia.</div>';
+  const summary = document.getElementById('historial-summary');
+  if(summary) summary.textContent = recientes.length + ' actividad' + (recientes.length !== 1 ? 'es' : '') + ' en las ultimas 24 hs · ' + items.length + ' total';
+  activitySeenAt = Date.now();
+  try{ localStorage.setItem(ACTIVITY_SEEN_KEY, String(activitySeenAt)); }catch(e){}
+  updateActivityIndicator();
+}
+
+window.abrirActividadTomauno = function(id){
+  const item = activityItemsFromState().find(x => x.id === id);
+  openActivityTarget(item);
+};
+
+function ensureHistorialAdminUi(){
+  if(!document.getElementById('admin-section')) return;
+  if(!document.getElementById('historial-admin-style')){
+    const st = document.createElement('style');
+    st.id = 'historial-admin-style';
+    st.textContent = '#admin-historial-btn.has-activity{border-color:rgba(232,0,10,.8)!important;box-shadow:0 0 0 1px rgba(232,0,10,.28),0 0 18px rgba(232,0,10,.18)!important}.activity-new{border-color:rgba(232,0,10,.75)!important;background:rgba(232,0,10,.06)!important}.activity-clock{color:#f5c842}';
+    document.head.appendChild(st);
+  }
+  updateActivityIndicator();
+}
+window.ensureHistorialAdminUi = ensureHistorialAdminUi;
+window.renderHistorialAdmin = renderHistorialAdmin;
+setTimeout(ensureHistorialAdminUi, 600);
+setInterval(ensureHistorialAdminUi, 3000);
 
 onValue(ref(db, 'tomauno/cursos'), s => {
   setDbStatus('online');
   cursos = s.exists() ? s.val() : {};
-  renderCursos(); renderAdminCursos(); renderFiltros(); updateStats(); renderFiltroTestimonios();
+  renderCursos(); renderAdminCursos(); renderFiltros(); updateStats(); renderFiltroTestimonios(); updateActivityIndicator();
 });
 
 onValue(ref(db, 'tomauno/inscripciones'), s => {
@@ -145,7 +366,7 @@ onValue(ref(db, 'tomauno/inscripciones'), s => {
     if(isAdminNotifier()){beep();showNotifBanner('Nueva inscripción', nombre + (curso ? ' · ' + curso : ''), '👥', () => window.irAPlanillaCurso(newest?.cursoId));showNotif();}
   }
   prevCount = c;
-  renderCursos(); renderAdminCursos(); renderAlumnos(); renderFiltros(); updateStats();
+  renderCursos(); renderAdminCursos(); renderAlumnos(); renderFiltros(); updateStats(); updateActivityIndicator();
 });
 
 onValue(ref(db, 'tomauno/servicios'), s => {
@@ -160,12 +381,14 @@ onValue(ref(db, 'tomauno/servicios'), s => {
   renderServiciosAdmin();
   renderServiciosPublicos();
   updateStats();
+  updateActivityIndicator();
 });
 
 onValue(ref(db, 'tomauno/servicioRegs'), s => {
   servicioRegsDB = s.exists() ? s.val() : {};
   renderServiciosPublicos();
   renderServiciosAdmin();
+  updateActivityIndicator();
 });
 
 
@@ -184,6 +407,13 @@ onValue(ref(db, 'tomauno/testimonios'), s => {
   renderTestimonios();
   renderTestimoniosAdmin();
   updateStats();
+  updateActivityIndicator();
+});
+
+onValue(ref(db, 'tomauno/activity'), s => {
+  activityDB = s.exists() ? s.val() : {};
+  updateActivityIndicator();
+  if(document.getElementById('atab-historial-adm')?.style.display === 'block') renderHistorialAdmin();
 });
 
 // ── STATS ─────────────────────────────────────────────────────────────────────
@@ -685,14 +915,20 @@ window.verPlanillaTurnos = (id) => {
 
 // ── ADMIN TABS ────────────────────────────────────────────────────────────────
 window.setAtab = (tab) => {
-  const tabs = ['alumnos','cursos','nuevo','servicios-adm','testimonios-adm','eventos-adm','galeria-adm','agenda-adm','asistente-adm','apps-adm'];
+  ensureHistorialAdminUi();
+  const tabs = ['alumnos','cursos','nuevo','servicios-adm','testimonios-adm','eventos-adm','galeria-adm','agenda-adm','asistente-adm','historial-adm','apps-adm'];
   tabs.forEach(t => {
     const el = document.getElementById('atab-' + t);
     if (el) el.style.display = t === tab ? 'block' : 'none';
   });
-  document.querySelectorAll('.atab').forEach((b, i) => b.classList.toggle('on', tabs[i] === tab));
+  document.querySelectorAll('.atab').forEach((b, i) => {
+    const m = String(b.getAttribute('onclick') || '').match(/setAtab\(['"]([^'"]+)['"]\)/);
+    const key = m ? m[1] : tabs[i];
+    b.classList.toggle('on', key === tab);
+  });
   const stats = document.getElementById('atab-stats-vistas');
   if (stats) stats.style.display = tab === 'cursos' ? 'block' : 'none';
+  if(tab === 'historial-adm') setTimeout(renderHistorialAdmin, 40);
 };
 
 window.irAAdminTab = (tab) => {
@@ -1994,7 +2230,6 @@ function renderStatsVistas() {
 
 
 // ── CHAT DIRECTO ─────────────────────────────────────────────────────────────
-let chatsDB = {}, adminStatus = {adminOnline:false, adminLast:0};
 let asistenteDB = {modo:'manual', knowledge:{}};
 let knownChatIds = null;
 let notifiedChatIds = (() => { try { return new Set(JSON.parse(localStorage.getItem('tomauno-chat-notified') || '[]')); } catch(e){ return new Set(); } })();
@@ -2162,6 +2397,7 @@ onValue(ref(db, 'tomauno/chats'), snap => {
     // Evita refrescar todo el contenedor del chat mientras se escribe: actualiza solo mensajes.
     updateChatMessagesOnly(currentOpenChatId, adminView);
   }
+  updateActivityIndicator();
 });
 
 function isAdminOnline(){ return !!(adminStatus.adminOnline && (Date.now() - (adminStatus.adminLast || 0) < 90000)); }
@@ -4200,6 +4436,7 @@ onValue(ref(db, 'tomauno/eventos'), s => {
   renderAdminEventos();
   updateStats();
   renderStatsVistas();
+  updateActivityIndicator();
 });
 
 onValue(ref(db, 'tomauno/evRegs'), s => {
@@ -4214,6 +4451,7 @@ onValue(ref(db, 'tomauno/evRegs'), s => {
   renderEventos();
   renderAdminEventos();
   renderStatsVistas();
+  updateActivityIndicator();
 });
 
 function renderEventos() {
@@ -11224,6 +11462,17 @@ async function captureContactOnce(id,text){
     createdAt:Date.now()
   });
 
+  try{
+    await window.registrarActividadTomauno('consulta_pendiente', {
+      id:'consulta_javier_' + id,
+      ts:Date.now(),
+      title:'Consulta pendiente para Javier',
+      name:(typeof chatVisibleName === 'function' ? chatVisibleName(c,id) : (c.name || 'Visitante')),
+      detail:String(text || '').trim(),
+      targetType:'chat',
+      targetId:id
+    });
+  }catch(e){}
   try{if(typeof updateChatMessagesOnly==='function')updateChatMessagesOnly(id,!!q('#chat-popover.open #chat-admin-text'))}catch(e){}
   return true;
 }
