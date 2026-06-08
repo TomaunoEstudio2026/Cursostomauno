@@ -3318,7 +3318,7 @@ window.abrirChatAdmin = (id, silent=false) => {
     '<div class="chat-row"><input class="finput" id="chat-admin-text" placeholder="Responder..." value="'+escAttr(inputVal)+'" onkeydown="if(event.key===\'Enter\')window.enviarChatAdmin(\''+id+'\')"/><button class="chat-send" onclick="window.enviarChatAdmin(\''+id+'\')">➜</button></div>' +
     '<div class="chat-admin-tools"><button class="chat-filter auto '+(asistenteModo()==='automatico'?'on':'')+'" title="Cambiar AUTO/HUM" onclick="window.toggleModoAsistenteChat()">'+(asistenteModo()==='automatico'?'👤 HUM':'🤖 AUTO')+'</button><button class="chat-filter" title="Ayuda / Machete" onclick="window.mostrarAyudaAsistente()">/?</button><button class="chat-filter" title="Respuestas del cerebro" onclick="window.mostrarSelectorCerebroChat(\''+id+'\')">//</button><button class="chat-filter" title="Acciones rápidas" onclick="window.mostrarAccionesChatAdmin(\''+id+'\')">⚡</button><button id="chat-tools-toggle" class="chat-filter chat-tools-toggle '+(!chatToolsCollapsed?'on':'')+'" title="Mostrar/ocultar botones" onclick="window.toggleChatTools()">'+(chatToolsCollapsed?'▴':'▾')+'</button></div>' +
     '<div class="chat-tools-block">' + quickRepliesHtml() +
-    '<div class="chat-admin-actions"><button class="btn-out" title="Bandeja" onclick="abrirPanelChatsAdmin()"><span class="ico">←</span></button><button class="btn-out" title="Editar nombre" onclick="window.editarNombreChat(\''+id+'\')"><span class="ico">✏️</span></button><button class="btn-out" title="Copiar conversación" onclick="window.copiarHistorialChat(\''+id+'\')"><span class="ico">📋</span></button><button class="btn-out" title="Exportar TXT" onclick="window.exportarHistorialChat(\''+id+'\')"><span class="ico">⬇️</span></button><button class="btn-out" title="Eventos" onclick="window.enviarChatAdmin(\''+id+'\',\'Eventos activos\')"><span class="ico">📅</span></button><button class="btn-out danger" title="Borrar chat" onclick="window.eliminarChatDefinitivo(\''+id+'\')"><span class="ico">🗑️</span></button>' + (chat.wp?'<a class="btn-out" title="WhatsApp" style="text-align:center;text-decoration:none;color:#25d366;border-color:rgba(37,211,102,.35);" target="_blank" rel="noopener noreferrer" href="https://wa.me/549'+String(chat.wp||'').replace(/\D/g,'')+'"><span class="ico">💬</span></a>':'') + '</div></div></div>'
+    '<div class="chat-admin-actions"><button class="btn-out" title="Bandeja" onclick="abrirPanelChatsAdmin()"><span class="ico">←</span></button><button class="btn-out" title="Editar nombre" onclick="window.editarNombreChat(\''+id+'\')"><span class="ico">✏️</span></button><button class="btn-out" title="Copiar conversación" onclick="window.copiarHistorialChat(\''+id+'\')"><span class="ico">📋</span></button><button class="btn-out" title="Exportar TXT" onclick="window.exportarHistorialChat(\''+id+'\')"><span class="ico">⬇️</span></button><button class="btn-out danger" title="Borrar chat" onclick="window.eliminarChatDefinitivo(\''+id+'\')"><span class="ico">🗑️</span></button>' + (chat.wp?'<a class="btn-out" title="WhatsApp" style="text-align:center;text-decoration:none;color:#25d366;border-color:rgba(37,211,102,.35);" target="_blank" rel="noopener noreferrer" href="https://wa.me/549'+String(chat.wp||'').replace(/\D/g,'')+'"><span class="ico">💬</span></a>':'') + '</div></div></div>'
   );
   update(ref(db,'tomauno/chats/'+id), {unreadAdmin:false, unread:false, hasNew:false, hasNewAdmin:false, waitingHuman:false, priority:false, prioridad:false, readByAdminAt:Date.now(), adminReadAt:Date.now(), lastReadAdminAt:Date.now()}).catch(()=>{});
   setTimeout(()=>{const el=document.getElementById('chat-msgs'); if(el) scrollChatSmart(el); const inp=document.getElementById('chat-admin-text'); if(inp && (!silent || wasFocused)){ inp.focus(); inp.setSelectionRange(inp.value.length, inp.value.length); }},60);
@@ -11672,22 +11672,7 @@ function forceChatModeButton12e(id){
 
 function ensureAdminEventsButton12e(){
   try{
-    const id = admId();
-    const tools = q('#chat-popover.open .chat-admin-tools');
-    if(!id || !tools || tools.querySelector('[data-tu-admin-events]')) return;
-    const btn = document.createElement('button');
-    btn.type = 'button';
-    btn.className = 'chat-filter';
-    btn.dataset.tuAdminEvents = '1';
-    btn.title = 'Eventos';
-    btn.textContent = '📅 Eventos';
-    btn.onclick = ev => {
-      ev.preventDefault();
-      ev.stopPropagation();
-      if(typeof window.enviarChatAdmin === 'function') window.enviarChatAdmin(id, 'Eventos activos');
-    };
-    const toggle = tools.querySelector('#chat-tools-toggle');
-    tools.insertBefore(btn, toggle || null);
+    document.querySelectorAll('[data-tu-admin-events]').forEach(btn => btn.remove());
   }catch(e){}
 }
 setInterval(() => { forceChatModeButton12e(admId()); ensureAdminEventsButton12e(); }, 700);
