@@ -58,6 +58,7 @@
       <a rel="noopener noreferrer" href="https://wa.me/5493764354522?text=Buenos%20d%C3%ADas%2C%20vengo%20de%20la%20web%20de%20Tomauno%2C%20quisiera%20consultar..." target="_blank" class="nav-link nav-cta">Contacto</a>
     </div>
     <span id="notif-dot"></span>
+    <button id="admin-historial-top-btn" onclick="setAtab('historial-adm')" title="Historial de actividad" style="display:none;background:#111;border:1px solid var(--border);color:var(--text2);width:28px;height:28px;border-radius:50%;cursor:pointer;font-family:var(--font);font-size:13px;font-weight:900;align-items:center;justify-content:center;position:relative;">&#128344;<span id="historial-top-badge" style="display:none;"></span></button>
     <div id="db-status" class="connecting"><span id="db-dot"></span><span id="db-label">Conectando</span></div>
     <button class="nav-ham" id="nav-ham" onclick="toggleMob()" aria-label="Abrir menú">
       <span></span><span></span><span></span>
@@ -305,7 +306,6 @@
       <div class="admin-title">PANEL <em>ADMIN</em></div>
       <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;justify-content:flex-end;">
         <button onclick="window.pedirPermisoNotificaciones && window.pedirPermisoNotificaciones()" style="background:#1a1a1a;border:1px solid var(--border);color:var(--text2);padding:9px 14px;border-radius:20px;cursor:pointer;font-family:var(--font);font-size:12px;font-weight:700;">🔔 Activar notificaciones</button>
-        <button id="admin-historial-top-btn" onclick="setAtab('historial-adm')" title="Historial de actividad" style="background:#1a1a1a;border:1px solid var(--border);color:var(--text2);padding:9px 14px;border-radius:20px;cursor:pointer;font-family:var(--font);font-size:12px;font-weight:800;">&#128344; Historial <span id="historial-top-badge" style="display:none;"></span></button>
         <button onclick="cerrarAdmin()" style="background:var(--gray3);border:none;color:var(--text2);padding:9px 18px;border-radius:20px;cursor:pointer;font-family:var(--font);font-size:13px;font-weight:600;">← Salir</button>
       </div>
     </div>
