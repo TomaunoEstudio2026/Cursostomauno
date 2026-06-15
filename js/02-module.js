@@ -893,8 +893,13 @@ window.selTurno = (el) => {
     '<div class="mlbl" style="color:#f5c842;">⚠️ Menor de edad</div>' +
     '<div class="tutor-box"><input class="finput" id="f-tnombre" placeholder="Nombre tutor/a"/><input class="finput" id="f-twp" placeholder="WP tutor/a *" type="tel"/></div>' +
     '</div>' +
+    opcionesCursoHtml(c) +
+    '<div class="mlbl">Detalle del pedido / aclaraciones</div>' +
+    '<textarea class="finput" id="f-detalle-pedido" rows="3" placeholder="Ej: Quiero 2 fotos impresas de la misma coreografia, o pago una parte ahora"></textarea>' +
     '<button class="btn-main" onclick="window.confirmarTurno(\'' + id + '\',\'' + turno + '\')">✅ Confirmar turno ' + turno + '</button>' +
     '<button class="btn-out" onclick="window.abrirSesiones(\'' + id + '\')">← Volver</button>';
+  window.chkMenor();
+  window.actualizarTotalOpcionesCurso();
 };
 
 window.confirmarTurno = async (id, turno) => {
@@ -914,12 +919,18 @@ window.confirmarTurno = async (id, turno) => {
     return;
   }
   const c = cursos[id];
+  const opciones = leerOpcionesSeleccionadasCurso();
+  const detallePedido = document.getElementById('f-detalle-pedido')?.value.trim() || '';
   await push(ref(db, 'tomauno/inscripciones'), {
     cursoId: id, cursoTitulo: c ? c.titulo : '', nombre: nom, dni, edad, ig, wp,
     tutorWp: twp || null, turno,
+    detallePedido,
+    opcionesElegidas: opciones.opcionesElegidas,
+    opcionesTotal: opciones.opcionesTotal,
     fecha: new Date().toLocaleDateString('es-AR'),
     hora: new Date().toLocaleTimeString('es-AR', {hour:'2-digit', minute:'2-digit'}),
-    pagos: [{label:'Pago único', estado:'pendiente', monto:'', nota:''}]
+    creado: Date.now(),
+    pagos: genPagos(c || {})
   });
   const tText = [
     '📅 NUEVO TURNO RESERVADO',
@@ -930,6 +941,12 @@ window.confirmarTurno = async (id, turno) => {
     '📸 IG: @' + ig,
     '📱 WP: ' + wp,
   ];
+  if (opciones.opcionesElegidas.length) {
+    tText.push('', '🧾 Opciones elegidas:');
+    opciones.opcionesElegidas.forEach(o => tText.push('- ' + o.nombre + ': ' + dineroOpt(o.precio)));
+    tText.push('💰 Total opciones: ' + dineroOpt(opciones.opcionesTotal));
+  }
+  if (detallePedido) tText.push('📝 Detalle: ' + detallePedido);
   if (twp) tText.push('👨‍👩‍👧 WP Tutor: ' + twp);
   window._pendingWaUrl = 'https://api.whatsapp.com/send?phone=5493764354522&text=' + waEncode(tText.join('\n'));
   document.getElementById('mcontent').innerHTML =
