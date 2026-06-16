@@ -557,7 +557,7 @@ function renderCursos() {
       '<div class="ctitle">' + (c.titulo || 'Sin título') + '</div>' +
       '<div class="cdesc">' + (c.desc || '').replace(/\n/g, ' ') + '</div>' +
       '<div class="cmeta">' +
-      (c.fecha ? '<span class="chip">📅 ' + fFecha(c.fecha) + '</span>' : '') +
+      (fechasCursoLabel(c) ? '<span class="chip">📅 ' + escHtml(fechasCursoLabel(c)) + '</span>' : '') +
       (c.hora ? '<span class="chip">⏰ ' + c.hora + '</span>' : '') +
       (c.lugar ? '<span class="chip">📍 ' + (c.lugar.split('-')[0].trim()) + '</span>' : '') +
       (!c.cupos ? '<span class="chip">👥 ' + insc + ' inscripto' + (insc !== 1 ? 's' : '') + '</span>' : '') +
@@ -589,7 +589,7 @@ window.abrirDetalle = (id) => {
     '<div class="mtitle">' + (c.titulo || 'Sin título') + '</div>' +
     '<div class="msub">' + insc + ' inscripto' + (insc !== 1 ? 's' : '') + (c.cupos > 0 ? ' · ' + (c.cupos - insc) + ' cupos restantes' : '') + '</div>' +
     '<div class="cmeta" style="margin-bottom:18px;">' +
-    (c.fecha ? '<span class="chip">📅 ' + fFecha(c.fecha) + '</span>' : '') +
+    (fechasCursoLabel(c) ? '<span class="chip">📅 ' + escHtml(fechasCursoLabel(c)) + '</span>' : '') +
     (c.hora ? '<span class="chip">⏰ ' + c.hora + '</span>' : '') +
     (c.lugar ? '<span class="chip">📍 ' + c.lugar + '</span>' : '') +
     (c.costo ? '<span class="chip accent">💰 $ ' + Number(c.costo).toLocaleString('es-AR') + '</span>' : '<span class="chip" style="color:#00d25a;">✦ GRATIS</span>') +
@@ -636,7 +636,7 @@ window.abrirInscripcion = (id, inscId = '') => {
     '</div>' +
     opcionesCursoHtml(c, edit?.opcionesElegidas || []) +
     '<div class="mlbl">Detalle del pedido / aclaraciones</div>' +
-    '<textarea class="finput" id="f-detalle-pedido" rows="3" placeholder="Ej: Quiero 2 fotos impresas de la misma coreografia, o pago una parte ahora">'+escHtml(edit?.detallePedido || '')+'</textarea>' +
+    '<textarea class="finput" id="f-detalle-pedido" rows="3" placeholder="Dejanos tu inquietud o detalle para tenerlo en cuenta">'+escHtml(edit?.detallePedido || '')+'</textarea>' +
     '<div style="font-size:11px;color:var(--text3);margin:6px 0 14px;">* Campos obligatorios</div>' +
     '<button class="btn-main" id="btn-confirmar-insc" onclick="window.confirmarInsc(\'' + id + '\')">✅ Confirmar inscripción</button>' +
     '<button class="btn-out" onclick="window.closeModal()">Cancelar</button>';
@@ -854,17 +854,26 @@ function genPagos(c) {
 }
 
 // ── SESIONES / TURNOS ─────────────────────────────────────────────────────────
-window.abrirSesiones = (id) => {
+window.abrirSesiones = (id, diaElegido = '') => {
   const c = cursos[id]; if (!c) return;
+  const dias = diasTurnosCurso(c);
+  const dia = diaElegido || (dias[0] && dias[0].value) || '';
+  const diaObj = dias.find(d => d.value === dia) || dias[0] || {value:'', label:'Turnos'};
+  const defaultDay = dias[0]?.value || '';
   const slots = genSlots(c);
-  const ocup = Object.values(inscripciones).filter(i => i.cursoId === id && i.turno);
+  const ocup = Object.values(inscripciones).filter(i => i.cursoId === id && i.turno && mismaFechaTurno(i, diaObj.value, defaultDay));
   const libres = slots.filter(s => !ocup.find(i => i.turno === s)).length;
   let html = '<div class="mtitle">ELEGÍ TU TURNO</div>' +
-    '<div class="msub">' + (c.titulo || '') + (c.fecha ? ' · ' + fFecha(c.fecha) : '') + ' · <span style="color:#4caf7d;">' + libres + ' disponibles</span></div>' +
-    '<div class="slots-grid">';
+    '<div class="msub">' + (c.titulo || '') + ' · ' + (diaObj.label || (c.fecha ? fFecha(c.fecha) : 'Fecha a coordinar')) + ' · <span style="color:#4caf7d;">' + libres + ' disponibles</span></div>';
+  if(dias.length > 1){
+    html += '<div class="turn-day-tabs" style="display:flex;gap:8px;flex-wrap:wrap;margin:14px 0 16px;">' +
+      dias.map(d => '<button type="button" class="bsm bl" style="'+(d.value===diaObj.value?'background:var(--red);border-color:var(--red);color:#fff;':'')+'" onclick="window.abrirSesiones(\''+id+'\',\''+d.value+'\')">'+escHtml(d.label)+'</button>').join('') +
+      '</div>';
+  }
+  html += '<div class="slots-grid">';
   slots.forEach(s => {
     const q = ocup.find(i => i.turno === s);
-    html += '<div class="slot ' + (q ? 'ocupado' : 'libre') + '" data-id="' + id + '" data-slot="' + s + '" ' + (q ? '' : 'onclick="window.selTurno(this)"') + '>' +
+    html += '<div class="slot ' + (q ? 'ocupado' : 'libre') + '" data-id="' + id + '" data-slot="' + s + '" data-day="' + escAttr(diaObj.value || '') + '" ' + (q ? '' : 'onclick="window.selTurno(this)"') + '>' +
       '<div class="slot-t">' + s + '</div>' +
       '<div class="slot-n">' + (q ? (q.nombre || '').split(' ')[0] : '✓ Libre') + '</div>' +
       '</div>';
@@ -895,14 +904,14 @@ window.selTurno = (el) => {
     '</div>' +
     opcionesCursoHtml(c) +
     '<div class="mlbl">Detalle del pedido / aclaraciones</div>' +
-    '<textarea class="finput" id="f-detalle-pedido" rows="3" placeholder="Ej: Quiero 2 fotos impresas de la misma coreografia, o pago una parte ahora"></textarea>' +
-    '<button class="btn-main" onclick="window.confirmarTurno(\'' + id + '\',\'' + turno + '\')">✅ Confirmar turno ' + turno + '</button>' +
+    '<textarea class="finput" id="f-detalle-pedido" rows="3" placeholder="Dejanos tu inquietud o detalle para tenerlo en cuenta"></textarea>' +
+    '<button class="btn-main" onclick="window.confirmarTurno(\'' + id + '\',\'' + turno + '\',\'' + (el.dataset.day || '') + '\')">✅ Confirmar turno ' + turno + '</button>' +
     '<button class="btn-out" onclick="window.abrirSesiones(\'' + id + '\')">← Volver</button>';
   window.chkMenor();
   window.actualizarTotalOpcionesCurso();
 };
 
-window.confirmarTurno = async (id, turno) => {
+window.confirmarTurno = async (id, turno, fechaTurno = '') => {
   const nom = document.getElementById('f-nom')?.value.trim();
   const dni = document.getElementById('f-dni')?.value.trim();
   const edad = parseInt(document.getElementById('f-edad')?.value) || 0;
@@ -913,17 +922,22 @@ window.confirmarTurno = async (id, turno) => {
   if (!wp) { toast('⚠️ El número de celular es obligatorio'); return; }
   if (!dni || !edad || !ig) { toast('⚠️ Completá todos los campos'); return; }
   if (edad < 18 && !twp) { toast('⚠️ Ingresá el WP del tutor'); return; }
-  if (Object.values(inscripciones).find(i => i.cursoId === id && i.turno === turno)) {
+  const c = cursos[id];
+  const dias = diasTurnosCurso(c || {});
+  const defaultDay = dias[0]?.value || '';
+  const day = fechaTurno || defaultDay || '';
+  if (Object.values(inscripciones).find(i => i.cursoId === id && i.turno === turno && mismaFechaTurno(i, day, defaultDay))) {
     toast('⚠️ Ese turno ya fue tomado, elegí otro');
-    abrirSesiones(id);
+    abrirSesiones(id, day);
     return;
   }
-  const c = cursos[id];
   const opciones = leerOpcionesSeleccionadasCurso();
   const detallePedido = document.getElementById('f-detalle-pedido')?.value.trim() || '';
   await push(ref(db, 'tomauno/inscripciones'), {
     cursoId: id, cursoTitulo: c ? c.titulo : '', nombre: nom, dni, edad, ig, wp,
     tutorWp: twp || null, turno,
+    fechaTurno: day || '',
+    fechaTurnoLabel: labelFechaTurno(day),
     detallePedido,
     opcionesElegidas: opciones.opcionesElegidas,
     opcionesTotal: opciones.opcionesTotal,
@@ -935,6 +949,7 @@ window.confirmarTurno = async (id, turno) => {
   const tText = [
     '📅 NUEVO TURNO RESERVADO',
     '📸 Sesión: ' + (c ? c.titulo : '') + (c && c.fecha ? ' - ' + fFecha(c.fecha) : ''),
+    (day ? '🗓️ Día: ' + labelFechaTurno(day) : ''),
     '⏰ Turno: ' + turno,
     '👤 Nombre: ' + nom,
     '🎂 Edad: ' + edad,
@@ -991,10 +1006,65 @@ function genSlots(c) {
   return sl;
 }
 
-window.verPlanillaTurnos = (id) => {
+function normalizarFechaTurno(v){
+  const raw = String(v || '').trim();
+  if(!raw) return '';
+  let m = raw.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if(m) return raw;
+  m = raw.match(/^(\d{1,2})[\/\-](\d{1,2})(?:[\/\-](\d{2,4}))?$/);
+  if(m){
+    const d = String(m[1]).padStart(2,'0');
+    const mo = String(m[2]).padStart(2,'0');
+    let y = m[3] ? String(m[3]) : String(new Date().getFullYear());
+    if(y.length === 2) y = '20' + y;
+    return y + '-' + mo + '-' + d;
+  }
+  return raw;
+}
+
+function labelFechaTurno(v){
+  const iso = normalizarFechaTurno(v);
+  const m = iso.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if(!m) return String(v || '').trim();
+  const d = new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3]));
+  const dias = ['Dom','Lun','Mar','Mié','Jue','Vie','Sáb'];
+  return dias[d.getDay()] + ' ' + m[3] + '/' + m[2];
+}
+
+function diasTurnosCurso(c){
+  const raw = String(c?.diasTurnos || c?.fechasTurnos || '').trim();
+  const parts = raw ? raw.split(/[\n,;]+/).map(normalizarFechaTurno).filter(Boolean) : [];
+  if(!parts.length && c?.fecha) parts.push(normalizarFechaTurno(c.fecha));
+  const seen = new Set();
+  return parts.filter(d => {
+    if(seen.has(d)) return false;
+    seen.add(d);
+    return true;
+  }).map(d => ({value:d, label:labelFechaTurno(d)}));
+}
+
+function fechasCursoLabel(c){
+  const dias = diasTurnosCurso(c);
+  if(dias.length > 1) return dias.map(d => d.label).join(' · ');
+  if(dias.length === 1) return dias[0].label;
+  return c?.fecha ? fFecha(c.fecha) : '';
+}
+
+function mismaFechaTurno(i, dia, defaultDay){
+  const saved = normalizarFechaTurno(i?.fechaTurno || '');
+  const current = normalizarFechaTurno(dia || '');
+  if(saved) return saved === current;
+  return !current || current === normalizarFechaTurno(defaultDay || '');
+}
+
+window.verPlanillaTurnos = (id, diaElegido = '') => {
   const c = cursos[id]; if (!c) return;
+  const dias = diasTurnosCurso(c);
+  const dia = diaElegido || (dias[0] && dias[0].value) || '';
+  const diaObj = dias.find(d => d.value === dia) || dias[0] || {value:'', label:''};
+  const defaultDay = dias[0]?.value || '';
   const slots = genSlots(c);
-  const ocup = Object.values(inscripciones).filter(i => i.cursoId === id && i.turno);
+  const ocup = Object.values(inscripciones).filter(i => i.cursoId === id && i.turno && mismaFechaTurno(i, diaObj.value, defaultDay));
   const soloNombres = slots.filter(s => ocup.find(i => i.turno === s)).map(s => {
     const i = ocup.find(x => x.turno === s);
     return i ? i.nombre : '';
@@ -1003,12 +1073,21 @@ window.verPlanillaTurnos = (id) => {
     const i = ocup.find(x => x.turno === s);
     return i ? (s + ' - ' + i.nombre + (i.wp ? ' (' + i.wp + ')' : '')) : (s + ' - LIBRE');
   }).join('\n');
+  const todosLosDias = (dias.length ? dias : [{value:'', label:''}]).map(d => {
+    const ocupDia = Object.values(inscripciones).filter(i => i.cursoId === id && i.turno && mismaFechaTurno(i, d.value, defaultDay));
+    return (d.label ? (d.label + '\n') : '') + slots.map(s => {
+      const i = ocupDia.find(x => x.turno === s);
+      return i ? (s + ' - ' + i.nombre + (i.wp ? ' (' + i.wp + ')' : '')) : (s + ' - LIBRE');
+    }).join('\n');
+  }).join('\n\n');
   document.getElementById('mcontent').innerHTML =
     '<div class="mtitle" style="margin-bottom:4px;">PLANILLA TURNOS</div>' +
-    '<div class="msub" style="margin-bottom:16px;">' + (c.titulo || '') + ' · ' + ocup.length + ' reservados · ' + (slots.length - ocup.length) + ' libres</div>' +
+    '<div class="msub" style="margin-bottom:12px;">' + (c.titulo || '') + (diaObj.label ? ' · ' + diaObj.label : '') + ' · ' + ocup.length + ' reservados · ' + (slots.length - ocup.length) + ' libres</div>' +
+    (dias.length > 1 ? '<div style="display:flex;gap:8px;flex-wrap:wrap;margin:0 0 14px;">' + dias.map(d => '<button type="button" class="bsm bl" style="'+(d.value===diaObj.value?'background:var(--red);border-color:var(--red);color:#fff;':'')+'" onclick="window.verPlanillaTurnos(\''+id+'\',\''+d.value+'\')">'+escHtml(d.label)+'</button>').join('') + '</div>' : '') +
     '<div style="display:flex;gap:8px;margin-bottom:14px;flex-wrap:wrap;">' +
-    '<button class="bsm bl" id="btn-cp-full">📋 Copiar planilla</button>' +
-    '<button class="bsm bl" id="btn-cp-nom">👤 Solo nombres</button>' +
+    '<button class="bsm bl" id="btn-cp-full">📋 Copiar día</button>' +
+    '<button class="bsm bl" id="btn-cp-nom">👤 Solo nombres día</button>' +
+    '<button class="bsm bl" id="btn-cp-all">📚 Copiar todos</button>' +
     '<a rel="noopener noreferrer" href="https://cronometro-two.vercel.app/" target="_blank" class="bsm gr" style="text-decoration:none;">⏱️ Cronómetro</a>' +
     '</div>' +
     '<textarea id="txt-comp" readonly style="width:100%;background:#0d0d0d;border:1px solid var(--border);border-radius:var(--radius-sm);padding:12px;color:var(--text);font-size:12px;font-family:monospace;resize:vertical;min-height:180px;margin-bottom:8px;"></textarea>' +
@@ -1017,8 +1096,9 @@ window.verPlanillaTurnos = (id) => {
   openModal();
   document.getElementById('txt-comp').value = textoCompleto;
   document.getElementById('txt-nom').value = soloNombres;
-  document.getElementById('btn-cp-full').onclick = () => navigator.clipboard.writeText(textoCompleto).then(() => toast('📋 Planilla copiada'));
-  document.getElementById('btn-cp-nom').onclick = () => navigator.clipboard.writeText(soloNombres).then(() => toast('👤 Nombres copiados'));
+  document.getElementById('btn-cp-full').onclick = () => navigator.clipboard.writeText(textoCompleto).then(() => toast('📋 Planilla del día copiada'));
+  document.getElementById('btn-cp-nom').onclick = () => navigator.clipboard.writeText(soloNombres).then(() => toast('👤 Nombres del día copiados'));
+  document.getElementById('btn-cp-all').onclick = () => navigator.clipboard.writeText(todosLosDias).then(() => toast('📚 Planilla completa copiada'));
 };
 
 // ── ADMIN TABS ────────────────────────────────────────────────────────────────
@@ -6472,7 +6552,7 @@ window.cerrarTodosChatsAbiertos = function(){
   if(hora && !document.getElementById('nc-profesor')){
     const wrap = document.createElement('div');
     wrap.className = 'fgroup';
-    wrap.innerHTML = '<label class="flbl">Profesor / disertante / responsable</label><input class="finput" id="nc-profesor" placeholder="Ej: Javier Mottola"/><label class="flbl" style="margin-top:8px;">Campo especial del formulario</label><input class="finput" id="nc-campo-especial-label" placeholder="Nombre del campo adicional"/><div style="font-size:10px;color:var(--text3);margin-top:-4px;">Si queda vacio, no aparece en el formulario publico.</div><label class="flbl" style="margin-top:8px;">Opciones / servicios seleccionables</label><textarea class="finput" id="nc-opciones-texto" rows="4" placeholder="Mini sesion, 14000&#10;1 impresion, 6000&#10;Video backstage, 18000"></textarea><div style="font-size:10px;color:var(--text3);margin-top:-4px;">Un item por linea. Tambien acepta: nombre, precio; nombre, precio</div>';
+    wrap.innerHTML = '<label class="flbl">Profesor / disertante / responsable</label><input class="finput" id="nc-profesor" placeholder="Ej: Javier Mottola"/><label class="flbl" style="margin-top:8px;">Campo especial del formulario</label><input class="finput" id="nc-campo-especial-label" placeholder="Nombre del campo adicional"/><div style="font-size:10px;color:var(--text3);margin-top:-4px;">Si queda vacio, no aparece en el formulario publico.</div><label class="flbl" style="margin-top:8px;">Días habilitados para turnos</label><textarea class="finput" id="nc-dias-turnos" rows="2" placeholder="19/06/2026&#10;20/06/2026"></textarea><div style="font-size:10px;color:var(--text3);margin-top:-4px;">Opcional. Uno por linea o separados por coma. Si queda vacio usa la fecha principal.</div><label class="flbl" style="margin-top:8px;">Opciones / servicios seleccionables</label><textarea class="finput" id="nc-opciones-texto" rows="4" placeholder="Mini sesion, 14000&#10;1 impresion, 6000&#10;Video backstage, 18000"></textarea><div style="font-size:10px;color:var(--text3);margin-top:-4px;">Un item por linea. Tambien acepta: nombre, precio; nombre, precio</div>';
     const row = hora.closest('.frow2');
     if(row) row.insertAdjacentElement('afterend', wrap);
   }
@@ -6509,6 +6589,7 @@ window.agregarCurso = async function(){
     duracion: parseInt(document.getElementById('nc-dur')?.value) || 30,
     grupoWA: document.getElementById('nc-grupo-wa')?.value.trim() || '',
     campoEspecialLabel: document.getElementById('nc-campo-especial-label')?.value.trim() || '',
+    diasTurnos: document.getElementById('nc-dias-turnos')?.value.trim() || '',
     opcionesTexto: document.getElementById('nc-opciones-texto')?.value.trim() || '',
     camposReq: {
       dni: document.getElementById('nc-req-dni')?.checked ?? true,
@@ -6520,7 +6601,7 @@ window.agregarCurso = async function(){
     },
     finalizado: false, oculto: false, creado: Date.now()
   });
-  ['nc-titulo','nc-desc','nc-costo','nc-cupos','nc-fecha','nc-hora','nc-profesor','nc-campo-especial-label','nc-opciones-texto','nc-lugar','nc-ig','nc-wp','nc-img','nc-extra-text','nc-extra-url','nc-meses','nc-grupo-wa','nc-icon','nc-descansos'].forEach(id => {
+  ['nc-titulo','nc-desc','nc-costo','nc-cupos','nc-fecha','nc-hora','nc-profesor','nc-campo-especial-label','nc-dias-turnos','nc-opciones-texto','nc-lugar','nc-ig','nc-wp','nc-img','nc-extra-text','nc-extra-url','nc-meses','nc-grupo-wa','nc-icon','nc-descansos'].forEach(id => {
     const el = document.getElementById(id); if (el) el.value = '';
   });
   toast('✅ Curso publicado');
@@ -6534,7 +6615,7 @@ window.editCurso = function(id){
     const desc = document.getElementById('ec-desc');
     const c = cursos[id] || {};
     if(desc && !document.getElementById('ec-profesor')){
-      desc.insertAdjacentHTML('afterend','<label class="flbl">Profesor / disertante / responsable</label><input class="finput" id="ec-profesor" value="'+escAttr(c.profesor || c.disertante || c.organizador || c.docente || '')+'" placeholder="Ej: Javier Mottola"/><label class="flbl" style="margin-top:8px;">Opciones / servicios seleccionables</label><textarea class="finput" id="ec-opciones-texto" rows="4" placeholder="Nombre, precio">'+escHtml(c.opcionesTexto || c.serviciosTexto || '')+'</textarea><div style="font-size:10px;color:var(--text3);margin-top:-4px;">Un item por linea. Tambien acepta: nombre, precio; nombre, precio</div>');
+      desc.insertAdjacentHTML('afterend','<label class="flbl">Profesor / disertante / responsable</label><input class="finput" id="ec-profesor" value="'+escAttr(c.profesor || c.disertante || c.organizador || c.docente || '')+'" placeholder="Ej: Javier Mottola"/><label class="flbl" style="margin-top:8px;">Días habilitados para turnos</label><textarea class="finput" id="ec-dias-turnos" rows="2" placeholder="19/06/2026&#10;20/06/2026">'+escHtml(c.diasTurnos || c.fechasTurnos || '')+'</textarea><div style="font-size:10px;color:var(--text3);margin-top:-4px;">Opcional. Uno por linea o separados por coma. Si queda vacio usa la fecha principal.</div><label class="flbl" style="margin-top:8px;">Opciones / servicios seleccionables</label><textarea class="finput" id="ec-opciones-texto" rows="4" placeholder="Nombre, precio">'+escHtml(c.opcionesTexto || c.serviciosTexto || '')+'</textarea><div style="font-size:10px;color:var(--text3);margin-top:-4px;">Un item por linea. Tambien acepta: nombre, precio; nombre, precio</div>');
     }
   },30);
 };
@@ -6542,9 +6623,10 @@ const __guardarEdit_v339 = window.guardarEdit;
 window.guardarEdit = async function(id){
   const prof = document.getElementById('ec-profesor')?.value.trim() || '';
   const campoEspecialLabel = document.getElementById('ec-campo-especial-label')?.value.trim() || '';
+  const diasTurnos = document.getElementById('ec-dias-turnos')?.value.trim() || '';
   const opcionesTexto = document.getElementById('ec-opciones-texto')?.value.trim() || '';
   await __guardarEdit_v339(id);
-  await update(ref(db,'tomauno/cursos/'+id), {profesor:prof, disertante:prof, campoEspecialLabel, opcionesTexto});
+  await update(ref(db,'tomauno/cursos/'+id), {profesor:prof, disertante:prof, campoEspecialLabel, diasTurnos, opcionesTexto});
 };
 
 function isAckAI(q){ return /^(si|sí|dale|ok|oki|bueno|perfecto|genial|gracias|muchas gracias|de acuerdo|listo)$/i.test(String(q||'').trim()); }
