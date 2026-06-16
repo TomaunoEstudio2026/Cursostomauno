@@ -1067,6 +1067,13 @@ function mismaFechaTurno(i, dia, defaultDay){
   return !current || current === normalizarFechaTurno(defaultDay || '');
 }
 
+function labelFechaTurnoAlumno(i, cur){
+  const saved = normalizarFechaTurno(i?.fechaTurno || '');
+  if(saved) return labelFechaTurno(saved);
+  const dias = diasTurnosCurso(cur || {});
+  return dias[0]?.label || '';
+}
+
 window.verPlanillaTurnos = (id, diaElegido = '') => {
   const c = cursos[id]; if (!c) return;
   const dias = diasTurnosCurso(c);
@@ -1083,6 +1090,13 @@ window.verPlanillaTurnos = (id, diaElegido = '') => {
     const i = ocup.find(x => x.turno === s);
     return i ? (s + ' - ' + i.nombre + (i.wp ? ' (' + i.wp + ')' : '')) : (s + ' - LIBRE');
   }).join('\n');
+  const ocupadosHtml = slots.map(s => {
+    const i = ocup.find(x => x.turno === s);
+    if(!i) return '';
+    const inscId = Object.entries(inscripciones).find(([,x]) => x === i)?.[0] || '';
+    return '<div style="display:flex;align-items:center;gap:8px;justify-content:space-between;border-bottom:1px solid var(--border);padding:7px 0;"><span style="font-size:12px;color:#fff;"><strong style="color:var(--red);">'+escHtml(s)+'</strong> - '+escHtml(i.nombre || '')+'</span><button class="bsm bl" onclick="window.seleccionarMoverTurno(\''+id+'\',\''+diaObj.value+'\',\''+inscId+'\')">Mover</button></div>';
+  }).filter(Boolean).join('');
+  const libresHtml = slots.filter(s => !ocup.find(i => i.turno === s)).map(s => '<button class="bsm bl" onclick="window.moverTurnoSeleccionado(\''+id+'\',\''+diaObj.value+'\',\''+s+'\')">'+escHtml(s)+'</button>').join('');
   const todosLosDias = (dias.length ? dias : [{value:'', label:''}]).map(d => {
     const ocupDia = Object.values(inscripciones).filter(i => i.cursoId === id && i.turno && mismaFechaTurno(i, d.value, defaultDay));
     return (d.label ? (d.label + '\n') : '') + slots.map(s => {
@@ -1102,6 +1116,7 @@ window.verPlanillaTurnos = (id, diaElegido = '') => {
     '</div>' +
     '<textarea id="txt-comp" readonly style="width:100%;background:#0d0d0d;border:1px solid var(--border);border-radius:var(--radius-sm);padding:12px;color:var(--text);font-size:12px;font-family:monospace;resize:vertical;min-height:180px;margin-bottom:8px;"></textarea>' +
     '<textarea id="txt-nom" readonly style="width:100%;background:#0d0d0d;border:1px solid var(--border);border-radius:var(--radius-sm);padding:12px;color:var(--text);font-size:12px;font-family:monospace;resize:vertical;min-height:100px;"></textarea>' +
+    (ocupadosHtml ? '<div class="mlbl" style="margin-top:14px;">Mover turno</div><div id="turno-mover-list" style="background:#0d0d0d;border:1px solid var(--border);border-radius:var(--radius-sm);padding:10px;margin-bottom:10px;">'+ocupadosHtml+'</div><div id="turno-mover-info" style="font-size:12px;color:var(--text3);margin-bottom:8px;">Elegí una persona con Mover y luego tocá un horario libre.</div><div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:8px;">'+(libresHtml || '<span style="color:var(--text3);font-size:12px;">No hay horarios libres en este día.</span>')+'</div>' : '') +
     '<button class="btn-out" onclick="window.closeModal()" style="margin-top:10px;">Cerrar</button>';
   openModal();
   document.getElementById('txt-comp').value = textoCompleto;
@@ -1109,6 +1124,32 @@ window.verPlanillaTurnos = (id, diaElegido = '') => {
   document.getElementById('btn-cp-full').onclick = () => navigator.clipboard.writeText(textoCompleto).then(() => toast('📋 Planilla del día copiada'));
   document.getElementById('btn-cp-nom').onclick = () => navigator.clipboard.writeText(soloNombres).then(() => toast('👤 Nombres del día copiados'));
   document.getElementById('btn-cp-all').onclick = () => navigator.clipboard.writeText(todosLosDias).then(() => toast('📚 Planilla completa copiada'));
+};
+
+window.seleccionarMoverTurno = (cursoId, dia, inscId) => {
+  const i = inscripciones[inscId];
+  if(!i) return;
+  window._turnoMoverSeleccion = {cursoId, dia, inscId};
+  const info = document.getElementById('turno-mover-info');
+  if(info) info.innerHTML = 'Moviendo a <strong style="color:#fff;">'+escHtml(i.nombre || '')+'</strong>. Tocá abajo el nuevo horario libre.';
+};
+
+window.moverTurnoSeleccionado = async (cursoId, dia, nuevoTurno) => {
+  const sel = window._turnoMoverSeleccion || {};
+  if(sel.cursoId !== cursoId || !sel.inscId){ toast('Primero tocá Mover en una persona'); return; }
+  const c = cursos[cursoId] || {};
+  const dias = diasTurnosCurso(c);
+  const defaultDay = dias[0]?.value || '';
+  const ocupado = Object.entries(inscripciones).find(([id,i]) => id !== sel.inscId && i.cursoId === cursoId && i.turno === nuevoTurno && mismaFechaTurno(i, dia, defaultDay));
+  if(ocupado){ toast('Ese horario ya está ocupado'); return; }
+  await update(ref(db, 'tomauno/inscripciones/' + sel.inscId), {
+    fechaTurno: dia || '',
+    fechaTurnoLabel: labelFechaTurno(dia),
+    turno: nuevoTurno
+  });
+  window._turnoMoverSeleccion = null;
+  toast('Turno actualizado');
+  window.verPlanillaTurnos(cursoId, dia);
 };
 
 // ── ADMIN TABS ────────────────────────────────────────────────────────────────
@@ -1806,26 +1847,26 @@ window.exportarExcel = () => {
       const l = p.label || 'Pago';
       if(!seen.has(l)){ seen.add(l); paymentLabels.push(l); }
     }));
-    const cols = ['N°','Nombre','DNI','Edad','Instagram','WhatsApp','Fecha','Opciones','Total opciones', ...paymentLabels, 'Total alumno'];
+    const cols = ['N°','Nombre','DNI','Edad','Instagram','WhatsApp','Fecha','Día turno','Turno','Opciones','Total opciones', ...paymentLabels, 'Total alumno'];
     const rows = lista.map(([,i], idx) => {
       const pagos = i.pagos || [];
       const amounts = paymentLabels.map(l => payAmount(pagos.find(p => (p.label || 'Pago') === l)));
       const totalAlumno = amounts.reduce((a,b)=>a+b,0);
-      return [idx+1, i.nombre||'', i.dni||'', i.edad||'', i.ig||'', i.wp||'', i.fecha||'', resumenOpcionesElegidas(i), i.opcionesTotal || 0, ...amounts, totalAlumno];
+      return [idx+1, i.nombre||'', i.dni||'', i.edad||'', i.ig||'', i.wp||'', i.fecha||'', labelFechaTurnoAlumno(i, cursos[i.cursoId]), i.turno || '', resumenOpcionesElegidas(i), i.opcionesTotal || 0, ...amounts, totalAlumno];
     });
     const totals = paymentLabels.map(l => lista.reduce((a,[,i]) => a + payAmount((i.pagos||[]).find(p => (p.label || 'Pago') === l)), 0));
-    rows.push(['TOTAL POR CONCEPTO','','','','','','','','', ...totals, totals.reduce((a,b)=>a+b,0)]);
+    rows.push(['TOTAL POR CONCEPTO','','','','','','','','','','', ...totals, totals.reduce((a,b)=>a+b,0)]);
     descargarExcelCsv('tomauno_pagos_' + cn.replace(/[^a-zA-Z0-9]/g,'_') + '.csv', 'Tomauno — Pagos — ' + cn, cols, rows);
     return;
   }
 
-  const cols = ['N°','Nombre','DNI','Edad','Curso','Instagram','WhatsApp','Fecha','Opciones','Total opciones','Total registrado'];
+  const cols = ['N°','Nombre','DNI','Edad','Curso','Instagram','WhatsApp','Fecha','Día turno','Turno','Opciones','Total opciones','Total registrado'];
   const rows = lista.map(([,i], idx) => {
     const cur = cursos[i.cursoId];
     const total = (i.pagos || []).reduce((a,p)=>a+payAmount(p),0);
-    return [idx+1, i.nombre||'', i.dni||'', i.edad||'', i.cursoTitulo || cur?.titulo || '', i.ig||'', i.wp||'', i.fecha||'', resumenOpcionesElegidas(i), i.opcionesTotal || 0, total];
+    return [idx+1, i.nombre||'', i.dni||'', i.edad||'', i.cursoTitulo || cur?.titulo || '', i.ig||'', i.wp||'', i.fecha||'', labelFechaTurnoAlumno(i, cur), i.turno || '', resumenOpcionesElegidas(i), i.opcionesTotal || 0, total];
   });
-  rows.push(['TOTAL GENERAL','','','','','','','','','', rows.reduce((a,r)=>a+(Number(r[10])||0),0)]);
+  rows.push(['TOTAL GENERAL','','','','','','','','','','','', rows.reduce((a,r)=>a+(Number(r[12])||0),0)]);
   descargarExcelCsv('tomauno_inscripciones_todos_los_cursos.csv', 'Tomauno — Pagos — Todos los cursos', cols, rows);
 };
 
@@ -1853,24 +1894,24 @@ window.exportarPDF = () => {
 
   let head, rows, totalsRow = '';
   if (selected) {
-    head = '<tr><th>#</th><th>Nombre</th><th>DNI</th><th>Edad</th><th>IG</th><th>WP</th><th>Fecha</th><th>Opciones</th><th>Total opciones</th>' + paymentLabels.map(l => '<th>' + escHtml(l) + '</th>').join('') + '<th>Total</th></tr>';
+    head = '<tr><th>#</th><th>Nombre</th><th>DNI</th><th>Edad</th><th>IG</th><th>WP</th><th>Fecha</th><th>Día turno</th><th>Turno</th><th>Opciones</th><th>Total opciones</th>' + paymentLabels.map(l => '<th>' + escHtml(l) + '</th>').join('') + '<th>Total</th></tr>';
     rows = lista.map(([,i], idx) => {
       const pagos = i.pagos || [];
       const totalAlumno = pagos.reduce((a,p)=>a+payAmount(p),0);
-      return '<tr><td>' + (idx+1) + '</td><td>' + escHtml(i.nombre||'') + '</td><td>' + escHtml(i.dni||'') + '</td><td>' + escHtml(i.edad||'') + '</td><td>@' + escHtml(i.ig||'') + '</td><td>' + escHtml(i.wp||'') + '</td><td>' + escHtml(i.fecha||'') + '</td><td>' + escHtml(resumenOpcionesElegidas(i) || '-') + '</td><td>$ ' + Number(i.opcionesTotal || 0).toLocaleString('es-AR') + '</td>' +
+      return '<tr><td>' + (idx+1) + '</td><td>' + escHtml(i.nombre||'') + '</td><td>' + escHtml(i.dni||'') + '</td><td>' + escHtml(i.edad||'') + '</td><td>@' + escHtml(i.ig||'') + '</td><td>' + escHtml(i.wp||'') + '</td><td>' + escHtml(i.fecha||'') + '</td><td>' + escHtml(labelFechaTurnoAlumno(i, cursos[i.cursoId]) || '-') + '</td><td>' + escHtml(i.turno || '-') + '</td><td>' + escHtml(resumenOpcionesElegidas(i) || '-') + '</td><td>$ ' + Number(i.opcionesTotal || 0).toLocaleString('es-AR') + '</td>' +
         paymentLabels.map(l => '<td>' + payCell(pagos.find(p => (p.label || 'Pago') === l)) + '</td>').join('') +
         '<td><strong>$ ' + totalAlumno.toLocaleString('es-AR') + '</strong></td></tr>';
     }).join('');
     const totals = paymentLabels.map(l => lista.reduce((a,[,i]) => a + payAmount((i.pagos||[]).find(p => (p.label || 'Pago') === l)), 0));
     const grand = totals.reduce((a,b)=>a+b,0);
-    totalsRow = '<tr class="total-row"><td colspan="9">TOTAL POR CONCEPTO</td>' + totals.map(t => '<td>$ ' + t.toLocaleString('es-AR') + '</td>').join('') + '<td>$ ' + grand.toLocaleString('es-AR') + '</td></tr>';
+    totalsRow = '<tr class="total-row"><td colspan="11">TOTAL POR CONCEPTO</td>' + totals.map(t => '<td>$ ' + t.toLocaleString('es-AR') + '</td>').join('') + '<td>$ ' + grand.toLocaleString('es-AR') + '</td></tr>';
   } else {
-    head = '<tr><th>#</th><th>Nombre</th><th>DNI</th><th>Edad</th><th>Curso</th><th>IG</th><th>WP</th><th>Fecha</th><th>Opciones</th><th>Total opciones</th><th>Pago</th><th>Monto</th></tr>';
+    head = '<tr><th>#</th><th>Nombre</th><th>DNI</th><th>Edad</th><th>Curso</th><th>IG</th><th>WP</th><th>Fecha</th><th>Día turno</th><th>Turno</th><th>Opciones</th><th>Total opciones</th><th>Pago</th><th>Monto</th></tr>';
     rows = lista.map(([,i], idx) => {
       const cur = cursos[i.cursoId];
       const p = getPagoAlumnoInfo(i, cur);
       const estadoTxt = p.estado === 'pagado' ? 'Con pagos' : p.estado === 'parcial' ? 'Parcial' : 'Pendiente';
-      return '<tr><td>' + (idx+1) + '</td><td>' + escHtml(i.nombre||'') + '</td><td>' + escHtml(i.dni||'') + '</td><td>' + escHtml(i.edad||'') + '</td><td>' + escHtml(i.cursoTitulo || cur?.titulo || '') + '</td><td>@' + escHtml(i.ig||'') + '</td><td>' + escHtml(i.wp||'') + '</td><td>' + escHtml(i.fecha||'') + '</td><td>' + escHtml(resumenOpcionesElegidas(i) || '-') + '</td><td>$ ' + Number(i.opcionesTotal || 0).toLocaleString('es-AR') + '</td><td>' + estadoTxt + '</td><td>$ ' + Number(p.monto||0).toLocaleString('es-AR') + '</td></tr>';
+      return '<tr><td>' + (idx+1) + '</td><td>' + escHtml(i.nombre||'') + '</td><td>' + escHtml(i.dni||'') + '</td><td>' + escHtml(i.edad||'') + '</td><td>' + escHtml(i.cursoTitulo || cur?.titulo || '') + '</td><td>@' + escHtml(i.ig||'') + '</td><td>' + escHtml(i.wp||'') + '</td><td>' + escHtml(i.fecha||'') + '</td><td>' + escHtml(labelFechaTurnoAlumno(i, cur) || '-') + '</td><td>' + escHtml(i.turno || '-') + '</td><td>' + escHtml(resumenOpcionesElegidas(i) || '-') + '</td><td>$ ' + Number(i.opcionesTotal || 0).toLocaleString('es-AR') + '</td><td>' + estadoTxt + '</td><td>$ ' + Number(p.monto||0).toLocaleString('es-AR') + '</td></tr>';
     }).join('');
   }
   const total = lista.reduce((a,[,i]) => a + getPagoAlumnoInfo(i, cursos[i.cursoId]).monto, 0);
