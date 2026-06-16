@@ -887,9 +887,11 @@ window.selTurno = (el) => {
   const id = el.dataset.id;
   const turno = el.dataset.slot;
   const c = cursos[id];
+  const fechaTurno = el.dataset.day || '';
+  const turnoLabel = (fechaTurno ? labelFechaTurno(fechaTurno) + ' · ' : '') + turno;
   document.getElementById('mcontent').innerHTML =
     '<div class="mtitle">RESERVAR TURNO</div>' +
-    '<div class="msub">' + (c ? c.titulo : '') + ' · <strong style="color:var(--red);">' + turno + '</strong></div>' +
+    '<div class="msub">' + (c ? c.titulo : '') + ' · <strong style="color:var(--red);">' + turnoLabel + '</strong></div>' +
     '<div class="mlbl">Tus datos</div>' +
     '<input class="finput" id="f-nom" placeholder="Nombre y apellido *"/>' +
     '<div class="frow2">' +
@@ -905,7 +907,7 @@ window.selTurno = (el) => {
     opcionesCursoHtml(c) +
     '<div class="mlbl">Detalle del pedido / aclaraciones</div>' +
     '<textarea class="finput" id="f-detalle-pedido" rows="3" placeholder="Dejanos tu inquietud o detalle para tenerlo en cuenta"></textarea>' +
-    '<button class="btn-main" onclick="window.confirmarTurno(\'' + id + '\',\'' + turno + '\',\'' + (el.dataset.day || '') + '\')">✅ Confirmar turno ' + turno + '</button>' +
+    '<button class="btn-main" id="btn-confirmar-turno" onclick="window.confirmarTurno(\'' + id + '\',\'' + turno + '\',\'' + fechaTurno + '\')">✅ Confirmar ' + turnoLabel + '</button>' +
     '<button class="btn-out" onclick="window.abrirSesiones(\'' + id + '\')">← Volver</button>';
   window.chkMenor();
   window.actualizarTotalOpcionesCurso();
@@ -933,6 +935,9 @@ window.confirmarTurno = async (id, turno, fechaTurno = '') => {
   }
   const opciones = leerOpcionesSeleccionadasCurso();
   const detallePedido = document.getElementById('f-detalle-pedido')?.value.trim() || '';
+  const submitBtn = document.getElementById('btn-confirmar-turno');
+  if(submitBtn){ submitBtn.disabled = true; submitBtn.textContent = 'Guardando turno...'; }
+  try{
   await push(ref(db, 'tomauno/inscripciones'), {
     cursoId: id, cursoTitulo: c ? c.titulo : '', nombre: nom, dni, edad, ig, wp,
     tutorWp: twp || null, turno,
@@ -946,6 +951,11 @@ window.confirmarTurno = async (id, turno, fechaTurno = '') => {
     creado: Date.now(),
     pagos: genPagos(c || {})
   });
+  }catch(e){
+    if(submitBtn){ submitBtn.disabled = false; submitBtn.textContent = '✅ Confirmar ' + (day ? labelFechaTurno(day) + ' · ' : '') + turno; }
+    toast('No se pudo guardar el turno. Intentá nuevamente.');
+    return;
+  }
   const tText = [
     '📅 NUEVO TURNO RESERVADO',
     '📸 Sesión: ' + (c ? c.titulo : '') + (c && c.fecha ? ' - ' + fFecha(c.fecha) : ''),
@@ -6615,7 +6625,7 @@ window.editCurso = function(id){
     const desc = document.getElementById('ec-desc');
     const c = cursos[id] || {};
     if(desc && !document.getElementById('ec-profesor')){
-      desc.insertAdjacentHTML('afterend','<label class="flbl">Profesor / disertante / responsable</label><input class="finput" id="ec-profesor" value="'+escAttr(c.profesor || c.disertante || c.organizador || c.docente || '')+'" placeholder="Ej: Javier Mottola"/><label class="flbl" style="margin-top:8px;">Días habilitados para turnos</label><textarea class="finput" id="ec-dias-turnos" rows="2" placeholder="19/06/2026&#10;20/06/2026">'+escHtml(c.diasTurnos || c.fechasTurnos || '')+'</textarea><div style="font-size:10px;color:var(--text3);margin-top:-4px;">Opcional. Uno por linea o separados por coma. Si queda vacio usa la fecha principal.</div><label class="flbl" style="margin-top:8px;">Opciones / servicios seleccionables</label><textarea class="finput" id="ec-opciones-texto" rows="4" placeholder="Nombre, precio">'+escHtml(c.opcionesTexto || c.serviciosTexto || '')+'</textarea><div style="font-size:10px;color:var(--text3);margin-top:-4px;">Un item por linea. Tambien acepta: nombre, precio; nombre, precio</div>');
+      desc.insertAdjacentHTML('afterend','<label class="flbl">Profesor / disertante / responsable</label><input class="finput" id="ec-profesor" value="'+escAttr(c.profesor || c.disertante || c.organizador || c.docente || '')+'" placeholder="Ej: Javier Mottola"/><label class="flbl" style="margin-top:8px;">Días habilitados para turnos</label><textarea class="finput" id="ec-dias-turnos" rows="2" placeholder="19/06/2026&#10;20/06/2026">'+escHtml(c.diasTurnos || c.fechasTurnos || '')+'</textarea><div style="font-size:10px;color:var(--text3);margin-top:-4px;">Opcional. Uno por linea o separados por coma. Si queda vacio usa la fecha principal.</div><div id="ec-turnos-config" style="background:#1a0000;border:1px solid #3a0000;border-radius:var(--radius-sm);padding:14px;margin:10px 0;"><div style="font-size:12px;color:var(--red);font-weight:800;margin-bottom:10px;">Configuración de turnos</div><div class="frow2"><div><label class="flbl">Hora inicio</label><input class="finput" id="ec-h-ini" type="time" value="'+escAttr(c.horaInicio || '09:00')+'" style="color-scheme:dark"/></div><div><label class="flbl">Hora fin</label><input class="finput" id="ec-h-fin" type="time" value="'+escAttr(c.horaFin || '22:00')+'" style="color-scheme:dark"/></div></div><div class="frow2"><div><label class="flbl">Duración turno</label><input class="finput" id="ec-dur" type="number" value="'+escAttr(c.duracion || 30)+'"/></div><div><label class="flbl">Descansos</label><input class="finput" id="ec-descansos" value="'+escAttr(c.descansos || '')+'" placeholder="13:00-14:00, 17:30-18:00"/></div></div></div><label class="flbl" style="margin-top:8px;">Opciones / servicios seleccionables</label><textarea class="finput" id="ec-opciones-texto" rows="4" placeholder="Nombre, precio">'+escHtml(c.opcionesTexto || c.serviciosTexto || '')+'</textarea><div style="font-size:10px;color:var(--text3);margin-top:-4px;">Un item por linea. Tambien acepta: nombre, precio; nombre, precio</div>');
     }
   },30);
 };
@@ -6625,8 +6635,12 @@ window.guardarEdit = async function(id){
   const campoEspecialLabel = document.getElementById('ec-campo-especial-label')?.value.trim() || '';
   const diasTurnos = document.getElementById('ec-dias-turnos')?.value.trim() || '';
   const opcionesTexto = document.getElementById('ec-opciones-texto')?.value.trim() || '';
+  const horaInicio = document.getElementById('ec-h-ini')?.value || '';
+  const horaFin = document.getElementById('ec-h-fin')?.value || '';
+  const duracion = parseInt(document.getElementById('ec-dur')?.value) || 0;
+  const descansos = document.getElementById('ec-descansos')?.value.trim() || '';
   await __guardarEdit_v339(id);
-  await update(ref(db,'tomauno/cursos/'+id), {profesor:prof, disertante:prof, campoEspecialLabel, diasTurnos, opcionesTexto});
+  await update(ref(db,'tomauno/cursos/'+id), {profesor:prof, disertante:prof, campoEspecialLabel, diasTurnos, opcionesTexto, horaInicio:horaInicio || '09:00', horaFin:horaFin || '22:00', duracion:duracion || 30, descansos});
 };
 
 function isAckAI(q){ return /^(si|sí|dale|ok|oki|bueno|perfecto|genial|gracias|muchas gracias|de acuerdo|listo)$/i.test(String(q||'').trim()); }
