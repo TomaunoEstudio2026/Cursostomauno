@@ -784,25 +784,29 @@ window.confirmarInsc = async (id) => {
     toast('No se pudo guardar. Intentá nuevamente.');
     return;
   }
+  const conceptosWa = conceptosSeleccionadosCurso(c, opciones);
+  const totalPactadoWa = (Number(c?.costo || 0) || 0) + (Number(opciones.opcionesTotal || 0) || 0);
   const waText = [
-    '🔴 *NUEVA PRE-INSCRIPCIÓN WEB TOMAUNO*',
-    '📚 *Curso:* ' + (c.titulo || '') + (c.fecha ? ' - ' + fFecha(c.fecha) : '') + (c.hora ? ' ' + c.hora : ''),
-    '👤 *Nombre:* ' + nom,
-    '📄 *DNI:* ' + (dni || '-'),
-    '🎂 *Edad:* ' + edad,
+    '\uD83D\uDD34 *NUEVA PRE-INSCRIPCION WEB TOMAUNO*',
+    '\uD83D\uDCDA *Curso:* ' + (c.titulo || '') + (c.fecha ? ' - ' + fFecha(c.fecha) : '') + (c.hora ? ' ' + c.hora : ''),
+    '\uD83D\uDC64 *Nombre:* ' + nom,
+    '\uD83D\uDCC4 *DNI:* ' + (dni || '-'),
+    '\uD83C\uDF82 *Edad:* ' + edad
   ];
-  if (localidad) waText.push('📍 Localidad: ' + localidad);
-  if (ig) waText.push('📸 IG: @' + ig);
-  if (altura) waText.push('📏 Altura: ' + altura);
-  if (medidas) waText.push('📐 Medidas: ' + medidas);
-  if (email) waText.push('📧 Email: ' + email);
-  if (opciones.opcionesElegidas.length) {
-    waText.push('', '🧾 *Opciones elegidas:*');
-    opciones.opcionesElegidas.forEach(o => waText.push('- ' + o.nombre + ': ' + dineroOpt(o.precio)));
-    waText.push('💰 *Total opciones:* ' + dineroOpt(opciones.opcionesTotal));
+  if (localidad) waText.push('\uD83D\uDCCD *Localidad:* ' + localidad);
+  if (ig) waText.push('\uD83D\uDCF8 *IG:* @' + ig);
+  if (altura) waText.push('\uD83D\uDCCF *Altura:* ' + altura);
+  if (medidas) waText.push('\uD83D\uDCC8 *Medidas:* ' + medidas);
+  if (email) waText.push('\u2709\uFE0F *Email:* ' + email);
+  if (conceptosWa.length) {
+    waText.push('', '\uD83E\uDDFE *Servicios / conceptos pactados:*');
+    conceptosWa.forEach(o => waText.push('- ' + o.nombre + ': ' + dineroOpt(o.precio)));
+    waText.push('\uD83D\uDCB0 *Total pactado:* ' + dineroOpt(totalPactadoWa));
   }
-  waText.push('📱 WP Alumno: ' + wp);
-  if (twp) waText.push('👨‍👩‍👧 WP Tutor: ' + twp);
+  if (detallePedido) waText.push('\uD83D\uDCDD *Detalle:* ' + detallePedido);
+  waText.push('\uD83D\uDCF1 *WP Alumno:* ' + wp);
+  if (twp) waText.push('\uD83D\uDC6A *WP Tutor:* ' + twp);
+  if (c?.grupoWAAuto && c?.grupoWA) waText.push('', '\uD83D\uDD17 *Grupo de WhatsApp:*', safeUrl(c.grupoWA));
   window._pendingWaUrl = 'https://api.whatsapp.com/send?phone=5493764354522&text=' + waEncode(waText.join('\n'));
   document.getElementById('mcontent').innerHTML =
     '<div style="text-align:center;padding:12px 0;">' +
@@ -988,23 +992,26 @@ window.confirmarTurno = async (id, turno, fechaTurno = '') => {
     toast('No se pudo guardar el turno. Intentá nuevamente.');
     return;
   }
+  const conceptosTurno = conceptosSeleccionadosCurso(c, opciones);
+  const totalPactadoTurno = (Number(c?.costo || 0) || 0) + (Number(opciones.opcionesTotal || 0) || 0);
   const tText = [
-    '📅 NUEVO TURNO RESERVADO',
-    '📸 Sesión: ' + (c ? c.titulo : '') + (c && c.fecha ? ' - ' + fFecha(c.fecha) : ''),
-    (day ? '🗓️ Día: ' + labelFechaTurno(day) : ''),
-    '⏰ Turno: ' + turno,
-    '👤 Nombre: ' + nom,
-    '🎂 Edad: ' + edad,
-    '📸 IG: @' + ig,
-    '📱 WP: ' + wp,
-  ];
-  if (opciones.opcionesElegidas.length) {
-    tText.push('', '🧾 Opciones elegidas:');
-    opciones.opcionesElegidas.forEach(o => tText.push('- ' + o.nombre + ': ' + dineroOpt(o.precio)));
-    tText.push('💰 Total opciones: ' + dineroOpt(opciones.opcionesTotal));
+    '\uD83D\uDCC5 *NUEVO TURNO RESERVADO*',
+    '\uD83D\uDCF8 *Sesion:* ' + (c ? c.titulo : '') + (c && c.fecha ? ' - ' + fFecha(c.fecha) : ''),
+    (day ? '\uD83D\uDDD3\uFE0F *Dia:* ' + labelFechaTurno(day) : ''),
+    '\u23F0 *Turno:* ' + turno,
+    '\uD83D\uDC64 *Nombre:* ' + nom,
+    '\uD83C\uDF82 *Edad:* ' + edad,
+    '\uD83D\uDCF8 *IG:* @' + ig,
+    '\uD83D\uDCF1 *WP:* ' + wp
+  ].filter(Boolean);
+  if (conceptosTurno.length) {
+    tText.push('', '\uD83E\uDDFE *Servicios / conceptos pactados:*');
+    conceptosTurno.forEach(o => tText.push('- ' + o.nombre + ': ' + dineroOpt(o.precio)));
+    tText.push('\uD83D\uDCB0 *Total pactado:* ' + dineroOpt(totalPactadoTurno));
   }
-  if (detallePedido) tText.push('📝 Detalle: ' + detallePedido);
-  if (twp) tText.push('👨‍👩‍👧 WP Tutor: ' + twp);
+  if (detallePedido) tText.push('\uD83D\uDCDD *Detalle:* ' + detallePedido);
+  if (twp) tText.push('\uD83D\uDC6A *WP Tutor:* ' + twp);
+  if (c?.grupoWAAuto && c?.grupoWA) tText.push('', '\uD83D\uDD17 *Grupo de WhatsApp:*', safeUrl(c.grupoWA));
   window._pendingWaUrl = 'https://api.whatsapp.com/send?phone=5493764354522&text=' + waEncode(tText.join('\n'));
   document.getElementById('mcontent').innerHTML =
     '<div style="text-align:center;padding:12px 0;">' +
@@ -1283,7 +1290,7 @@ window.agregarCurso = async () => {
     },
     finalizado: false, oculto: false, creado: Date.now()
   });
-  ['nc-titulo','nc-desc','nc-costo','nc-cupos','nc-fecha','nc-hora','nc-lugar','nc-ig','nc-wp','nc-img','nc-extra-text','nc-extra-url','nc-meses','nc-grupo-wa','nc-icon','nc-descansos'].forEach(id => {
+  ['nc-titulo','nc-desc','nc-costo','nc-cupos','nc-fecha','nc-hora','nc-lugar','nc-ig','nc-wp','nc-img','nc-extra-text','nc-extra-url','nc-meses','nc-grupo-wa','nc-grupo-wa-auto','nc-icon','nc-descansos'].forEach(id => {
     const el = document.getElementById(id); if (el) el.value = '';
   });
   toast('✅ Curso publicado');
@@ -1322,6 +1329,7 @@ window.editCurso = (id) => {
     '<div class="frow2"><div><label class="flbl">Texto link extra</label><input class="finput" id="ec-extra-text" value="' + (c.extraText || '').replace(/"/g, '&quot;') + '" placeholder="Ver más info"/></div><div><label class="flbl">URL link extra</label><input class="finput" id="ec-extra-url" value="' + (c.extraUrl || '').replace(/"/g, '&quot;') + '" placeholder="https://..."/></div></div>' +
     '<label class="flbl">Link grupo WhatsApp</label>' +
     '<input class="finput" id="ec-gwa" value="' + (c.grupoWA || '') + '" placeholder="https://chat.whatsapp.com/..."/>' +
+    '<label style="display:flex;align-items:center;gap:8px;margin:6px 0 12px;font-size:12px;color:#fff;font-weight:800;"><input type="checkbox" id="ec-grupo-wa-auto" '+(c.grupoWAAuto?'checked':'')+' style="accent-color:var(--red);"> Enviar link del grupo al registrarse</label>' +
     '<label class="flbl">Tipo de pago</label>' +
     '<select class="finput" id="ec-pago-tipo">' +
     '<option value="unico" ' + ((c.pagoTipo || 'unico') === 'unico' ? 'selected' : '') + '>Pago único</option>' +
@@ -1351,6 +1359,7 @@ window.guardarEdit = async (id) => {
     extraText: document.getElementById('ec-extra-text')?.value.trim() || '',
     extraUrl: document.getElementById('ec-extra-url')?.value.trim() || '',
     grupoWA: document.getElementById('ec-gwa')?.value.trim() || '',
+    grupoWAAuto: !!document.getElementById('ec-grupo-wa-auto')?.checked,
     campoEspecialLabel: document.getElementById('ec-campo-especial-label')?.value.trim() || '',
     pagoTipo: document.getElementById('ec-pago-tipo')?.value || 'unico',
     meses: parseInt(document.getElementById('ec-meses')?.value) || 0,
@@ -6676,7 +6685,7 @@ window.cerrarTodosChatsAbiertos = function(){
   if(hora && !document.getElementById('nc-profesor')){
     const wrap = document.createElement('div');
     wrap.className = 'fgroup';
-    wrap.innerHTML = '<label class="flbl">Profesor / disertante / responsable</label><input class="finput" id="nc-profesor" placeholder="Ej: Javier Mottola"/><label class="flbl" style="margin-top:8px;">Campo especial del formulario</label><input class="finput" id="nc-campo-especial-label" placeholder="Nombre del campo adicional"/><div style="font-size:10px;color:var(--text3);margin-top:-4px;">Si queda vacio, no aparece en el formulario publico.</div><label class="flbl" style="margin-top:8px;">Días habilitados para turnos</label><textarea class="finput" id="nc-dias-turnos" rows="2" placeholder="19/06/2026&#10;20/06/2026"></textarea><div style="font-size:10px;color:var(--text3);margin-top:-4px;">Opcional. Uno por linea o separados por coma. Si queda vacio usa la fecha principal.</div><label class="flbl" style="margin-top:8px;">Opciones / servicios seleccionables</label><textarea class="finput" id="nc-opciones-texto" rows="4" placeholder="Mini sesion, 14000&#10;1 impresion, 6000&#10;Video backstage, 18000"></textarea><div style="font-size:10px;color:var(--text3);margin-top:-4px;">Un item por linea. Tambien acepta: nombre, precio; nombre, precio</div>';
+    wrap.innerHTML = '<label class="flbl">Profesor / disertante / responsable</label><input class="finput" id="nc-profesor" placeholder="Ej: Javier Mottola"/><label style="display:flex;align-items:center;gap:8px;margin:8px 0 2px;font-size:12px;color:#fff;font-weight:800;"><input type="checkbox" id="nc-grupo-wa-auto" style="accent-color:var(--red);"> Enviar link del grupo al registrarse</label><div style="font-size:10px;color:var(--text3);margin-bottom:6px;">Solo se agrega al WhatsApp si cargaste link de grupo.</div><label class="flbl" style="margin-top:8px;">Campo especial del formulario</label><input class="finput" id="nc-campo-especial-label" placeholder="Nombre del campo adicional"/><div style="font-size:10px;color:var(--text3);margin-top:-4px;">Si queda vacio, no aparece en el formulario publico.</div><label class="flbl" style="margin-top:8px;">Días habilitados para turnos</label><textarea class="finput" id="nc-dias-turnos" rows="2" placeholder="19/06/2026&#10;20/06/2026"></textarea><div style="font-size:10px;color:var(--text3);margin-top:-4px;">Opcional. Uno por linea o separados por coma. Si queda vacio usa la fecha principal.</div><label class="flbl" style="margin-top:8px;">Opciones / servicios seleccionables</label><textarea class="finput" id="nc-opciones-texto" rows="4" placeholder="Mini sesion, 14000&#10;1 impresion, 6000&#10;Video backstage, 18000"></textarea><div style="font-size:10px;color:var(--text3);margin-top:-4px;">Un item por linea. Tambien acepta: nombre, precio; nombre, precio</div>';
     const row = hora.closest('.frow2');
     if(row) row.insertAdjacentElement('afterend', wrap);
   }
@@ -6722,6 +6731,7 @@ window.agregarCurso = async function(){
     descansos: document.getElementById('nc-descansos')?.value.trim() || '',
     duracion: parseInt(document.getElementById('nc-dur')?.value) || 30,
     grupoWA: document.getElementById('nc-grupo-wa')?.value.trim() || '',
+    grupoWAAuto: !!document.getElementById('nc-grupo-wa-auto')?.checked,
     campoEspecialLabel: document.getElementById('nc-campo-especial-label')?.value.trim() || '',
     diasTurnos: document.getElementById('nc-dias-turnos')?.value.trim() || '',
     opcionesTexto: document.getElementById('nc-opciones-texto')?.value.trim() || '',
@@ -6766,7 +6776,7 @@ window.guardarEdit = async function(id){
   const duracion = parseInt(document.getElementById('ec-dur')?.value) || 0;
   const descansos = document.getElementById('ec-descansos')?.value.trim() || '';
   await __guardarEdit_v339(id);
-  await update(ref(db,'tomauno/cursos/'+id), {tipo:tipoEdit, profesor:prof, disertante:prof, campoEspecialLabel, diasTurnos, opcionesTexto, horaInicio:horaInicio || '09:00', horaFin:horaFin || '22:00', duracion:duracion || 30, descansos});
+  await update(ref(db,'tomauno/cursos/'+id), {tipo:tipoEdit, grupoWAAuto: !!document.getElementById('ec-grupo-wa-auto')?.checked, profesor:prof, disertante:prof, campoEspecialLabel, diasTurnos, opcionesTexto, horaInicio:horaInicio || '09:00', horaFin:horaFin || '22:00', duracion:duracion || 30, descansos});
   cerrarBandejaChatSiSeAbrioPorGuardarCurso();
 };
 
