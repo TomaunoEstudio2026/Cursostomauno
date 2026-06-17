@@ -594,7 +594,7 @@ window.abrirDetalle = (id) => {
     (c.lugar ? '<span class="chip">📍 ' + c.lugar + '</span>' : '') +
     (c.costo ? '<span class="chip accent">💰 $ ' + Number(c.costo).toLocaleString('es-AR') + '</span>' : '<span class="chip" style="color:#00d25a;">✦ GRATIS</span>') +
     '</div>' +
-    '<div style="font-size:14px;color:var(--text2);line-height:1.7;white-space:pre-line;margin-bottom:18px;">' + (c.desc || '') + '</div>' +
+    '<div style="font-size:14px;color:var(--text2);line-height:1.7;white-space:pre-line;margin-bottom:18px;">' + renderInfoText(c.desc || '') + '</div>' +
     '<div class="det-links">' +
     (c.ig ? '<a rel="noopener noreferrer" href="https://instagram.com/' + c.ig + '" target="_blank" class="det-link ig">📸 @' + c.ig + '</a>' : '') +
     (c.wp ? '<a rel="noopener noreferrer" href="https://wa.me/549' + c.wp.replace(/\D/g, '') + '" target="_blank" class="det-link wp">💬 Consultar</a>' : '') +
@@ -898,6 +898,7 @@ window.selTurno = (el) => {
     '<input class="finput" id="f-dni" placeholder="DNI *" type="text" inputmode="numeric" autocomplete="off"/>' +
     '<input class="finput" id="f-edad" placeholder="Edad *" type="text" inputmode="numeric" autocomplete="off" oninput="window.chkMenor()"/>' +
     '</div>' +
+    campoEspecialHtml(c) +
     '<input class="finput" id="f-ig" placeholder="Instagram (sin @) *"/>' +
     '<input class="finput" id="f-wp" placeholder="WhatsApp * ej: 3764123456" type="tel"/>' +
     '<div id="tutor-box" style="display:none;">' +
@@ -934,6 +935,8 @@ window.confirmarTurno = async (id, turno, fechaTurno = '') => {
     return;
   }
   const opciones = leerOpcionesSeleccionadasCurso();
+  const campoEspecialLabel = campoEspecialLabelCurso(c);
+  const campoEspecialValor = campoEspecialLabel ? (document.getElementById('f-campo-especial')?.value.trim() || '') : '';
   const detallePedido = document.getElementById('f-detalle-pedido')?.value.trim() || '';
   const submitBtn = document.getElementById('btn-confirmar-turno');
   if(submitBtn){ submitBtn.disabled = true; submitBtn.textContent = 'Guardando turno...'; }
@@ -943,6 +946,8 @@ window.confirmarTurno = async (id, turno, fechaTurno = '') => {
     tutorWp: twp || null, turno,
     fechaTurno: day || '',
     fechaTurnoLabel: labelFechaTurno(day),
+    campoEspecialLabel,
+    campoEspecialValor,
     detallePedido,
     opcionesElegidas: opciones.opcionesElegidas,
     opcionesTotal: opciones.opcionesTotal,
@@ -1400,6 +1405,25 @@ function safeUrl(v) {
   if (!raw) return '#';
   if (/^(https?:\/\/|mailto:|tel:)/i.test(raw)) return raw.replace(/"/g, '%22');
   return 'https://' + raw.replace(/"/g, '%22');
+}
+
+function renderInfoText(v) {
+  let out = escHtml(v || '');
+  out = out
+    .replace(/\*\*([^*\n][\s\S]*?[^*\n])\*\*/g, '<strong>$1</strong>')
+    .replace(/(^|[\s(])\*([^*\n][^*\n]*?[^*\n])\*(?=[\s).,!?:;]|$)/g, '$1<strong>$2</strong>')
+    .replace(/(^|[\s(])_([^_\n][^_\n]*?[^_\n])_(?=[\s).,!?:;]|$)/g, '$1<em>$2</em>');
+  out = out.replace(/(^|[\s>])((?:https?:\/\/|www\.)[^\s<]+)/gi, (m, pre, url) => {
+    const clean = url.replace(/[).,!?:;]+$/, '');
+    const tail = url.slice(clean.length);
+    return pre + '<a rel="noopener noreferrer" target="_blank" href="' + safeUrl(clean) + '">' + clean + '</a>' + tail;
+  });
+  out = out.replace(/(^|[\s(])(\+?\d[\d\s().-]{8,}\d)(?=[\s).,!?:;]|$)/g, (m, pre, phone) => {
+    const digits = phone.replace(/\D/g, '');
+    if (digits.length < 9 || digits.length > 15) return m;
+    return pre + '<a rel="noopener noreferrer" href="tel:+' + digits + '">' + phone + '</a>';
+  });
+  return out;
 }
 
 function getPagoAlumnoInfo(i, cur) {
@@ -2014,7 +2038,7 @@ window.abrirServicio = (idx) => {
   document.getElementById('mcontent').innerHTML =
     '<div style="font-size:52px;text-align:center;margin-bottom:12px;">' + s.icon + '</div>' +
     '<div class="mtitle" style="text-align:center;">' + s.title + '</div>' +
-    '<div style="font-size:14px;color:var(--text2);line-height:1.75;white-space:pre-line;margin:16px 0 20px;">' + s.desc + '</div>' +
+    '<div style="font-size:14px;color:var(--text2);line-height:1.75;white-space:pre-line;margin:16px 0 20px;">' + renderInfoText(s.desc) + '</div>' +
     '<a rel="noopener noreferrer" href="https://wa.me/549' + s.wp + '?text=' + encodeURIComponent('Hola! Me interesa el servicio de ' + s.title + '. ¿Pueden darme más info?') + '" target="_blank" class="btn-main" style="text-decoration:none;">💬 Consultar por WhatsApp</a>' +
     '<button class="btn-out" onclick="window.closeModal()">Cerrar</button>';
   openModal();
@@ -2091,9 +2115,10 @@ window.abrirServicioDB = (id) => {
     (s.img ? '<img src="' + s.img + '" style="width:100%;border-radius:var(--radius-sm);margin-bottom:16px;max-height:280px;object-fit:contain;background:#0a0a0a;" onerror="this.style.display=\'none\'"/>' : '<div style="font-size:52px;text-align:center;margin-bottom:12px;">' + (s.icon || '📷') + '</div>') +
     '<div class="mtitle">' + (s.titulo || '') + '</div>' +
     (s.precio ? '<div style="font-family:var(--display);font-size:32px;color:var(--red);margin:8px 0 16px;">$ ' + Number(s.precio).toLocaleString('es-AR') + '</div>' : '') +
-    '<div style="font-size:14px;color:var(--text2);line-height:1.75;white-space:pre-line;margin-bottom:20px;">' + (s.desc || '') + '</div>' +
+    '<div style="font-size:14px;color:var(--text2);line-height:1.75;white-space:pre-line;margin-bottom:20px;">' + renderInfoText(s.desc || '') + '</div>' +
     (s.dir ? '<div style="font-size:13px;color:var(--text2);margin-bottom:10px;">📍 ' + s.dir + '</div>' : '') +
     (s.ig ? '<a rel="noopener noreferrer" href="https://instagram.com/' + s.ig + '" target="_blank" class="det-link ig" style="margin-bottom:12px;display:inline-flex;">📸 @' + s.ig + '</a>' : '') +
+    (s.extraUrl ? '<a rel="noopener noreferrer" href="' + safeUrl(s.extraUrl) + '" target="_blank" class="extra-link-btn" style="margin-bottom:12px;">Link: ' + escHtml(s.extraText || 'Ver mas informacion') + '</a>' : '') +
     (s.tipo==='sesiones' ? '<button class="btn-main" style="margin-top:8px;" onclick="window.abrirTurnosServicio(\'' + id + '\')">📅 Elegir turno</button>' : '<a rel="noopener noreferrer" href="https://wa.me/549' + wp + '?text=' + encodeURIComponent('Hola! Me interesa el servicio: ' + (s.titulo || '') + '. ¿Pueden darme más info?') + '" target="_blank" class="btn-main" style="text-decoration:none;margin-top:8px;">💬 Consultar por WhatsApp</a>') +
     '<button class="btn-out" onclick="window.closeModal()">Cerrar</button>';
   openModal();
@@ -2111,6 +2136,7 @@ window.editServicio = (id) => {
     '<label class="flbl">Descripción</label><textarea class="finput" id="es-desc" rows="4">' + escHtml(s.desc || '') + '</textarea>' +
     '<div class="frow2"><div><label class="flbl">Precio desde ($)</label><input class="finput" id="es-precio" type="number" value="'+(s.precio||0)+'"/></div><div><label class="flbl">Icono</label><input class="finput" id="es-icon" maxlength="4" value="'+escAttr(s.icon||'📷')+'"/></div></div>' +
     '<label class="flbl">URL imagen</label><input class="finput" id="es-img" value="'+escAttr(s.img||'')+'" placeholder="https://i.imgur.com/..."/>' +
+    '<div class="frow2"><div><label class="flbl">Texto link extra</label><input class="finput" id="es-extra-text" value="'+escAttr(s.extraText||'')+'" placeholder="Ver mas informacion"/></div><div><label class="flbl">URL link extra</label><input class="finput" id="es-extra-url" value="'+escAttr(s.extraUrl||'')+'" placeholder="https://..."/></div></div>' +
     '<label class="flbl">Dirección</label><div style="display:flex;gap:6px;"><input class="finput" id="es-dir" value="'+escAttr(s.dir||'')+'" style="margin:0;"/><button type="button" onclick="document.getElementById(\'es-dir\').value=\'Pedro Méndez 2069, Posadas, Misiones\'" style="background:var(--gray3);border:none;color:var(--text2);border-radius:var(--radius-sm);padding:0 12px;font-size:11px;cursor:pointer;font-family:var(--font);">📍 Estudio</button></div>' +
     '<div class="frow2"><div><label class="flbl">Instagram</label><input class="finput" id="es-ig" value="'+escAttr(s.ig||'')+'"/></div><div><label class="flbl">WhatsApp</label><input class="finput" id="es-wp" value="'+escAttr(s.wp||'')+'"/></div></div>' +
     '<label class="flbl">Campos del formulario si usa turnos</label><div style="background:#0d0d0d;border:1px solid var(--border);border-radius:var(--radius-sm);padding:12px;display:flex;flex-wrap:wrap;gap:10px;"><label style="display:flex;align-items:center;gap:6px;font-size:13px;"><input type="checkbox" id="es-req-ig" '+((s.camposReq||{}).ig!==false?'checked':'')+' style="accent-color:var(--red);"> Instagram</label><label style="display:flex;align-items:center;gap:6px;font-size:13px;"><input type="checkbox" id="es-req-email" '+((s.camposReq||{}).email?'checked':'')+' style="accent-color:var(--red);"> Email</label><label style="display:flex;align-items:center;gap:6px;font-size:13px;"><input type="checkbox" id="es-req-altura" '+((s.camposReq||{}).altura?'checked':'')+' style="accent-color:var(--red);"> Altura</label><label style="display:flex;align-items:center;gap:6px;font-size:13px;"><input type="checkbox" id="es-req-medidas" '+((s.camposReq||{}).medidas?'checked':'')+' style="accent-color:var(--red);"> Medidas</label></div><div style="font-size:10px;color:var(--text3);margin-top:4px;">Nombre, WhatsApp y edad son siempre obligatorios. DNI no se pide en servicios.</div>' +
@@ -2129,6 +2155,8 @@ window.guardarEditServicio = async (id) => {
     precio: parseInt(document.getElementById('es-precio')?.value) || 0,
     icon: document.getElementById('es-icon')?.value.trim() || '📷',
     img: document.getElementById('es-img')?.value.trim() || '',
+    extraText: document.getElementById('es-extra-text')?.value.trim() || '',
+    extraUrl: document.getElementById('es-extra-url')?.value.trim() || '',
     dir: document.getElementById('es-dir')?.value.trim() || 'Pedro Méndez 2069, Posadas, Misiones',
     ig: document.getElementById('es-ig')?.value.trim() || 'tomaunomodels',
     wp: document.getElementById('es-wp')?.value.trim() || '3764354522',
@@ -4800,8 +4828,9 @@ window.abrirDetalleEvento = (id) => {
     (e.lugar?'<span class="chip">📍 '+e.lugar+'</span>':'') +
     (e.costo?'<span class="chip accent">💰 $ '+Number(e.costo).toLocaleString('es-AR')+'</span>':'<span class="chip" style="color:#00d25a;">GRATIS</span>') +
     '</div>' +
-    '<div style="font-size:14px;color:var(--text2);line-height:1.7;white-space:pre-line;margin-bottom:16px;">' + (e.desc||'') + '</div>' +
+    '<div style="font-size:14px;color:var(--text2);line-height:1.7;white-space:pre-line;margin-bottom:16px;">' + renderInfoText(e.desc||'') + '</div>' +
     '<div style="font-size:11px;color:var(--text3);margin-bottom:14px;padding:6px 12px;background:rgba(255,255,255,.03);border-radius:8px;display:inline-block;">Plataforma Tomauno</div>' +
+    (e.extraUrl ? '<a rel="noopener noreferrer" href="' + safeUrl(e.extraUrl) + '" target="_blank" class="extra-link-btn" style="margin-bottom:12px;">Link: ' + escHtml(e.extraText || 'Ver mas informacion') + '</a>' : '') +
     (e.ig?'<br><a rel="noopener noreferrer" href="https://instagram.com/'+e.ig+'" target="_blank" class="det-link ig" style="margin-top:8px;display:inline-flex;">📸 @'+e.ig+'</a>':'') +
     (!full?'<button class="btn-main" style="margin-top:14px;" onclick="' + (e.tipo==='sesiones' ? 'window.abrirTurnosEvento(\'' + id + '\')' : 'window.abrirInscEvento(\'' + id + '\')') + '">' + (e.tipo==='sesiones'?'📅 Elegir turno':'Inscribirme') + '</button>':'') +
     '<div style="display:flex;gap:10px;margin-top:8px;">' +
@@ -5394,6 +5423,7 @@ window.editarEvento = (id) => {
     '<div class="frow2"><div><label class="flbl">Hora inicio turnos</label><input class="finput" id="ee-hini" type="time" value="' + (e.horaInicio||'09:00') + '" style="color-scheme:dark"/></div><div><label class="flbl">Hora fin turnos</label><input class="finput" id="ee-hfin" type="time" value="' + (e.horaFin||'22:00') + '" style="color-scheme:dark"/></div></div>' +
     '<div class="frow2"><div><label class="flbl">Duración turno</label><input class="finput" id="ee-dur" type="number" value="' + (e.duracion||30) + '"/></div><div><label class="flbl">Descansos</label><input class="finput" id="ee-descansos" value="' + (e.descansos||'').replace(/"/g,'&quot;') + '"/></div></div>' +
     '<label class="flbl">URL Flyer (Imgur)</label><input class="finput" id="ee-img" value="' + (e.img||'') + '" placeholder="https://i.imgur.com/..."/>' +
+    '<div class="frow2"><div><label class="flbl">Texto link extra</label><input class="finput" id="ee-extra-text" value="' + escAttr(e.extraText||'') + '" placeholder="Ver bases / programa"/></div><div><label class="flbl">URL link extra</label><input class="finput" id="ee-extra-url" value="' + escAttr(e.extraUrl||'') + '" placeholder="https://..."/></div></div>' +
     '<label class="flbl">Instagram (sin @)</label><input class="finput" id="ee-ig" value="' + (e.ig||'') + '"/>' +
     '<label class="flbl">WhatsApp organizador</label><input class="finput" id="ee-wp" value="' + (e.wpOrg||'') + '"/>' +
     '<label class="flbl">Link grupo WhatsApp del evento</label><input class="finput" id="ee-gwa" value="' + (e.grupoWA||'') + '" placeholder="https://chat.whatsapp.com/..."/>' +
@@ -5425,6 +5455,8 @@ window.guardarEditEvento = async () => {
     montoInscripcion: parseInt(document.getElementById('ee-monto-insc')?.value)||0,
     montoCuota: parseInt(document.getElementById('ee-monto-cuota')?.value)||0,
     img:    document.getElementById('ee-img')?.value.trim()||'',
+    extraText: document.getElementById('ee-extra-text')?.value.trim()||'',
+    extraUrl: document.getElementById('ee-extra-url')?.value.trim()||'',
     ig:     document.getElementById('ee-ig')?.value.trim()||'',
     wpOrg:  document.getElementById('ee-wp')?.value.trim()||'',
     grupoWA: document.getElementById('ee-gwa')?.value.trim()||'',
