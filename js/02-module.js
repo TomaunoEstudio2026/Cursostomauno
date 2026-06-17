@@ -691,14 +691,18 @@ function opcionesCursoHtml(c, seleccionadas = []){
   const ops = parseOpcionesTexto(c?.opcionesTexto || c?.serviciosTexto || '');
   if(!ops.length) return '';
   const selected = new Set((Array.isArray(seleccionadas) ? seleccionadas : []).map(o => String(o.nombre || '').trim().toLowerCase()));
-  return '<div class="mlbl">Opciones / servicios</div><div id="curso-opciones-box" style="background:#0d0d0d;border:1px solid var(--border);border-radius:12px;padding:10px;margin:4px 0 12px;">' +
+  const base = Number(c?.costo || 0) || 0;
+  return '<div class="mlbl">Opciones / servicios</div><div id="curso-opciones-box" data-base="'+base+'" style="background:#0d0d0d;border:1px solid var(--border);border-radius:12px;padding:10px;margin:4px 0 12px;">' +
+    (base > 0 ? '<div style="display:flex;justify-content:space-between;gap:10px;padding:7px 2px 9px;margin-bottom:4px;border-bottom:1px solid var(--border);font-size:13px;color:var(--text2);"><span>Precio base</span><strong style="color:#fff;">'+dineroOpt(base)+'</strong></div>' : '') +
     ops.map((o,idx) => '<label style="display:flex;align-items:center;gap:8px;padding:7px 2px;font-size:13px;color:#fff;cursor:pointer;"><input type="checkbox" class="curso-opcion-check" data-nombre="'+escAttr(o.nombre)+'" data-precio="'+o.precio+'" onchange="window.actualizarTotalOpcionesCurso()" style="accent-color:var(--red);" '+(selected.has(String(o.nombre||'').trim().toLowerCase())?'checked':'')+'><span style="flex:1;">'+escHtml(o.nombre)+'</span><strong style="color:var(--red);">'+dineroOpt(o.precio)+'</strong></label>').join('') +
-    '<div style="border-top:1px solid var(--border);margin-top:6px;padding-top:8px;font-size:13px;font-weight:900;color:#fff;display:flex;justify-content:space-between;"><span>Total seleccionado</span><span id="curso-opciones-total">$ 0</span></div>' +
+    '<div style="border-top:1px solid var(--border);margin-top:6px;padding-top:8px;font-size:13px;font-weight:900;color:#fff;display:flex;justify-content:space-between;"><span>Total estimado</span><span id="curso-opciones-total">$ 0</span></div>' +
     '</div>';
 }
 window.actualizarTotalOpcionesCurso = () => {
   const checks = Array.from(document.querySelectorAll('.curso-opcion-check:checked'));
-  const total = checks.reduce((acc, el) => acc + (parseInt(el.dataset.precio || '0', 10) || 0), 0);
+  const box = document.getElementById('curso-opciones-box');
+  const base = Number(box?.dataset.base || 0) || 0;
+  const total = base + checks.reduce((acc, el) => acc + (parseInt(el.dataset.precio || '0', 10) || 0), 0);
   const out = document.getElementById('curso-opciones-total');
   if(out) out.textContent = dineroOpt(total);
 };
@@ -1252,6 +1256,7 @@ window.agregarCurso = async () => {
   });
   toast('✅ Curso publicado');
   setAtab('cursos');
+  cerrarBandejaChatSiSeAbrioPorGuardarCurso();
 };
 
 window.editCurso = (id) => {
@@ -1441,8 +1446,8 @@ function totalContratadoAlumno(i, cur){
   const manual = parseFloat(String(i?.totalManual || '').replace(',','.')) || 0;
   if (manual > 0) return manual;
   const opcionesTotal = Number(i?.opcionesTotal || 0);
-  if (opcionesTotal > 0) return opcionesTotal;
-  return Number(cur?.costo || 0) || 0;
+  const base = Number(cur?.costo || 0) || 0;
+  return base + opcionesTotal;
 }
 function saldoAlumno(i, cur){
   const pagado = getPagoAlumnoInfo(i, cur).monto;
@@ -6641,6 +6646,16 @@ window.cerrarTodosChatsAbiertos = function(){
   }
 })();
 
+function cerrarBandejaChatSiSeAbrioPorGuardarCurso(){
+  setTimeout(() => {
+    try{
+      const pop = document.getElementById('chat-popover');
+      if(!pop || !pop.classList.contains('open') || !isAdminNotifier()) return;
+      if(pop.querySelector('.chat-inbox-side,.chat-empty-state') && typeof window.cerrarChatPopover === 'function') window.cerrarChatPopover();
+    }catch(e){}
+  }, 120);
+}
+
 // Reemplazo controlado para guardar curso nuevo con profesor.
 window.agregarCurso = async function(){
   const titulo = document.getElementById('nc-titulo')?.value.trim();
@@ -6714,6 +6729,7 @@ window.guardarEdit = async function(id){
   const descansos = document.getElementById('ec-descansos')?.value.trim() || '';
   await __guardarEdit_v339(id);
   await update(ref(db,'tomauno/cursos/'+id), {profesor:prof, disertante:prof, campoEspecialLabel, diasTurnos, opcionesTexto, horaInicio:horaInicio || '09:00', horaFin:horaFin || '22:00', duracion:duracion || 30, descansos});
+  cerrarBandejaChatSiSeAbrioPorGuardarCurso();
 };
 
 function isAckAI(q){ return /^(si|sí|dale|ok|oki|bueno|perfecto|genial|gracias|muchas gracias|de acuerdo|listo)$/i.test(String(q||'').trim()); }
