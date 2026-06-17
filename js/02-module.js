@@ -679,6 +679,29 @@ function resumenOpcionesElegidas(i){
   if(!ops.length) return '';
   return ops.map(o => (o.nombre || '') + (o.precio ? ' (' + dineroOpt(o.precio) + ')' : '')).join(' · ');
 }
+function conceptosContratadosAlumno(i, cur){
+  const arr = [];
+  const base = Number(cur?.costo || 0) || 0;
+  if(base > 0) arr.push({nombre:'Precio base', precio:base});
+  (Array.isArray(i?.opcionesElegidas) ? i.opcionesElegidas : []).forEach(o => {
+    if(o && o.nombre) arr.push({nombre:o.nombre, precio:Number(o.precio || 0) || 0});
+  });
+  return arr;
+}
+function conceptosSeleccionadosCurso(c, opciones){
+  const arr = [];
+  const base = Number(c?.costo || 0) || 0;
+  if(base > 0) arr.push({nombre:'Precio base', precio:base});
+  (Array.isArray(opciones?.opcionesElegidas) ? opciones.opcionesElegidas : []).forEach(o => {
+    if(o && o.nombre) arr.push({nombre:o.nombre, precio:Number(o.precio || 0) || 0});
+  });
+  return arr;
+}
+function resumenConceptosContratados(i, cur){
+  const conceptos = conceptosContratadosAlumno(i, cur);
+  if(!conceptos.length) return '';
+  return conceptos.map(o => (o.nombre || '') + (o.precio ? ' (' + dineroOpt(o.precio) + ')' : '')).join(' ? ');
+}
 function campoEspecialLabelCurso(c){
   return String(c?.campoEspecialLabel || c?.campoEspecial || '').trim();
 }
@@ -1186,6 +1209,15 @@ window.irAAdminTab = (tab) => {
   setTimeout(()=>document.getElementById('admin-section')?.scrollIntoView({behavior:'smooth',block:'start'}),80);
 };
 
+document.addEventListener('click', function(ev){
+  const btn = ev.target && ev.target.closest && ev.target.closest('#admin-historial-top-btn');
+  if(!btn) return;
+  ev.preventDefault();
+  ev.stopPropagation();
+  if(ev.stopImmediatePropagation) ev.stopImmediatePropagation();
+  window.irAAdminTab ? window.irAAdminTab('historial-adm') : setAtab('historial-adm');
+}, true);
+
 window.irAPlanillaCurso = (cursoId) => {
   if (!cursoId || !isAdminNotifier()) return;
   if (document.getElementById('admin-section').style.display === 'none') toggleAdmin(true);
@@ -1553,7 +1585,7 @@ window.renderAlumnos = () => {
     const estadoClass = pinfo.estado === 'pagado' ? 'pay-ok' : pinfo.estado === 'parcial' ? 'pay-pa' : 'pay-pe';
     const estadoTxt = pinfo.estado === 'pagado' ? 'Con pagos' : pinfo.estado === 'parcial' ? 'Parcial' : 'Pendiente';
     const resumenPagos = '✅ ' + pinfo.pagadas + ' · ⚡ ' + pinfo.parciales + ' · ⏳ ' + pinfo.pendientes + (pinfo.monto ? ' · $ ' + pinfo.monto.toLocaleString('es-AR') : '');
-    const resumenOps = resumenOpcionesElegidas(i);
+    const resumenOps = resumenConceptosContratados(i, cur);
     const especialLabel = i.campoEspecialLabel || campoEspecialLabelCurso(cur);
     const especialValor = String(i.campoEspecialValor || '').trim();
     const especialTxt = especialLabel && especialValor ? '<div class="student-sub" style="color:#8fc7ff;white-space:normal;">' + escHtml(especialLabel) + ': ' + escHtml(especialValor) + '</div>' : '';
@@ -1563,7 +1595,7 @@ window.renderAlumnos = () => {
     const waLink = 'https://wa.me/549' + (i.wp||'').replace(/\D/g,'') + '?text=' + waEncode(waText);
     return '<tr data-insc-id="' + escAttr(k) + '">' +
       '<td class="row-index">' + (idx+1) + '</td>' +
-      '<td title="' + escHtml(i.nombre||'') + '"><div class="student-name">' + escHtml(i.nombre||'-') + '</div><div class="student-sub">' + escHtml(i.fecha||'') + (i.hora?' · '+escHtml(i.hora):'') + '</div>' + (i.turno ? '<div class="student-sub" style="color:var(--red);">⏰ '+escHtml(i.turno)+'</div>' : '') + (resumenOps ? '<div class="student-sub" style="color:#f5c842;white-space:normal;">🧾 '+escHtml(resumenOps)+' · Total '+dineroOpt(i.opcionesTotal)+'</div>' : '') + '</td>' +
+      '<td title="' + escHtml(i.nombre||'') + '"><div class="student-name">' + escHtml(i.nombre||'-') + '</div><div class="student-sub">' + escHtml(i.fecha||'') + (i.hora?' · '+escHtml(i.hora):'') + '</div>' + (i.turno ? '<div class="student-sub" style="color:var(--red);">⏰ '+escHtml(i.turno)+'</div>' : '') + (resumenOps ? '<div class="student-sub" style="color:#f5c842;white-space:normal;">🧾 '+ escHtml(resumenOps) + ' - Total ' + dineroOpt(pactado) +'</div>' : '') + '</td>' +
       '<td>' + escHtml(i.edad||'-') + '</td>' +
       '<td>' + escHtml(i.dni||'-') + '</td>' +
       (mostrarCurso ? '<td><div class="course-cell" title="' + escHtml(cursoNombre) + '">' + escHtml(cursoNombre) + '</div></td>' : '') +
@@ -1690,7 +1722,8 @@ window.enviarTicketPagoAlumno = (id) => {
   const saldo = saldoAlumno(i, cur);
   const fechaTicket = new Date().toLocaleDateString('es-AR') + ' ' + new Date().toLocaleTimeString('es-AR', {hour:'2-digit', minute:'2-digit'});
   const ops = Array.isArray(i.opcionesElegidas) ? i.opcionesElegidas : [];
-  const detalleOps = ops.map(o => '- ' + (o.nombre || '') + ': ' + dineroOpt(o.precio)).join('\n');
+  const conceptos = conceptosContratadosAlumno(i, cur);
+  const detalleOps = conceptos.map(o => '- ' + (o.nombre || '') + ': ' + dineroOpt(o.precio)).join('\n');
   const detalle = pagos.map((p, idx) => {
     const icon = p.estado === 'pagado' ? '✅' : p.estado === 'parcial' ? '⚡' : '⏳';
     const monto = p.monto ? ('$ ' + Number(String(p.monto).replace(',','.')).toLocaleString('es-AR')) : '$ 0';
@@ -1702,7 +1735,7 @@ window.enviarTicketPagoAlumno = (id) => {
     'Fecha ticket: ' + fechaTicket + '\n' +
     'Curso: ' + cursoNombre + '\n' +
     'DNI: ' + (i.dni || '-') + '\n\n' +
-    (ops.length ? '*Opciones elegidas:*\n' + detalleOps + '\nTotal opciones: ' + dineroOpt(i.opcionesTotal || 0) + '\n\n' : '') +
+    (conceptos.length ? '*Servicios / conceptos pactados:*\n' + detalleOps + '\nTotal pactado: ' + dineroOpt(contratado) + '\n\n' : '') +
     (i.detallePedido ? '*Detalle del pedido:*\n' + i.detallePedido + '\n\n' : '') +
     '*Pagos registrados:*\n' + (detalle || 'Sin pagos registrados') + '\n\n' +
     'Total contratado: $ ' + contratado.toLocaleString('es-AR') + '\n' +
@@ -1710,8 +1743,8 @@ window.enviarTicketPagoAlumno = (id) => {
     'Saldo: $ ' + saldo.toLocaleString('es-AR') + '\n\n' +
     'Gracias por formar parte de Tomauno.';
   const wp = (i.wp || '').replace(/\D/g,'');
-  const optionRows = ops.map(o => ({
-    label: o.nombre || 'Opción',
+  const optionRows = conceptos.map(o => ({
+    label: o.nombre || 'Concepto',
     estado: 'Elegido',
     monto: dineroOpt(o.precio),
     fecha: '-'
@@ -1768,8 +1801,8 @@ function drawTicketCanvas(data){
   ctx.fillStyle='#f7f7f7';ctx.fillRect(50,230,800,185);
   ctx.strokeStyle='#ddd';ctx.strokeRect(50,230,800,185);
   ctx.font='700 18px Arial';ctx.fillStyle='#777';ctx.fillText('ALUMNO/A',75,265);ctx.fillText('CURSO',75,330);ctx.fillText('DNI',555,265);ctx.fillText('WHATSAPP',555,330);
-  ctx.font='900 27px Arial';ctx.fillStyle='#111';ctx.fillText(String(data.alumno).slice(0,28),75,298);ctx.font='800 24px Arial';ctx.fillText(String(data.curso).slice(0,34),75,363);
-  ctx.font='800 24px Arial';ctx.fillText(String(data.dni),555,298);ctx.fillText(String(data.wp),555,363);
+  ctx.font='900 27px Arial';ctx.fillStyle='#111';ctx.fillText(String(data.alumno).slice(0,28),75,298);ctx.font='800 22px Arial';wrapTicketText(String(data.curso),75,360,430,24);
+  ctx.font='500 18px Arial';ctx.fillText(String(data.dni),555,298);ctx.fillText(String(data.wp),555,363);
   let y=485;
   ctx.fillStyle='#e8000a';ctx.fillRect(50,y-45,800,42);
   ctx.font='900 18px Arial';ctx.fillStyle='#fff';ctx.fillText('CONCEPTO',72,y-18);ctx.fillText('ESTADO',410,y-18);ctx.fillText('FECHA',570,y-18);ctx.fillText('MONTO',735,y-18);
@@ -1876,12 +1909,12 @@ window.exportarExcel = () => {
       const l = p.label || 'Pago';
       if(!seen.has(l)){ seen.add(l); paymentLabels.push(l); }
     }));
-    const cols = ['N°','Nombre','DNI','Edad','Instagram','WhatsApp','Fecha','Día turno','Turno','Opciones','Total opciones', ...paymentLabels, 'Total alumno'];
+    const cols = ['N°','Nombre','DNI','Edad','Instagram','WhatsApp','Fecha','Día turno','Turno','Conceptos pactados','Total pactado', ...paymentLabels, 'Total alumno'];
     const rows = lista.map(([,i], idx) => {
       const pagos = i.pagos || [];
       const amounts = paymentLabels.map(l => payAmount(pagos.find(p => (p.label || 'Pago') === l)));
       const totalAlumno = amounts.reduce((a,b)=>a+b,0);
-      return [idx+1, i.nombre||'', i.dni||'', i.edad||'', i.ig||'', i.wp||'', i.fecha||'', labelFechaTurnoAlumno(i, cursos[i.cursoId]), i.turno || '', resumenOpcionesElegidas(i), i.opcionesTotal || 0, ...amounts, totalAlumno];
+      return [idx+1, i.nombre||'', i.dni||'', i.edad||'', i.ig||'', i.wp||'', i.fecha||'', labelFechaTurnoAlumno(i, cursos[i.cursoId]), i.turno || '', resumenConceptosContratados(i, cursos[i.cursoId]), totalContratadoAlumno(i, cursos[i.cursoId]), ...amounts, totalAlumno];
     });
     const totals = paymentLabels.map(l => lista.reduce((a,[,i]) => a + payAmount((i.pagos||[]).find(p => (p.label || 'Pago') === l)), 0));
     rows.push(['TOTAL POR CONCEPTO','','','','','','','','','','', ...totals, totals.reduce((a,b)=>a+b,0)]);
@@ -1889,11 +1922,11 @@ window.exportarExcel = () => {
     return;
   }
 
-  const cols = ['N°','Nombre','DNI','Edad','Curso','Instagram','WhatsApp','Fecha','Día turno','Turno','Opciones','Total opciones','Total registrado'];
+  const cols = ['N°','Nombre','DNI','Edad','Curso','Instagram','WhatsApp','Fecha','Día turno','Turno','Conceptos pactados','Total pactado','Total registrado'];
   const rows = lista.map(([,i], idx) => {
     const cur = cursos[i.cursoId];
     const total = (i.pagos || []).reduce((a,p)=>a+payAmount(p),0);
-    return [idx+1, i.nombre||'', i.dni||'', i.edad||'', i.cursoTitulo || cur?.titulo || '', i.ig||'', i.wp||'', i.fecha||'', labelFechaTurnoAlumno(i, cur), i.turno || '', resumenOpcionesElegidas(i), i.opcionesTotal || 0, total];
+    return [idx+1, i.nombre||'', i.dni||'', i.edad||'', i.cursoTitulo || cur?.titulo || '', i.ig||'', i.wp||'', i.fecha||'', labelFechaTurnoAlumno(i, cur), i.turno || '', resumenConceptosContratados(i, cursos[i.cursoId]), totalContratadoAlumno(i, cursos[i.cursoId]), total];
   });
   rows.push(['TOTAL GENERAL','','','','','','','','','','','', rows.reduce((a,r)=>a+(Number(r[12])||0),0)]);
   descargarExcelCsv('tomauno_inscripciones_todos_los_cursos.csv', 'Tomauno — Pagos — Todos los cursos', cols, rows);
@@ -1923,11 +1956,12 @@ window.exportarPDF = () => {
 
   let head, rows, totalsRow = '';
   if (selected) {
-    head = '<tr><th>#</th><th>Nombre</th><th>DNI</th><th>Edad</th><th>IG</th><th>WP</th><th>Fecha</th><th>Día turno</th><th>Turno</th><th>Opciones</th><th>Total opciones</th>' + paymentLabels.map(l => '<th>' + escHtml(l) + '</th>').join('') + '<th>Total</th></tr>';
+    head = '<tr><th>#</th><th>Nombre</th><th>DNI</th><th>Edad</th><th>IG</th><th>WP</th><th>Fecha</th><th>Día turno</th><th>Turno</th><th>Conceptos pactados</th><th>Total pactado</th>' + paymentLabels.map(l => '<th>' + escHtml(l) + '</th>').join('') + '<th>Total</th></tr>';
     rows = lista.map(([,i], idx) => {
       const pagos = i.pagos || [];
       const totalAlumno = pagos.reduce((a,p)=>a+payAmount(p),0);
-      return '<tr><td>' + (idx+1) + '</td><td>' + escHtml(i.nombre||'') + '</td><td>' + escHtml(i.dni||'') + '</td><td>' + escHtml(i.edad||'') + '</td><td>@' + escHtml(i.ig||'') + '</td><td>' + escHtml(i.wp||'') + '</td><td>' + escHtml(i.fecha||'') + '</td><td>' + escHtml(labelFechaTurnoAlumno(i, cursos[i.cursoId]) || '-') + '</td><td>' + escHtml(i.turno || '-') + '</td><td>' + escHtml(resumenOpcionesElegidas(i) || '-') + '</td><td>$ ' + Number(i.opcionesTotal || 0).toLocaleString('es-AR') + '</td>' +
+      const cur = cursos[i.cursoId];
+      return '<tr><td>' + (idx+1) + '</td><td>' + escHtml(i.nombre||'') + '</td><td>' + escHtml(i.dni||'') + '</td><td>' + escHtml(i.edad||'') + '</td><td>@' + escHtml(i.ig||'') + '</td><td>' + escHtml(i.wp||'') + '</td><td>' + escHtml(i.fecha||'') + '</td><td>' + escHtml(labelFechaTurnoAlumno(i, cursos[i.cursoId]) || '-') + '</td><td>' + escHtml(i.turno || '-') + '</td><td>' + escHtml(resumenConceptosContratados(i, cur) || '-') + '</td><td>$ ' + totalContratadoAlumno(i, cur).toLocaleString('es-AR') + '</td>' +
         paymentLabels.map(l => '<td>' + payCell(pagos.find(p => (p.label || 'Pago') === l)) + '</td>').join('') +
         '<td><strong>$ ' + totalAlumno.toLocaleString('es-AR') + '</strong></td></tr>';
     }).join('');
@@ -1935,12 +1969,12 @@ window.exportarPDF = () => {
     const grand = totals.reduce((a,b)=>a+b,0);
     totalsRow = '<tr class="total-row"><td colspan="11">TOTAL POR CONCEPTO</td>' + totals.map(t => '<td>$ ' + t.toLocaleString('es-AR') + '</td>').join('') + '<td>$ ' + grand.toLocaleString('es-AR') + '</td></tr>';
   } else {
-    head = '<tr><th>#</th><th>Nombre</th><th>DNI</th><th>Edad</th><th>Curso</th><th>IG</th><th>WP</th><th>Fecha</th><th>Día turno</th><th>Turno</th><th>Opciones</th><th>Total opciones</th><th>Pago</th><th>Monto</th></tr>';
+    head = '<tr><th>#</th><th>Nombre</th><th>DNI</th><th>Edad</th><th>Curso</th><th>IG</th><th>WP</th><th>Fecha</th><th>Día turno</th><th>Turno</th><th>Conceptos pactados</th><th>Total pactado</th><th>Pago</th><th>Monto</th></tr>';
     rows = lista.map(([,i], idx) => {
       const cur = cursos[i.cursoId];
       const p = getPagoAlumnoInfo(i, cur);
       const estadoTxt = p.estado === 'pagado' ? 'Con pagos' : p.estado === 'parcial' ? 'Parcial' : 'Pendiente';
-      return '<tr><td>' + (idx+1) + '</td><td>' + escHtml(i.nombre||'') + '</td><td>' + escHtml(i.dni||'') + '</td><td>' + escHtml(i.edad||'') + '</td><td>' + escHtml(i.cursoTitulo || cur?.titulo || '') + '</td><td>@' + escHtml(i.ig||'') + '</td><td>' + escHtml(i.wp||'') + '</td><td>' + escHtml(i.fecha||'') + '</td><td>' + escHtml(labelFechaTurnoAlumno(i, cur) || '-') + '</td><td>' + escHtml(i.turno || '-') + '</td><td>' + escHtml(resumenOpcionesElegidas(i) || '-') + '</td><td>$ ' + Number(i.opcionesTotal || 0).toLocaleString('es-AR') + '</td><td>' + estadoTxt + '</td><td>$ ' + Number(p.monto||0).toLocaleString('es-AR') + '</td></tr>';
+      return '<tr><td>' + (idx+1) + '</td><td>' + escHtml(i.nombre||'') + '</td><td>' + escHtml(i.dni||'') + '</td><td>' + escHtml(i.edad||'') + '</td><td>' + escHtml(i.cursoTitulo || cur?.titulo || '') + '</td><td>@' + escHtml(i.ig||'') + '</td><td>' + escHtml(i.wp||'') + '</td><td>' + escHtml(i.fecha||'') + '</td><td>' + escHtml(labelFechaTurnoAlumno(i, cur) || '-') + '</td><td>' + escHtml(i.turno || '-') + '</td><td>' + escHtml(resumenConceptosContratados(i, cur) || '-') + '</td><td>$ ' + totalContratadoAlumno(i, cur).toLocaleString('es-AR') + '</td><td>' + estadoTxt + '</td><td>$ ' + Number(p.monto||0).toLocaleString('es-AR') + '</td></tr>';
     }).join('');
   }
   const total = lista.reduce((a,[,i]) => a + getPagoAlumnoInfo(i, cursos[i.cursoId]).monto, 0);
@@ -1959,7 +1993,7 @@ window.exportarExcel = () => {
   const especialHeader = (filtro && cursos[filtro] ? campoEspecialLabelCurso(cursos[filtro]) : '') || (lista.map(([,i]) => i.campoEspecialLabel || campoEspecialLabelCurso(cursos[i.cursoId])).find(Boolean)) || 'Dato especial';
   const hasEspecial = lista.some(([,i]) => String(i.campoEspecialValor || '').trim());
   const hasDetalle = lista.some(([,i]) => i.detallePedido);
-  const hasOpciones = lista.some(([,i]) => resumenOpcionesElegidas(i));
+  const hasOpciones = lista.some(([,i]) => resumenConceptosContratados(i, cursos[i.cursoId]));
   const hasTutor = lista.some(([,i]) => i.tutorNombre || i.tutorWp);
   const includeAll = !selectedCourse;
   const cols = ['Nro','Nombre'];
@@ -1976,7 +2010,7 @@ window.exportarExcel = () => {
   if(includeAll || cr.altura) cols.push('Altura');
   if(includeAll || cr.medidas) cols.push('Medidas');
   cols.push('Fecha');
-  if(hasOpciones) cols.push('Opciones');
+  if(hasOpciones) cols.push('Conceptos pactados');
   cols.push('Total contratado','Total abonado','Saldo');
   const rows = lista.map(([,i], idx) => {
     const cur = cursos[i.cursoId];
@@ -1995,7 +2029,7 @@ window.exportarExcel = () => {
     if(includeAll || cr.altura) row.push(i.altura||'');
     if(includeAll || cr.medidas) row.push(i.medidas||'');
     row.push(i.fecha||'');
-    if(hasOpciones) row.push(resumenOpcionesElegidas(i));
+    if(hasOpciones) row.push(resumenConceptosContratados(i, cur));
     row.push(totalContratadoAlumno(i, cur), pinfo.monto, saldoAlumno(i, cur));
     return row;
   });
@@ -2022,11 +2056,11 @@ window.exportarPDF = () => {
     const pinfo = getPagoAlumnoInfo(i, cur);
     const especialValor = String(i.campoEspecialValor || '').trim();
     const especial = (i.campoEspecialLabel || campoEspecialLabelCurso(cur)) && especialValor ? especialValor : '-';
-    return '<tr><td>'+(idx+1)+'</td><td>'+escHtml(i.nombre||'')+'</td><td>'+escHtml(i.dni||'')+'</td><td>'+escHtml(i.edad||'')+'</td><td>'+escHtml(i.cursoTitulo || cur?.titulo || '')+'</td><td>'+escHtml(especial)+'</td><td>'+escHtml(i.detallePedido || '-')+'</td><td>'+escHtml(resumenOpcionesElegidas(i) || '-')+'</td><td>$ '+totalContratadoAlumno(i, cur).toLocaleString('es-AR')+'</td><td>$ '+pinfo.monto.toLocaleString('es-AR')+'</td><td>$ '+saldoAlumno(i, cur).toLocaleString('es-AR')+'</td></tr>';
+    return '<tr><td>'+(idx+1)+'</td><td>'+escHtml(i.nombre||'')+'</td><td>'+escHtml(i.dni||'')+'</td><td>'+escHtml(i.edad||'')+'</td><td>'+escHtml(i.cursoTitulo || cur?.titulo || '')+'</td><td>'+escHtml(especial)+'</td><td>'+escHtml(i.detallePedido || '-')+'</td><td>'+escHtml(resumenConceptosContratados(i, cur) || '-')+'</td><td>$ '+totalContratadoAlumno(i, cur).toLocaleString('es-AR')+'</td><td>$ '+pinfo.monto.toLocaleString('es-AR')+'</td><td>$ '+saldoAlumno(i, cur).toLocaleString('es-AR')+'</td></tr>';
   }).join('');
   const win = window.open('', '_blank');
   if(!win) return;
-  win.document.write('<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Tomauno</title><link rel="stylesheet" href="css/03-style-03.css"/></head><body><div class="head"><div class="brand">TOMA<span>UNO</span></div><div class="course-title">'+escHtml(cn)+'</div><div class="meta">Planilla de alumnos - '+new Date().toLocaleDateString('es-AR')+'</div></div><div class="summary"><div class="box">Inscriptos: '+lista.length+'</div><div class="box">Abonado: $ '+totalAbonado.toLocaleString('es-AR')+'</div><div class="box">Saldo: $ '+totalSaldo.toLocaleString('es-AR')+'</div></div><table><thead><tr><th>#</th><th>Nombre</th><th>DNI</th><th>Edad</th><th>Curso</th><th>'+escHtml(especialHeader)+'</th><th>Detalle pedido</th><th>Opciones</th><th>Total</th><th>Abonado</th><th>Saldo</th></tr></thead><tbody>'+rows+'</tbody></table></body></html>');
+  win.document.write('<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Tomauno</title><link rel="stylesheet" href="css/03-style-03.css"/></head><body><div class="head"><div class="brand">TOMA<span>UNO</span></div><div class="course-title">'+escHtml(cn)+'</div><div class="meta">Planilla de alumnos - '+new Date().toLocaleDateString('es-AR')+'</div></div><div class="summary"><div class="box">Inscriptos: '+lista.length+'</div><div class="box">Abonado: $ '+totalAbonado.toLocaleString('es-AR')+'</div><div class="box">Saldo: $ '+totalSaldo.toLocaleString('es-AR')+'</div></div><table><thead><tr><th>#</th><th>Nombre</th><th>DNI</th><th>Edad</th><th>Curso</th><th>'+escHtml(especialHeader)+'</th><th>Detalle pedido</th><th>Conceptos pactados</th><th>Total</th><th>Abonado</th><th>Saldo</th></tr></thead><tbody>'+rows+'</tbody></table></body></html>');
   win.document.close();
   setTimeout(() => win.print(), 400);
 };
