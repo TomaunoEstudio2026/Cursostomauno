@@ -4564,6 +4564,8 @@ document.addEventListener('keydown', e => { if (e.key === 'Escape') closeModal()
 
 window.toast = (msg, autohide = true) => {
   const t = document.getElementById('toast');
+  t.style.zIndex = '100003';
+  t.style.position = t.style.position || 'fixed';
   t.onclick = () => t.classList.remove('show');
   t.textContent = msg + '  ✕';
   t.classList.add('show');
@@ -5925,7 +5927,7 @@ setTimeout(() => { if (document.getElementById('agenda-preview-canvas')) window.
 // ── FLYER PANTALLA COMPLETA ───────────────────────────────────────────────────
 window.verFlyerFull = (src) => {
   const ov = document.createElement('div');
-  ov.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.95);z-index:999;display:flex;align-items:center;justify-content:center;cursor:zoom-out;padding:20px;';
+  ov.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.95);z-index:100002;display:flex;align-items:center;justify-content:center;cursor:zoom-out;padding:20px;';
   ov.onclick = () => document.body.removeChild(ov);
   const img = document.createElement('img');
   img.src = src;
@@ -6704,6 +6706,7 @@ window.agregarCurso = async function(){
   });
   toast('✅ Curso publicado');
   setAtab('cursos');
+  cerrarBandejaChatSiSeAbrioPorGuardarCurso();
 };
 
 const __editCurso_v339 = window.editCurso;
@@ -6713,12 +6716,13 @@ window.editCurso = function(id){
     const desc = document.getElementById('ec-desc');
     const c = cursos[id] || {};
     if(desc && !document.getElementById('ec-profesor')){
-      desc.insertAdjacentHTML('afterend','<label class="flbl">Profesor / disertante / responsable</label><input class="finput" id="ec-profesor" value="'+escAttr(c.profesor || c.disertante || c.organizador || c.docente || '')+'" placeholder="Ej: Javier Mottola"/><label class="flbl" style="margin-top:8px;">Días habilitados para turnos</label><textarea class="finput" id="ec-dias-turnos" rows="2" placeholder="19/06/2026&#10;20/06/2026">'+escHtml(c.diasTurnos || c.fechasTurnos || '')+'</textarea><div style="font-size:10px;color:var(--text3);margin-top:-4px;">Opcional. Uno por linea o separados por coma. Si queda vacio usa la fecha principal.</div><div id="ec-turnos-config" style="background:#1a0000;border:1px solid #3a0000;border-radius:var(--radius-sm);padding:14px;margin:10px 0;"><div style="font-size:12px;color:var(--red);font-weight:800;margin-bottom:10px;">Configuración de turnos</div><div class="frow2"><div><label class="flbl">Hora inicio</label><input class="finput" id="ec-h-ini" type="time" value="'+escAttr(c.horaInicio || '09:00')+'" style="color-scheme:dark"/></div><div><label class="flbl">Hora fin</label><input class="finput" id="ec-h-fin" type="time" value="'+escAttr(c.horaFin || '22:00')+'" style="color-scheme:dark"/></div></div><div class="frow2"><div><label class="flbl">Duración turno</label><input class="finput" id="ec-dur" type="number" value="'+escAttr(c.duracion || 30)+'"/></div><div><label class="flbl">Descansos</label><input class="finput" id="ec-descansos" value="'+escAttr(c.descansos || '')+'" placeholder="13:00-14:00, 17:30-18:00"/></div></div></div><label class="flbl" style="margin-top:8px;">Opciones / servicios seleccionables</label><textarea class="finput" id="ec-opciones-texto" rows="4" placeholder="Nombre, precio">'+escHtml(c.opcionesTexto || c.serviciosTexto || '')+'</textarea><div style="font-size:10px;color:var(--text3);margin-top:-4px;">Un item por linea. Tambien acepta: nombre, precio; nombre, precio</div>');
+      desc.insertAdjacentHTML('afterend','<label class="flbl">Modalidad</label><select class="finput" id="ec-tipo"><option value="curso" '+((c.tipo||'curso')==='curso'?'selected':'')+'>Curso normal</option><option value="sesiones" '+(c.tipo==='sesiones'?'selected':'')+'>Con turnos / horarios</option></select><label class="flbl">Profesor / disertante / responsable</label><input class="finput" id="ec-profesor" value="'+escAttr(c.profesor || c.disertante || c.organizador || c.docente || '')+'" placeholder="Ej: Javier Mottola"/><label class="flbl" style="margin-top:8px;">Días habilitados para turnos</label><textarea class="finput" id="ec-dias-turnos" rows="2" placeholder="19/06/2026&#10;20/06/2026">'+escHtml(c.diasTurnos || c.fechasTurnos || '')+'</textarea><div style="font-size:10px;color:var(--text3);margin-top:-4px;">Opcional. Uno por linea o separados por coma. Si queda vacio usa la fecha principal.</div><div id="ec-turnos-config" style="background:#1a0000;border:1px solid #3a0000;border-radius:var(--radius-sm);padding:14px;margin:10px 0;"><div style="font-size:12px;color:var(--red);font-weight:800;margin-bottom:10px;">Configuración de turnos</div><div class="frow2"><div><label class="flbl">Hora inicio</label><input class="finput" id="ec-h-ini" type="time" value="'+escAttr(c.horaInicio || '09:00')+'" style="color-scheme:dark"/></div><div><label class="flbl">Hora fin</label><input class="finput" id="ec-h-fin" type="time" value="'+escAttr(c.horaFin || '22:00')+'" style="color-scheme:dark"/></div></div><div class="frow2"><div><label class="flbl">Duración turno</label><input class="finput" id="ec-dur" type="number" value="'+escAttr(c.duracion || 30)+'"/></div><div><label class="flbl">Descansos</label><input class="finput" id="ec-descansos" value="'+escAttr(c.descansos || '')+'" placeholder="13:00-14:00, 17:30-18:00"/></div></div></div><label class="flbl" style="margin-top:8px;">Opciones / servicios seleccionables</label><textarea class="finput" id="ec-opciones-texto" rows="4" placeholder="Nombre, precio">'+escHtml(c.opcionesTexto || c.serviciosTexto || '')+'</textarea><div style="font-size:10px;color:var(--text3);margin-top:-4px;">Un item por linea. Tambien acepta: nombre, precio; nombre, precio</div>');
     }
   },30);
 };
 const __guardarEdit_v339 = window.guardarEdit;
 window.guardarEdit = async function(id){
+  const tipoEdit = document.getElementById('ec-tipo')?.value || 'curso';
   const prof = document.getElementById('ec-profesor')?.value.trim() || '';
   const campoEspecialLabel = document.getElementById('ec-campo-especial-label')?.value.trim() || '';
   const diasTurnos = document.getElementById('ec-dias-turnos')?.value.trim() || '';
@@ -6728,7 +6732,7 @@ window.guardarEdit = async function(id){
   const duracion = parseInt(document.getElementById('ec-dur')?.value) || 0;
   const descansos = document.getElementById('ec-descansos')?.value.trim() || '';
   await __guardarEdit_v339(id);
-  await update(ref(db,'tomauno/cursos/'+id), {profesor:prof, disertante:prof, campoEspecialLabel, diasTurnos, opcionesTexto, horaInicio:horaInicio || '09:00', horaFin:horaFin || '22:00', duracion:duracion || 30, descansos});
+  await update(ref(db,'tomauno/cursos/'+id), {tipo:tipoEdit, profesor:prof, disertante:prof, campoEspecialLabel, diasTurnos, opcionesTexto, horaInicio:horaInicio || '09:00', horaFin:horaFin || '22:00', duracion:duracion || 30, descansos});
   cerrarBandejaChatSiSeAbrioPorGuardarCurso();
 };
 
