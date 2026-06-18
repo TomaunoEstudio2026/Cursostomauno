@@ -798,6 +798,7 @@ window.confirmarInsc = async (id) => {
   if (altura) waText.push('\uD83D\uDCCF *Altura:* ' + altura);
   if (medidas) waText.push('\uD83D\uDCC8 *Medidas:* ' + medidas);
   if (email) waText.push('\u2709\uFE0F *Email:* ' + email);
+  if (campoEspecialLabel && campoEspecialValor) waText.push('\uD83D\uDCCC *' + campoEspecialLabel + ':* ' + campoEspecialValor);
   if (conceptosWa.length) {
     waText.push('', '\uD83E\uDDFE *Servicios / conceptos pactados:*');
     conceptosWa.forEach(o => waText.push('- ' + o.nombre + ': ' + dineroOpt(o.precio)));
@@ -1004,6 +1005,7 @@ window.confirmarTurno = async (id, turno, fechaTurno = '') => {
     '\uD83D\uDCF8 *IG:* @' + ig,
     '\uD83D\uDCF1 *WP:* ' + wp
   ].filter(Boolean);
+  if (campoEspecialLabel && campoEspecialValor) tText.push('\uD83D\uDCCC *' + campoEspecialLabel + ':* ' + campoEspecialValor);
   if (conceptosTurno.length) {
     tText.push('', '\uD83E\uDDFE *Servicios / conceptos pactados:*');
     conceptosTurno.forEach(o => tText.push('- ' + o.nombre + ': ' + dineroOpt(o.precio)));
