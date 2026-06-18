@@ -1531,6 +1531,10 @@ function getAlumnosFiltrados() {
   const q = (document.getElementById('admin-person-search')?.value || '').toLowerCase().trim();
   let lista = Object.entries(inscripciones).sort((a, b) => ((b[1].creado || 0) - (a[1].creado || 0)));
   if (filtro) lista = lista.filter(([, i]) => i.cursoId === filtro);
+  if (q && /^(m|marcado|marcados|estrella|estrellas|seleccionados)$/i.test(q)) {
+    lista = lista.filter(([,i]) => !!i.marca);
+    return {filtro, lista};
+  }
   if (q) lista = lista.filter(([,i]) => {
     const cur = cursos[i.cursoId] || {};
     const hay = [i.nombre,i.dni,i.edad,i.ig,i.wp,i.tutorWp,i.localidad,i.campoEspecialLabel,i.campoEspecialValor,i.detallePedido,i.cursoTitulo,cur.titulo,i.turno,resumenOpcionesElegidas(i),i.opcionesTotal].join(' ').toLowerCase();
@@ -1553,23 +1557,25 @@ function textoConfirmacionAlumno(id){
   const saldo = saldoAlumno(i, cur);
   const especialLabel = i.campoEspecialLabel || campoEspecialLabelCurso(cur);
   const lines = [
-    'Gracias ' + nombre + ', tus datos fueron registrados!',
+    '✅ *Gracias ' + nombre + '*',
+    'Tus datos fueron registrados correctamente.',
     '',
-    'Actividad: ' + cursoNombre
+    '📌 *Actividad:* ' + cursoNombre
   ];
-  if(i.fechaTurnoLabel || i.fechaTurno) lines.push('Dia: ' + (i.fechaTurnoLabel || labelFechaTurnoAlumno(i, cur)));
-  if(i.turno) lines.push('Turno: ' + i.turno);
-  if(i.dni) lines.push('DNI: ' + i.dni);
-  if(i.edad) lines.push('Edad: ' + i.edad);
-  if(i.ig) lines.push('Instagram: @' + String(i.ig).replace('@',''));
-  if(i.localidad) lines.push('Localidad: ' + i.localidad);
-  if(especialLabel && i.campoEspecialValor) lines.push(especialLabel + ': ' + i.campoEspecialValor);
-  if(conceptos) lines.push('Conceptos: ' + conceptos);
-  if(total) lines.push('Total pactado: ' + dineroOpt(total));
-  if(pinfo.monto) lines.push('Abonado: ' + dineroOpt(pinfo.monto));
-  if(saldo) lines.push('Saldo: ' + dineroOpt(saldo));
-  if(i.detallePedido) lines.push('Detalle: ' + i.detallePedido);
-  if(cur.grupoWAAuto && cur.grupoWA) lines.push('', 'Grupo de WhatsApp:', safeUrl(cur.grupoWA));
+  if(i.fechaTurnoLabel || i.fechaTurno) lines.push('📅 *Día:* ' + (i.fechaTurnoLabel || labelFechaTurnoAlumno(i, cur)));
+  if(i.turno) lines.push('⏰ *Turno:* ' + i.turno);
+  if(i.dni) lines.push('🪪 *DNI:* ' + i.dni);
+  if(i.edad) lines.push('🎂 *Edad:* ' + i.edad);
+  if(i.ig) lines.push('📸 *Instagram:* @' + String(i.ig).replace('@',''));
+  if(i.localidad) lines.push('📍 *Localidad:* ' + i.localidad);
+  if(especialLabel && i.campoEspecialValor) lines.push('📌 *' + especialLabel + ':* ' + i.campoEspecialValor);
+  if(conceptos) lines.push('🧾 *Conceptos:* ' + conceptos);
+  if(total) lines.push('💰 *Total pactado:* ' + dineroOpt(total));
+  if(pinfo.monto) lines.push('✅ *Abonado:* ' + dineroOpt(pinfo.monto));
+  if(saldo) lines.push('🟡 *Saldo:* ' + dineroOpt(saldo));
+  if(i.detallePedido) lines.push('📝 *Detalle:* ' + i.detallePedido);
+  if(cur.grupoWAAuto && cur.grupoWA) lines.push('', '🔗 *Grupo de WhatsApp:*', safeUrl(cur.grupoWA));
+  lines.push('', 'Tomauno');
   return lines.join('\n');
 }
 window.copiarConfirmacionAlumno = async (id) => {
@@ -5505,6 +5511,62 @@ function totalPagosEvento(lista, e) {
   return lista.reduce((acc, [,i]) => acc + pagoEventoInfo(i, e).monto, 0);
 }
 
+function textoConfirmacionEvento(inscId){
+  const i = evInscDB[inscId]; if(!i) return '';
+  const e = eventosDB[i.evId] || {};
+  const p = pagoEventoInfo(i, e);
+  const lines = [
+    '✅ *Gracias ' + (i.nombre || 'alumno/a') + '*',
+    'Tus datos fueron registrados correctamente.',
+    '',
+    '🎟️ *Evento:* ' + (i.evTitulo || e.titulo || 'Evento')
+  ];
+  if(e.fecha) lines.push('📅 *Fecha:* ' + fFecha(e.fecha));
+  if(i.turno) lines.push('⏰ *Turno:* ' + i.turno);
+  if(i.dni) lines.push('🪪 *DNI:* ' + i.dni);
+  if(i.edad) lines.push('🎂 *Edad:* ' + i.edad);
+  if(i.ig) lines.push('📸 *Instagram:* @' + String(i.ig).replace('@',''));
+  if(i.localidad) lines.push('📍 *Localidad:* ' + i.localidad);
+  if(i.email) lines.push('✉️ *Email:* ' + i.email);
+  if(p.monto) lines.push('✅ *Abonado:* $ ' + Number(p.monto || 0).toLocaleString('es-AR'));
+  if(e.grupoWA) lines.push('', '🔗 *Grupo de WhatsApp:*', safeUrl(e.grupoWA));
+  lines.push('', 'Tomauno');
+  return lines.join('\n');
+}
+window.copiarConfirmacionEvento = async (inscId) => {
+  const txt = textoConfirmacionEvento(inscId);
+  if(!txt){ toast('No encontré datos para copiar'); return; }
+  try{ await navigator.clipboard.writeText(txt); }
+  catch(e){
+    const ta = document.createElement('textarea');
+    ta.value = txt;
+    document.body.appendChild(ta);
+    ta.select();
+    document.execCommand('copy');
+    ta.remove();
+  }
+  toast('Texto de evento copiado', true);
+};
+window.copiarListaEventoWhatsApp = async (evId) => {
+  const lista = Object.values(evInscDB || {}).filter(i => i.evId === evId);
+  const lines = lista.map(i => {
+    const nombre = String(i.nombre || '').trim();
+    const wp = String(i.wp || '').replace(/[^\d+]/g, '').trim();
+    return nombre && wp ? (nombre + ' - ' + wp) : '';
+  }).filter(Boolean);
+  if(!lines.length){ toast('No hay inscriptos con WhatsApp para copiar'); return; }
+  try{ await navigator.clipboard.writeText(lines.join('\n')); }
+  catch(e){
+    const ta = document.createElement('textarea');
+    ta.value = lines.join('\n');
+    document.body.appendChild(ta);
+    ta.select();
+    document.execCommand('copy');
+    ta.remove();
+  }
+  toast('Lista de evento copiada', true);
+};
+
 window.updMontoPagoEvento = async (inscId, monto) => {
   const insc = evInscDB[inscId]; if (!insc) return;
   const pagos = [...(insc.pagos||[{label:'Pago unico',estado:'pendiente',monto:''}])];
@@ -5570,6 +5632,7 @@ window.verPlanillaEventoAdmin = (id) => {
     '<span>💰 Total cobrado: <strong style="color:#4caf7d;">$ ' + total.toLocaleString('es-AR') + '</strong></span>' +
     '</div>' +
     '<div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px;">' +
+    '<button class="bsm bl" onclick="window.copiarListaEventoWhatsApp(\'' + id + '\')">Copiar nombres + WhatsApp</button>' +
     '<button class="bsm bl" onclick="window.exportarExcelEvento(\'' + id + '\')">📊 Excel</button>' +
     '<button class="bsm bl" onclick="window.exportarPDFEvento(\'' + id + '\')">📄 PDF</button>' +
     (e&&e.grupoWA ? '<a rel="noopener noreferrer" target="_blank" href="' + e.grupoWA + '" class="bsm wa" style="text-decoration:none;">💬 Grupo WA</a>' : '') +
