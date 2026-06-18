@@ -737,6 +737,25 @@ function leerOpcionesSeleccionadasCurso(){
   return {opcionesElegidas: ops, opcionesTotal: ops.reduce((a,o)=>a+Number(o.precio||0),0)};
 }
 
+function mostrarConfirmacionRedireccionCurso(c, titulo, resumenGuardado, toastMsg){
+  const url = String(c?.redirectUrl || '').trim();
+  if(!c?.redirectAuto || !url) return false;
+  const info = String(c?.redirectMsg || '').trim() || 'El sistema te llevara a la siguiente web para continuar.';
+  document.getElementById('mcontent').innerHTML =
+    '<div style="text-align:center;padding:12px 0;">' +
+    '<div style="font-size:52px;margin-bottom:16px;">✅</div>' +
+    '<div class="mtitle" style="margin-bottom:8px;">' + escHtml(titulo) + '</div>' +
+    '<div style="font-size:14px;color:var(--text2);line-height:1.6;margin-bottom:12px;">' + escHtml(resumenGuardado) + '</div>' +
+    '<div style="font-size:14px;color:#fff;line-height:1.65;background:#101010;border:1px solid var(--border);border-radius:14px;padding:14px;margin-bottom:18px;text-align:left;">' + escHtml(info).replace(/\n/g,'<br/>') + '</div>' +
+    '<button class="btn-main" id="curso-redirect-btn">Continuar</button>' +
+    '</div>';
+  document.getElementById('curso-redirect-btn').onclick = () => {
+    toast(toastMsg || 'Registro confirmado');
+    window.location.href = safeUrl(url);
+  };
+  return true;
+}
+
 window.confirmarInsc = async (id) => {
   const nom = document.getElementById('f-nom')?.value.trim();
   const dni = document.getElementById('f-dni')?.value.trim();
@@ -809,6 +828,7 @@ window.confirmarInsc = async (id) => {
   if (twp) waText.push('\uD83D\uDC6A *WP Tutor:* ' + twp);
   if (c?.grupoWAAuto && c?.grupoWA) waText.push('', '\uD83D\uDD17 *Grupo de WhatsApp:*', safeUrl(c.grupoWA));
   window._pendingWaUrl = 'https://api.whatsapp.com/send?phone=5493764354522&text=' + waEncode(waText.join('\n'));
+  if (mostrarConfirmacionRedireccionCurso(c, '¡DATOS REGISTRADOS!', 'Tu inscripcion fue guardada correctamente.', '¡Listo! Continuamos con el registro')) return;
   document.getElementById('mcontent').innerHTML =
     '<div style="text-align:center;padding:12px 0;">' +
     '<div style="font-size:52px;margin-bottom:16px;">✅</div>' +
@@ -1015,6 +1035,7 @@ window.confirmarTurno = async (id, turno, fechaTurno = '') => {
   if (twp) tText.push('\uD83D\uDC6A *WP Tutor:* ' + twp);
   if (c?.grupoWAAuto && c?.grupoWA) tText.push('', '\uD83D\uDD17 *Grupo de WhatsApp:*', safeUrl(c.grupoWA));
   window._pendingWaUrl = 'https://api.whatsapp.com/send?phone=5493764354522&text=' + waEncode(tText.join('\n'));
+  if (mostrarConfirmacionRedireccionCurso(c, '¡TURNO RESERVADO!', 'Tu turno quedo registrado correctamente.', '¡Turno confirmado!')) return;
   document.getElementById('mcontent').innerHTML =
     '<div style="text-align:center;padding:12px 0;">' +
     '<div style="font-size:52px;margin-bottom:16px;">✅</div>' +
@@ -1332,6 +1353,10 @@ window.editCurso = (id) => {
     '<label class="flbl">Link grupo WhatsApp</label>' +
     '<input class="finput" id="ec-gwa" value="' + (c.grupoWA || '') + '" placeholder="https://chat.whatsapp.com/..."/>' +
     '<label style="display:flex;align-items:center;gap:8px;margin:6px 0 12px;font-size:12px;color:#fff;font-weight:800;"><input type="checkbox" id="ec-grupo-wa-auto" '+(c.grupoWAAuto?'checked':'')+' style="accent-color:var(--red);"> Enviar link del grupo al registrarse</label>' +
+    '<label class="flbl">Link de redireccion al finalizar registro</label>' +
+    '<input class="finput" id="ec-redirect-url" value="' + escAttr(c.redirectUrl || '') + '" placeholder="https://..."/>' +
+    '<label style="display:flex;align-items:center;gap:8px;margin:6px 0 8px;font-size:12px;color:#fff;font-weight:800;"><input type="checkbox" id="ec-redirect-auto" '+(c.redirectAuto?'checked':'')+' style="accent-color:var(--red);"> Redireccionar al alumno al finalizar</label>' +
+    '<textarea class="finput" id="ec-redirect-msg" rows="3" placeholder="Texto que vera antes de continuar">' + escHtml(c.redirectMsg || '') + '</textarea>' +
     '<label class="flbl">Tipo de pago</label>' +
     '<select class="finput" id="ec-pago-tipo">' +
     '<option value="unico" ' + ((c.pagoTipo || 'unico') === 'unico' ? 'selected' : '') + '>Pago único</option>' +
@@ -1362,6 +1387,9 @@ window.guardarEdit = async (id) => {
     extraUrl: document.getElementById('ec-extra-url')?.value.trim() || '',
     grupoWA: document.getElementById('ec-gwa')?.value.trim() || '',
     grupoWAAuto: !!document.getElementById('ec-grupo-wa-auto')?.checked,
+    redirectUrl: document.getElementById('ec-redirect-url')?.value.trim() || '',
+    redirectAuto: !!document.getElementById('ec-redirect-auto')?.checked,
+    redirectMsg: document.getElementById('ec-redirect-msg')?.value.trim() || '',
     campoEspecialLabel: document.getElementById('ec-campo-especial-label')?.value.trim() || '',
     pagoTipo: document.getElementById('ec-pago-tipo')?.value || 'unico',
     meses: parseInt(document.getElementById('ec-meses')?.value) || 0,
@@ -6693,6 +6721,18 @@ window.cerrarTodosChatsAbiertos = function(){
   }
 })();
 
+(function injectRedirectCursoField(){
+  const grupoAuto = document.getElementById('nc-grupo-wa-auto');
+  if(!grupoAuto || document.getElementById('nc-redirect-url')) return;
+  const box = document.createElement('div');
+  box.innerHTML =
+    '<label class="flbl" style="margin-top:8px;">Link de redireccion al finalizar registro</label>' +
+    '<input class="finput" id="nc-redirect-url" placeholder="https://..."/>' +
+    '<label style="display:flex;align-items:center;gap:8px;margin:6px 0 8px;font-size:12px;color:#fff;font-weight:800;"><input type="checkbox" id="nc-redirect-auto" style="accent-color:var(--red);"> Redireccionar al alumno al finalizar</label>' +
+    '<textarea class="finput" id="nc-redirect-msg" rows="3" placeholder="Ej: El sistema te llevara a la web Tomaunomodels para continuar con el registro y la carga de fotografias correspondiente."></textarea>';
+  grupoAuto.closest('label')?.insertAdjacentElement('afterend', box);
+})();
+
 function cerrarBandejaChatSiSeAbrioPorGuardarCurso(){
   setTimeout(() => {
     try{
@@ -6734,6 +6774,9 @@ window.agregarCurso = async function(){
     duracion: parseInt(document.getElementById('nc-dur')?.value) || 30,
     grupoWA: document.getElementById('nc-grupo-wa')?.value.trim() || '',
     grupoWAAuto: !!document.getElementById('nc-grupo-wa-auto')?.checked,
+    redirectUrl: document.getElementById('nc-redirect-url')?.value.trim() || '',
+    redirectAuto: !!document.getElementById('nc-redirect-auto')?.checked,
+    redirectMsg: document.getElementById('nc-redirect-msg')?.value.trim() || '',
     campoEspecialLabel: document.getElementById('nc-campo-especial-label')?.value.trim() || '',
     diasTurnos: document.getElementById('nc-dias-turnos')?.value.trim() || '',
     opcionesTexto: document.getElementById('nc-opciones-texto')?.value.trim() || '',
@@ -6747,7 +6790,7 @@ window.agregarCurso = async function(){
     },
     finalizado: false, oculto: false, creado: Date.now()
   });
-  ['nc-titulo','nc-desc','nc-costo','nc-cupos','nc-fecha','nc-hora','nc-profesor','nc-campo-especial-label','nc-dias-turnos','nc-opciones-texto','nc-lugar','nc-ig','nc-wp','nc-img','nc-extra-text','nc-extra-url','nc-meses','nc-grupo-wa','nc-icon','nc-descansos'].forEach(id => {
+  ['nc-titulo','nc-desc','nc-costo','nc-cupos','nc-fecha','nc-hora','nc-profesor','nc-campo-especial-label','nc-dias-turnos','nc-opciones-texto','nc-lugar','nc-ig','nc-wp','nc-img','nc-extra-text','nc-extra-url','nc-meses','nc-grupo-wa','nc-redirect-url','nc-redirect-msg','nc-icon','nc-descansos'].forEach(id => {
     const el = document.getElementById(id); if (el) el.value = '';
   });
   toast('✅ Curso publicado');
