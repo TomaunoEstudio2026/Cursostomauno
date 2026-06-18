@@ -739,7 +739,8 @@ function leerOpcionesSeleccionadasCurso(){
 
 function mostrarConfirmacionRedireccionCurso(c, titulo, resumenGuardado, toastMsg){
   const url = String(c?.redirectUrl || '').trim();
-  if(!c?.redirectAuto || !url) return false;
+  const auto = c?.redirectAuto === true || c?.redirectAuto === 'true' || c?.redirectAuto === 1 || c?.redirectAuto === '1' || c?.redirectAuto === 'on';
+  if(!auto || !url) return false;
   const info = String(c?.redirectMsg || '').trim() || 'El sistema te llevara a la siguiente web para continuar.';
   document.getElementById('mcontent').innerHTML =
     '<div style="text-align:center;padding:12px 0;">' +
@@ -1541,6 +1542,80 @@ function getAlumnosFiltrados() {
 function matchTextAdmin(parts, q){ return parts.map(v => String(v || '')).join(' ').toLowerCase().includes(q); }
 function adminWpLink(wp){ const n = String(wp||'').replace(/\D/g,''); return n ? '<a class="wabtn" target="_blank" rel="noopener noreferrer" href="https://wa.me/549'+n+'">'+escHtml(wp)+'</a>' : '<span class="tds">-</span>'; }
 function adminIgLink(ig){ const v = String(ig||'').replace('@','').trim(); return v ? '<a class="ig-link" target="_blank" rel="noopener noreferrer" href="https://instagram.com/'+escAttr(v)+'">@'+escHtml(v)+'</a>' : '<span class="tds">-</span>'; }
+function textoConfirmacionAlumno(id){
+  const i = inscripciones[id]; if(!i) return '';
+  const cur = cursos[i.cursoId] || {};
+  const nombre = i.nombre || 'alumno/a';
+  const cursoNombre = i.cursoTitulo || cur.titulo || 'la actividad';
+  const pinfo = getPagoAlumnoInfo(i, cur);
+  const conceptos = resumenConceptosContratados(i, cur);
+  const total = totalContratadoAlumno(i, cur);
+  const saldo = saldoAlumno(i, cur);
+  const especialLabel = i.campoEspecialLabel || campoEspecialLabelCurso(cur);
+  const lines = [
+    'Gracias ' + nombre + ', tus datos fueron registrados!',
+    '',
+    'Actividad: ' + cursoNombre
+  ];
+  if(i.fechaTurnoLabel || i.fechaTurno) lines.push('Dia: ' + (i.fechaTurnoLabel || labelFechaTurnoAlumno(i, cur)));
+  if(i.turno) lines.push('Turno: ' + i.turno);
+  if(i.dni) lines.push('DNI: ' + i.dni);
+  if(i.edad) lines.push('Edad: ' + i.edad);
+  if(i.ig) lines.push('Instagram: @' + String(i.ig).replace('@',''));
+  if(i.localidad) lines.push('Localidad: ' + i.localidad);
+  if(especialLabel && i.campoEspecialValor) lines.push(especialLabel + ': ' + i.campoEspecialValor);
+  if(conceptos) lines.push('Conceptos: ' + conceptos);
+  if(total) lines.push('Total pactado: ' + dineroOpt(total));
+  if(pinfo.monto) lines.push('Abonado: ' + dineroOpt(pinfo.monto));
+  if(saldo) lines.push('Saldo: ' + dineroOpt(saldo));
+  if(i.detallePedido) lines.push('Detalle: ' + i.detallePedido);
+  if(cur.grupoWAAuto && cur.grupoWA) lines.push('', 'Grupo de WhatsApp:', safeUrl(cur.grupoWA));
+  return lines.join('\n');
+}
+window.copiarConfirmacionAlumno = async (id) => {
+  const txt = textoConfirmacionAlumno(id);
+  if(!txt){ toast('No encontré datos para copiar'); return; }
+  try{
+    await navigator.clipboard.writeText(txt);
+    toast('Texto copiado para WhatsApp', true);
+  }catch(e){
+    const ta = document.createElement('textarea');
+    ta.value = txt;
+    document.body.appendChild(ta);
+    ta.select();
+    document.execCommand('copy');
+    ta.remove();
+    toast('Texto copiado para WhatsApp', true);
+  }
+};
+window.toggleMarcaAlumno = async (id) => {
+  const i = inscripciones[id]; if(!i) return;
+  await update(ref(db, 'tomauno/inscripciones/' + id), {marca: !i.marca});
+  toast(!i.marca ? 'Alumno marcado' : 'Marca quitada', true);
+};
+window.copiarListaAlumnosWhatsApp = async () => {
+  const {lista} = getAlumnosFiltrados();
+  const lines = lista
+    .map(([,i]) => {
+      const nombre = String(i.nombre || '').trim();
+      const wp = String(i.wp || '').replace(/[^\d+]/g, '').trim();
+      return nombre && wp ? (nombre + ' - ' + wp) : '';
+    })
+    .filter(Boolean);
+  if(!lines.length){ toast('No hay alumnos con WhatsApp para copiar'); return; }
+  const txt = lines.join('\n');
+  try{
+    await navigator.clipboard.writeText(txt);
+  }catch(e){
+    const ta = document.createElement('textarea');
+    ta.value = txt;
+    document.body.appendChild(ta);
+    ta.select();
+    document.execCommand('copy');
+    ta.remove();
+  }
+  toast('Lista de alumnos y WhatsApp copiada', true);
+};
 window.limpiarBusquedaAdmin = () => {
   const inp = document.getElementById('admin-person-search'); if(inp) inp.value = '';
   const box = document.getElementById('admin-search-results'); if(box){ box.classList.remove('on'); box.innerHTML=''; }
@@ -1610,7 +1685,8 @@ window.renderAlumnos = () => {
       '<div class="admin-metric"><div class="admin-metric-n" style="color:#fff;">$ ' + totalContratado.toLocaleString('es-AR') + '</div><div class="admin-metric-l">Total pactado</div></div>' +
       '<div class="admin-metric"><div class="admin-metric-n" style="color:#4caf7d;">$ ' + totalMonto.toLocaleString('es-AR') + '</div><div class="admin-metric-l">Total registrado</div></div>' +
       '<div class="admin-metric"><div class="admin-metric-n" style="color:#f5c842;">$ ' + totalSaldo.toLocaleString('es-AR') + '</div><div class="admin-metric-l">Saldo</div></div>' +
-    '</div>';
+    '</div>' +
+    '<div style="display:flex;gap:8px;flex-wrap:wrap;margin:12px 0 0;"><button class="bsm bl" onclick="window.copiarListaAlumnosWhatsApp()">📋 Copiar nombres + WhatsApp</button></div>';
 
   if (!lista.length) {
     tb.innerHTML = '<tr><td colspan="' + (mostrarCurso ? 10 : 9) + '" style="text-align:center;padding:40px;color:var(--text3);">Sin inscripciones para este filtro</td></tr>';
@@ -1650,6 +1726,27 @@ window.renderAlumnos = () => {
     const id = row.dataset.inscId;
     const i = inscripciones[id];
     const actions = row.querySelector('.action-mini');
+    if (i && i.marca) {
+      const name = row.querySelector('.student-name');
+      if (name && !name.querySelector('.student-mark-star')) name.insertAdjacentHTML('afterbegin', '<span class="student-mark-star" style="color:#f5c842;margin-right:5px;">★</span>');
+    }
+    if (i && actions && !actions.querySelector('.mark-insc-btn')) {
+      const mark = document.createElement('button');
+      mark.className = 'bsm mark-insc-btn';
+      mark.textContent = 'M';
+      mark.title = 'Marcar alumno';
+      if(i.marca){ mark.style.background = '#f5c842'; mark.style.color = '#111'; mark.style.borderColor = '#f5c842'; }
+      mark.onclick = () => window.toggleMarcaAlumno(id);
+      actions.insertBefore(mark, actions.firstChild);
+    }
+    if (i && actions && !actions.querySelector('.copy-insc-btn')) {
+      const copy = document.createElement('button');
+      copy.className = 'bsm bl copy-insc-btn';
+      copy.textContent = 'Copiar';
+      copy.title = 'Copiar mensaje para WhatsApp';
+      copy.onclick = () => window.copiarConfirmacionAlumno(id);
+      actions.insertBefore(copy, actions.children[1] || null);
+    }
     if (i && actions && !actions.querySelector('.edit-insc-btn')) {
       const btn = document.createElement('button');
       btn.className = 'bsm bl edit-insc-btn';
@@ -2034,8 +2131,10 @@ window.exportarExcel = () => {
   const hasDetalle = lista.some(([,i]) => i.detallePedido);
   const hasOpciones = lista.some(([,i]) => resumenConceptosContratados(i, cursos[i.cursoId]));
   const hasTutor = lista.some(([,i]) => i.tutorNombre || i.tutorWp);
+  const hasMarca = lista.some(([,i]) => i.marca);
   const includeAll = !selectedCourse;
   const cols = ['Nro','Nombre'];
+  if(hasMarca) cols.push('M');
   if(includeAll || cr.dni !== false) cols.push('DNI');
   if(includeAll || cr.edad !== false) cols.push('Edad');
   cols.push('Curso');
@@ -2055,6 +2154,7 @@ window.exportarExcel = () => {
     const cur = cursos[i.cursoId];
     const pinfo = getPagoAlumnoInfo(i, cur);
     const row = [idx+1, i.nombre||''];
+    if(hasMarca) row.push(i.marca ? 'M' : '');
     if(includeAll || cr.dni !== false) row.push(i.dni||'');
     if(includeAll || cr.edad !== false) row.push(i.edad||'');
     row.push(i.cursoTitulo || cur?.titulo || '');
@@ -2087,19 +2187,66 @@ window.exportarExcel = () => {
 window.exportarPDF = () => {
   const {filtro, lista} = getAlumnosFiltrados();
   const cn = filtro && cursos[filtro] ? cursos[filtro].titulo : 'Todos los cursos';
-  const especialHeader = (filtro && cursos[filtro] ? campoEspecialLabelCurso(cursos[filtro]) : '') || (lista.map(([,i]) => i.campoEspecialLabel || campoEspecialLabelCurso(cursos[i.cursoId])).find(Boolean)) || 'Dato especial';
+  const selectedCourse = filtro && cursos[filtro] ? cursos[filtro] : null;
+  const includeAll = !selectedCourse;
+  const cr = Object.assign({dni:true, edad:true, ig:true, email:false, altura:false, medidas:false}, selectedCourse?.camposReq || {});
+  const especialHeader = (selectedCourse ? campoEspecialLabelCurso(selectedCourse) : '') || (lista.map(([,i]) => i.campoEspecialLabel || campoEspecialLabelCurso(cursos[i.cursoId])).find(Boolean)) || 'Dato especial';
   const totalAbonado = lista.reduce((a,[,i]) => a + getPagoAlumnoInfo(i, cursos[i.cursoId]).monto, 0);
   const totalSaldo = lista.reduce((a,[,i]) => a + saldoAlumno(i, cursos[i.cursoId]), 0);
-  const rows = lista.map(([id,i], idx) => {
+  const hasMarca = lista.some(([,i]) => i.marca);
+  const hasEspecial = lista.some(([,i]) => String(i.campoEspecialValor || '').trim());
+  const hasDetalle = lista.some(([,i]) => i.detallePedido);
+  const hasOpciones = lista.some(([,i]) => resumenConceptosContratados(i, cursos[i.cursoId]));
+  const hasTutor = lista.some(([,i]) => i.tutorNombre || i.tutorWp);
+  const hasTurno = lista.some(([,i]) => i.turno || i.fechaTurno || i.fechaTurnoLabel);
+  const cols = ['#'];
+  if(hasMarca) cols.push('M');
+  cols.push('Nombre');
+  if(includeAll || cr.dni !== false) cols.push('DNI');
+  if(includeAll || cr.edad !== false) cols.push('Edad');
+  if(includeAll) cols.push('Curso');
+  if(hasEspecial) cols.push(especialHeader);
+  if(hasDetalle) cols.push('Detalle pedido');
+  cols.push('Localidad');
+  if(includeAll || cr.ig !== false) cols.push('Instagram');
+  cols.push('WhatsApp');
+  if(includeAll || hasTutor) cols.push('Tutor','WP tutor');
+  if(includeAll || cr.email) cols.push('Email');
+  if(includeAll || cr.altura) cols.push('Altura');
+  if(includeAll || cr.medidas) cols.push('Medidas');
+  cols.push('Fecha');
+  if(hasTurno) cols.push('Dia turno','Turno');
+  if(hasOpciones) cols.push('Conceptos pactados');
+  cols.push('Total','Abonado','Saldo');
+  const bodyRows = lista.map(([id,i], idx) => {
     const cur = cursos[i.cursoId];
     const pinfo = getPagoAlumnoInfo(i, cur);
-    const especialValor = String(i.campoEspecialValor || '').trim();
-    const especial = (i.campoEspecialLabel || campoEspecialLabelCurso(cur)) && especialValor ? especialValor : '-';
-    return '<tr><td>'+(idx+1)+'</td><td>'+escHtml(i.nombre||'')+'</td><td>'+escHtml(i.dni||'')+'</td><td>'+escHtml(i.edad||'')+'</td><td>'+escHtml(i.cursoTitulo || cur?.titulo || '')+'</td><td>'+escHtml(especial)+'</td><td>'+escHtml(i.detallePedido || '-')+'</td><td>'+escHtml(resumenConceptosContratados(i, cur) || '-')+'</td><td>$ '+totalContratadoAlumno(i, cur).toLocaleString('es-AR')+'</td><td>$ '+pinfo.monto.toLocaleString('es-AR')+'</td><td>$ '+saldoAlumno(i, cur).toLocaleString('es-AR')+'</td></tr>';
-  }).join('');
+    const row = [idx+1];
+    if(hasMarca) row.push(i.marca ? 'M' : '');
+    row.push(i.nombre || '');
+    if(includeAll || cr.dni !== false) row.push(i.dni || '');
+    if(includeAll || cr.edad !== false) row.push(i.edad || '');
+    if(includeAll) row.push(i.cursoTitulo || cur?.titulo || '');
+    if(hasEspecial) row.push(i.campoEspecialValor || '');
+    if(hasDetalle) row.push(i.detallePedido || '');
+    row.push(i.localidad || '');
+    if(includeAll || cr.ig !== false) row.push(i.ig ? '@' + String(i.ig).replace('@','') : '');
+    row.push(i.wp || '');
+    if(includeAll || hasTutor) row.push(i.tutorNombre || '', i.tutorWp || '');
+    if(includeAll || cr.email) row.push(i.email || '');
+    if(includeAll || cr.altura) row.push(i.altura || '');
+    if(includeAll || cr.medidas) row.push(i.medidas || '');
+    row.push(i.fecha || '');
+    if(hasTurno) row.push(labelFechaTurnoAlumno(i, cur) || '', i.turno || '');
+    if(hasOpciones) row.push(resumenConceptosContratados(i, cur) || '');
+    row.push('$ ' + totalContratadoAlumno(i, cur).toLocaleString('es-AR'), '$ ' + pinfo.monto.toLocaleString('es-AR'), '$ ' + saldoAlumno(i, cur).toLocaleString('es-AR'));
+    return row;
+  });
+  const rows = bodyRows.map(r => '<tr>' + r.map(v => '<td>' + escHtml(v || '-') + '</td>').join('') + '</tr>').join('');
+  const head = '<tr>' + cols.map(c => '<th>' + escHtml(c) + '</th>').join('') + '</tr>';
   const win = window.open('', '_blank');
   if(!win) return;
-  win.document.write('<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Tomauno</title><link rel="stylesheet" href="css/03-style-03.css"/></head><body><div class="head"><div class="brand">TOMA<span>UNO</span></div><div class="course-title">'+escHtml(cn)+'</div><div class="meta">Planilla de alumnos - '+new Date().toLocaleDateString('es-AR')+'</div></div><div class="summary"><div class="box">Inscriptos: '+lista.length+'</div><div class="box">Abonado: $ '+totalAbonado.toLocaleString('es-AR')+'</div><div class="box">Saldo: $ '+totalSaldo.toLocaleString('es-AR')+'</div></div><table><thead><tr><th>#</th><th>Nombre</th><th>DNI</th><th>Edad</th><th>Curso</th><th>'+escHtml(especialHeader)+'</th><th>Detalle pedido</th><th>Conceptos pactados</th><th>Total</th><th>Abonado</th><th>Saldo</th></tr></thead><tbody>'+rows+'</tbody></table></body></html>');
+  win.document.write('<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Tomauno</title><link rel="stylesheet" href="css/03-style-03.css"/><style>@media print{@page{size:landscape;margin:8mm}}table{font-size:10px;width:100%;border-collapse:collapse}th{background:#e8000a!important;color:#fff!important}th,td{padding:5px 6px;border:1px solid #d8d8d8;vertical-align:top}td{word-break:break-word}.course-title{max-width:100%;white-space:normal}</style></head><body><div class="head"><div class="brand">TOMA<span>UNO</span></div><div class="course-title">'+escHtml(cn)+'</div><div class="meta">Planilla de alumnos - '+new Date().toLocaleDateString('es-AR')+'</div></div><div class="summary"><div class="box">Inscriptos: '+lista.length+'</div><div class="box">Abonado: $ '+totalAbonado.toLocaleString('es-AR')+'</div><div class="box">Saldo: $ '+totalSaldo.toLocaleString('es-AR')+'</div></div><table><thead>'+head+'</thead><tbody>'+rows+'</tbody></table></body></html>');
   win.document.close();
   setTimeout(() => win.print(), 400);
 };
@@ -6820,8 +6967,11 @@ window.guardarEdit = async function(id){
   const horaFin = document.getElementById('ec-h-fin')?.value || '';
   const duracion = parseInt(document.getElementById('ec-dur')?.value) || 0;
   const descansos = document.getElementById('ec-descansos')?.value.trim() || '';
+  const redirectUrl = document.getElementById('ec-redirect-url')?.value.trim() || '';
+  const redirectAuto = !!document.getElementById('ec-redirect-auto')?.checked;
+  const redirectMsg = document.getElementById('ec-redirect-msg')?.value.trim() || '';
   await __guardarEdit_v339(id);
-  await update(ref(db,'tomauno/cursos/'+id), {tipo:tipoEdit, grupoWAAuto: !!document.getElementById('ec-grupo-wa-auto')?.checked, profesor:prof, disertante:prof, campoEspecialLabel, diasTurnos, opcionesTexto, horaInicio:horaInicio || '09:00', horaFin:horaFin || '22:00', duracion:duracion || 30, descansos});
+  await update(ref(db,'tomauno/cursos/'+id), {tipo:tipoEdit, grupoWAAuto: !!document.getElementById('ec-grupo-wa-auto')?.checked, redirectUrl, redirectAuto, redirectMsg, profesor:prof, disertante:prof, campoEspecialLabel, diasTurnos, opcionesTexto, horaInicio:horaInicio || '09:00', horaFin:horaFin || '22:00', duracion:duracion || 30, descansos});
   cerrarBandejaChatSiSeAbrioPorGuardarCurso();
 };
 
