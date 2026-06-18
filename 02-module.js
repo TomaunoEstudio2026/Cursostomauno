@@ -1,6 +1,6 @@
 // Extraído de <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
-import { getDatabase, ref, onValue, update, push, remove, set, onDisconnect, get } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js";
+import { getDatabase, ref, onValue, update, push, remove, set, onDisconnect, get, runTransaction } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js";
 
 function setDbStatus(s){
   const el=document.getElementById('db-status'),lb=document.getElementById('db-label');
@@ -20,9 +20,20 @@ const app = initializeApp({
 });
 const db = getDatabase(app);
 
+window.__tomaunoClaimHumanFallback = async function(chatId){
+  if(!chatId) return false;
+  try{
+    const res = await runTransaction(ref(db,'tomauno/chats/'+chatId+'/humanFallbackLockAt'), current => current ? undefined : Date.now());
+    return !!res.committed;
+  }catch(e){
+    return false;
+  }
+};
+
 // ── PRESENCIA / USUARIOS ONLINE ─────────────────────────────────────────────
 const PRESENCE_ID = sessionStorage.getItem('tomauno_presence_id') || ('web_' + Date.now() + '_' + Math.random().toString(36).slice(2,8));
 sessionStorage.setItem('tomauno_presence_id', PRESENCE_ID);
+let prevPresenceOnline = 0, presenceOnlineReady = false;
 try {
   const presenceRef = ref(db, 'tomauno/presence/' + PRESENCE_ID);
   set(presenceRef, {online:true, ts:Date.now(), ua:navigator.userAgent.slice(0,80)});
@@ -33,6 +44,11 @@ try {
     const vals = snap.exists() ? Object.values(snap.val() || {}) : [];
     const online = vals.filter(v => v && v.ts && now - v.ts < 90000).length;
     ['online-count'].forEach(id => { const el=document.getElementById(id); if(el) el.textContent = online; });
+    if(presenceOnlineReady && online > prevPresenceOnline && isAdminNotifier()) {
+      try{ beep(); }catch(e){}
+    }
+    prevPresenceOnline = online;
+    presenceOnlineReady = true;
   });
 } catch(e) {}
 
@@ -109,12 +125,316 @@ function updateAdminLiveIndicator(){
 }
 setInterval(updateAdminLiveIndicator, 5000);
 
-let cursos = {}, inscripciones = {}, serviciosDB = {}, servicioRegsDB = {}, testimoniosDB = {}, prevCount = 0, prevEventosCount = 0, prevTestCount = 0, prevServiciosCount = 0, prevEvRegsCount = 0, eventosDB = {}, evInscDB = {};
+let cursos = {}, inscripciones = {}, serviciosDB = {}, servicioRegsDB = {}, testimoniosDB = {}, prevCount = 0, prevEventosCount = 0, prevTestCount = 0, prevServiciosCount = 0, prevEvRegsCount = 0, eventosDB = {}, evInscDB = {}, activityDB = {}, chatsDB = {}, adminStatus = {adminOnline:false, adminLast:0};
+
+const ACTIVITY_SEEN_KEY = 'tomauno-activity-seen-at';
+const ACTIVITY_FILTER_KEY = 'tomauno-activity-filter';
+let activitySeenAt = (() => {
+  try {
+    const raw = localStorage.getItem(ACTIVITY_SEEN_KEY);
+    if(raw) return Number(raw || 0);
+    const now = Date.now();
+    localStorage.setItem(ACTIVITY_SEEN_KEY, String(now));
+    return now;
+  } catch(e) { return Date.now(); }
+})();
+let activityFilter = (() => { try { return localStorage.getItem(ACTIVITY_FILTER_KEY) || '24h'; } catch(e) { return '24h'; } })();
+
+function activityTs(v){
+  const n = Number(v || 0);
+  return Number.isFinite(n) && n > 0 ? n : 0;
+}
+
+function activityDateLabel(ts){
+  const d = new Date(activityTs(ts) || Date.now());
+  return d.toLocaleDateString('es-AR') + ' ' + d.toLocaleTimeString('es-AR', {hour:'2-digit', minute:'2-digit'});
+}
+
+function activityRowId(prefix, id, ts){
+  return String(prefix || 'act') + '_' + String(id || 'x').replace(/[^\w-]/g,'_') + '_' + String(activityTs(ts) || '').slice(0,13);
+}
+
+window.registrarActividadTomauno = async function(kind, data={}){
+  try{
+    if(!kind) return;
+    const ts = activityTs(data.ts) || Date.now();
+    const id = data.id || activityRowId(kind, data.targetId || data.name || 'item', ts);
+    await update(ref(db, 'tomauno/activity/' + id), {
+      kind,
+      ts,
+      title: String(data.title || ''),
+      name: String(data.name || ''),
+      detail: String(data.detail || ''),
+      targetType: String(data.targetType || ''),
+      targetId: String(data.targetId || ''),
+      createdAt: Date.now()
+    });
+  }catch(e){}
+};
+
+function activityItemsFromState(){
+  const rows = [];
+  Object.entries(inscripciones || {}).forEach(([id,i]) => {
+    const ts = activityTs(i.creado || i.createdAt);
+    if(!ts) return;
+    rows.push({
+      id:'curso_' + id,
+      ts,
+      kind:'inscripcion',
+      title:'Nueva inscripcion',
+      name:i.nombre || 'Alumno',
+      detail:i.cursoTitulo || 'Curso',
+      targetType:'curso',
+      targetId:i.cursoId || ''
+    });
+  });
+  Object.entries(evInscDB || {}).forEach(([id,i]) => {
+    const ts = activityTs(i.creado || i.createdAt);
+    if(!ts) return;
+    rows.push({
+      id:'evento_insc_' + id,
+      ts,
+      kind:'evento_insc',
+      title:'Inscripcion a evento',
+      name:i.nombre || 'Alumno',
+      detail:i.evTitulo || 'Evento',
+      targetType:'evento',
+      targetId:i.evId || ''
+    });
+  });
+  Object.entries(servicioRegsDB || {}).forEach(([id,i]) => {
+    const ts = activityTs(i.creado || i.createdAt || i.fechaTs);
+    if(!ts) return;
+    rows.push({
+      id:'servicio_reg_' + id,
+      ts,
+      kind:'servicio',
+      title:'Solicitud de servicio',
+      name:i.nombre || i.name || 'Cliente',
+      detail:i.titulo || i.servicioTitulo || i.servicio || 'Servicio',
+      targetType:'servicios',
+      targetId:''
+    });
+  });
+  Object.entries(testimoniosDB || {}).forEach(([id,t]) => {
+    const ts = activityTs(t.creado || t.createdAt);
+    if(!ts) return;
+    rows.push({
+      id:'testimonio_' + id,
+      ts,
+      kind:'testimonio',
+      title:'Resena pendiente',
+      name:t.name || 'Alumno',
+      detail:t.course || t.text || '',
+      targetType:'testimonios',
+      targetId:''
+    });
+  });
+  Object.entries(chatsDB || {}).forEach(([id,c]) => {
+    if(!c || c.status === 'cerrado') return;
+    const msgs = typeof chatMsgs === 'function' ? chatMsgs(c) : [];
+    const userMsgs = msgs.filter(([,m]) => m && m.from === 'user' && !m.typing && String(m.text || '').trim());
+    const last = userMsgs.length ? userMsgs[userMsgs.length - 1][1] : null;
+    if(last){
+      const text = String(last.text || '').trim();
+      const isCallOnly = typeof window.tuEsPedidoHumano === 'function' && window.tuEsPedidoHumano(text);
+      if(!isCallOnly){
+        const ts = activityTs(last.createdAt || c.updatedAt);
+        rows.push({
+          id:'chat_' + id + '_' + String(ts || ''),
+          ts,
+          kind:'chat',
+          title:'Mensaje de chat',
+          name:(typeof chatVisibleName === 'function' ? chatVisibleName(c,id) : (c.name || 'Visitante')),
+          detail:text,
+          targetType:'chat',
+          targetId:id
+        });
+      }
+    }
+    if(c.humanContactReceived && c.humanContactText){
+      const ts = activityTs(c.humanContactAt || c.updatedAt);
+      rows.push({
+        id:'consulta_javier_' + id,
+        ts,
+        kind:'consulta',
+        title:'Consulta pendiente para Javier',
+        name:(typeof chatVisibleName === 'function' ? chatVisibleName(c,id) : (c.name || 'Visitante')),
+        detail:c.humanContactText,
+        targetType:'chat',
+        targetId:id
+      });
+    }
+  });
+  Object.entries(activityDB || {}).forEach(([id,a]) => {
+    if(!a || !a.ts) return;
+    rows.push({
+      id:'db_' + id,
+      ts:activityTs(a.ts),
+      kind:a.kind || 'actividad',
+      title:a.title || 'Actividad',
+      name:a.name || '',
+      detail:a.detail || '',
+      targetType:a.targetType || '',
+      targetId:a.targetId || ''
+    });
+  });
+  const seen = new Map();
+  return rows
+    .filter(r => r && r.ts)
+    .sort((a,b) => b.ts - a.ts)
+    .filter(r => {
+      if(seen.has(r.id)) return false;
+      seen.set(r.id, 1);
+      return true;
+    });
+}
+
+function openActivityTarget(item){
+  if(!item) return;
+  if(item.targetType === 'chat' && item.targetId && typeof window.abrirChatAdmin === 'function') return window.abrirChatAdmin(item.targetId, true);
+  if(item.targetType === 'curso' && item.targetId && typeof window.irAPlanillaCurso === 'function') return window.irAPlanillaCurso(item.targetId);
+  if(item.targetType === 'evento' && item.targetId && typeof window.irAPlanillaEvento === 'function') return window.irAPlanillaEvento(item.targetId);
+  if(item.targetType === 'servicios' && typeof window.irAAdminTab === 'function') return window.irAAdminTab('servicios-adm');
+  if(item.targetType === 'testimonios' && typeof window.irAAdminTab === 'function') return window.irAAdminTab('testimonios-adm');
+}
+
+function updateActivityIndicator(){
+  const items = activityItemsFromState();
+  const unread = items.filter(x => x.ts > activitySeenAt).length;
+  const badge = document.getElementById('historial-badge');
+  if(badge){
+    badge.textContent = unread ? String(Math.min(unread, 99)) : '';
+    badge.style.display = unread ? 'inline-flex' : 'none';
+  }
+  const btn = document.getElementById('admin-historial-btn');
+  if(btn) btn.classList.toggle('has-activity', unread > 0);
+}
+
+function renderHistorialAdmin(){
+  ensureHistorialAdminUi();
+  const box = document.getElementById('historial-list');
+  if(!box) return;
+  const items = activityItemsFromState();
+  const sinceDay = Date.now() - 1000 * 60 * 60 * 24;
+  const recientes = items.filter(x => x.ts >= sinceDay);
+  const list = items.slice(0, 160);
+  const openBtn = item => item.targetType ? '<button class="bsm bl" onclick="window.abrirActividadTomauno(\''+escAttr(item.id)+'\')">Abrir</button>' : '';
+  box.innerHTML = list.length ? list.map(item => {
+    const fresh = item.ts > activitySeenAt;
+    return '<div class="admin-ci '+(fresh?'activity-new':'')+'">' +
+      '<div class="admin-ci-info">' +
+        '<div class="admin-ci-tit">'+(fresh ? '<span class="activity-clock">&#128344;</span> ' : '')+escHtml(item.title || 'Actividad')+'</div>' +
+        '<div class="admin-ci-sub"><b>'+escHtml(item.name || '-')+'</b>'+(item.detail ? ' · '+escHtml(String(item.detail).slice(0,180)) : '')+'</div>' +
+        '<div class="admin-ci-sub">'+escHtml(activityDateLabel(item.ts))+'</div>' +
+      '</div>' +
+      '<div style="display:flex;gap:6px;align-items:center;">'+openBtn(item)+'</div>' +
+    '</div>';
+  }).join('') : '<div style="color:var(--text3);font-size:13px;padding:18px;text-align:center;">Sin actividad registrada todavia.</div>';
+  const summary = document.getElementById('historial-summary');
+  if(summary) summary.textContent = recientes.length + ' actividad' + (recientes.length !== 1 ? 'es' : '') + ' en las ultimas 24 hs · ' + items.length + ' total';
+  activitySeenAt = Date.now();
+  try{ localStorage.setItem(ACTIVITY_SEEN_KEY, String(activitySeenAt)); }catch(e){}
+  updateActivityIndicator();
+}
+
+window.abrirActividadTomauno = function(id){
+  const item = activityItemsFromState().find(x => x.id === id);
+  openActivityTarget(item);
+};
+
+function ensureHistorialAdminUi(){
+  if(!document.getElementById('admin-section')) return;
+  let st = document.getElementById('historial-admin-style');
+  if(!st){
+    st = document.createElement('style');
+    st.id = 'historial-admin-style';
+    document.head.appendChild(st);
+  }
+  st.textContent = '#admin-historial-btn.has-activity,#admin-historial-top-btn.has-activity{border-color:rgba(232,0,10,.8)!important;box-shadow:0 0 0 1px rgba(232,0,10,.28),0 0 18px rgba(232,0,10,.18)!important}.activity-new{border-color:rgba(232,0,10,.75)!important;background:rgba(232,0,10,.06)!important}.activity-clock{color:#f5c842}.activity-row{padding:15px 16px!important;border-left:5px solid rgba(255,255,255,.16)!important;cursor:pointer!important}.activity-title{font-size:16px!important;color:#fff!important;line-height:1.35!important}.activity-detail{font-size:14px!important;color:rgba(255,255,255,.82)!important;line-height:1.45!important}.activity-detail b{color:#fff!important}.activity-date{font-size:12px!important;color:rgba(255,255,255,.58)!important;margin-top:5px!important}.activity-pill{display:inline-flex;align-items:center;border-radius:999px;padding:3px 9px;margin-right:7px;font-size:10px;font-weight:900;text-transform:uppercase;background:rgba(255,255,255,.09);color:#fff}.activity-kind-chat{border-left-color:#4aa3ff!important}.activity-kind-inscripcion{border-left-color:#4caf7d!important}.activity-kind-evento_insc{border-left-color:#f5c842!important}.activity-kind-servicio{border-left-color:#a78bfa!important}.activity-kind-consulta,.activity-kind-consulta_pendiente{border-left-color:#ff4d4d!important}.activity-kind-testimonio{border-left-color:#ff78c8!important}.historial-filters{display:flex!important;gap:8px!important;flex-wrap:wrap!important;margin:0 0 16px!important}.historial-filters button{appearance:none!important;border:1px solid rgba(255,255,255,.12)!important;background:#101010!important;color:rgba(255,255,255,.78)!important;border-radius:999px!important;padding:9px 13px!important;font-size:12px!important;font-weight:900!important;font-family:var(--font)!important;cursor:pointer!important}.historial-filters button.on{background:var(--red)!important;border-color:var(--red)!important;color:#fff!important}#historial-top-badge,#historial-badge{align-items:center;justify-content:center;min-width:18px;height:18px;margin-left:6px;padding:0 5px;border-radius:999px;background:#e8000a;color:#fff;font-size:10px;font-weight:900;}#admin-historial-top-btn{display:none}body.tomauno-admin-active #admin-historial-top-btn{display:inline-flex!important}#admin-historial-top-btn #historial-top-badge{position:absolute;right:-7px;top:-7px;margin:0!important}';
+  updateActivityIndicator();
+}
+window.ensureHistorialAdminUi = ensureHistorialAdminUi;
+window.renderHistorialAdmin = renderHistorialAdmin;
+setTimeout(ensureHistorialAdminUi, 600);
+setInterval(ensureHistorialAdminUi, 3000);
+
+// Historial admin: filtro y lectura visual mejorada.
+(function(){
+  function kindLabel(item){
+    return item.kind === 'chat' ? 'Chat' :
+      item.kind === 'evento_insc' ? 'Evento' :
+      item.kind === 'servicio' ? 'Servicio' :
+      (item.kind === 'consulta' || item.kind === 'consulta_pendiente') ? 'Javier' :
+      item.kind === 'testimonio' ? 'Resena' : 'Curso';
+  }
+  function applyFilter(items){
+    const sinceDay = Date.now() - 1000 * 60 * 60 * 24;
+    const sinceWeek = Date.now() - 1000 * 60 * 60 * 24 * 7;
+    return items.filter(item => {
+      if(activityFilter === '24h') return item.ts >= sinceDay;
+      if(activityFilter === 'week') return item.ts >= sinceWeek;
+      if(activityFilter === 'chat') return item.kind === 'chat';
+      if(activityFilter === 'insc') return item.kind === 'inscripcion' || item.kind === 'evento_insc' || item.kind === 'servicio';
+      if(activityFilter === 'consulta') return item.kind === 'consulta' || item.kind === 'consulta_pendiente';
+      return true;
+    });
+  }
+  updateActivityIndicator = function(){
+    const items = activityItemsFromState();
+    const unread = items.filter(x => x.ts > activitySeenAt).length;
+    const topBtn = document.getElementById('admin-historial-top-btn');
+    if(topBtn) topBtn.style.display = (typeof isAdminNotifier === 'function' && isAdminNotifier()) ? 'inline-flex' : 'none';
+    [document.getElementById('historial-badge'), document.getElementById('historial-top-badge')].filter(Boolean).forEach(badge => {
+      badge.textContent = unread ? String(Math.min(unread, 99)) : '';
+      badge.style.display = unread ? 'inline-flex' : 'none';
+    });
+    [document.getElementById('admin-historial-btn'), document.getElementById('admin-historial-top-btn')].filter(Boolean).forEach(btn => btn.classList.toggle('has-activity', unread > 0));
+  };
+  renderHistorialAdmin = function(){
+    ensureHistorialAdminUi();
+    const box = document.getElementById('historial-list');
+    if(!box) return;
+    const items = activityItemsFromState();
+    const sinceDay = Date.now() - 1000 * 60 * 60 * 24;
+    const recientes = items.filter(x => x.ts >= sinceDay);
+    const filtered = applyFilter(items);
+    const list = filtered.slice(0, 160);
+    box.innerHTML = list.length ? list.map(item => {
+      const fresh = item.ts > activitySeenAt;
+      return '<div class="admin-ci activity-row activity-kind-'+escAttr(item.kind)+' '+(fresh?'activity-new':'')+'" onclick="window.abrirActividadTomauno(\''+escAttr(item.id)+'\')">' +
+        '<div class="admin-ci-info">' +
+          '<div class="admin-ci-tit activity-title">'+(fresh ? '<span class="activity-clock">&#128344;</span> ' : '')+'<span class="activity-pill">'+escHtml(kindLabel(item))+'</span> '+escHtml(item.title || 'Actividad')+'</div>' +
+          '<div class="admin-ci-sub activity-detail"><b>'+escHtml(item.name || '-')+'</b>'+(item.detail ? '<br><span>'+escHtml(String(item.detail).slice(0,220))+'</span>' : '')+'</div>' +
+          '<div class="admin-ci-sub activity-date">'+escHtml(activityDateLabel(item.ts))+'</div>' +
+        '</div>' +
+    '</div>';
+    }).join('') : '<div style="color:var(--text2);font-size:14px;padding:18px;text-align:center;">Sin actividad para este filtro.</div>';
+    const summary = document.getElementById('historial-summary');
+    if(summary) summary.textContent = recientes.length + ' actividad' + (recientes.length !== 1 ? 'es' : '') + ' en las ultimas 24 hs - mostrando ' + list.length + ' de ' + filtered.length + ' - ' + items.length + ' total';
+    activitySeenAt = Date.now();
+    try{ localStorage.setItem(ACTIVITY_SEEN_KEY, String(activitySeenAt)); }catch(e){}
+    updateActivityIndicator();
+  };
+  window.filtrarHistorialTomauno = function(filter){
+    activityFilter = filter || '24h';
+    try{ localStorage.setItem(ACTIVITY_FILTER_KEY, activityFilter); }catch(e){}
+    document.querySelectorAll('[data-activity-filter]').forEach(btn => btn.classList.toggle('on', btn.dataset.activityFilter === activityFilter));
+    renderHistorialAdmin();
+  };
+  const oldEnsure = ensureHistorialAdminUi;
+  ensureHistorialAdminUi = function(){
+    oldEnsure();
+    document.querySelectorAll('[data-activity-filter]').forEach(btn => btn.classList.toggle('on', btn.dataset.activityFilter === activityFilter));
+  };
+  window.ensureHistorialAdminUi = ensureHistorialAdminUi;
+  window.renderHistorialAdmin = renderHistorialAdmin;
+})();
 
 onValue(ref(db, 'tomauno/cursos'), s => {
   setDbStatus('online');
   cursos = s.exists() ? s.val() : {};
-  renderCursos(); renderAdminCursos(); renderFiltros(); updateStats(); renderFiltroTestimonios();
+  renderCursos(); renderAdminCursos(); renderFiltros(); updateStats(); renderFiltroTestimonios(); updateActivityIndicator();
 });
 
 onValue(ref(db, 'tomauno/inscripciones'), s => {
@@ -129,7 +449,7 @@ onValue(ref(db, 'tomauno/inscripciones'), s => {
     if(isAdminNotifier()){beep();showNotifBanner('Nueva inscripción', nombre + (curso ? ' · ' + curso : ''), '👥', () => window.irAPlanillaCurso(newest?.cursoId));showNotif();}
   }
   prevCount = c;
-  renderCursos(); renderAdminCursos(); renderAlumnos(); renderFiltros(); updateStats();
+  renderCursos(); renderAdminCursos(); renderAlumnos(); renderFiltros(); updateStats(); updateActivityIndicator();
 });
 
 onValue(ref(db, 'tomauno/servicios'), s => {
@@ -144,12 +464,14 @@ onValue(ref(db, 'tomauno/servicios'), s => {
   renderServiciosAdmin();
   renderServiciosPublicos();
   updateStats();
+  updateActivityIndicator();
 });
 
 onValue(ref(db, 'tomauno/servicioRegs'), s => {
   servicioRegsDB = s.exists() ? s.val() : {};
   renderServiciosPublicos();
   renderServiciosAdmin();
+  updateActivityIndicator();
 });
 
 
@@ -168,6 +490,13 @@ onValue(ref(db, 'tomauno/testimonios'), s => {
   renderTestimonios();
   renderTestimoniosAdmin();
   updateStats();
+  updateActivityIndicator();
+});
+
+onValue(ref(db, 'tomauno/activity'), s => {
+  activityDB = s.exists() ? s.val() : {};
+  updateActivityIndicator();
+  if(document.getElementById('atab-historial-adm')?.style.display === 'block') renderHistorialAdmin();
 });
 
 // ── STATS ─────────────────────────────────────────────────────────────────────
@@ -228,7 +557,7 @@ function renderCursos() {
       '<div class="ctitle">' + (c.titulo || 'Sin título') + '</div>' +
       '<div class="cdesc">' + (c.desc || '').replace(/\n/g, ' ') + '</div>' +
       '<div class="cmeta">' +
-      (c.fecha ? '<span class="chip">📅 ' + fFecha(c.fecha) + '</span>' : '') +
+      (fechasCursoLabel(c) ? '<span class="chip">📅 ' + escHtml(fechasCursoLabel(c)) + '</span>' : '') +
       (c.hora ? '<span class="chip">⏰ ' + c.hora + '</span>' : '') +
       (c.lugar ? '<span class="chip">📍 ' + (c.lugar.split('-')[0].trim()) + '</span>' : '') +
       (!c.cupos ? '<span class="chip">👥 ' + insc + ' inscripto' + (insc !== 1 ? 's' : '') + '</span>' : '') +
@@ -260,12 +589,12 @@ window.abrirDetalle = (id) => {
     '<div class="mtitle">' + (c.titulo || 'Sin título') + '</div>' +
     '<div class="msub">' + insc + ' inscripto' + (insc !== 1 ? 's' : '') + (c.cupos > 0 ? ' · ' + (c.cupos - insc) + ' cupos restantes' : '') + '</div>' +
     '<div class="cmeta" style="margin-bottom:18px;">' +
-    (c.fecha ? '<span class="chip">📅 ' + fFecha(c.fecha) + '</span>' : '') +
+    (fechasCursoLabel(c) ? '<span class="chip">📅 ' + escHtml(fechasCursoLabel(c)) + '</span>' : '') +
     (c.hora ? '<span class="chip">⏰ ' + c.hora + '</span>' : '') +
     (c.lugar ? '<span class="chip">📍 ' + c.lugar + '</span>' : '') +
     (c.costo ? '<span class="chip accent">💰 $ ' + Number(c.costo).toLocaleString('es-AR') + '</span>' : '<span class="chip" style="color:#00d25a;">✦ GRATIS</span>') +
     '</div>' +
-    '<div style="font-size:14px;color:var(--text2);line-height:1.7;white-space:pre-line;margin-bottom:18px;">' + (c.desc || '') + '</div>' +
+    '<div style="font-size:14px;color:var(--text2);line-height:1.7;white-space:pre-line;margin-bottom:18px;">' + renderInfoText(c.desc || '') + '</div>' +
     '<div class="det-links">' +
     (c.ig ? '<a rel="noopener noreferrer" href="https://instagram.com/' + c.ig + '" target="_blank" class="det-link ig">📸 @' + c.ig + '</a>' : '') +
     (c.wp ? '<a rel="noopener noreferrer" href="https://wa.me/549' + c.wp.replace(/\D/g, '') + '" target="_blank" class="det-link wp">💬 Consultar</a>' : '') +
@@ -282,32 +611,45 @@ window.abrirDetalle = (id) => {
 };
 
 // ── INSCRIPCION ───────────────────────────────────────────────────────────────
-window.abrirInscripcion = (id) => {
+window.abrirInscripcion = (id, inscId = '') => {
   const c = cursos[id]; if (!c) return;
+  const edit = inscId && inscripciones[inscId] ? inscripciones[inscId] : null;
   const cr = Object.assign({dni:true, edad:true, ig:true, email:false, altura:false, medidas:false}, c.camposReq || {});
   const esSes = c.tipo === 'sesiones';
-  const dniField = (!esSes && cr.dni !== false) ? '<input class="finput" id="f-dni" placeholder="DNI *" type="number"/>' : '<input type="hidden" id="f-dni" value="0"/>';
-  const edadField = cr.edad !== false ? '<input class="finput" id="f-edad" placeholder="Edad *" type="number" oninput="window.chkMenor()"/>' : '<input type="hidden" id="f-edad" value="18"/>';
-  const igField = cr.ig !== false ? '<input class="finput" id="f-ig" placeholder="Instagram (sin @)"/>' : '';
-  const emailField = cr.email ? '<input class="finput" id="f-email" placeholder="Email *" type="email"/>' : '';
+  const dniField = (!esSes && cr.dni !== false) ? '<input class="finput" id="f-dni" placeholder="DNI *" type="text" inputmode="numeric" autocomplete="off" value="'+escAttr(edit?.dni || '')+'"/>' : '<input type="hidden" id="f-dni" value="'+escAttr(edit?.dni || '0')+'"/>';
+  const edadField = cr.edad !== false ? '<input class="finput" id="f-edad" placeholder="Edad *" type="text" inputmode="numeric" autocomplete="off" oninput="window.chkMenor()" value="'+escAttr(edit?.edad || '')+'"/>' : '<input type="hidden" id="f-edad" value="'+escAttr(edit?.edad || '18')+'"/>';
+  const igField = cr.ig !== false ? '<input class="finput" id="f-ig" placeholder="Instagram (sin @)" value="'+escAttr(edit?.ig || '')+'"/>' : '';
+  const emailField = cr.email ? '<input class="finput" id="f-email" placeholder="Email *" type="email" value="'+escAttr(edit?.email || '')+'"/>' : '';
   const alturaRow = (cr.altura || cr.medidas)
-    ? '<div class="frow2" style="gap:8px;margin-bottom:8px;">' + (cr.altura ? '<input class="finput" id="f-altura" placeholder="Altura (ej: 1,62)" style="margin:0;"/>' : '') + (cr.medidas ? '<input class="finput" id="f-medidas" placeholder="Medidas (ej: 78/59/79)" style="margin:0;"/>' : '') + '</div>'
+    ? '<div class="frow2" style="gap:8px;margin-bottom:8px;">' + (cr.altura ? '<input class="finput" id="f-altura" placeholder="Altura (ej: 1,62)" value="'+escAttr(edit?.altura || '')+'" style="margin:0;"/>' : '') + (cr.medidas ? '<input class="finput" id="f-medidas" placeholder="Medidas (ej: 78/59/79)" value="'+escAttr(edit?.medidas || '')+'" style="margin:0;"/>' : '') + '</div>'
     : '';
   document.getElementById('mcontent').innerHTML =
     '<div class="mtitle">INSCRIPCIÓN</div>' +
     '<div class="msub">' + (c.titulo || '') + (c.fecha ? ' · ' + fFecha(c.fecha) : '') + '</div>' +
     '<div class="mlbl">Datos personales</div>' +
-    '<input class="finput" id="f-nom" placeholder="Nombre y apellido *"/>' +
-    dniField + edadField + '<input class="finput" id="f-localidad" placeholder="Localidad (opcional)"/>' + igField + emailField + alturaRow +
-    '<input class="finput" id="f-wp" placeholder="WhatsApp * ej: 3764123456" type="tel"/>' +
+    '<input class="finput" id="f-nom" placeholder="Nombre y apellido *" value="'+escAttr(edit?.nombre || '')+'"/>' +
+    dniField + edadField + '<input class="finput" id="f-localidad" placeholder="Localidad (opcional)" value="'+escAttr(edit?.localidad || '')+'"/>' + campoEspecialHtml(c, edit) + igField + emailField + alturaRow +
+    '<input class="finput" id="f-wp" placeholder="WhatsApp * ej: 3764123456" type="tel" value="'+escAttr(edit?.wp || '')+'"/>' +
     '<div id="tutor-box" style="display:none;">' +
     '<div class="mlbl" style="color:#f5c842;">⚠️ Menor de edad — Datos del tutor/a</div>' +
-    '<div class="tutor-box"><input class="finput" id="f-tnombre" placeholder="Nombre del tutor/a"/><input class="finput" id="f-twp" placeholder="WhatsApp del tutor/a *" type="tel"/></div>' +
+    '<div class="tutor-box"><input class="finput" id="f-tnombre" placeholder="Nombre del tutor/a" value="'+escAttr(edit?.tutorNombre || '')+'"/><input class="finput" id="f-twp" placeholder="WhatsApp del tutor/a *" type="tel" value="'+escAttr(edit?.tutorWp || '')+'"/></div>' +
     '</div>' +
+    opcionesCursoHtml(c, edit?.opcionesElegidas || []) +
+    '<div class="mlbl">Detalle del pedido / aclaraciones</div>' +
+    '<textarea class="finput" id="f-detalle-pedido" rows="3" placeholder="Dejanos tu inquietud o detalle para tenerlo en cuenta">'+escHtml(edit?.detallePedido || '')+'</textarea>' +
     '<div style="font-size:11px;color:var(--text3);margin:6px 0 14px;">* Campos obligatorios</div>' +
-    '<button class="btn-main" onclick="window.confirmarInsc(\'' + id + '\')">✅ Confirmar inscripción</button>' +
+    '<button class="btn-main" id="btn-confirmar-insc" onclick="window.confirmarInsc(\'' + id + '\')">✅ Confirmar inscripción</button>' +
     '<button class="btn-out" onclick="window.closeModal()">Cancelar</button>';
   openModal();
+  if (edit) {
+    const btn = document.querySelector('#mcontent .btn-main');
+    if (btn) {
+      btn.textContent = 'Guardar cambios';
+      btn.onclick = () => window.guardarInscCursoEdit(inscId);
+    }
+  }
+  window.chkMenor();
+  window.actualizarTotalOpcionesCurso();
 };
 
 window.chkMenor = () => {
@@ -316,6 +658,104 @@ window.chkMenor = () => {
   const b = document.getElementById('tutor-box');
   if (b) b.style.display = e > 0 && e < 18 ? 'block' : 'none';
 };
+
+function parseOpcionesTexto(raw){
+  return String(raw || '')
+    .split(/[\n;]+/)
+    .map(x => x.trim())
+    .filter(Boolean)
+    .map(line => {
+      const parts = line.split(',');
+      const nombre = (parts.shift() || '').trim();
+      const precioRaw = parts.join(',').trim();
+      const precio = parseInt(String(precioRaw).replace(/\$/g,'').replace(/\./g,'').replace(/[^\d-]/g,''), 10) || 0;
+      return nombre ? {nombre, precio} : null;
+    })
+    .filter(Boolean);
+}
+function dineroOpt(n){ return '$ ' + Number(n || 0).toLocaleString('es-AR'); }
+function resumenOpcionesElegidas(i){
+  const ops = Array.isArray(i?.opcionesElegidas) ? i.opcionesElegidas : [];
+  if(!ops.length) return '';
+  return ops.map(o => (o.nombre || '') + (o.precio ? ' (' + dineroOpt(o.precio) + ')' : '')).join(' · ');
+}
+function conceptosContratadosAlumno(i, cur){
+  const arr = [];
+  const base = Number(cur?.costo || 0) || 0;
+  if(base > 0) arr.push({nombre:'Precio base', precio:base});
+  (Array.isArray(i?.opcionesElegidas) ? i.opcionesElegidas : []).forEach(o => {
+    if(o && o.nombre) arr.push({nombre:o.nombre, precio:Number(o.precio || 0) || 0});
+  });
+  return arr;
+}
+function conceptosSeleccionadosCurso(c, opciones){
+  const arr = [];
+  const base = Number(c?.costo || 0) || 0;
+  if(base > 0) arr.push({nombre:'Precio base', precio:base});
+  (Array.isArray(opciones?.opcionesElegidas) ? opciones.opcionesElegidas : []).forEach(o => {
+    if(o && o.nombre) arr.push({nombre:o.nombre, precio:Number(o.precio || 0) || 0});
+  });
+  return arr;
+}
+function resumenConceptosContratados(i, cur){
+  const conceptos = conceptosContratadosAlumno(i, cur);
+  if(!conceptos.length) return '';
+  return conceptos.map(o => (o.nombre || '') + (o.precio ? ' (' + dineroOpt(o.precio) + ')' : '')).join(' ? ');
+}
+function campoEspecialLabelCurso(c){
+  return String(c?.campoEspecialLabel || c?.campoEspecial || '').trim();
+}
+function campoEspecialHtml(c, i){
+  const label = campoEspecialLabelCurso(c);
+  if(!label) return '';
+  return '<input class="finput" id="f-campo-especial" placeholder="'+escAttr(label)+'" value="'+escAttr(i?.campoEspecialValor || '')+'"/>';
+}
+function opcionesCursoHtml(c, seleccionadas = []){
+  const ops = parseOpcionesTexto(c?.opcionesTexto || c?.serviciosTexto || '');
+  if(!ops.length) return '';
+  const selected = new Set((Array.isArray(seleccionadas) ? seleccionadas : []).map(o => String(o.nombre || '').trim().toLowerCase()));
+  const base = Number(c?.costo || 0) || 0;
+  return '<div class="mlbl">Opciones / servicios</div><div id="curso-opciones-box" data-base="'+base+'" style="background:#0d0d0d;border:1px solid var(--border);border-radius:12px;padding:10px;margin:4px 0 12px;">' +
+    (base > 0 ? '<div style="display:flex;justify-content:space-between;gap:10px;padding:7px 2px 9px;margin-bottom:4px;border-bottom:1px solid var(--border);font-size:13px;color:var(--text2);"><span>Precio base</span><strong style="color:#fff;">'+dineroOpt(base)+'</strong></div>' : '') +
+    ops.map((o,idx) => '<label style="display:flex;align-items:center;gap:8px;padding:7px 2px;font-size:13px;color:#fff;cursor:pointer;"><input type="checkbox" class="curso-opcion-check" data-nombre="'+escAttr(o.nombre)+'" data-precio="'+o.precio+'" onchange="window.actualizarTotalOpcionesCurso()" style="accent-color:var(--red);" '+(selected.has(String(o.nombre||'').trim().toLowerCase())?'checked':'')+'><span style="flex:1;">'+escHtml(o.nombre)+'</span><strong style="color:var(--red);">'+dineroOpt(o.precio)+'</strong></label>').join('') +
+    '<div style="border-top:1px solid var(--border);margin-top:6px;padding-top:8px;font-size:13px;font-weight:900;color:#fff;display:flex;justify-content:space-between;"><span>Total estimado</span><span id="curso-opciones-total">$ 0</span></div>' +
+    '</div>';
+}
+window.actualizarTotalOpcionesCurso = () => {
+  const checks = Array.from(document.querySelectorAll('.curso-opcion-check:checked'));
+  const box = document.getElementById('curso-opciones-box');
+  const base = Number(box?.dataset.base || 0) || 0;
+  const total = base + checks.reduce((acc, el) => acc + (parseInt(el.dataset.precio || '0', 10) || 0), 0);
+  const out = document.getElementById('curso-opciones-total');
+  if(out) out.textContent = dineroOpt(total);
+};
+function leerOpcionesSeleccionadasCurso(){
+  const ops = Array.from(document.querySelectorAll('.curso-opcion-check:checked')).map(el => ({
+    nombre: el.dataset.nombre || '',
+    precio: parseInt(el.dataset.precio || '0', 10) || 0
+  })).filter(o => o.nombre);
+  return {opcionesElegidas: ops, opcionesTotal: ops.reduce((a,o)=>a+Number(o.precio||0),0)};
+}
+
+function mostrarConfirmacionRedireccionCurso(c, titulo, resumenGuardado, toastMsg){
+  const url = String(c?.redirectUrl || '').trim();
+  const auto = c?.redirectAuto === true || c?.redirectAuto === 'true' || c?.redirectAuto === 1 || c?.redirectAuto === '1' || c?.redirectAuto === 'on';
+  if(!auto || !url) return false;
+  const info = String(c?.redirectMsg || '').trim() || 'El sistema te llevara a la siguiente web para continuar.';
+  document.getElementById('mcontent').innerHTML =
+    '<div style="text-align:center;padding:12px 0;">' +
+    '<div style="font-size:52px;margin-bottom:16px;">✅</div>' +
+    '<div class="mtitle" style="margin-bottom:8px;">' + escHtml(titulo) + '</div>' +
+    '<div style="font-size:14px;color:var(--text2);line-height:1.6;margin-bottom:12px;">' + escHtml(resumenGuardado) + '</div>' +
+    '<div style="font-size:14px;color:#fff;line-height:1.65;background:#101010;border:1px solid var(--border);border-radius:14px;padding:14px;margin-bottom:18px;text-align:left;">' + escHtml(info).replace(/\n/g,'<br/>') + '</div>' +
+    '<button class="btn-main" id="curso-redirect-btn">Continuar</button>' +
+    '</div>';
+  document.getElementById('curso-redirect-btn').onclick = () => {
+    toast(toastMsg || 'Registro confirmado');
+    window.location.href = safeUrl(url);
+  };
+  return true;
+}
 
 window.confirmarInsc = async (id) => {
   const nom = document.getElementById('f-nom')?.value.trim();
@@ -336,31 +776,60 @@ window.confirmarInsc = async (id) => {
   const altura = document.getElementById('f-altura')?.value.trim() || '';
   const medidas = document.getElementById('f-medidas')?.value.trim() || '';
   const email = document.getElementById('f-email')?.value.trim() || '';
+  const campoEspecialLabel = campoEspecialLabelCurso(c);
+  const campoEspecialValor = campoEspecialLabel ? (document.getElementById('f-campo-especial')?.value.trim() || '') : '';
+  const detallePedido = document.getElementById('f-detalle-pedido')?.value.trim() || '';
+  const opciones = leerOpcionesSeleccionadasCurso();
+  const submitBtn = document.getElementById('btn-confirmar-insc');
+  if(submitBtn){ submitBtn.disabled = true; submitBtn.textContent = 'Guardando...'; }
+  try{
   await push(ref(db, 'tomauno/inscripciones'), {
     cursoId: id, cursoTitulo: c.titulo || '',
     nombre: nom, dni: dni || '', edad: edad, ig: ig, wp: wp,
     tutorNombre: tn || null, tutorWp: twp || null,
     localidad: localidad,
     altura: altura, medidas: medidas, email: email,
+    campoEspecialLabel: campoEspecialLabel,
+    campoEspecialValor: campoEspecialValor,
+    detallePedido: detallePedido,
     fecha: new Date().toLocaleDateString('es-AR'),
     hora: new Date().toLocaleTimeString('es-AR', {hour:'2-digit', minute:'2-digit'}),
+    creado: Date.now(),
+    opcionesElegidas: opciones.opcionesElegidas,
+    opcionesTotal: opciones.opcionesTotal,
     pagos: genPagos(c)
   });
+  }catch(e){
+    if(submitBtn){ submitBtn.disabled = false; submitBtn.textContent = '✅ Confirmar inscripción'; }
+    toast('No se pudo guardar. Intentá nuevamente.');
+    return;
+  }
+  const conceptosWa = conceptosSeleccionadosCurso(c, opciones);
+  const totalPactadoWa = (Number(c?.costo || 0) || 0) + (Number(opciones.opcionesTotal || 0) || 0);
   const waText = [
-    '🔴 *NUEVA PRE-INSCRIPCIÓN WEB TOMAUNO*',
-    '📚 *Curso:* ' + (c.titulo || '') + (c.fecha ? ' - ' + fFecha(c.fecha) : '') + (c.hora ? ' ' + c.hora : ''),
-    '👤 *Nombre:* ' + nom,
-    '📄 *DNI:* ' + (dni || '-'),
-    '🎂 *Edad:* ' + edad,
+    '\uD83D\uDD34 *NUEVA PRE-INSCRIPCION WEB TOMAUNO*',
+    '\uD83D\uDCDA *Curso:* ' + (c.titulo || '') + (c.fecha ? ' - ' + fFecha(c.fecha) : '') + (c.hora ? ' ' + c.hora : ''),
+    '\uD83D\uDC64 *Nombre:* ' + nom,
+    '\uD83D\uDCC4 *DNI:* ' + (dni || '-'),
+    '\uD83C\uDF82 *Edad:* ' + edad
   ];
-  if (localidad) waText.push('📍 Localidad: ' + localidad);
-  if (ig) waText.push('📸 IG: @' + ig);
-  if (altura) waText.push('📏 Altura: ' + altura);
-  if (medidas) waText.push('📐 Medidas: ' + medidas);
-  if (email) waText.push('📧 Email: ' + email);
-  waText.push('📱 WP Alumno: ' + wp);
-  if (twp) waText.push('👨‍👩‍👧 WP Tutor: ' + twp);
+  if (localidad) waText.push('\uD83D\uDCCD *Localidad:* ' + localidad);
+  if (ig) waText.push('\uD83D\uDCF8 *IG:* @' + ig);
+  if (altura) waText.push('\uD83D\uDCCF *Altura:* ' + altura);
+  if (medidas) waText.push('\uD83D\uDCC8 *Medidas:* ' + medidas);
+  if (email) waText.push('\u2709\uFE0F *Email:* ' + email);
+  if (campoEspecialLabel && campoEspecialValor) waText.push('\uD83D\uDCCC *' + campoEspecialLabel + ':* ' + campoEspecialValor);
+  if (conceptosWa.length) {
+    waText.push('', '\uD83E\uDDFE *Servicios / conceptos pactados:*');
+    conceptosWa.forEach(o => waText.push('- ' + o.nombre + ': ' + dineroOpt(o.precio)));
+    waText.push('\uD83D\uDCB0 *Total pactado:* ' + dineroOpt(totalPactadoWa));
+  }
+  if (detallePedido) waText.push('\uD83D\uDCDD *Detalle:* ' + detallePedido);
+  waText.push('\uD83D\uDCF1 *WP Alumno:* ' + wp);
+  if (twp) waText.push('\uD83D\uDC6A *WP Tutor:* ' + twp);
+  if (c?.grupoWAAuto && c?.grupoWA) waText.push('', '\uD83D\uDD17 *Grupo de WhatsApp:*', safeUrl(c.grupoWA));
   window._pendingWaUrl = 'https://api.whatsapp.com/send?phone=5493764354522&text=' + waEncode(waText.join('\n'));
+  if (mostrarConfirmacionRedireccionCurso(c, '¡DATOS REGISTRADOS!', 'Tu inscripcion fue guardada correctamente.', '¡Listo! Continuamos con el registro')) return;
   document.getElementById('mcontent').innerHTML =
     '<div style="text-align:center;padding:12px 0;">' +
     '<div style="font-size:52px;margin-bottom:16px;">✅</div>' +
@@ -373,6 +842,53 @@ window.confirmarInsc = async (id) => {
     closeModal();
     toast('🎉 ¡Listo! Te contactamos pronto');
   };
+};
+
+window.guardarInscCursoEdit = async (inscId) => {
+  const old = inscripciones[inscId];
+  if (!old) { toast('Inscripcion no encontrada'); return; }
+  const c = cursos[old.cursoId];
+  if (!c) { toast('Curso no encontrado'); return; }
+  const nom = document.getElementById('f-nom')?.value.trim();
+  const dni = document.getElementById('f-dni')?.value.trim();
+  const edad = parseInt(document.getElementById('f-edad')?.value) || 0;
+  const ig = document.getElementById('f-ig')?.value.trim() || '';
+  const localidad = document.getElementById('f-localidad')?.value.trim() || '';
+  const wp = document.getElementById('f-wp')?.value.trim();
+  const tn = document.getElementById('f-tnombre')?.value.trim() || '';
+  const twp = document.getElementById('f-twp')?.value.trim() || '';
+  if (!nom) { toast('El nombre es obligatorio'); return; }
+  if (!wp) { toast('El numero de celular es obligatorio'); return; }
+  const cr = Object.assign({dni:true, edad:true, ig:true}, c.camposReq || {});
+  if (cr.dni !== false && !dni) { toast('Completa el DNI'); return; }
+  if (cr.edad !== false && !edad) { toast('Completa la edad'); return; }
+  if (edad < 18 && !twp) { toast('Ingresa el WP del tutor'); return; }
+  const campoEspecialLabel = campoEspecialLabelCurso(c);
+  const opciones = leerOpcionesSeleccionadasCurso();
+  await update(ref(db, 'tomauno/inscripciones/' + inscId), {
+    cursoId: old.cursoId,
+    cursoTitulo: c.titulo || old.cursoTitulo || '',
+    nombre: nom,
+    dni: dni || '',
+    edad: edad,
+    ig: ig,
+    wp: wp,
+    tutorNombre: tn || null,
+    tutorWp: twp || null,
+    localidad: localidad,
+    altura: document.getElementById('f-altura')?.value.trim() || '',
+    medidas: document.getElementById('f-medidas')?.value.trim() || '',
+    email: document.getElementById('f-email')?.value.trim() || '',
+    campoEspecialLabel: campoEspecialLabel,
+    campoEspecialValor: campoEspecialLabel ? (document.getElementById('f-campo-especial')?.value.trim() || '') : '',
+    detallePedido: document.getElementById('f-detalle-pedido')?.value.trim() || '',
+    opcionesElegidas: opciones.opcionesElegidas,
+    opcionesTotal: opciones.opcionesTotal,
+    actualizado: Date.now()
+  });
+  closeModal();
+  renderAlumnos();
+  toast('Cambios guardados', true);
 };
 
 function genPagos(c) {
@@ -391,17 +907,26 @@ function genPagos(c) {
 }
 
 // ── SESIONES / TURNOS ─────────────────────────────────────────────────────────
-window.abrirSesiones = (id) => {
+window.abrirSesiones = (id, diaElegido = '') => {
   const c = cursos[id]; if (!c) return;
+  const dias = diasTurnosCurso(c);
+  const dia = diaElegido || (dias[0] && dias[0].value) || '';
+  const diaObj = dias.find(d => d.value === dia) || dias[0] || {value:'', label:'Turnos'};
+  const defaultDay = dias[0]?.value || '';
   const slots = genSlots(c);
-  const ocup = Object.values(inscripciones).filter(i => i.cursoId === id && i.turno);
+  const ocup = Object.values(inscripciones).filter(i => i.cursoId === id && i.turno && mismaFechaTurno(i, diaObj.value, defaultDay));
   const libres = slots.filter(s => !ocup.find(i => i.turno === s)).length;
   let html = '<div class="mtitle">ELEGÍ TU TURNO</div>' +
-    '<div class="msub">' + (c.titulo || '') + (c.fecha ? ' · ' + fFecha(c.fecha) : '') + ' · <span style="color:#4caf7d;">' + libres + ' disponibles</span></div>' +
-    '<div class="slots-grid">';
+    '<div class="msub">' + (c.titulo || '') + ' · ' + (diaObj.label || (c.fecha ? fFecha(c.fecha) : 'Fecha a coordinar')) + ' · <span style="color:#4caf7d;">' + libres + ' disponibles</span></div>';
+  if(dias.length > 1){
+    html += '<div class="turn-day-tabs" style="display:flex;gap:8px;flex-wrap:wrap;margin:14px 0 16px;">' +
+      dias.map(d => '<button type="button" class="bsm bl" style="'+(d.value===diaObj.value?'background:var(--red);border-color:var(--red);color:#fff;':'')+'" onclick="window.abrirSesiones(\''+id+'\',\''+d.value+'\')">'+escHtml(d.label)+'</button>').join('') +
+      '</div>';
+  }
+  html += '<div class="slots-grid">';
   slots.forEach(s => {
     const q = ocup.find(i => i.turno === s);
-    html += '<div class="slot ' + (q ? 'ocupado' : 'libre') + '" data-id="' + id + '" data-slot="' + s + '" ' + (q ? '' : 'onclick="window.selTurno(this)"') + '>' +
+    html += '<div class="slot ' + (q ? 'ocupado' : 'libre') + '" data-id="' + id + '" data-slot="' + s + '" data-day="' + escAttr(diaObj.value || '') + '" ' + (q ? '' : 'onclick="window.selTurno(this)"') + '>' +
       '<div class="slot-t">' + s + '</div>' +
       '<div class="slot-n">' + (q ? (q.nombre || '').split(' ')[0] : '✓ Libre') + '</div>' +
       '</div>';
@@ -415,26 +940,34 @@ window.selTurno = (el) => {
   const id = el.dataset.id;
   const turno = el.dataset.slot;
   const c = cursos[id];
+  const fechaTurno = el.dataset.day || '';
+  const turnoLabel = (fechaTurno ? labelFechaTurno(fechaTurno) + ' · ' : '') + turno;
   document.getElementById('mcontent').innerHTML =
     '<div class="mtitle">RESERVAR TURNO</div>' +
-    '<div class="msub">' + (c ? c.titulo : '') + ' · <strong style="color:var(--red);">' + turno + '</strong></div>' +
+    '<div class="msub">' + (c ? c.titulo : '') + ' · <strong style="color:var(--red);">' + turnoLabel + '</strong></div>' +
     '<div class="mlbl">Tus datos</div>' +
     '<input class="finput" id="f-nom" placeholder="Nombre y apellido *"/>' +
     '<div class="frow2">' +
-    '<input class="finput" id="f-dni" placeholder="DNI *" type="number"/>' +
-    '<input class="finput" id="f-edad" placeholder="Edad *" type="number" oninput="window.chkMenor()"/>' +
+    '<input class="finput" id="f-dni" placeholder="DNI *" type="text" inputmode="numeric" autocomplete="off"/>' +
+    '<input class="finput" id="f-edad" placeholder="Edad *" type="text" inputmode="numeric" autocomplete="off" oninput="window.chkMenor()"/>' +
     '</div>' +
+    campoEspecialHtml(c) +
     '<input class="finput" id="f-ig" placeholder="Instagram (sin @) *"/>' +
     '<input class="finput" id="f-wp" placeholder="WhatsApp * ej: 3764123456" type="tel"/>' +
     '<div id="tutor-box" style="display:none;">' +
     '<div class="mlbl" style="color:#f5c842;">⚠️ Menor de edad</div>' +
     '<div class="tutor-box"><input class="finput" id="f-tnombre" placeholder="Nombre tutor/a"/><input class="finput" id="f-twp" placeholder="WP tutor/a *" type="tel"/></div>' +
     '</div>' +
-    '<button class="btn-main" onclick="window.confirmarTurno(\'' + id + '\',\'' + turno + '\')">✅ Confirmar turno ' + turno + '</button>' +
+    opcionesCursoHtml(c) +
+    '<div class="mlbl">Detalle del pedido / aclaraciones</div>' +
+    '<textarea class="finput" id="f-detalle-pedido" rows="3" placeholder="Dejanos tu inquietud o detalle para tenerlo en cuenta"></textarea>' +
+    '<button class="btn-main" id="btn-confirmar-turno" onclick="window.confirmarTurno(\'' + id + '\',\'' + turno + '\',\'' + fechaTurno + '\')">✅ Confirmar ' + turnoLabel + '</button>' +
     '<button class="btn-out" onclick="window.abrirSesiones(\'' + id + '\')">← Volver</button>';
+  window.chkMenor();
+  window.actualizarTotalOpcionesCurso();
 };
 
-window.confirmarTurno = async (id, turno) => {
+window.confirmarTurno = async (id, turno, fechaTurno = '') => {
   const nom = document.getElementById('f-nom')?.value.trim();
   const dni = document.getElementById('f-dni')?.value.trim();
   const edad = parseInt(document.getElementById('f-edad')?.value) || 0;
@@ -445,30 +978,65 @@ window.confirmarTurno = async (id, turno) => {
   if (!wp) { toast('⚠️ El número de celular es obligatorio'); return; }
   if (!dni || !edad || !ig) { toast('⚠️ Completá todos los campos'); return; }
   if (edad < 18 && !twp) { toast('⚠️ Ingresá el WP del tutor'); return; }
-  if (Object.values(inscripciones).find(i => i.cursoId === id && i.turno === turno)) {
+  const c = cursos[id];
+  const dias = diasTurnosCurso(c || {});
+  const defaultDay = dias[0]?.value || '';
+  const day = fechaTurno || defaultDay || '';
+  if (Object.values(inscripciones).find(i => i.cursoId === id && i.turno === turno && mismaFechaTurno(i, day, defaultDay))) {
     toast('⚠️ Ese turno ya fue tomado, elegí otro');
-    abrirSesiones(id);
+    abrirSesiones(id, day);
     return;
   }
-  const c = cursos[id];
+  const opciones = leerOpcionesSeleccionadasCurso();
+  const campoEspecialLabel = campoEspecialLabelCurso(c);
+  const campoEspecialValor = campoEspecialLabel ? (document.getElementById('f-campo-especial')?.value.trim() || '') : '';
+  const detallePedido = document.getElementById('f-detalle-pedido')?.value.trim() || '';
+  const submitBtn = document.getElementById('btn-confirmar-turno');
+  if(submitBtn){ submitBtn.disabled = true; submitBtn.textContent = 'Guardando turno...'; }
+  try{
   await push(ref(db, 'tomauno/inscripciones'), {
     cursoId: id, cursoTitulo: c ? c.titulo : '', nombre: nom, dni, edad, ig, wp,
     tutorWp: twp || null, turno,
+    fechaTurno: day || '',
+    fechaTurnoLabel: labelFechaTurno(day),
+    campoEspecialLabel,
+    campoEspecialValor,
+    detallePedido,
+    opcionesElegidas: opciones.opcionesElegidas,
+    opcionesTotal: opciones.opcionesTotal,
     fecha: new Date().toLocaleDateString('es-AR'),
     hora: new Date().toLocaleTimeString('es-AR', {hour:'2-digit', minute:'2-digit'}),
-    pagos: [{label:'Pago único', estado:'pendiente', monto:'', nota:''}]
+    creado: Date.now(),
+    pagos: genPagos(c || {})
   });
+  }catch(e){
+    if(submitBtn){ submitBtn.disabled = false; submitBtn.textContent = '✅ Confirmar ' + (day ? labelFechaTurno(day) + ' · ' : '') + turno; }
+    toast('No se pudo guardar el turno. Intentá nuevamente.');
+    return;
+  }
+  const conceptosTurno = conceptosSeleccionadosCurso(c, opciones);
+  const totalPactadoTurno = (Number(c?.costo || 0) || 0) + (Number(opciones.opcionesTotal || 0) || 0);
   const tText = [
-    '📅 NUEVO TURNO RESERVADO',
-    '📸 Sesión: ' + (c ? c.titulo : '') + (c && c.fecha ? ' - ' + fFecha(c.fecha) : ''),
-    '⏰ Turno: ' + turno,
-    '👤 Nombre: ' + nom,
-    '🎂 Edad: ' + edad,
-    '📸 IG: @' + ig,
-    '📱 WP: ' + wp,
-  ];
-  if (twp) tText.push('👨‍👩‍👧 WP Tutor: ' + twp);
+    '\uD83D\uDCC5 *NUEVO TURNO RESERVADO*',
+    '\uD83D\uDCF8 *Sesion:* ' + (c ? c.titulo : '') + (c && c.fecha ? ' - ' + fFecha(c.fecha) : ''),
+    (day ? '\uD83D\uDDD3\uFE0F *Dia:* ' + labelFechaTurno(day) : ''),
+    '\u23F0 *Turno:* ' + turno,
+    '\uD83D\uDC64 *Nombre:* ' + nom,
+    '\uD83C\uDF82 *Edad:* ' + edad,
+    '\uD83D\uDCF8 *IG:* @' + ig,
+    '\uD83D\uDCF1 *WP:* ' + wp
+  ].filter(Boolean);
+  if (campoEspecialLabel && campoEspecialValor) tText.push('\uD83D\uDCCC *' + campoEspecialLabel + ':* ' + campoEspecialValor);
+  if (conceptosTurno.length) {
+    tText.push('', '\uD83E\uDDFE *Servicios / conceptos pactados:*');
+    conceptosTurno.forEach(o => tText.push('- ' + o.nombre + ': ' + dineroOpt(o.precio)));
+    tText.push('\uD83D\uDCB0 *Total pactado:* ' + dineroOpt(totalPactadoTurno));
+  }
+  if (detallePedido) tText.push('\uD83D\uDCDD *Detalle:* ' + detallePedido);
+  if (twp) tText.push('\uD83D\uDC6A *WP Tutor:* ' + twp);
+  if (c?.grupoWAAuto && c?.grupoWA) tText.push('', '\uD83D\uDD17 *Grupo de WhatsApp:*', safeUrl(c.grupoWA));
   window._pendingWaUrl = 'https://api.whatsapp.com/send?phone=5493764354522&text=' + waEncode(tText.join('\n'));
+  if (mostrarConfirmacionRedireccionCurso(c, '¡TURNO RESERVADO!', 'Tu turno quedo registrado correctamente.', '¡Turno confirmado!')) return;
   document.getElementById('mcontent').innerHTML =
     '<div style="text-align:center;padding:12px 0;">' +
     '<div style="font-size:52px;margin-bottom:16px;">✅</div>' +
@@ -511,10 +1079,72 @@ function genSlots(c) {
   return sl;
 }
 
-window.verPlanillaTurnos = (id) => {
+function normalizarFechaTurno(v){
+  const raw = String(v || '').trim();
+  if(!raw) return '';
+  let m = raw.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if(m) return raw;
+  m = raw.match(/^(\d{1,2})[\/\-](\d{1,2})(?:[\/\-](\d{2,4}))?$/);
+  if(m){
+    const d = String(m[1]).padStart(2,'0');
+    const mo = String(m[2]).padStart(2,'0');
+    let y = m[3] ? String(m[3]) : String(new Date().getFullYear());
+    if(y.length === 2) y = '20' + y;
+    return y + '-' + mo + '-' + d;
+  }
+  return raw;
+}
+
+function labelFechaTurno(v){
+  const iso = normalizarFechaTurno(v);
+  const m = iso.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if(!m) return String(v || '').trim();
+  const d = new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3]));
+  const dias = ['Dom','Lun','Mar','Mié','Jue','Vie','Sáb'];
+  return dias[d.getDay()] + ' ' + m[3] + '/' + m[2];
+}
+
+function diasTurnosCurso(c){
+  const raw = String(c?.diasTurnos || c?.fechasTurnos || '').trim();
+  const parts = raw ? raw.split(/[\n,;]+/).map(normalizarFechaTurno).filter(Boolean) : [];
+  if(!parts.length && c?.fecha) parts.push(normalizarFechaTurno(c.fecha));
+  const seen = new Set();
+  return parts.filter(d => {
+    if(seen.has(d)) return false;
+    seen.add(d);
+    return true;
+  }).map(d => ({value:d, label:labelFechaTurno(d)}));
+}
+
+function fechasCursoLabel(c){
+  const dias = diasTurnosCurso(c);
+  if(dias.length > 1) return dias.map(d => d.label).join(' · ');
+  if(dias.length === 1) return dias[0].label;
+  return c?.fecha ? fFecha(c.fecha) : '';
+}
+
+function mismaFechaTurno(i, dia, defaultDay){
+  const saved = normalizarFechaTurno(i?.fechaTurno || '');
+  const current = normalizarFechaTurno(dia || '');
+  if(saved) return saved === current;
+  return !current || current === normalizarFechaTurno(defaultDay || '');
+}
+
+function labelFechaTurnoAlumno(i, cur){
+  const saved = normalizarFechaTurno(i?.fechaTurno || '');
+  if(saved) return labelFechaTurno(saved);
+  const dias = diasTurnosCurso(cur || {});
+  return dias[0]?.label || '';
+}
+
+window.verPlanillaTurnos = (id, diaElegido = '') => {
   const c = cursos[id]; if (!c) return;
+  const dias = diasTurnosCurso(c);
+  const dia = diaElegido || (dias[0] && dias[0].value) || '';
+  const diaObj = dias.find(d => d.value === dia) || dias[0] || {value:'', label:''};
+  const defaultDay = dias[0]?.value || '';
   const slots = genSlots(c);
-  const ocup = Object.values(inscripciones).filter(i => i.cursoId === id && i.turno);
+  const ocup = Object.values(inscripciones).filter(i => i.cursoId === id && i.turno && mismaFechaTurno(i, diaObj.value, defaultDay));
   const soloNombres = slots.filter(s => ocup.find(i => i.turno === s)).map(s => {
     const i = ocup.find(x => x.turno === s);
     return i ? i.nombre : '';
@@ -523,34 +1153,84 @@ window.verPlanillaTurnos = (id) => {
     const i = ocup.find(x => x.turno === s);
     return i ? (s + ' - ' + i.nombre + (i.wp ? ' (' + i.wp + ')' : '')) : (s + ' - LIBRE');
   }).join('\n');
+  const ocupadosHtml = slots.map(s => {
+    const i = ocup.find(x => x.turno === s);
+    if(!i) return '';
+    const inscId = Object.entries(inscripciones).find(([,x]) => x === i)?.[0] || '';
+    return '<div style="display:flex;align-items:center;gap:8px;justify-content:space-between;border-bottom:1px solid var(--border);padding:7px 0;"><span style="font-size:12px;color:#fff;"><strong style="color:var(--red);">'+escHtml(s)+'</strong> - '+escHtml(i.nombre || '')+'</span><button class="bsm bl" onclick="window.seleccionarMoverTurno(\''+id+'\',\''+diaObj.value+'\',\''+inscId+'\')">Mover</button></div>';
+  }).filter(Boolean).join('');
+  const libresHtml = slots.filter(s => !ocup.find(i => i.turno === s)).map(s => '<button class="bsm bl" onclick="window.moverTurnoSeleccionado(\''+id+'\',\''+diaObj.value+'\',\''+s+'\')">'+escHtml(s)+'</button>').join('');
+  const todosLosDias = (dias.length ? dias : [{value:'', label:''}]).map(d => {
+    const ocupDia = Object.values(inscripciones).filter(i => i.cursoId === id && i.turno && mismaFechaTurno(i, d.value, defaultDay));
+    return (d.label ? (d.label + '\n') : '') + slots.map(s => {
+      const i = ocupDia.find(x => x.turno === s);
+      return i ? (s + ' - ' + i.nombre + (i.wp ? ' (' + i.wp + ')' : '')) : (s + ' - LIBRE');
+    }).join('\n');
+  }).join('\n\n');
   document.getElementById('mcontent').innerHTML =
     '<div class="mtitle" style="margin-bottom:4px;">PLANILLA TURNOS</div>' +
-    '<div class="msub" style="margin-bottom:16px;">' + (c.titulo || '') + ' · ' + ocup.length + ' reservados · ' + (slots.length - ocup.length) + ' libres</div>' +
+    '<div class="msub" style="margin-bottom:12px;">' + (c.titulo || '') + (diaObj.label ? ' · ' + diaObj.label : '') + ' · ' + ocup.length + ' reservados · ' + (slots.length - ocup.length) + ' libres</div>' +
+    (dias.length > 1 ? '<div style="display:flex;gap:8px;flex-wrap:wrap;margin:0 0 14px;">' + dias.map(d => '<button type="button" class="bsm bl" style="'+(d.value===diaObj.value?'background:var(--red);border-color:var(--red);color:#fff;':'')+'" onclick="window.verPlanillaTurnos(\''+id+'\',\''+d.value+'\')">'+escHtml(d.label)+'</button>').join('') + '</div>' : '') +
     '<div style="display:flex;gap:8px;margin-bottom:14px;flex-wrap:wrap;">' +
-    '<button class="bsm bl" id="btn-cp-full">📋 Copiar planilla</button>' +
-    '<button class="bsm bl" id="btn-cp-nom">👤 Solo nombres</button>' +
+    '<button class="bsm bl" id="btn-cp-full">📋 Copiar día</button>' +
+    '<button class="bsm bl" id="btn-cp-nom">👤 Solo nombres día</button>' +
+    '<button class="bsm bl" id="btn-cp-all">📚 Copiar todos</button>' +
     '<a rel="noopener noreferrer" href="https://cronometro-two.vercel.app/" target="_blank" class="bsm gr" style="text-decoration:none;">⏱️ Cronómetro</a>' +
     '</div>' +
     '<textarea id="txt-comp" readonly style="width:100%;background:#0d0d0d;border:1px solid var(--border);border-radius:var(--radius-sm);padding:12px;color:var(--text);font-size:12px;font-family:monospace;resize:vertical;min-height:180px;margin-bottom:8px;"></textarea>' +
     '<textarea id="txt-nom" readonly style="width:100%;background:#0d0d0d;border:1px solid var(--border);border-radius:var(--radius-sm);padding:12px;color:var(--text);font-size:12px;font-family:monospace;resize:vertical;min-height:100px;"></textarea>' +
+    (ocupadosHtml ? '<div class="mlbl" style="margin-top:14px;">Mover turno</div><div id="turno-mover-list" style="background:#0d0d0d;border:1px solid var(--border);border-radius:var(--radius-sm);padding:10px;margin-bottom:10px;">'+ocupadosHtml+'</div><div id="turno-mover-info" style="font-size:12px;color:var(--text3);margin-bottom:8px;">Elegí una persona con Mover y luego tocá un horario libre.</div><div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:8px;">'+(libresHtml || '<span style="color:var(--text3);font-size:12px;">No hay horarios libres en este día.</span>')+'</div>' : '') +
     '<button class="btn-out" onclick="window.closeModal()" style="margin-top:10px;">Cerrar</button>';
   openModal();
   document.getElementById('txt-comp').value = textoCompleto;
   document.getElementById('txt-nom').value = soloNombres;
-  document.getElementById('btn-cp-full').onclick = () => navigator.clipboard.writeText(textoCompleto).then(() => toast('📋 Planilla copiada'));
-  document.getElementById('btn-cp-nom').onclick = () => navigator.clipboard.writeText(soloNombres).then(() => toast('👤 Nombres copiados'));
+  document.getElementById('btn-cp-full').onclick = () => navigator.clipboard.writeText(textoCompleto).then(() => toast('📋 Planilla del día copiada'));
+  document.getElementById('btn-cp-nom').onclick = () => navigator.clipboard.writeText(soloNombres).then(() => toast('👤 Nombres del día copiados'));
+  document.getElementById('btn-cp-all').onclick = () => navigator.clipboard.writeText(todosLosDias).then(() => toast('📚 Planilla completa copiada'));
+};
+
+window.seleccionarMoverTurno = (cursoId, dia, inscId) => {
+  const i = inscripciones[inscId];
+  if(!i) return;
+  window._turnoMoverSeleccion = {cursoId, dia, inscId};
+  const info = document.getElementById('turno-mover-info');
+  if(info) info.innerHTML = 'Moviendo a <strong style="color:#fff;">'+escHtml(i.nombre || '')+'</strong>. Tocá abajo el nuevo horario libre.';
+};
+
+window.moverTurnoSeleccionado = async (cursoId, dia, nuevoTurno) => {
+  const sel = window._turnoMoverSeleccion || {};
+  if(sel.cursoId !== cursoId || !sel.inscId){ toast('Primero tocá Mover en una persona'); return; }
+  const c = cursos[cursoId] || {};
+  const dias = diasTurnosCurso(c);
+  const defaultDay = dias[0]?.value || '';
+  const ocupado = Object.entries(inscripciones).find(([id,i]) => id !== sel.inscId && i.cursoId === cursoId && i.turno === nuevoTurno && mismaFechaTurno(i, dia, defaultDay));
+  if(ocupado){ toast('Ese horario ya está ocupado'); return; }
+  await update(ref(db, 'tomauno/inscripciones/' + sel.inscId), {
+    fechaTurno: dia || '',
+    fechaTurnoLabel: labelFechaTurno(dia),
+    turno: nuevoTurno
+  });
+  window._turnoMoverSeleccion = null;
+  toast('Turno actualizado');
+  window.verPlanillaTurnos(cursoId, dia);
 };
 
 // ── ADMIN TABS ────────────────────────────────────────────────────────────────
 window.setAtab = (tab) => {
-  const tabs = ['alumnos','cursos','nuevo','servicios-adm','testimonios-adm','eventos-adm','galeria-adm','agenda-adm','asistente-adm','apps-adm'];
+  ensureHistorialAdminUi();
+  const tabs = ['alumnos','cursos','nuevo','servicios-adm','testimonios-adm','eventos-adm','galeria-adm','agenda-adm','asistente-adm','historial-adm','apps-adm'];
   tabs.forEach(t => {
     const el = document.getElementById('atab-' + t);
     if (el) el.style.display = t === tab ? 'block' : 'none';
   });
-  document.querySelectorAll('.atab').forEach((b, i) => b.classList.toggle('on', tabs[i] === tab));
+  document.querySelectorAll('.atab').forEach((b, i) => {
+    const m = String(b.getAttribute('onclick') || '').match(/setAtab\(['"]([^'"]+)['"]\)/);
+    const key = m ? m[1] : tabs[i];
+    b.classList.toggle('on', key === tab);
+  });
   const stats = document.getElementById('atab-stats-vistas');
   if (stats) stats.style.display = tab === 'cursos' ? 'block' : 'none';
+  if(tab === 'historial-adm') setTimeout(renderHistorialAdmin, 40);
 };
 
 window.irAAdminTab = (tab) => {
@@ -559,6 +1239,15 @@ window.irAAdminTab = (tab) => {
   setAtab(tab);
   setTimeout(()=>document.getElementById('admin-section')?.scrollIntoView({behavior:'smooth',block:'start'}),80);
 };
+
+document.addEventListener('click', function(ev){
+  const btn = ev.target && ev.target.closest && ev.target.closest('#admin-historial-top-btn');
+  if(!btn) return;
+  ev.preventDefault();
+  ev.stopPropagation();
+  if(ev.stopImmediatePropagation) ev.stopImmediatePropagation();
+  window.irAAdminTab ? window.irAAdminTab('historial-adm') : setAtab('historial-adm');
+}, true);
 
 window.irAPlanillaCurso = (cursoId) => {
   if (!cursoId || !isAdminNotifier()) return;
@@ -625,11 +1314,12 @@ window.agregarCurso = async () => {
     },
     finalizado: false, oculto: false, creado: Date.now()
   });
-  ['nc-titulo','nc-desc','nc-costo','nc-cupos','nc-fecha','nc-hora','nc-lugar','nc-ig','nc-wp','nc-img','nc-extra-text','nc-extra-url','nc-meses','nc-grupo-wa','nc-icon','nc-descansos'].forEach(id => {
+  ['nc-titulo','nc-desc','nc-costo','nc-cupos','nc-fecha','nc-hora','nc-lugar','nc-ig','nc-wp','nc-img','nc-extra-text','nc-extra-url','nc-meses','nc-grupo-wa','nc-grupo-wa-auto','nc-icon','nc-descansos'].forEach(id => {
     const el = document.getElementById(id); if (el) el.value = '';
   });
   toast('✅ Curso publicado');
   setAtab('cursos');
+  cerrarBandejaChatSiSeAbrioPorGuardarCurso();
 };
 
 window.editCurso = (id) => {
@@ -641,6 +1331,9 @@ window.editCurso = (id) => {
     '<input class="finput" id="ec-titulo" value="' + (c.titulo || '').replace(/"/g, '&quot;') + '"/>' +
     '<label class="flbl">Descripción</label>' +
     '<textarea class="finput" id="ec-desc" rows="5">' + (c.desc || '') + '</textarea>' +
+    '<label class="flbl">Campo especial del formulario</label>' +
+    '<input class="finput" id="ec-campo-especial-label" value="' + escAttr(c.campoEspecialLabel || c.campoEspecial || '') + '" placeholder="Nombre del campo adicional"/>' +
+    '<div style="font-size:10px;color:var(--text3);margin:-4px 0 10px;">Si queda vacio, no aparece en el formulario publico.</div>' +
     '<div class="frow2">' +
     '<div><label class="flbl">Costo ($)</label><input class="finput" id="ec-costo" type="number" value="' + (c.costo || '') + '"/></div>' +
     '<div><label class="flbl">Cupos (0=ilimitado)</label><input class="finput" id="ec-cupos" type="number" value="' + (c.cupos || 0) + '"/></div>' +
@@ -660,6 +1353,11 @@ window.editCurso = (id) => {
     '<div class="frow2"><div><label class="flbl">Texto link extra</label><input class="finput" id="ec-extra-text" value="' + (c.extraText || '').replace(/"/g, '&quot;') + '" placeholder="Ver más info"/></div><div><label class="flbl">URL link extra</label><input class="finput" id="ec-extra-url" value="' + (c.extraUrl || '').replace(/"/g, '&quot;') + '" placeholder="https://..."/></div></div>' +
     '<label class="flbl">Link grupo WhatsApp</label>' +
     '<input class="finput" id="ec-gwa" value="' + (c.grupoWA || '') + '" placeholder="https://chat.whatsapp.com/..."/>' +
+    '<label style="display:flex;align-items:center;gap:8px;margin:6px 0 12px;font-size:12px;color:#fff;font-weight:800;"><input type="checkbox" id="ec-grupo-wa-auto" '+(c.grupoWAAuto?'checked':'')+' style="accent-color:var(--red);"> Enviar link del grupo al registrarse</label>' +
+    '<label class="flbl">Link de redireccion al finalizar registro</label>' +
+    '<input class="finput" id="ec-redirect-url" value="' + escAttr(c.redirectUrl || '') + '" placeholder="https://..."/>' +
+    '<label style="display:flex;align-items:center;gap:8px;margin:6px 0 8px;font-size:12px;color:#fff;font-weight:800;"><input type="checkbox" id="ec-redirect-auto" '+(c.redirectAuto?'checked':'')+' style="accent-color:var(--red);"> Redireccionar al alumno al finalizar</label>' +
+    '<textarea class="finput" id="ec-redirect-msg" rows="3" placeholder="Texto que vera antes de continuar">' + escHtml(c.redirectMsg || '') + '</textarea>' +
     '<label class="flbl">Tipo de pago</label>' +
     '<select class="finput" id="ec-pago-tipo">' +
     '<option value="unico" ' + ((c.pagoTipo || 'unico') === 'unico' ? 'selected' : '') + '>Pago único</option>' +
@@ -689,6 +1387,11 @@ window.guardarEdit = async (id) => {
     extraText: document.getElementById('ec-extra-text')?.value.trim() || '',
     extraUrl: document.getElementById('ec-extra-url')?.value.trim() || '',
     grupoWA: document.getElementById('ec-gwa')?.value.trim() || '',
+    grupoWAAuto: !!document.getElementById('ec-grupo-wa-auto')?.checked,
+    redirectUrl: document.getElementById('ec-redirect-url')?.value.trim() || '',
+    redirectAuto: !!document.getElementById('ec-redirect-auto')?.checked,
+    redirectMsg: document.getElementById('ec-redirect-msg')?.value.trim() || '',
+    campoEspecialLabel: document.getElementById('ec-campo-especial-label')?.value.trim() || '',
     pagoTipo: document.getElementById('ec-pago-tipo')?.value || 'unico',
     meses: parseInt(document.getElementById('ec-meses')?.value) || 0,
   });
@@ -781,6 +1484,25 @@ function safeUrl(v) {
   return 'https://' + raw.replace(/"/g, '%22');
 }
 
+function renderInfoText(v) {
+  let out = escHtml(v || '');
+  out = out
+    .replace(/\*\*([^*\n][\s\S]*?[^*\n])\*\*/g, '<strong>$1</strong>')
+    .replace(/(^|[\s(])\*([^*\n][^*\n]*?[^*\n])\*(?=[\s).,!?:;]|$)/g, '$1<strong>$2</strong>')
+    .replace(/(^|[\s(])_([^_\n][^_\n]*?[^_\n])_(?=[\s).,!?:;]|$)/g, '$1<em>$2</em>');
+  out = out.replace(/(^|[\s>])((?:https?:\/\/|www\.)[^\s<]+)/gi, (m, pre, url) => {
+    const clean = url.replace(/[).,!?:;]+$/, '');
+    const tail = url.slice(clean.length);
+    return pre + '<a rel="noopener noreferrer" target="_blank" href="' + safeUrl(clean) + '">' + clean + '</a>' + tail;
+  });
+  out = out.replace(/(^|[\s(])(\+?\d[\d\s().-]{8,}\d)(?=[\s).,!?:;]|$)/g, (m, pre, phone) => {
+    const digits = phone.replace(/\D/g, '');
+    if (digits.length < 9 || digits.length > 15) return m;
+    return pre + '<a rel="noopener noreferrer" href="tel:+' + digits + '">' + phone + '</a>';
+  });
+  return out;
+}
+
 function getPagoAlumnoInfo(i, cur) {
   const pagos = i.pagos || [{label:'Pago único', estado:'pendiente', monto:(cur && cur.costo) ? Number(cur.costo) : ''}];
   const pagadas = pagos.filter(p => p.estado === 'pagado').length;
@@ -792,6 +1514,18 @@ function getPagoAlumnoInfo(i, cur) {
   return {pagos,pagadas,parciales,pendientes,monto,estado};
 }
 
+function totalContratadoAlumno(i, cur){
+  const manual = parseFloat(String(i?.totalManual || '').replace(',','.')) || 0;
+  if (manual > 0) return manual;
+  const opcionesTotal = Number(i?.opcionesTotal || 0);
+  const base = Number(cur?.costo || 0) || 0;
+  return base + opcionesTotal;
+}
+function saldoAlumno(i, cur){
+  const pagado = getPagoAlumnoInfo(i, cur).monto;
+  return Math.max(0, totalContratadoAlumno(i, cur) - pagado);
+}
+
 function getAlumnosFiltrados() {
   const filtro = document.getElementById('filtro-curso')?.value || '';
   const q = (document.getElementById('admin-person-search')?.value || '').toLowerCase().trim();
@@ -799,7 +1533,7 @@ function getAlumnosFiltrados() {
   if (filtro) lista = lista.filter(([, i]) => i.cursoId === filtro);
   if (q) lista = lista.filter(([,i]) => {
     const cur = cursos[i.cursoId] || {};
-    const hay = [i.nombre,i.dni,i.edad,i.ig,i.wp,i.tutorWp,i.localidad,i.cursoTitulo,cur.titulo,i.turno].join(' ').toLowerCase();
+    const hay = [i.nombre,i.dni,i.edad,i.ig,i.wp,i.tutorWp,i.localidad,i.campoEspecialLabel,i.campoEspecialValor,i.detallePedido,i.cursoTitulo,cur.titulo,i.turno,resumenOpcionesElegidas(i),i.opcionesTotal].join(' ').toLowerCase();
     return hay.includes(q);
   });
   return {filtro, lista};
@@ -861,6 +1595,8 @@ window.renderAlumnos = () => {
   }
 
   const totalMonto = lista.reduce((acc, [,i]) => acc + getPagoAlumnoInfo(i, cursos[i.cursoId]).monto, 0);
+  const totalContratado = lista.reduce((acc, [,i]) => acc + totalContratadoAlumno(i, cursos[i.cursoId]), 0);
+  const totalSaldo = lista.reduce((acc, [,i]) => acc + saldoAlumno(i, cursos[i.cursoId]), 0);
   const conPago = lista.filter(([,i]) => getPagoAlumnoInfo(i, cursos[i.cursoId]).estado === 'pagado').length;
   const parcial = lista.filter(([,i]) => getPagoAlumnoInfo(i, cursos[i.cursoId]).estado === 'parcial').length;
   const pendientesPersonas = lista.filter(([,i]) => getPagoAlumnoInfo(i, cursos[i.cursoId]).estado === 'pendiente').length;
@@ -872,7 +1608,9 @@ window.renderAlumnos = () => {
       '<div class="admin-metric"><div class="admin-metric-n" style="color:#4caf7d;">' + conPago + '</div><div class="admin-metric-l">Con pago</div></div>' +
       '<div class="admin-metric"><div class="admin-metric-n" style="color:#f5c842;">' + parcial + '</div><div class="admin-metric-l">Parciales</div></div>' +
       '<div class="admin-metric"><div class="admin-metric-n" style="color:#e05252;">' + pendientesPersonas + '</div><div class="admin-metric-l">Pendientes</div></div>' +
+      '<div class="admin-metric"><div class="admin-metric-n" style="color:#fff;">$ ' + totalContratado.toLocaleString('es-AR') + '</div><div class="admin-metric-l">Total pactado</div></div>' +
       '<div class="admin-metric"><div class="admin-metric-n" style="color:#4caf7d;">$ ' + totalMonto.toLocaleString('es-AR') + '</div><div class="admin-metric-l">Total registrado</div></div>' +
+      '<div class="admin-metric"><div class="admin-metric-n" style="color:#f5c842;">$ ' + totalSaldo.toLocaleString('es-AR') + '</div><div class="admin-metric-l">Saldo</div></div>' +
     '</div>';
 
   if (!lista.length) {
@@ -887,22 +1625,56 @@ window.renderAlumnos = () => {
     const estadoClass = pinfo.estado === 'pagado' ? 'pay-ok' : pinfo.estado === 'parcial' ? 'pay-pa' : 'pay-pe';
     const estadoTxt = pinfo.estado === 'pagado' ? 'Con pagos' : pinfo.estado === 'parcial' ? 'Parcial' : 'Pendiente';
     const resumenPagos = '✅ ' + pinfo.pagadas + ' · ⚡ ' + pinfo.parciales + ' · ⏳ ' + pinfo.pendientes + (pinfo.monto ? ' · $ ' + pinfo.monto.toLocaleString('es-AR') : '');
+    const resumenOps = resumenConceptosContratados(i, cur);
+    const especialLabel = i.campoEspecialLabel || campoEspecialLabelCurso(cur);
+    const especialValor = String(i.campoEspecialValor || '').trim();
+    const especialTxt = especialLabel && especialValor ? '<div class="student-sub" style="color:#8fc7ff;white-space:normal;">' + escHtml(especialLabel) + ': ' + escHtml(especialValor) + '</div>' : '';
+    const pactado = totalContratadoAlumno(i, cur);
+    const saldo = saldoAlumno(i, cur);
     const waText = 'Hola ' + (i.nombre||'').split(' ')[0] + '! Te escribimos de Tomauno para confirmarte tu pre-inscripción a ' + cursoNombre + '. En breve nos comunicamos con los detalles. Muchas gracias!';
     const waLink = 'https://wa.me/549' + (i.wp||'').replace(/\D/g,'') + '?text=' + waEncode(waText);
-    return '<tr>' +
+    return '<tr data-insc-id="' + escAttr(k) + '">' +
       '<td class="row-index">' + (idx+1) + '</td>' +
-      '<td title="' + escHtml(i.nombre||'') + '"><div class="student-name">' + escHtml(i.nombre||'-') + '</div><div class="student-sub">' + escHtml(i.fecha||'') + (i.hora?' · '+escHtml(i.hora):'') + '</div>' + (i.turno ? '<div class="student-sub" style="color:var(--red);">⏰ '+escHtml(i.turno)+'</div>' : '') + '</td>' +
+      '<td title="' + escHtml(i.nombre||'') + '"><div class="student-name">' + escHtml(i.nombre||'-') + '</div><div class="student-sub">' + escHtml(i.fecha||'') + (i.hora?' · '+escHtml(i.hora):'') + '</div>' + (i.turno ? '<div class="student-sub" style="color:var(--red);">⏰ '+escHtml(i.turno)+'</div>' : '') + (resumenOps ? '<div class="student-sub" style="color:#f5c842;white-space:normal;">🧾 '+ escHtml(resumenOps) + ' - Total ' + dineroOpt(pactado) +'</div>' : '') + '</td>' +
       '<td>' + escHtml(i.edad||'-') + '</td>' +
       '<td>' + escHtml(i.dni||'-') + '</td>' +
       (mostrarCurso ? '<td><div class="course-cell" title="' + escHtml(cursoNombre) + '">' + escHtml(cursoNombre) + '</div></td>' : '') +
       '<td>' + (i.ig ? '<a rel="noopener noreferrer" href="https://instagram.com/'+escHtml(i.ig.replace('@',''))+'" target="_blank" class="ig-link">@'+escHtml(i.ig.replace('@',''))+'</a>' : '<span class="tds">-</span>') + '</td>' +
       '<td><a rel="noopener noreferrer" href="https://wa.me/549' + (i.wp||'').replace(/\D/g,'') + '" target="_blank" class="wabtn">' + escHtml(i.wp||'-') + '</a></td>' +
       '<td>' + (i.tutorWp ? '<a rel="noopener noreferrer" href="https://wa.me/549'+i.tutorWp.replace(/\D/g,'')+'" target="_blank" class="wabtn" style="font-size:10px;">'+escHtml(i.tutorWp)+'</a>' : '<span class="tds">-</span>') + '</td>' +
-      '<td><div class="pay-summary"><span class="pay-pill ' + estadoClass + '">' + estadoTxt + '</span><span class="pay-summary-text" title="' + escHtml(resumenPagos) + '">' + escHtml(resumenPagos) + '</span><button class="pay-chip-btn" onclick="window.abrirPagosAlumno(\'' + k + '\')">Pagos</button></div></td>' +
+      '<td><div class="pay-summary"><span class="pay-pill ' + estadoClass + '">' + estadoTxt + '</span><span class="pay-summary-text" title="' + escHtml(resumenPagos) + '">Pactado ' + dineroOpt(pactado) + ' · Abonado ' + dineroOpt(pinfo.monto) + (saldo ? ' · Saldo ' + dineroOpt(saldo) : '') + '</span><button class="pay-chip-btn" onclick="window.abrirPagosAlumno(\'' + k + '\')">Pagos</button></div></td>' +
       '<td><div class="action-mini"><a rel="noopener noreferrer" href="' + waLink + '" target="_blank" class="bsm gr" style="text-decoration:none;">WA</a><button class="bsm bl" onclick="window.enviarTicketPagoAlumno(\'' + k + '\')">Ticket</button><button class="bsm re" onclick="window.delInsc(\'' + k + '\')">✕</button></div></td>' +
       '</tr>';
   }).join('') +
   '<tr style="background:#0d0d0d;border-top:2px solid var(--red);"><td colspan="' + (mostrarCurso ? 10 : 9) + '" style="padding:12px;font-size:12px;color:var(--text2);font-weight:700;white-space:normal;">📊 ' + (cursoSeleccionado ? escHtml(cursoSeleccionado.titulo || '') + ' · ' : '') + 'Total: ' + lista.length + ' · ✅ Con pago: ' + conPago + ' · ⚡ Parciales: ' + parcial + ' · ⏳ Pendientes: ' + pendientesPersonas + ' · 💰 Total registrado: $ ' + totalMonto.toLocaleString('es-AR') + '</td></tr>';
+  tb.querySelectorAll('tr[data-insc-id]').forEach(row => {
+    const id = row.dataset.inscId;
+    const i = inscripciones[id];
+    const actions = row.querySelector('.action-mini');
+    if (i && actions && !actions.querySelector('.edit-insc-btn')) {
+      const btn = document.createElement('button');
+      btn.className = 'bsm bl edit-insc-btn';
+      btn.textContent = 'Editar';
+      btn.onclick = () => window.abrirInscripcion(i.cursoId, id);
+      actions.insertBefore(btn, actions.children[1] || null);
+    }
+    const cur = i ? cursos[i.cursoId] : null;
+    const label = i ? (i.campoEspecialLabel || campoEspecialLabelCurso(cur)) : '';
+    const cleanEspecial = String(i.campoEspecialValor || '').trim();
+    if (label && cleanEspecial && row.cells[1] && !row.cells[1].querySelector('.campo-especial-row')) {
+      row.cells[1].insertAdjacentHTML('beforeend', '<div class="student-sub campo-especial-row" style="color:#8fc7ff;white-space:normal;">'+escHtml(label)+': '+escHtml(cleanEspecial)+'</div>');
+    }
+    const igCell = row.cells[mostrarCurso ? 5 : 4];
+    if (i && i.localidad && igCell && !igCell.querySelector('.localidad-row')) {
+      igCell.insertAdjacentHTML('beforeend', '<div class="student-sub localidad-row" style="color:var(--text3);font-size:10px;white-space:normal;">Localidad: '+escHtml(i.localidad)+'</div>');
+    }
+    if (i && i.totalManual && row.cells[1] && !row.cells[1].querySelector('.total-manual-row')) {
+      row.cells[1].insertAdjacentHTML('beforeend', '<div class="student-sub total-manual-row" style="color:#f5c842;white-space:normal;">Total real: '+dineroOpt(i.totalManual)+'</div>');
+    }
+    if (i && i.detallePedido && row.cells[1] && !row.cells[1].querySelector('.detalle-pedido-row')) {
+      row.cells[1].insertAdjacentHTML('beforeend', '<div class="student-sub detalle-pedido-row" style="color:#d7d7d7;white-space:normal;">Detalle: '+escHtml(i.detallePedido)+'</div>');
+    }
+  });
 };
 
 window.abrirPagosAlumno = (id) => {
@@ -911,26 +1683,54 @@ window.abrirPagosAlumno = (id) => {
   const pinfo = getPagoAlumnoInfo(i, cur);
   const montoDefault = Number(cur?.costo || 0) || '';
   const pagos = pinfo.pagos.map(p => ({...p, monto: (p.monto === undefined || p.monto === null || p.monto === '') ? montoDefault : p.monto}));
-  if (JSON.stringify(pagos) !== JSON.stringify(i.pagos || [])) { update(ref(db, 'tomauno/inscripciones/' + id), {pagos}).catch(()=>{}); }
   document.getElementById('mcontent').innerHTML =
     '<div class="mtitle">PAGOS</div>' +
     '<div class="msub" style="margin-bottom:16px;">' + escHtml(i.nombre||'Alumno') + ' · ' + escHtml(i.cursoTitulo || cur?.titulo || '') + '</div>' +
+    '<div style="background:#0d0d0d;border:1px solid var(--border);border-radius:12px;padding:10px;margin-bottom:12px;">' +
+      '<label class="flbl">Total real acordado</label>' +
+      '<div style="display:flex;gap:8px;align-items:center;"><input class="mini-input" id="pay-total-manual" type="number" value="' + escAttr(i.totalManual || totalContratadoAlumno(i, cur) || '') + '" placeholder="Total real"/><button class="bsm bl" onclick="window.guardarTotalAlumno(\'' + id + '\')">Guardar total</button></div>' +
+      '<div style="font-size:10px;color:var(--text3);margin-top:6px;">Usalo cuando el detalle del pedido cambia el total automatico.</div>' +
+    '</div>' +
     '<div style="display:grid;gap:10px;">' +
     pagos.map((p, idx) => {
       const clr = p.estado==='pagado'?'#4caf7d':p.estado==='parcial'?'#f5c842':'#e05252';
       return '<div style="display:grid;grid-template-columns:1fr 120px 120px;gap:8px;align-items:center;background:#0d0d0d;border:1px solid var(--border);border-radius:12px;padding:10px;">' +
         '<div><div style="font-size:12px;font-weight:800;color:#fff;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">' + escHtml(p.label||'Pago') + '</div><div style="font-size:10px;color:var(--text3);margin-top:2px;">Cuota / concepto</div></div>' +
-        '<select class="mini-input" style="color:' + clr + ';font-weight:800;" onchange="window.updPago(\'' + id + '\',' + idx + ',this.value)">' +
+        '<select class="mini-input pago-estado-input" data-idx="' + idx + '" style="color:' + clr + ';font-weight:800;">' +
           '<option value="pendiente" ' + (p.estado==='pendiente'?'selected':'') + '>Pendiente</option>' +
           '<option value="parcial" ' + (p.estado==='parcial'?'selected':'') + '>Parcial</option>' +
           '<option value="pagado" ' + (p.estado==='pagado'?'selected':'') + '>Pagado</option>' +
         '</select>' +
-        '<input class="mini-input" type="number" value="' + escHtml((p.monto === undefined || p.monto === null || p.monto === '') ? montoDefault : p.monto) + '" placeholder="Monto" onchange="window.updMontoPagoAlumno(\'' + id + '\',' + idx + ',this.value)" />' +
+        '<input class="mini-input pago-monto-input" data-idx="' + idx + '" type="number" value="' + escHtml((p.monto === undefined || p.monto === null || p.monto === '') ? montoDefault : p.monto) + '" placeholder="Monto" />' +
       '</div>';
     }).join('') +
     '</div>' +
-    '<div style="display:flex;gap:8px;margin-top:14px;"><button class="btn-out" style="flex:1;" onclick="window.addCuota(\'' + id + '\')">+ Agregar cuota</button><button class="btn-main" style="flex:1;" onclick="window.closeModal()">Listo</button></div>';
+    '<div style="display:flex;gap:8px;margin-top:14px;"><button class="btn-out" style="flex:1;" onclick="window.addCuota(\'' + id + '\')">+ Agregar cuota</button><button class="btn-main" style="flex:1;" onclick="window.guardarPagosAlumno(\'' + id + '\')">Guardar pagos</button></div>';
   openModal();
+};
+
+window.guardarTotalAlumno = async (id) => {
+  const totalManual = parseFloat(String(document.getElementById('pay-total-manual')?.value || '').replace(',','.')) || 0;
+  await update(ref(db, 'tomauno/inscripciones/' + id), {totalManual: totalManual || null});
+  toast('Total actualizado', true);
+  renderAlumnos();
+};
+
+window.guardarPagosAlumno = async (id) => {
+  const insc = inscripciones[id]; if (!insc) return;
+  const pagos = [...(insc.pagos || [])];
+  document.querySelectorAll('.pago-estado-input').forEach(el => {
+    const idx = parseInt(el.dataset.idx, 10);
+    if (!Number.isFinite(idx) || !pagos[idx]) return;
+    const estado = el.value || 'pendiente';
+    const montoEl = document.querySelector('.pago-monto-input[data-idx="' + idx + '"]');
+    const monto = montoEl ? montoEl.value : pagos[idx].monto;
+    pagos[idx] = {...pagos[idx], estado, monto, fechaPago: (estado === 'pagado' || estado === 'parcial') ? (pagos[idx].fechaPago || new Date().toLocaleDateString('es-AR')) : (pagos[idx].fechaPago || '')};
+  });
+  await update(ref(db, 'tomauno/inscripciones/' + id), {pagos});
+  closeModal();
+  renderAlumnos();
+  toast('Pagos guardados', true);
 };
 
 window.updMontoPagoAlumno = async (id, idx, monto) => {
@@ -958,6 +1758,12 @@ window.enviarTicketPagoAlumno = (id) => {
   const cursoNombre = i.cursoTitulo || cur?.titulo || 'Curso';
   const pagos = i.pagos || [];
   const total = pagos.reduce((acc,p) => acc + ((p.estado === 'pagado' || p.estado === 'parcial') ? (parseFloat(String(p.monto||'').replace(',','.')) || 0) : 0), 0);
+  const contratado = totalContratadoAlumno(i, cur);
+  const saldo = saldoAlumno(i, cur);
+  const fechaTicket = new Date().toLocaleDateString('es-AR') + ' ' + new Date().toLocaleTimeString('es-AR', {hour:'2-digit', minute:'2-digit'});
+  const ops = Array.isArray(i.opcionesElegidas) ? i.opcionesElegidas : [];
+  const conceptos = conceptosContratadosAlumno(i, cur);
+  const detalleOps = conceptos.map(o => '- ' + (o.nombre || '') + ': ' + dineroOpt(o.precio)).join('\n');
   const detalle = pagos.map((p, idx) => {
     const icon = p.estado === 'pagado' ? '✅' : p.estado === 'parcial' ? '⚡' : '⏳';
     const monto = p.monto ? ('$ ' + Number(String(p.monto).replace(',','.')).toLocaleString('es-AR')) : '$ 0';
@@ -966,18 +1772,29 @@ window.enviarTicketPagoAlumno = (id) => {
   }).join('\n');
   const msg = '*Historial de pagos - Tomauno*\n\n' +
     'Alumno/a: ' + (i.nombre || '-') + '\n' +
+    'Fecha ticket: ' + fechaTicket + '\n' +
     'Curso: ' + cursoNombre + '\n' +
     'DNI: ' + (i.dni || '-') + '\n\n' +
+    (conceptos.length ? '*Servicios / conceptos pactados:*\n' + detalleOps + '\nTotal pactado: ' + dineroOpt(contratado) + '\n\n' : '') +
+    (i.detallePedido ? '*Detalle del pedido:*\n' + i.detallePedido + '\n\n' : '') +
     '*Pagos registrados:*\n' + (detalle || 'Sin pagos registrados') + '\n\n' +
-    'Total abonado/registrado: $ ' + total.toLocaleString('es-AR') + '\n\n' +
+    'Total contratado: $ ' + contratado.toLocaleString('es-AR') + '\n' +
+    'Total abonado/registrado: $ ' + total.toLocaleString('es-AR') + '\n' +
+    'Saldo: $ ' + saldo.toLocaleString('es-AR') + '\n\n' +
     'Gracias por formar parte de Tomauno.';
   const wp = (i.wp || '').replace(/\D/g,'');
-  const rows = pagos.map((p, idx) => ({
+  const optionRows = conceptos.map(o => ({
+    label: o.nombre || 'Concepto',
+    estado: 'Elegido',
+    monto: dineroOpt(o.precio),
+    fecha: '-'
+  }));
+  const rows = optionRows.concat(pagos.map((p, idx) => ({
     label: p.label || ('Pago ' + (idx+1)),
     estado: estadoPagoTxt(p.estado),
     monto: p.monto ? ('$ ' + Number(String(p.monto).replace(',','.')).toLocaleString('es-AR')) : '$ 0',
     fecha: p.fechaPago || '-'
-  }));
+  })));
   document.getElementById('mcontent').innerHTML =
     '<div class="mtitle" style="margin-bottom:8px;">TICKET DE PAGOS</div>' +
     '<div class="msub" style="margin-bottom:16px;">' + escHtml(i.nombre || '-') + ' · ' + escHtml(cursoNombre) + '</div>' +
@@ -990,31 +1807,49 @@ window.enviarTicketPagoAlumno = (id) => {
     '<button class="btn-out" onclick="window.closeModal()">Cerrar</button>';
   openModal();
   window._ticketText = msg;
-  setTimeout(()=>drawTicketCanvas({alumno:i.nombre||'-', curso:cursoNombre, dni:i.dni||'-', wp:i.wp||'-', total, rows}), 50);
+  setTimeout(()=>drawTicketCanvas({alumno:i.nombre||'-', curso:cursoNombre, dni:i.dni||'-', wp:i.wp||'-', fechaTicket, detallePedido:i.detallePedido||'', total, contratado, saldo, rows}), 50);
 };
 
 function drawTicketCanvas(data){
   const c=document.getElementById('ticket-canvas'); if(!c) return;
   const ctx=c.getContext('2d');
   const W=c.width,H=c.height;
+  const wrapTicketText = (text, x, y, maxWidth, lineHeight) => {
+    const words = String(text || '').split(/\s+/).filter(Boolean);
+    let line = '';
+    words.forEach(word => {
+      const test = line ? line + ' ' + word : word;
+      if (ctx.measureText(test).width > maxWidth && line) {
+        ctx.fillText(line, x, y);
+        line = word;
+        y += lineHeight;
+      } else {
+        line = test;
+      }
+    });
+    if (line) ctx.fillText(line, x, y);
+    return y + lineHeight;
+  };
   ctx.fillStyle='#ffffff';ctx.fillRect(0,0,W,H);
   const grad=ctx.createLinearGradient(0,0,W,220);grad.addColorStop(0,'#050505');grad.addColorStop(1,'#b5000a');ctx.fillStyle=grad;ctx.fillRect(0,0,W,190);
   ctx.fillStyle='#e8000a';ctx.beginPath();ctx.arc(770,0,210,0,Math.PI*2);ctx.fill();
   ctx.fillStyle='#111';ctx.beginPath();ctx.arc(875,1120,300,0,Math.PI*2);ctx.fill();ctx.fillStyle='#e8000a';ctx.beginPath();ctx.arc(760,1210,260,0,Math.PI*2);ctx.fill();
   ctx.font='900 54px Arial';ctx.fillStyle='#fff';ctx.fillText('TOMA',50,82);ctx.fillStyle='#ff151f';ctx.fillText('UNO',220,82);
-  ctx.font='700 18px Arial';ctx.fillStyle='rgba(255,255,255,.75)';ctx.fillText('Cursos & Capacitaciones',52,116);
+  ctx.font='700 18px Arial';ctx.fillStyle='rgba(255,255,255,.75)';ctx.fillText('Cursos & Servicios',52,116);
   ctx.font='900 42px Arial';ctx.fillStyle='#fff';ctx.textAlign='right';ctx.fillText('TICKET DE PAGOS',850,104);ctx.textAlign='left';
+  ctx.font='700 18px Arial';ctx.fillStyle='rgba(255,255,255,.85)';ctx.textAlign='right';ctx.fillText('Emitido: '+String(data.fechaTicket||''),850,136);ctx.textAlign='left';
   ctx.fillStyle='#f7f7f7';ctx.fillRect(50,230,800,185);
   ctx.strokeStyle='#ddd';ctx.strokeRect(50,230,800,185);
   ctx.font='700 18px Arial';ctx.fillStyle='#777';ctx.fillText('ALUMNO/A',75,265);ctx.fillText('CURSO',75,330);ctx.fillText('DNI',555,265);ctx.fillText('WHATSAPP',555,330);
-  ctx.font='900 27px Arial';ctx.fillStyle='#111';ctx.fillText(String(data.alumno).slice(0,28),75,298);ctx.font='800 24px Arial';ctx.fillText(String(data.curso).slice(0,34),75,363);
-  ctx.font='800 24px Arial';ctx.fillText(String(data.dni),555,298);ctx.fillText(String(data.wp),555,363);
+  ctx.font='900 27px Arial';ctx.fillStyle='#111';ctx.fillText(String(data.alumno).slice(0,28),75,298);ctx.font='800 22px Arial';wrapTicketText(String(data.curso),75,360,430,24);
+  ctx.font='500 18px Arial';ctx.fillText(String(data.dni),555,298);ctx.fillText(String(data.wp),555,363);
   let y=485;
   ctx.fillStyle='#e8000a';ctx.fillRect(50,y-45,800,42);
   ctx.font='900 18px Arial';ctx.fillStyle='#fff';ctx.fillText('CONCEPTO',72,y-18);ctx.fillText('ESTADO',410,y-18);ctx.fillText('FECHA',570,y-18);ctx.fillText('MONTO',735,y-18);
   ctx.font='700 18px Arial';
-  data.rows.forEach((r,idx)=>{ctx.fillStyle=idx%2?'#fff':'#f3f3f3';ctx.fillRect(50,y,800,52);ctx.strokeStyle='#e1e1e1';ctx.strokeRect(50,y,800,52);ctx.fillStyle='#222';ctx.fillText(String(r.label).slice(0,28),72,y+33);ctx.fillStyle=r.estado==='Pagado'?'#078b42':r.estado==='Parcial'?'#c09000':'#b5000a';ctx.fillText(r.estado,410,y+33);ctx.fillStyle='#222';ctx.fillText(r.fecha,570,y+33);ctx.textAlign='right';ctx.fillText(r.monto,825,y+33);ctx.textAlign='left';y+=52;});
-  ctx.fillStyle='#111';ctx.fillRect(520,940,330,78);ctx.font='800 22px Arial';ctx.fillStyle='#fff';ctx.fillText('TOTAL REGISTRADO',545,972);ctx.font='900 34px Arial';ctx.fillStyle='#ff151f';ctx.textAlign='right';ctx.fillText('$ '+Number(data.total||0).toLocaleString('es-AR'),825,1005);ctx.textAlign='left';
+  data.rows.forEach((r,idx)=>{ctx.fillStyle=idx%2?'#fff':'#f3f3f3';ctx.fillRect(50,y,800,58);ctx.strokeStyle='#e1e1e1';ctx.strokeRect(50,y,800,58);ctx.font='700 16px Arial';ctx.fillStyle='#222';wrapTicketText(String(r.label),72,y+24,300,18);ctx.font='700 18px Arial';ctx.fillStyle=r.estado==='Pagado'?'#078b42':r.estado==='Parcial'?'#c09000':r.estado==='Elegido'?'#e8000a':'#b5000a';ctx.fillText(r.estado,410,y+36);ctx.fillStyle='#222';ctx.fillText(r.fecha,570,y+36);ctx.textAlign='right';ctx.fillText(r.monto,825,y+36);ctx.textAlign='left';y+=58;});
+  if (data.detallePedido) { ctx.font='800 18px Arial';ctx.fillStyle='#777';ctx.fillText('DETALLE DEL PEDIDO',60,805);ctx.font='700 18px Arial';ctx.fillStyle='#222';wrapTicketText(data.detallePedido,60,835,390,24); }
+  ctx.fillStyle='#111';ctx.fillRect(455,880,395,132);ctx.font='800 18px Arial';ctx.fillStyle='#fff';ctx.fillText('TOTAL',480,915);ctx.textAlign='right';ctx.fillText('$ '+Number(data.contratado||0).toLocaleString('es-AR'),825,915);ctx.textAlign='left';ctx.fillText('ABONADO',480,955);ctx.textAlign='right';ctx.fillText('$ '+Number(data.total||0).toLocaleString('es-AR'),825,955);ctx.textAlign='left';ctx.fillStyle='#ff151f';ctx.font='900 26px Arial';ctx.fillText('SALDO',480,995);ctx.textAlign='right';ctx.fillText('$ '+Number(data.saldo||0).toLocaleString('es-AR'),825,995);ctx.textAlign='left';
   ctx.font='700 18px Arial';ctx.fillStyle='#555';ctx.fillText('Gracias por formar parte de Tomauno.',60,1025);ctx.fillText('Pedro Méndez 2069 · Posadas · @tomaunomodels · 3764354522',60,1060);
 }
 
@@ -1114,26 +1949,26 @@ window.exportarExcel = () => {
       const l = p.label || 'Pago';
       if(!seen.has(l)){ seen.add(l); paymentLabels.push(l); }
     }));
-    const cols = ['N°','Nombre','DNI','Edad','Instagram','WhatsApp','Fecha', ...paymentLabels, 'Total alumno'];
+    const cols = ['N°','Nombre','DNI','Edad','Instagram','WhatsApp','Fecha','Día turno','Turno','Conceptos pactados','Total pactado', ...paymentLabels, 'Total alumno'];
     const rows = lista.map(([,i], idx) => {
       const pagos = i.pagos || [];
       const amounts = paymentLabels.map(l => payAmount(pagos.find(p => (p.label || 'Pago') === l)));
       const totalAlumno = amounts.reduce((a,b)=>a+b,0);
-      return [idx+1, i.nombre||'', i.dni||'', i.edad||'', i.ig||'', i.wp||'', i.fecha||'', ...amounts, totalAlumno];
+      return [idx+1, i.nombre||'', i.dni||'', i.edad||'', i.ig||'', i.wp||'', i.fecha||'', labelFechaTurnoAlumno(i, cursos[i.cursoId]), i.turno || '', resumenConceptosContratados(i, cursos[i.cursoId]), totalContratadoAlumno(i, cursos[i.cursoId]), ...amounts, totalAlumno];
     });
     const totals = paymentLabels.map(l => lista.reduce((a,[,i]) => a + payAmount((i.pagos||[]).find(p => (p.label || 'Pago') === l)), 0));
-    rows.push(['TOTAL POR CONCEPTO','','','','','','', ...totals, totals.reduce((a,b)=>a+b,0)]);
+    rows.push(['TOTAL POR CONCEPTO','','','','','','','','','','', ...totals, totals.reduce((a,b)=>a+b,0)]);
     descargarExcelCsv('tomauno_pagos_' + cn.replace(/[^a-zA-Z0-9]/g,'_') + '.csv', 'Tomauno — Pagos — ' + cn, cols, rows);
     return;
   }
 
-  const cols = ['N°','Nombre','DNI','Edad','Curso','Instagram','WhatsApp','Fecha','Total registrado'];
+  const cols = ['N°','Nombre','DNI','Edad','Curso','Instagram','WhatsApp','Fecha','Día turno','Turno','Conceptos pactados','Total pactado','Total registrado'];
   const rows = lista.map(([,i], idx) => {
     const cur = cursos[i.cursoId];
     const total = (i.pagos || []).reduce((a,p)=>a+payAmount(p),0);
-    return [idx+1, i.nombre||'', i.dni||'', i.edad||'', i.cursoTitulo || cur?.titulo || '', i.ig||'', i.wp||'', i.fecha||'', total];
+    return [idx+1, i.nombre||'', i.dni||'', i.edad||'', i.cursoTitulo || cur?.titulo || '', i.ig||'', i.wp||'', i.fecha||'', labelFechaTurnoAlumno(i, cur), i.turno || '', resumenConceptosContratados(i, cursos[i.cursoId]), totalContratadoAlumno(i, cursos[i.cursoId]), total];
   });
-  rows.push(['TOTAL GENERAL','','','','','','','', rows.reduce((a,r)=>a+(Number(r[8])||0),0)]);
+  rows.push(['TOTAL GENERAL','','','','','','','','','','','', rows.reduce((a,r)=>a+(Number(r[12])||0),0)]);
   descargarExcelCsv('tomauno_inscripciones_todos_los_cursos.csv', 'Tomauno — Pagos — Todos los cursos', cols, rows);
 };
 
@@ -1161,24 +1996,25 @@ window.exportarPDF = () => {
 
   let head, rows, totalsRow = '';
   if (selected) {
-    head = '<tr><th>#</th><th>Nombre</th><th>DNI</th><th>Edad</th><th>IG</th><th>WP</th><th>Fecha</th>' + paymentLabels.map(l => '<th>' + escHtml(l) + '</th>').join('') + '<th>Total</th></tr>';
+    head = '<tr><th>#</th><th>Nombre</th><th>DNI</th><th>Edad</th><th>IG</th><th>WP</th><th>Fecha</th><th>Día turno</th><th>Turno</th><th>Conceptos pactados</th><th>Total pactado</th>' + paymentLabels.map(l => '<th>' + escHtml(l) + '</th>').join('') + '<th>Total</th></tr>';
     rows = lista.map(([,i], idx) => {
       const pagos = i.pagos || [];
       const totalAlumno = pagos.reduce((a,p)=>a+payAmount(p),0);
-      return '<tr><td>' + (idx+1) + '</td><td>' + escHtml(i.nombre||'') + '</td><td>' + escHtml(i.dni||'') + '</td><td>' + escHtml(i.edad||'') + '</td><td>@' + escHtml(i.ig||'') + '</td><td>' + escHtml(i.wp||'') + '</td><td>' + escHtml(i.fecha||'') + '</td>' +
+      const cur = cursos[i.cursoId];
+      return '<tr><td>' + (idx+1) + '</td><td>' + escHtml(i.nombre||'') + '</td><td>' + escHtml(i.dni||'') + '</td><td>' + escHtml(i.edad||'') + '</td><td>@' + escHtml(i.ig||'') + '</td><td>' + escHtml(i.wp||'') + '</td><td>' + escHtml(i.fecha||'') + '</td><td>' + escHtml(labelFechaTurnoAlumno(i, cursos[i.cursoId]) || '-') + '</td><td>' + escHtml(i.turno || '-') + '</td><td>' + escHtml(resumenConceptosContratados(i, cur) || '-') + '</td><td>$ ' + totalContratadoAlumno(i, cur).toLocaleString('es-AR') + '</td>' +
         paymentLabels.map(l => '<td>' + payCell(pagos.find(p => (p.label || 'Pago') === l)) + '</td>').join('') +
         '<td><strong>$ ' + totalAlumno.toLocaleString('es-AR') + '</strong></td></tr>';
     }).join('');
     const totals = paymentLabels.map(l => lista.reduce((a,[,i]) => a + payAmount((i.pagos||[]).find(p => (p.label || 'Pago') === l)), 0));
     const grand = totals.reduce((a,b)=>a+b,0);
-    totalsRow = '<tr class="total-row"><td colspan="7">TOTAL POR CONCEPTO</td>' + totals.map(t => '<td>$ ' + t.toLocaleString('es-AR') + '</td>').join('') + '<td>$ ' + grand.toLocaleString('es-AR') + '</td></tr>';
+    totalsRow = '<tr class="total-row"><td colspan="11">TOTAL POR CONCEPTO</td>' + totals.map(t => '<td>$ ' + t.toLocaleString('es-AR') + '</td>').join('') + '<td>$ ' + grand.toLocaleString('es-AR') + '</td></tr>';
   } else {
-    head = '<tr><th>#</th><th>Nombre</th><th>DNI</th><th>Edad</th><th>Curso</th><th>IG</th><th>WP</th><th>Fecha</th><th>Pago</th><th>Monto</th></tr>';
+    head = '<tr><th>#</th><th>Nombre</th><th>DNI</th><th>Edad</th><th>Curso</th><th>IG</th><th>WP</th><th>Fecha</th><th>Día turno</th><th>Turno</th><th>Conceptos pactados</th><th>Total pactado</th><th>Pago</th><th>Monto</th></tr>';
     rows = lista.map(([,i], idx) => {
       const cur = cursos[i.cursoId];
       const p = getPagoAlumnoInfo(i, cur);
       const estadoTxt = p.estado === 'pagado' ? 'Con pagos' : p.estado === 'parcial' ? 'Parcial' : 'Pendiente';
-      return '<tr><td>' + (idx+1) + '</td><td>' + escHtml(i.nombre||'') + '</td><td>' + escHtml(i.dni||'') + '</td><td>' + escHtml(i.edad||'') + '</td><td>' + escHtml(i.cursoTitulo || cur?.titulo || '') + '</td><td>@' + escHtml(i.ig||'') + '</td><td>' + escHtml(i.wp||'') + '</td><td>' + escHtml(i.fecha||'') + '</td><td>' + estadoTxt + '</td><td>$ ' + Number(p.monto||0).toLocaleString('es-AR') + '</td></tr>';
+      return '<tr><td>' + (idx+1) + '</td><td>' + escHtml(i.nombre||'') + '</td><td>' + escHtml(i.dni||'') + '</td><td>' + escHtml(i.edad||'') + '</td><td>' + escHtml(i.cursoTitulo || cur?.titulo || '') + '</td><td>@' + escHtml(i.ig||'') + '</td><td>' + escHtml(i.wp||'') + '</td><td>' + escHtml(i.fecha||'') + '</td><td>' + escHtml(labelFechaTurnoAlumno(i, cur) || '-') + '</td><td>' + escHtml(i.turno || '-') + '</td><td>' + escHtml(resumenConceptosContratados(i, cur) || '-') + '</td><td>$ ' + totalContratadoAlumno(i, cur).toLocaleString('es-AR') + '</td><td>' + estadoTxt + '</td><td>$ ' + Number(p.monto||0).toLocaleString('es-AR') + '</td></tr>';
     }).join('');
   }
   const total = lista.reduce((a,[,i]) => a + getPagoAlumnoInfo(i, cursos[i.cursoId]).monto, 0);
@@ -1188,6 +2024,87 @@ window.exportarPDF = () => {
 };
 
 // ── SERVICIOS HARDCODED ───────────────────────────────────────────────────────
+// Exportaciones de cursos con campo especial y saldo.
+window.exportarExcel = () => {
+  const {filtro, lista} = getAlumnosFiltrados();
+  const cn = filtro && cursos[filtro] ? cursos[filtro].titulo : 'Todos los cursos';
+  const selectedCourse = filtro && cursos[filtro] ? cursos[filtro] : null;
+  const cr = Object.assign({dni:true, edad:true, ig:true, email:false, altura:false, medidas:false}, selectedCourse?.camposReq || {});
+  const especialHeader = (filtro && cursos[filtro] ? campoEspecialLabelCurso(cursos[filtro]) : '') || (lista.map(([,i]) => i.campoEspecialLabel || campoEspecialLabelCurso(cursos[i.cursoId])).find(Boolean)) || 'Dato especial';
+  const hasEspecial = lista.some(([,i]) => String(i.campoEspecialValor || '').trim());
+  const hasDetalle = lista.some(([,i]) => i.detallePedido);
+  const hasOpciones = lista.some(([,i]) => resumenConceptosContratados(i, cursos[i.cursoId]));
+  const hasTutor = lista.some(([,i]) => i.tutorNombre || i.tutorWp);
+  const includeAll = !selectedCourse;
+  const cols = ['Nro','Nombre'];
+  if(includeAll || cr.dni !== false) cols.push('DNI');
+  if(includeAll || cr.edad !== false) cols.push('Edad');
+  cols.push('Curso');
+  if(hasEspecial) cols.push(especialHeader);
+  if(hasDetalle) cols.push('Detalle pedido');
+  cols.push('Localidad');
+  if(includeAll || cr.ig !== false) cols.push('Instagram');
+  cols.push('WhatsApp alumno');
+  if(includeAll || hasTutor){ cols.push('Tutor','WhatsApp tutor'); }
+  if(includeAll || cr.email) cols.push('Email');
+  if(includeAll || cr.altura) cols.push('Altura');
+  if(includeAll || cr.medidas) cols.push('Medidas');
+  cols.push('Fecha');
+  if(hasOpciones) cols.push('Conceptos pactados');
+  cols.push('Total contratado','Total abonado','Saldo');
+  const rows = lista.map(([,i], idx) => {
+    const cur = cursos[i.cursoId];
+    const pinfo = getPagoAlumnoInfo(i, cur);
+    const row = [idx+1, i.nombre||''];
+    if(includeAll || cr.dni !== false) row.push(i.dni||'');
+    if(includeAll || cr.edad !== false) row.push(i.edad||'');
+    row.push(i.cursoTitulo || cur?.titulo || '');
+    if(hasEspecial) row.push(i.campoEspecialValor || '');
+    if(hasDetalle) row.push(i.detallePedido || '');
+    row.push(i.localidad || '');
+    if(includeAll || cr.ig !== false) row.push(i.ig||'');
+    row.push(i.wp||'');
+    if(includeAll || hasTutor) row.push(i.tutorNombre||'', i.tutorWp||'');
+    if(includeAll || cr.email) row.push(i.email||'');
+    if(includeAll || cr.altura) row.push(i.altura||'');
+    if(includeAll || cr.medidas) row.push(i.medidas||'');
+    row.push(i.fecha||'');
+    if(hasOpciones) row.push(resumenConceptosContratados(i, cur));
+    row.push(totalContratadoAlumno(i, cur), pinfo.monto, saldoAlumno(i, cur));
+    return row;
+  });
+  const totalIdx = cols.indexOf('Total contratado');
+  const abonadoIdx = cols.indexOf('Total abonado');
+  const saldoIdx = cols.indexOf('Saldo');
+  const totalRow = Array(cols.length).fill('');
+  totalRow[0] = 'TOTAL';
+  totalRow[totalIdx] = rows.reduce((a,r)=>a+(Number(r[totalIdx])||0),0);
+  totalRow[abonadoIdx] = rows.reduce((a,r)=>a+(Number(r[abonadoIdx])||0),0);
+  totalRow[saldoIdx] = rows.reduce((a,r)=>a+(Number(r[saldoIdx])||0),0);
+  rows.push(totalRow);
+  descargarExcelCsv('tomauno_inscripciones_' + String(cn).replace(/[^a-zA-Z0-9]/g,'_') + '.csv', 'Tomauno - Inscripciones - ' + cn, cols, rows);
+};
+
+window.exportarPDF = () => {
+  const {filtro, lista} = getAlumnosFiltrados();
+  const cn = filtro && cursos[filtro] ? cursos[filtro].titulo : 'Todos los cursos';
+  const especialHeader = (filtro && cursos[filtro] ? campoEspecialLabelCurso(cursos[filtro]) : '') || (lista.map(([,i]) => i.campoEspecialLabel || campoEspecialLabelCurso(cursos[i.cursoId])).find(Boolean)) || 'Dato especial';
+  const totalAbonado = lista.reduce((a,[,i]) => a + getPagoAlumnoInfo(i, cursos[i.cursoId]).monto, 0);
+  const totalSaldo = lista.reduce((a,[,i]) => a + saldoAlumno(i, cursos[i.cursoId]), 0);
+  const rows = lista.map(([id,i], idx) => {
+    const cur = cursos[i.cursoId];
+    const pinfo = getPagoAlumnoInfo(i, cur);
+    const especialValor = String(i.campoEspecialValor || '').trim();
+    const especial = (i.campoEspecialLabel || campoEspecialLabelCurso(cur)) && especialValor ? especialValor : '-';
+    return '<tr><td>'+(idx+1)+'</td><td>'+escHtml(i.nombre||'')+'</td><td>'+escHtml(i.dni||'')+'</td><td>'+escHtml(i.edad||'')+'</td><td>'+escHtml(i.cursoTitulo || cur?.titulo || '')+'</td><td>'+escHtml(especial)+'</td><td>'+escHtml(i.detallePedido || '-')+'</td><td>'+escHtml(resumenConceptosContratados(i, cur) || '-')+'</td><td>$ '+totalContratadoAlumno(i, cur).toLocaleString('es-AR')+'</td><td>$ '+pinfo.monto.toLocaleString('es-AR')+'</td><td>$ '+saldoAlumno(i, cur).toLocaleString('es-AR')+'</td></tr>';
+  }).join('');
+  const win = window.open('', '_blank');
+  if(!win) return;
+  win.document.write('<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Tomauno</title><link rel="stylesheet" href="css/03-style-03.css"/></head><body><div class="head"><div class="brand">TOMA<span>UNO</span></div><div class="course-title">'+escHtml(cn)+'</div><div class="meta">Planilla de alumnos - '+new Date().toLocaleDateString('es-AR')+'</div></div><div class="summary"><div class="box">Inscriptos: '+lista.length+'</div><div class="box">Abonado: $ '+totalAbonado.toLocaleString('es-AR')+'</div><div class="box">Saldo: $ '+totalSaldo.toLocaleString('es-AR')+'</div></div><table><thead><tr><th>#</th><th>Nombre</th><th>DNI</th><th>Edad</th><th>Curso</th><th>'+escHtml(especialHeader)+'</th><th>Detalle pedido</th><th>Conceptos pactados</th><th>Total</th><th>Abonado</th><th>Saldo</th></tr></thead><tbody>'+rows+'</tbody></table></body></html>');
+  win.document.close();
+  setTimeout(() => win.print(), 400);
+};
+
 const SERVICIOS = [
   {icon:'📷', title:'SESIONES FOTOGRÁFICAS', desc:'Capturamos tu esencia con luz profesional y dirección de arte.\n\nRealizamos sesiones de:\n• Retratos artísticos y editoriales\n• Book de modelos (principiantes y profesionales)\n• Moda y lookbook\n• Fotos para redes sociales / contenido\n• Sesiones en estudio o locación exterior\n\nCada sesión incluye selección de imágenes editadas en alta resolución.', wp:'3764354522'},
   {icon:'🎭', title:'MODELAJE', desc:'Formación integral para modelos de todos los niveles.\n\nIncluye:\n• Asesoramiento de imagen y posado\n• Técnicas de pasarela y desfile\n• Book fotográfico profesional incluido\n• Vinculación con agencias y productoras\n• Clases grupales e individuales\n\nIdeal para quienes quieren iniciar o potenciar su carrera en el modelaje.', wp:'3764354522'},
@@ -1200,7 +2117,7 @@ window.abrirServicio = (idx) => {
   document.getElementById('mcontent').innerHTML =
     '<div style="font-size:52px;text-align:center;margin-bottom:12px;">' + s.icon + '</div>' +
     '<div class="mtitle" style="text-align:center;">' + s.title + '</div>' +
-    '<div style="font-size:14px;color:var(--text2);line-height:1.75;white-space:pre-line;margin:16px 0 20px;">' + s.desc + '</div>' +
+    '<div style="font-size:14px;color:var(--text2);line-height:1.75;white-space:pre-line;margin:16px 0 20px;">' + renderInfoText(s.desc) + '</div>' +
     '<a rel="noopener noreferrer" href="https://wa.me/549' + s.wp + '?text=' + encodeURIComponent('Hola! Me interesa el servicio de ' + s.title + '. ¿Pueden darme más info?') + '" target="_blank" class="btn-main" style="text-decoration:none;">💬 Consultar por WhatsApp</a>' +
     '<button class="btn-out" onclick="window.closeModal()">Cerrar</button>';
   openModal();
@@ -1277,9 +2194,10 @@ window.abrirServicioDB = (id) => {
     (s.img ? '<img src="' + s.img + '" style="width:100%;border-radius:var(--radius-sm);margin-bottom:16px;max-height:280px;object-fit:contain;background:#0a0a0a;" onerror="this.style.display=\'none\'"/>' : '<div style="font-size:52px;text-align:center;margin-bottom:12px;">' + (s.icon || '📷') + '</div>') +
     '<div class="mtitle">' + (s.titulo || '') + '</div>' +
     (s.precio ? '<div style="font-family:var(--display);font-size:32px;color:var(--red);margin:8px 0 16px;">$ ' + Number(s.precio).toLocaleString('es-AR') + '</div>' : '') +
-    '<div style="font-size:14px;color:var(--text2);line-height:1.75;white-space:pre-line;margin-bottom:20px;">' + (s.desc || '') + '</div>' +
+    '<div style="font-size:14px;color:var(--text2);line-height:1.75;white-space:pre-line;margin-bottom:20px;">' + renderInfoText(s.desc || '') + '</div>' +
     (s.dir ? '<div style="font-size:13px;color:var(--text2);margin-bottom:10px;">📍 ' + s.dir + '</div>' : '') +
     (s.ig ? '<a rel="noopener noreferrer" href="https://instagram.com/' + s.ig + '" target="_blank" class="det-link ig" style="margin-bottom:12px;display:inline-flex;">📸 @' + s.ig + '</a>' : '') +
+    (s.extraUrl ? '<a rel="noopener noreferrer" href="' + safeUrl(s.extraUrl) + '" target="_blank" class="extra-link-btn" style="margin-bottom:12px;">Link: ' + escHtml(s.extraText || 'Ver mas informacion') + '</a>' : '') +
     (s.tipo==='sesiones' ? '<button class="btn-main" style="margin-top:8px;" onclick="window.abrirTurnosServicio(\'' + id + '\')">📅 Elegir turno</button>' : '<a rel="noopener noreferrer" href="https://wa.me/549' + wp + '?text=' + encodeURIComponent('Hola! Me interesa el servicio: ' + (s.titulo || '') + '. ¿Pueden darme más info?') + '" target="_blank" class="btn-main" style="text-decoration:none;margin-top:8px;">💬 Consultar por WhatsApp</a>') +
     '<button class="btn-out" onclick="window.closeModal()">Cerrar</button>';
   openModal();
@@ -1297,6 +2215,7 @@ window.editServicio = (id) => {
     '<label class="flbl">Descripción</label><textarea class="finput" id="es-desc" rows="4">' + escHtml(s.desc || '') + '</textarea>' +
     '<div class="frow2"><div><label class="flbl">Precio desde ($)</label><input class="finput" id="es-precio" type="number" value="'+(s.precio||0)+'"/></div><div><label class="flbl">Icono</label><input class="finput" id="es-icon" maxlength="4" value="'+escAttr(s.icon||'📷')+'"/></div></div>' +
     '<label class="flbl">URL imagen</label><input class="finput" id="es-img" value="'+escAttr(s.img||'')+'" placeholder="https://i.imgur.com/..."/>' +
+    '<div class="frow2"><div><label class="flbl">Texto link extra</label><input class="finput" id="es-extra-text" value="'+escAttr(s.extraText||'')+'" placeholder="Ver mas informacion"/></div><div><label class="flbl">URL link extra</label><input class="finput" id="es-extra-url" value="'+escAttr(s.extraUrl||'')+'" placeholder="https://..."/></div></div>' +
     '<label class="flbl">Dirección</label><div style="display:flex;gap:6px;"><input class="finput" id="es-dir" value="'+escAttr(s.dir||'')+'" style="margin:0;"/><button type="button" onclick="document.getElementById(\'es-dir\').value=\'Pedro Méndez 2069, Posadas, Misiones\'" style="background:var(--gray3);border:none;color:var(--text2);border-radius:var(--radius-sm);padding:0 12px;font-size:11px;cursor:pointer;font-family:var(--font);">📍 Estudio</button></div>' +
     '<div class="frow2"><div><label class="flbl">Instagram</label><input class="finput" id="es-ig" value="'+escAttr(s.ig||'')+'"/></div><div><label class="flbl">WhatsApp</label><input class="finput" id="es-wp" value="'+escAttr(s.wp||'')+'"/></div></div>' +
     '<label class="flbl">Campos del formulario si usa turnos</label><div style="background:#0d0d0d;border:1px solid var(--border);border-radius:var(--radius-sm);padding:12px;display:flex;flex-wrap:wrap;gap:10px;"><label style="display:flex;align-items:center;gap:6px;font-size:13px;"><input type="checkbox" id="es-req-ig" '+((s.camposReq||{}).ig!==false?'checked':'')+' style="accent-color:var(--red);"> Instagram</label><label style="display:flex;align-items:center;gap:6px;font-size:13px;"><input type="checkbox" id="es-req-email" '+((s.camposReq||{}).email?'checked':'')+' style="accent-color:var(--red);"> Email</label><label style="display:flex;align-items:center;gap:6px;font-size:13px;"><input type="checkbox" id="es-req-altura" '+((s.camposReq||{}).altura?'checked':'')+' style="accent-color:var(--red);"> Altura</label><label style="display:flex;align-items:center;gap:6px;font-size:13px;"><input type="checkbox" id="es-req-medidas" '+((s.camposReq||{}).medidas?'checked':'')+' style="accent-color:var(--red);"> Medidas</label></div><div style="font-size:10px;color:var(--text3);margin-top:4px;">Nombre, WhatsApp y edad son siempre obligatorios. DNI no se pide en servicios.</div>' +
@@ -1315,6 +2234,8 @@ window.guardarEditServicio = async (id) => {
     precio: parseInt(document.getElementById('es-precio')?.value) || 0,
     icon: document.getElementById('es-icon')?.value.trim() || '📷',
     img: document.getElementById('es-img')?.value.trim() || '',
+    extraText: document.getElementById('es-extra-text')?.value.trim() || '',
+    extraUrl: document.getElementById('es-extra-url')?.value.trim() || '',
     dir: document.getElementById('es-dir')?.value.trim() || 'Pedro Méndez 2069, Posadas, Misiones',
     ig: document.getElementById('es-ig')?.value.trim() || 'tomaunomodels',
     wp: document.getElementById('es-wp')?.value.trim() || '3764354522',
@@ -1393,7 +2314,7 @@ window.abrirReservaServicio = (id, turno) => {
     '<input type="hidden" id="fsv-turno" value="' + turno + '"/>' +
     '<input class="finput" id="fsv-nom" placeholder="Nombre y apellido *"/>' +
     '<input type="hidden" id="fsv-dni" value=""/>' +
-    '<input class="finput" id="fsv-edad" placeholder="Edad *" type="number"/>' +
+    '<input class="finput" id="fsv-edad" placeholder="Edad *" type="text" inputmode="numeric" autocomplete="off"/>' +
     (cr.ig !== false ? '<input class="finput" id="fsv-ig" placeholder="Instagram (sin @)"/>' : '') +
     (cr.email ? '<input class="finput" id="fsv-email" placeholder="Email *" type="email"/>' : '') +
     '<input class="finput" id="fsv-wp" placeholder="WhatsApp * ej: 3764123456" type="tel"/>' +
@@ -1605,6 +2526,18 @@ window.abrirFormTestimonio = () => {
   openModal();
 };
 
+function abrirTestimonioDesdeHash(){
+  try{
+    const h = String(location.hash || '').replace('#','').toLowerCase();
+    if(h !== 'testimonio' && h !== 'resena' && h !== 'reseña') return;
+    const sec = document.getElementById('sec-testimonios');
+    if(sec) sec.scrollIntoView({behavior:'smooth', block:'start'});
+    setTimeout(() => { if(typeof window.abrirFormTestimonio === 'function') window.abrirFormTestimonio(); }, 450);
+  }catch(e){}
+}
+window.addEventListener('hashchange', abrirTestimonioDesdeHash);
+setTimeout(abrirTestimonioDesdeHash, 700);
+
 window.enviarReview = async () => {
   const texto = document.getElementById('rv-texto')?.value.trim();
   if (!texto) { toast('⚠️ Contanos tu experiencia'); return; }
@@ -1655,7 +2588,6 @@ function renderStatsVistas() {
 
 
 // ── CHAT DIRECTO ─────────────────────────────────────────────────────────────
-let chatsDB = {}, adminStatus = {adminOnline:false, adminLast:0};
 let asistenteDB = {modo:'manual', knowledge:{}};
 let knownChatIds = null;
 let notifiedChatIds = (() => { try { return new Set(JSON.parse(localStorage.getItem('tomauno-chat-notified') || '[]')); } catch(e){ return new Set(); } })();
@@ -1709,10 +2641,37 @@ function notifyNative(title, body, tag){
   }catch(e){}
 }
 
+
+function tomaunoUltimoMensajeUsuarioChat(c){
+  try{
+    const arr = chatMsgs(c).filter(([,m]) => m && m.from === 'user' && !m.typing && !m.hidden && !m.deleted && !m.deletedForVisitor);
+    if(!arr.length) return null;
+    const last = arr[arr.length-1][1] || {};
+    return {
+      text: String(last.text || '').trim(),
+      ts: Number(last.createdAt || c?.updatedAt || 0)
+    };
+  }catch(e){ return null; }
+}
+
 function notifyAdminChat(title, body, chatId){
-  try{ beep(); }catch(e){}
-  try{ showNotif(); showNotifBanner(title, body || 'Nuevo mensaje'); }catch(e){}
-  notifyNative('💬 ' + title, body || 'Nuevo mensaje desde la web', chatId ? 'tomauno-chat-' + chatId : 'tomauno-chat');
+  const t = String(title || '');
+  const c = chatId && chatsDB ? chatsDB[chatId] : null;
+  const lastUser = c ? tomaunoUltimoMensajeUsuarioChat(c) : null;
+  const isHuman = /humana|Javier|LLAMADA/i.test(t + ' ' + String(body || ''));
+
+  // Regla limpia:
+  // - Las llamadas humanas sí notifican.
+  // - Los mensajes web solo notifican si el último mensaje real viene del visitante.
+  if(!isHuman && (!lastUser || !lastUser.text)) return;
+
+  const cleanBody = isHuman
+    ? (body || 'Llamada humana')
+    : (chatVisibleName(c, chatId) + ': ' + lastUser.text);
+
+  try{ isHuman && window.tomaunoHumanAlarm ? window.tomaunoHumanAlarm(chatId, cleanBody) : beep(); }catch(e){}
+  try{ showNotif(); showNotifBanner(isHuman ? '📣 LLAMADA PARA JAVIER' : 'Nuevo mensaje web', cleanBody || 'Nuevo chat web'); }catch(e){}
+  notifyNative((isHuman ? '📣 LLAMADA PARA JAVIER' : '💬 Nuevo mensaje web'), cleanBody || 'Nuevo mensaje desde la web', chatId ? 'tomauno-chat-' + chatId : 'tomauno-chat');
 }
 
 onValue(ref(db, 'tomauno/status'), snap => {
@@ -1732,6 +2691,7 @@ onValue(ref(db, 'tomauno/asistente'), snap => {
 
 onValue(ref(db, 'tomauno/chats'), snap => {
   chatsDB = snap.exists() ? snap.val() : {};
+  try{ window.chatsDB = chatsDB; }catch(e){}
   const chatEntries = Object.entries(chatsDB).filter(([,c]) => isValidChat(c));
   const unreadAdmin = chatEntries.filter(([,c]) => !!c.unreadAdmin && c.status !== 'cerrado').length;
   const fab = document.getElementById('chat-fab');
@@ -1743,6 +2703,19 @@ onValue(ref(db, 'tomauno/chats'), snap => {
 
   if (knownChatIds === null) {
     knownChatIds = new Set(chatEntries.map(([id]) => id));
+    if(isAdminNotifier()){
+      const recientes = chatEntries
+        .filter(([id,c]) => !notifiedChatIds.has(id) && c.unreadAdmin && c.status !== 'cerrado')
+        .map(([id,c]) => ({id,c,u:tomaunoUltimoMensajeUsuarioChat(c)}))
+        .filter(x => x.u && x.u.text && Number(x.u.createdAt || x.c.updatedAt || 0) > Date.now() - 120000)
+        .sort((a,b)=>Number(b.u.createdAt||b.c.updatedAt||0)-Number(a.u.createdAt||a.c.updatedAt||0));
+      if(recientes.length){
+        const top = recientes[0];
+        notifyAdminChat('Nuevo chat web', (top.c?.name || 'Sin nombre') + ': ' + top.u.text, top.id);
+        recientes.forEach(x => notifiedChatIds.add(x.id));
+        try{ localStorage.setItem('tomauno-chat-notified', JSON.stringify([...notifiedChatIds])); }catch(e){}
+      }
+    }
   } else if (isAdminNotifier()) {
     // Notificar una sola vez por conversación cuando aparece el primer mensaje no leído para admin.
     // Aunque el chat ya haya sido creado segundos antes al poner el nombre.
@@ -1751,11 +2724,17 @@ onValue(ref(db, 'tomauno/chats'), snap => {
       .sort((a,b)=>(b[1].updatedAt||0)-(a[1].updatedAt||0));
     if (nuevos.length) {
       const [newId, newest] = nuevos[0];
-      notifyAdminChat('Nuevo chat web', (newest?.name || 'Sin nombre') + ': ' + (newest?.lastMsg || 'Escribió desde la web'), newId);
+      {
+        const u = tomaunoUltimoMensajeUsuarioChat(newest);
+        if(u && u.text) notifyAdminChat('Nuevo chat web', (newest?.name || 'Sin nombre') + ': ' + u.text, newId);
+      }
       // Si el chat está minimizado, abrir automáticamente la conversación nueva para el admin.
       const popAuto = document.getElementById('chat-popover');
       if (!popAuto || !popAuto.classList.contains('open')) setTimeout(() => window.abrirChatAdmin && window.abrirChatAdmin(newId), 120);
-      nuevos.forEach(([id]) => notifiedChatIds.add(id));
+      nuevos.forEach(([id,c]) => {
+        const u = tomaunoUltimoMensajeUsuarioChat(c);
+        if(u && u.text) notifiedChatIds.add(id);
+      });
       try{ localStorage.setItem('tomauno-chat-notified', JSON.stringify([...notifiedChatIds])); }catch(e){}
     }
     chatEntries.forEach(([id]) => knownChatIds.add(id));
@@ -1776,6 +2755,7 @@ onValue(ref(db, 'tomauno/chats'), snap => {
     // Evita refrescar todo el contenedor del chat mientras se escribe: actualiza solo mensajes.
     updateChatMessagesOnly(currentOpenChatId, adminView);
   }
+  updateActivityIndicator();
 });
 
 function isAdminOnline(){ return !!(adminStatus.adminOnline && (Date.now() - (adminStatus.adminLast || 0) < 90000)); }
@@ -1872,7 +2852,11 @@ function chatQuickList(){
     .filter(([,q]) => q && q.activo !== false && q.label && q.text)
     .sort((a,b)=>(a[1].orden||0)-(b[1].orden||0))
     .map(([,q]) => ({label:q.label, text:q.text}));
-  return custom.length ? custom : DEFAULT_CHAT_QUICK;
+  const list = custom.length ? custom : DEFAULT_CHAT_QUICK;
+  if(!list.some(q => /eventos?/i.test(String(q.label || '') + ' ' + String(q.text || '')))){
+    return list.concat([{label:'📅 Eventos', text:'📅 Te paso los eventos activos publicados en la web.\n#eventos'}]);
+  }
+  return list;
 }
 function quickReplyIcon(label){
   const m = String(label || '').match(/[\u{1F300}-\u{1FAFF}\u{2600}-\u{27BF}]/u);
@@ -1912,11 +2896,12 @@ window.abrirChatTomauno = () => {
     return abrirPanelChatsAdmin();
   }
   document.getElementById('chat-fab')?.classList.remove('has-new');
+  if(currentCtrlMInvite && Number(currentCtrlMInvite.expiresAt || 0) > Date.now()) return window.abrirCtrlMInvite();
   if (currentVisitorChatId && chatsDB[currentVisitorChatId] && chatsDB[currentVisitorChatId].status !== 'cerrado') return abrirChatVisitante(currentVisitorChatId);
   setChatPopover(
     '<div class="chat-head"><div class="chat-avatar">💬</div><div><div class="chat-title">CHAT TOMAUNO</div><div class="chat-subline">Consulta directa desde la web</div></div></div>' +
     '<div class="chat-panel"><div class="chat-msgs" id="chat-msgs">' +
-    '<div class="chat-bubble admin"><div>Hola 😊<br/><b>¿Cómo es tu nombre?</b></div><div class="chat-meta">Ahora</div></div>' +
+    '<div class="chat-bubble admin"><div>Soy el asistente de Tomauno 😊<br/><b>¿Cómo es tu nombre?</b></div><div class="chat-meta">Ahora</div></div>' +
     '</div>' +
     '<div class="chat-name-row"><input class="finput" id="chat-name" placeholder="Tu nombre" onkeydown="if(event.key===\'Enter\')window.iniciarChatConNombre()"/><button class="chat-send" onclick="window.iniciarChatConNombre()">➜</button></div></div>'
   );
@@ -2025,6 +3010,257 @@ function chatLinkify(text, chat){
   });
   return safe.replace(/\n/g,'<br>');
 }
+
+const CTRL_M_INVITE_DEFAULT = 'Hola, soy Javier de Tomauno. Si necesitas ayuda con algun curso o servicio, aqui estoy para responderte.';
+let currentCtrlMInvite = null;
+
+function ctrlMInviteStyle(){
+  if(document.getElementById('ctrl-m-invite-style')) return;
+  const st = document.createElement('style');
+  st.id = 'ctrl-m-invite-style';
+  st.textContent = [
+    '.ctrl-m-invite{position:fixed;right:22px;bottom:112px;z-index:99998;width:min(340px,calc(100vw - 28px));background:#151515;border:1px solid rgba(232,0,10,.75);border-radius:16px;box-shadow:0 18px 40px rgba(0,0,0,.55);padding:14px;color:#fff;font-family:inherit;}',
+    '.ctrl-m-invite strong{display:block;color:#fff;font-size:13px;text-transform:uppercase;letter-spacing:.06em;margin-bottom:6px;}',
+    '.ctrl-m-invite p{margin:0;color:rgba(255,255,255,.86);font-size:13px;line-height:1.35;}',
+    '.ctrl-m-invite-actions{display:flex;gap:8px;margin-top:12px;}',
+    '.ctrl-m-invite-actions button{border:0;border-radius:999px;padding:9px 12px;font-weight:900;cursor:pointer;}',
+    '.ctrl-m-invite-reply{background:#e8000a;color:#fff;flex:1;}',
+    '.ctrl-m-invite-close{background:#2a2a2a;color:#fff;width:42px;}',
+    '#chat-popover.open .ctrl-m-invite-panel{display:flex;flex-direction:column;gap:10px;}',
+    '#chat-popover.open .ctrl-m-invite-panel .chat-msgs{min-height:260px;}'
+  ].join('');
+  document.head.appendChild(st);
+}
+
+function closeCtrlMInviteBox(){
+  const el = document.getElementById('ctrl-m-invite-box');
+  if(el) el.remove();
+}
+
+function renderCtrlMInviteBox(invite){
+  if(isAdminNotifier() || currentVisitorChatId) return;
+  ctrlMInviteStyle();
+  currentCtrlMInvite = invite;
+  closeCtrlMInviteBox();
+  const box = document.createElement('div');
+  box.id = 'ctrl-m-invite-box';
+  box.className = 'ctrl-m-invite';
+  box.innerHTML =
+    '<strong>Javier de Tomauno</strong>' +
+    '<p>'+escHtml(invite.message || CTRL_M_INVITE_DEFAULT)+'</p>' +
+    '<div class="ctrl-m-invite-actions">' +
+      '<button class="ctrl-m-invite-reply" onclick="window.abrirCtrlMInvite()">Responder</button>' +
+      '<button class="ctrl-m-invite-close" title="Cerrar" onclick="window.descartarCtrlMInvite()">x</button>' +
+    '</div>';
+  document.body.appendChild(box);
+  try{ beep(); }catch(e){}
+  try{ navigator.vibrate && navigator.vibrate(120); }catch(e){}
+}
+
+window.descartarCtrlMInvite = async () => {
+  const invite = currentCtrlMInvite;
+  closeCtrlMInviteBox();
+  if(invite?.id){
+    try{ sessionStorage.setItem('tomauno-ctrl-m-invite-seen', invite.id); }catch(e){}
+  }
+  try{ await remove(ref(db,'tomauno/ctrlMInvites/'+PRESENCE_ID)); }catch(e){}
+};
+
+function initCtrlMInviteListener(){
+  try{
+    onValue(ref(db,'tomauno/ctrlMInvites/'+PRESENCE_ID), snap => {
+      if(isAdminNotifier() || currentVisitorChatId) return closeCtrlMInviteBox();
+      if(!snap.exists()) return;
+      const invite = snap.val() || {};
+      if(!invite.active || Number(invite.expiresAt || 0) < Date.now()){
+        remove(ref(db,'tomauno/ctrlMInvites/'+PRESENCE_ID)).catch(()=>{});
+        return closeCtrlMInviteBox();
+      }
+      try{ if(sessionStorage.getItem('tomauno-ctrl-m-invite-seen') === invite.id) return; }catch(e){}
+      renderCtrlMInviteBox(invite);
+    }, () => {});
+  }catch(e){}
+}
+initCtrlMInviteListener();
+
+window.abrirCtrlMInvite = () => {
+  const invite = currentCtrlMInvite;
+  if(!invite || Number(invite.expiresAt || 0) < Date.now()) return window.abrirChatTomauno();
+  try{ if(invite.id) sessionStorage.setItem('tomauno-ctrl-m-invite-seen', invite.id); }catch(e){}
+  closeCtrlMInviteBox();
+  setChatPopover(
+    '<div class="chat-head"><div class="chat-avatar">VIS</div><div><div class="chat-title">JAVIER TOMAUNO</div><div class="chat-subline">Respuesta directa desde la web</div></div></div>' +
+    '<div class="chat-panel ctrl-m-invite-panel"><div class="chat-msgs" id="chat-msgs">' +
+      '<div class="chat-bubble admin"><div>'+chatLinkify(invite.message || CTRL_M_INVITE_DEFAULT)+'</div><div class="chat-meta">Ahora</div></div>' +
+    '</div>' +
+    '<div class="chat-row"><input class="finput" id="chat-ctrl-m-text" placeholder="Responder a Javier..." onkeydown="if(event.key===\'Enter\'){event.preventDefault();window.responderCtrlMInvite();}"/><button class="chat-send" onclick="window.responderCtrlMInvite()">➜</button></div></div>'
+  );
+  setTimeout(()=>document.getElementById('chat-ctrl-m-text')?.focus(),80);
+};
+
+function ctrlMVisitorLabel(){
+  return 'Visitante web';
+}
+
+window.responderCtrlMInvite = async () => {
+  const invite = currentCtrlMInvite;
+  const inp = document.getElementById('chat-ctrl-m-text');
+  const text = String(inp?.value || '').trim();
+  if(!invite || !text) return;
+  if(inp) inp.value = '';
+  const now = Date.now();
+  const visitorName = ctrlMVisitorLabel();
+  const chatRef = await push(ref(db,'tomauno/chats'), {
+    name:visitorName,
+    wp:'',
+    status:'abierto',
+    createdAt:now,
+    updatedAt:now,
+    lastMsg:text,
+    unreadAdmin:true,
+    unreadVisitor:false,
+    userOnline:true,
+    userLastSeen:now,
+    humanMode:true,
+    manualUntil:now + 3600000,
+    javierOnline:true,
+    javierOnlineAt:now,
+    ctrlMInvite:true,
+    ctrlMNeedsAdminNotice:true
+  });
+  currentVisitorChatId = chatRef.key;
+  try{
+    sessionStorage.setItem('tomauno-chat-id', currentVisitorChatId);
+    sessionStorage.setItem('tomauno-chat-name', visitorName);
+    sessionStorage.setItem('tomauno-ctrl-m-invite-seen', invite.id);
+  }catch(e){}
+  await push(ref(db,'tomauno/chats/'+currentVisitorChatId+'/messages'), {
+    from:'admin',
+    text:invite.message || CTRL_M_INVITE_DEFAULT,
+    time:chatTime(),
+    createdAt:Number(invite.createdAt || now),
+    humanInvite:true
+  });
+  await push(ref(db,'tomauno/chats/'+currentVisitorChatId+'/messages'), {from:'user', text, time:chatTime(), createdAt:Date.now()});
+  try{ await remove(ref(db,'tomauno/ctrlMInvites/'+PRESENCE_ID)); }catch(e){}
+  abrirChatVisitante(currentVisitorChatId, true);
+  [80, 220, 520].forEach(ms => setTimeout(() => {
+    const txt = document.getElementById('chat-text');
+    if(txt){
+      try{ txt.focus({preventScroll:true}); txt.setSelectionRange(txt.value.length, txt.value.length); }
+      catch(e){ try{ txt.focus(); }catch(_e){} }
+    }
+  }, ms));
+};
+
+document.addEventListener('keydown', function(ev){
+  if(ev.key !== 'Enter') return;
+  const el = ev.target;
+  if(!el || el.id !== 'chat-ctrl-m-text') return;
+  ev.preventDefault();
+  ev.stopPropagation();
+  if(ev.stopImmediatePropagation) ev.stopImmediatePropagation();
+  if(typeof window.responderCtrlMInvite === 'function') window.responderCtrlMInvite();
+}, true);
+
+async function ctrlMActiveVisitors(){
+  try{
+    const snap = await get(ref(db,'tomauno/presence'));
+    const all = snap.exists() ? (snap.val() || {}) : {};
+    const now = Date.now();
+    return Object.entries(all).filter(([id,v]) =>
+      id !== PRESENCE_ID &&
+      v &&
+      v.online &&
+      Number(v.ts || 0) &&
+      now - Number(v.ts || 0) < 90000
+    );
+  }catch(e){
+    return [];
+  }
+}
+
+window.abrirMensajeCtrlMVisitantes = async () => {
+  if(!isAdminNotifier()) return;
+  const visitors = await ctrlMActiveVisitors();
+  if(!visitors.length){ toast('No hay visitantes activos para enviar mensaje'); return; }
+  document.getElementById('mcontent').innerHTML =
+    '<div class="mtitle">MENSAJE A VISITANTES</div>' +
+    '<div class="msub" style="margin-bottom:12px;">Se enviara solo a los '+visitors.length+' visitante'+(visitors.length!==1?'s':'')+' activo'+(visitors.length!==1?'s':'')+' de este momento. No queda automatico.</div>' +
+    '<textarea class="finput" id="ctrl-m-visitor-message" style="min-height:130px;" onkeydown="if(event.key===\'Enter\'&&!event.shiftKey){event.preventDefault();window.enviarMensajeCtrlMVisitantes()}">'+escHtml(CTRL_M_INVITE_DEFAULT)+'</textarea>' +
+    '<button class="btn-main" onclick="window.enviarMensajeCtrlMVisitantes()">Enviar ahora</button>' +
+    '<button class="btn-out" onclick="window.closeModal()">Cancelar</button>';
+  openModal();
+  setTimeout(()=>document.getElementById('ctrl-m-visitor-message')?.focus(),80);
+};
+
+window.enviarMensajeCtrlMVisitantes = async () => {
+  const visitors = await ctrlMActiveVisitors();
+  const message = String(document.getElementById('ctrl-m-visitor-message')?.value || '').trim();
+  if(!message){ toast('Escribi el mensaje'); return; }
+  if(!visitors.length){ closeModal(); toast('No hay visitantes activos'); return; }
+  const now = Date.now();
+  const inviteId = 'ctrlm_' + now + '_' + Math.random().toString(36).slice(2,7);
+  const updates = {};
+  visitors.forEach(([id]) => {
+    updates[id] = {id:inviteId, message, active:true, createdAt:now, expiresAt:now + 5 * 60 * 1000};
+  });
+  await update(ref(db,'tomauno/ctrlMInvites'), updates);
+  closeModal();
+  toast('Mensaje enviado a '+visitors.length+' visitante'+(visitors.length!==1?'s':''), true);
+};
+
+document.addEventListener('keydown', ev => {
+  if(ev.key === 'Enter' && !ev.shiftKey && ev.target && ev.target.id === 'ctrl-m-visitor-message'){
+    ev.preventDefault();
+    ev.stopPropagation();
+    window.enviarMensajeCtrlMVisitantes();
+    return;
+  }
+  if((ev.ctrlKey || ev.metaKey) && String(ev.key || '').toLowerCase() === 'm'){
+    if(!isAdminNotifier()) return;
+    ev.preventDefault();
+    window.abrirMensajeCtrlMVisitantes();
+  }
+});
+
+try{
+  const ctrlMAdminNoticeSeen = {};
+  onValue(ref(db,'tomauno/chats'), snap => {
+    if(!isAdminNotifier() || !snap.exists()) return;
+    const data = snap.val() || {};
+    Object.entries(data).forEach(([id,c]) => {
+      if(!c || !c.ctrlMNeedsAdminNotice || ctrlMAdminNoticeSeen[id]) return;
+      const lastUser = typeof tomaunoUltimoMensajeUsuarioChat === 'function' ? tomaunoUltimoMensajeUsuarioChat(c) : null;
+      if(!lastUser || !lastUser.text) return;
+      ctrlMAdminNoticeSeen[id] = 1;
+      try{
+        const muted = new Set(JSON.parse(localStorage.getItem('tomauno-chat-notified-open') || '[]'));
+        if(muted.has(id)){
+          update(ref(db,'tomauno/chats/'+id), {ctrlMNeedsAdminNotice:false}).catch(()=>{});
+          return;
+        }
+        muted.add(id);
+        localStorage.setItem('tomauno-chat-notified-open', JSON.stringify([...muted]));
+        if(typeof notifiedChatIds !== 'undefined'){
+          notifiedChatIds.add(id);
+          localStorage.setItem('tomauno-chat-notified', JSON.stringify([...notifiedChatIds]));
+        }
+      }catch(e){}
+      try{ if(typeof beepStrongFinal === 'function') beepStrongFinal(); else if(typeof beep === 'function') beep(); }catch(e){}
+      try{ if(typeof showNotif === 'function') showNotif(); }catch(e){}
+      try{
+        if(typeof showNotifBanner === 'function'){
+          showNotifBanner('Nuevo mensaje web', chatVisibleName(c,id) + ': ' + lastUser.text, 'CHAT', () => {
+            if(typeof window.abrirChatAdmin === 'function') window.abrirChatAdmin(id);
+          });
+        }
+      }catch(e){}
+      try{ update(ref(db,'tomauno/chats/'+id), {ctrlMNeedsAdminNotice:false}).catch(()=>{}); }catch(e){}
+    });
+  });
+}catch(e){}
+
 function chatActionButtonsForMessage(text){
   const t = normAI(text || '');
   const btns = parseChatActions(text || '');
@@ -2043,20 +3279,21 @@ window.chatGoToSection = (id) => {
   navScroll(id);
 };
 function renderMsgs(chat, adminView=false, chatId=''){
-  return chatMsgs(chat).map(([mid,m]) => {
-    const editBtn = adminView && m.from === 'admin' ? '<button class="chat-edit-mini" title="Editar respuesta" onclick="event.stopPropagation();window.editarMensajeChat(\''+chatId+'\',\''+mid+'\')">✎</button>' : '';
-    const cls = m.typing ? 'typing' : (m.from==='admin'?'admin':m.from==='system'?'system':'user');
-    const actions = (!m.typing && (m.from==='admin' || m.from==='system')) ? chatActionButtonsForMessage(m.text || '') : '';
-    const waitStart = m.humanWait ? Number(chat?.humanWaitStartedAt || m.createdAt || 0) : 0;
-    const waitCountdown = waitStart ? '<div class="chat-human-countdown" data-human-wait-start="'+waitStart+'"><span class="chat-human-countdown-num">60</span>s para intentar conectar con Javier</div>' : '';
-    return '<div class="chat-bubble '+cls+'"><div>'+chatLinkify(m.text||'')+editBtn+'</div>'+waitCountdown+actions+(m.from==='system'?'':'<div class="chat-meta">'+escHtml(m.time||'')+'</div>')+'</div>';
+  return chatMsgs(chat).filter(([mid,m]) => !(m && (m.hidden || m.deleted || m.deletedForVisitor))).map(([mid,m]) => {
+    const editBtn = adminView && m.from === 'admin' && !m.humanWait && !m.humanAttend ? '<button class="chat-edit-mini" title="Editar respuesta" onclick="event.stopPropagation();window.editarMensajeChat(\''+chatId+'\',\''+mid+'\')">✎</button>' : '';
+    const deleteBtn = adminView && (m.from === 'admin' || m.from === 'system') && !m.typing ? '<button class="chat-delete-mini" title="Borrar para el visitante" onclick="event.stopPropagation();window.borrarMensajeChatParaVisitante(\''+chatId+'\',\''+mid+'\')">🗑️</button>' : '';
+    const cls = m.typing ? 'typing' : (m.humanWait ? 'admin tu-human-wait' : (m.humanAttend ? 'admin tu-human-attend' : (m.from==='admin'?'admin':m.from==='system'?'system':'user')));
+    const actions = (!m.typing && !m.humanWait && !m.humanAttend && (m.from==='admin' || m.from==='system')) ? chatActionButtonsForMessage(m.text || '') : '';
+    const attended = !!(chat && (chat.callAnsweredAt || (!chat.humanRequested && m.humanWait && Number(chat.callUntil||0) === 0)));
+    const waitStart = m.humanWait ? (Number(chat?.callUntil || 0) ? Number(chat.callUntil) - 60000 : Number(chat?.humanWaitStartedAt || m.createdAt || 0)) : 0;
+    const waitCountdown = (m.humanWait && waitStart && !attended) ? '<div class="chat-human-countdown" data-human-wait-start="'+waitStart+'"><span class="chat-human-countdown-num">60</span>s para intentar conectar con Javier</div>' : '';
+    const attendBtn = adminView && m.humanWait && !attended ? '<button class="chat-attend-call" onclick="event.stopPropagation();window.atenderLlamadaJavier(\''+chatId+'\')">📞 ATENDIENDO</button>' : '';
+    return '<div class="chat-bubble '+cls+'" data-message-id="'+escAttr(mid)+'" data-msg-id="'+escAttr(mid)+'"><div>'+chatLinkify(m.text||'')+editBtn+deleteBtn+'</div>'+waitCountdown+attendBtn+actions+(m.from==='system'?'':'<div class="chat-meta">'+escHtml(m.time||'')+'</div>')+'</div>';
   }).join('');
 }
 function scrollChatSmart(box){
   if(!box) return;
-  const bubbles = box.querySelectorAll('.chat-bubble');
-  const last = bubbles[bubbles.length - 1];
-  if(!last){ box.scrollTop = box.scrollHeight; return; }
+  if(!isAdminNotifier() && box.classList && box.classList.contains('chat-msgs') && Date.now() < Number(box.dataset.tuVisitorReadingUntil || 0)) return;
   box.scrollTop = box.scrollHeight;
 }
 function updateChatMessagesOnly(id, adminView){
@@ -2122,10 +3359,29 @@ function chatAnonName(id, c){
   const letter = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'[h % 26] || 'A';
   return 'Usuario ' + letter;
 }
-function chatVisibleName(c, id){
-  const n = String((c && c.name) || '').trim();
+function chatBaseVisibleName(c, id){
+  const n = String((c && c.name) || '').trim().replace(/\s+\(\d+\)\s*$/,'');
   if(n && !isGenericChatName(n)) return n;
   return chatAnonName(id, c);
+}
+function chatDuplicateIndex(c, id){
+  const base = chatBaseVisibleName(c, id).toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/\s+/g,' ').trim();
+  if(!base || typeof chatsDB === 'undefined' || !chatsDB) return 0;
+  const same = Object.entries(chatsDB)
+    .filter(([,x]) => x && x.status !== 'cerrado' && chatBaseVisibleName(x, '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/\s+/g,' ').trim() === base)
+    .sort((a,b) => {
+      const ta = Number(a[1].createdAt || a[1].firstSeenAt || a[1].updatedAt || 0);
+      const tb = Number(b[1].createdAt || b[1].firstSeenAt || b[1].updatedAt || 0);
+      return (ta - tb) || String(a[0]).localeCompare(String(b[0]));
+    });
+  if(same.length <= 1) return 0;
+  const idx = same.findIndex(([xid]) => xid === id);
+  return idx > 0 ? idx + 1 : 0;
+}
+function chatVisibleName(c, id){
+  const base = chatBaseVisibleName(c, id);
+  const dup = chatDuplicateIndex(c, id);
+  return base + (dup ? ' (' + dup + ')' : '');
 }
 function chatLastActivityLabel(c){
   const t = Number(c?.updatedAt || c?.createdAt || 0);
@@ -2134,12 +3390,45 @@ function chatLastActivityLabel(c){
 }
 function chatNeedsReply(c){
   if(!c) return false;
-  return !!(c.unreadAdmin || c.humanRequested);
+  return !!c.unreadAdmin;
+}
+function chatIsCallingHuman(c){
+  return !!(c && c.humanRequested && c.callUntil && Number(c.callUntil) > Date.now() && !c.callAnsweredAt);
+}
+function chatIsPendingHuman(c){
+  return !!(c && !chatIsCallingHuman(c) && (c.pendingHuman || c.waitingWhatsapp || c.waitingHumanContact || c.awaitingHumanContact || c.pendingHumanContact || (c.humanFallbackSent && !c.humanContactReceived)));
+}
+function chatPriorityRank(c){
+  if(chatIsCallingHuman(c)) return 4;
+  if(c && c.unreadAdmin) return 3;
+  if(c && isChatUserOnline(c)) return 2;
+  if(chatIsPendingHuman(c)) return 1;
+  return 0;
+}
+function sortChatsForInbox(entries){
+  return entries.sort((a,b) => {
+    const ra = chatPriorityRank(a[1]), rb = chatPriorityRank(b[1]);
+    if(ra !== rb) return rb - ra;
+    return Number(b[1].updatedAt || 0) - Number(a[1].updatedAt || 0);
+  });
+}
+function chatHumanIcon(c, id){
+  if(chatIsCallingHuman(c)) return '📣 ';
+  if(chatIsPendingHuman(c)) return '<span role="button" tabindex="0" class="tu-f8-icon tu-f8-star" title="Marcar pendiente como atendido" onclick="event.preventDefault();event.stopPropagation();window.marcarChatAtendido(\''+escAttr(id||'')+'\')">⭐</span> ';
+  return '';
+}
+function chatHumanClass(c){
+  return chatIsCallingHuman(c) ? 'calling' : (chatIsPendingHuman(c) ? 'priority' : '');
+}
+function chatHumanPreviewPrefix(c){
+  if(chatIsCallingHuman(c)) return 'Llamada activa · ';
+  if(chatIsPendingHuman(c)) return 'Consulta pendiente · ';
+  return c && (c.humanRequested || c.prioridad || c.priority) ? 'Atención Javier · ' : '';
 }
 function chatStatusLabel(c){
   if(!c) return 'abierto';
   if(c.unreadAdmin) return 'Esperando';
-  if(c.humanRequested) return 'Prioridad';
+  if(c.humanRequested && !c.readByAdminAt) return 'Prioridad';
   if(isChatUserOnline(c)) return 'Online';
   return c.status === 'cerrado' ? 'Cerrado' : 'Al día';
 }
@@ -2163,13 +3452,22 @@ window.editarNombreChat = (id) => {
 
 function abrirPanelChatsAdmin(){
   currentOpenChatId = '';
-  let lista = Object.entries(chatsDB).filter(([,c]) => isValidChat(c)).sort((a,b)=>(b[1].updatedAt||0)-(a[1].updatedAt||0));
+  let lista = sortChatsForInbox(Object.entries(chatsDB).filter(([,c]) => isValidChat(c)));
   if (chatListFilter === 'abiertos') lista = lista.filter(([,c]) => c.status !== 'cerrado');
   if (chatListFilter === 'cerrados') lista = lista.filter(([,c]) => c.status === 'cerrado');
   const validChats = Object.values(chatsDB).filter(c => isValidChat(c));
   const total = validChats.length;
   const abiertosCount = validChats.filter(c=>c.status !== 'cerrado').length;
   const cerradosCount = validChats.filter(c=>c.status === 'cerrado').length;
+  const itemHtml = ([id,c]) => {
+    const calling = chatIsCallingHuman(c);
+    const pending = chatIsPendingHuman(c);
+    const classes = ['chat-list-item', c.unreadAdmin ? 'unread' : '', chatHumanClass(c)].filter(Boolean).join(' ');
+    const statusText = calling ? 'llamada' : pending ? 'pendiente' : (c.unreadAdmin ? 'Nuevo' : (c.status || 'abierto'));
+    const statusClass = calling ? 'call' : pending ? 'priority' : (c.unreadAdmin ? 'new' : c.status === 'abierto' ? 'on' : '');
+    const preview = chatHumanPreviewPrefix(c) + (c.lastMsg || '');
+    return '<div class="'+classes+'" data-chat-id="'+escAttr(id)+'" onclick="window.abrirChatAdmin(\''+id+'\')"><div style="flex:1;min-width:0;"><div style="font-weight:800;font-size:14px;">'+chatHumanIcon(c,id)+(c.updatedAt && c.createdAt && (c.updatedAt-c.createdAt)>60000?'🔁 ':'')+escHtml(chatVisibleName(c,id))+'</div><div style="font-size:11px;color:var(--text3);margin-top:2px;max-width:245px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">'+escHtml(preview)+'</div>'+(c.wp?'<div style="font-size:11px;color:#25d366;margin-top:2px;">WP: '+escHtml(c.wp)+'</div>':'')+'</div><span class="chat-status '+statusClass+'">'+escHtml(statusText)+'</span><button class="chat-trash" title="Eliminar chat" onclick="event.stopPropagation();window.eliminarChatDefinitivo(\''+id+'\')">🗑️</button></div>';
+  };
   setChatPopover(
     '<div class="chat-head"><div class="chat-avatar">📥</div><div><div class="chat-title">BANDEJA DE CHATS</div><div class="chat-subline">'+total+' conversación'+(total!==1?'es':'')+' desde la web</div></div><div class="chat-head-actions"><button class="chat-icon-btn" title="Activar/desactivar automático" onclick="window.toggleModoAsistenteChat()">🤖</button><button class="chat-icon-btn" title="Activar notificaciones" onclick="window.pedirPermisoNotificaciones()">🔔</button></div></div>' +
     '<div style="display:flex;gap:7px;flex-wrap:wrap;margin-bottom:12px;">' +
@@ -2179,7 +3477,7 @@ function abrirPanelChatsAdmin(){
     '<button class="chat-filter" onclick="window.verResumenConsultasChat()">📋 Resumen</button>' +
     '<button class="chat-clean-btn" onclick="window.limpiarChatsDefinitivo()">🧹 Limpiar chats</button>' +
     '</div>' +
-    (lista.length ? lista.map(([id,c]) => '<div class="chat-list-item '+(c.unreadAdmin?'unread ':'')+((c.humanRequested||c.prioridad||c.awaitingHumanContact)?'priority':'')+'" onclick="window.abrirChatAdmin(\''+id+'\')"><div style="flex:1;min-width:0;"><div style="font-weight:800;font-size:14px;">'+((c.humanRequested||c.prioridad||c.awaitingHumanContact)?'⭐ ':'')+(c.updatedAt && c.createdAt && (c.updatedAt-c.createdAt)>60000?'🔁 ':'')+escHtml(chatVisibleName(c,id))+'</div><div style="font-size:11px;color:var(--text3);margin-top:2px;max-width:245px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">'+escHtml(((c.humanRequested||c.prioridad||c.awaitingHumanContact)?'Atención Javier · ':'')+(c.lastMsg||''))+'</div>'+(c.wp?'<div style="font-size:11px;color:#25d366;margin-top:2px;">WP: '+escHtml(c.wp)+'</div>':'')+'</div><span class="chat-status '+(c.unreadAdmin?'new':c.status==='abierto'?'on':'')+'">'+(c.unreadAdmin?'Nuevo':escHtml(c.status||'abierto'))+'</span><button class="chat-trash" title="Eliminar chat" onclick="event.stopPropagation();window.eliminarChatDefinitivo(\''+id+'\')">🗑️</button></div>').join('') : '<div style="color:var(--text3);font-size:13px;padding:20px;text-align:center;">Sin chats en este filtro</div>')
+    '<div class="chat-inbox-list">'+(lista.length ? lista.map(itemHtml).join('') : '<div style="color:var(--text3);font-size:13px;padding:20px;text-align:center;">Sin chats en este filtro</div>')+'</div>'
   );
 }
 window.setChatListFilter = (f) => { chatListFilter = f || 'abiertos'; abrirPanelChatsAdmin(); };
@@ -2208,25 +3506,24 @@ window.verResumenConsultasChat = () => {
 };
 
 function adminChatTabsHtml(activeId){
-  const abiertos = Object.entries(chatsDB)
-    .filter(([,c]) => isValidChat(c) && c.status !== 'cerrado')
-    .sort((a,b)=>(b[1].updatedAt||0)-(a[1].updatedAt||0));
+  const abiertos = sortChatsForInbox(Object.entries(chatsDB)
+    .filter(([,c]) => isValidChat(c) && c.status !== 'cerrado'));
   if (!abiertos.length) return '';
   return '<div class="chat-tabs chat-inbox-side">' + abiertos.slice(0,12).map(([id,c]) => {
     const status = chatStatusLabel(c);
     const time = chatLastActivityLabel(c);
-    const preview = String((c.humanRequested ? 'Atención Javier · ' : '') + (c.lastMsg || '')).trim();
+    const preview = String(chatHumanPreviewPrefix(c) + (c.lastMsg || '')).trim();
     const cls = [
       'chat-tab',
       id===activeId ? 'active' : '',
       c.unreadAdmin ? 'unread' : '',
-      c.humanRequested ? 'priority' : '',
+      chatHumanClass(c),
       isChatUserOnline(c) ? 'online' : '',
       chatNeedsReply(c) ? 'waiting' : 'answered'
     ].filter(Boolean).join(' ');
-    return '<button class="'+cls+'" onclick="window.abrirChatAdmin(\''+id+'\')">'
+    return '<button class="'+cls+'" data-chat-id="'+escAttr(id)+'" onclick="window.abrirChatAdmin(\''+id+'\')">'
       + '<span class="chat-tab-light" title="'+escAttr(status)+'"></span>'
-      + '<span class="chat-tab-body"><span class="chat-tab-name">'+escHtml(chatVisibleName(c,id))+'</span>'
+      + '<span class="chat-tab-body"><span class="chat-tab-name">'+chatHumanIcon(c,id)+escHtml(chatVisibleName(c,id))+'</span>'
       + '<span class="chat-tab-preview">'+escHtml(preview || status)+'</span>'
       + '<span class="chat-tab-foot">'+escHtml(status)+(time?' · '+escHtml(time):'')+'</span></span>'
       + '<span class="chat-tab-close" title="Cerrar" onclick="event.stopPropagation();window.cerrarConversacionChat(\''+id+'\')">×</span>'
@@ -2275,14 +3572,14 @@ window.abrirChatAdmin = (id, silent=false) => {
   const msgs = renderMsgs(chat, true, id);
   setChatPopover(
     adminChatTabsHtml(id) +
-    '<div class="chat-head"><div class="chat-avatar">👤</div><div><div class="chat-title"><span class="chat-online-dot '+(isChatUserOnline(chat)?'on':'')+'"></span>'+escHtml(chatVisibleName(chat))+'</div><div class="chat-subline">'+(chat.wp?'WhatsApp: '+escHtml(chat.wp)+' · ':'')+lastSeenText(chat)+'</div></div></div>' +
+    '<div class="chat-head"><div class="chat-avatar">👤</div><div><div class="chat-title"><span class="chat-online-dot '+(isChatUserOnline(chat)?'on':'')+'"></span>'+escHtml(chatVisibleName(chat,id))+'</div><div class="chat-subline">'+(chat.wp?'WhatsApp: '+escHtml(chat.wp)+' · ':'')+lastSeenText(chat)+'</div></div></div>' +
     '<div class="chat-panel"><div class="chat-msgs" id="chat-msgs">'+msgs+'</div>' +
     '<div class="chat-row"><input class="finput" id="chat-admin-text" placeholder="Responder..." value="'+escAttr(inputVal)+'" onkeydown="if(event.key===\'Enter\')window.enviarChatAdmin(\''+id+'\')"/><button class="chat-send" onclick="window.enviarChatAdmin(\''+id+'\')">➜</button></div>' +
-    '<div class="chat-admin-tools"><button class="chat-filter auto '+(asistenteModo()==='automatico'?'on':'')+'" title="Activar/desactivar automático" onclick="window.toggleModoAsistenteChat()">🤖 '+(asistenteModo()==='automatico'?'ON':'OFF')+'</button><button class="chat-filter" title="Ayuda / Machete" onclick="window.mostrarAyudaAsistente()">/?</button><button class="chat-filter" title="Respuestas del cerebro" onclick="window.mostrarSelectorCerebroChat(\''+id+'\')">//</button><button class="chat-filter" title="Acciones rápidas" onclick="window.mostrarAccionesChatAdmin(\''+id+'\')">⚡</button><button id="chat-tools-toggle" class="chat-filter chat-tools-toggle '+(!chatToolsCollapsed?'on':'')+'" title="Mostrar/ocultar botones" onclick="window.toggleChatTools()">'+(chatToolsCollapsed?'▴':'▾')+'</button></div>' +
+    '<div class="chat-admin-tools"><button class="chat-filter auto '+(asistenteModo()==='automatico'?'on':'')+'" title="Cambiar AUTO/HUM" onclick="window.toggleModoAsistenteChat()">'+(asistenteModo()==='automatico'?'👤 HUM':'🤖 AUTO')+'</button><button class="chat-filter" title="Ayuda / Machete" onclick="window.mostrarAyudaAsistente()">/?</button><button class="chat-filter" title="Respuestas del cerebro" onclick="window.mostrarSelectorCerebroChat(\''+id+'\')">//</button><button class="chat-filter" title="Acciones rápidas" onclick="window.mostrarAccionesChatAdmin(\''+id+'\')">⚡</button><button id="chat-tools-toggle" class="chat-filter chat-tools-toggle '+(!chatToolsCollapsed?'on':'')+'" title="Mostrar/ocultar botones" onclick="window.toggleChatTools()">'+(chatToolsCollapsed?'▴':'▾')+'</button></div>' +
     '<div class="chat-tools-block">' + quickRepliesHtml() +
-    '<div class="chat-admin-actions"><button class="btn-out" title="Bandeja" onclick="abrirPanelChatsAdmin()"><span class="ico">←</span></button><button class="btn-out" title="Editar nombre" onclick="window.editarNombreChat(\''+id+'\')"><span class="ico">✏️</span></button><button class="btn-out" title="Copiar conversación" onclick="window.copiarHistorialChat(\''+id+'\')"><span class="ico">📋</span></button><button class="btn-out" title="Exportar TXT" onclick="window.exportarHistorialChat(\''+id+'\')"><span class="ico">⬇️</span></button><button class="btn-out danger" title="Cerrar chat" onclick="window.cerrarConversacionChat(\''+id+'\')"><span class="ico">✕</span></button><button class="btn-out danger" title="Borrar chat" onclick="window.eliminarChatDefinitivo(\''+id+'\')"><span class="ico">🗑️</span></button>' + (chat.wp?'<a class="btn-out" title="WhatsApp" style="text-align:center;text-decoration:none;color:#25d366;border-color:rgba(37,211,102,.35);" target="_blank" rel="noopener noreferrer" href="https://wa.me/549'+String(chat.wp||'').replace(/\D/g,'')+'"><span class="ico">💬</span></a>':'') + '</div></div></div>'
+    '<div class="chat-admin-actions"><button class="btn-out" title="Bandeja" onclick="abrirPanelChatsAdmin()"><span class="ico">←</span></button><button class="btn-out" title="Editar nombre" onclick="window.editarNombreChat(\''+id+'\')"><span class="ico">✏️</span></button><button class="btn-out" title="Copiar conversación" onclick="window.copiarHistorialChat(\''+id+'\')"><span class="ico">📋</span></button><button class="btn-out" title="Exportar TXT" onclick="window.exportarHistorialChat(\''+id+'\')"><span class="ico">⬇️</span></button><button class="btn-out danger" title="Borrar chat" onclick="window.eliminarChatDefinitivo(\''+id+'\')"><span class="ico">🗑️</span></button>' + (chat.wp?'<a class="btn-out" title="WhatsApp" style="text-align:center;text-decoration:none;color:#25d366;border-color:rgba(37,211,102,.35);" target="_blank" rel="noopener noreferrer" href="https://wa.me/549'+String(chat.wp||'').replace(/\D/g,'')+'"><span class="ico">💬</span></a>':'') + '</div></div></div>'
   );
-  update(ref(db,'tomauno/chats/'+id), {unreadAdmin:false}).catch(()=>{});
+  update(ref(db,'tomauno/chats/'+id), {unreadAdmin:false, unread:false, hasNew:false, hasNewAdmin:false, waitingHuman:false, priority:false, prioridad:false, readByAdminAt:Date.now(), adminReadAt:Date.now(), lastReadAdminAt:Date.now()}).catch(()=>{});
   setTimeout(()=>{const el=document.getElementById('chat-msgs'); if(el) scrollChatSmart(el); const inp=document.getElementById('chat-admin-text'); if(inp && (!silent || wasFocused)){ inp.focus(); inp.setSelectionRange(inp.value.length, inp.value.length); }},60);
 };
 
@@ -2443,12 +3740,38 @@ window.guardarModoAsistente = async () => {
   toast(modo === 'automatico' ? '🤖 Modo automático activado' : '👤 Modo manual activado', true);
 };
 window.toggleModoAsistenteChat = async () => {
-  const nuevo = asistenteModo() === 'automatico' ? 'manual' : 'automatico';
+  const chatId = currentOpenChatId;
+  const actual = asistenteModo();
+  const nuevo = actual === 'automatico' ? 'manual' : 'automatico';
+
+  if(chatId) window.detenerLlamadaJavier && window.detenerLlamadaJavier(chatId);
+
   await update(ref(db,'tomauno/asistente'), {modo:nuevo});
-  toast(nuevo === 'automatico' ? '🤖 Asistente automático ON' : '👤 Asistente manual', true);
+  asistenteDB = Object.assign({}, asistenteDB || {}, {modo:nuevo});
+
+  const activarHUM = nuevo === 'manual';
+
+  if(chatId){
+    await update(ref(db,'tomauno/chats/'+chatId), {
+      javierOnline:activarHUM,
+      javierOnlineAt:activarHUM ? Date.now() : 0,
+      humanMode:activarHUM,
+      manualUntil:activarHUM ? Date.now()+3600000 : 0,
+      humanRequested:false,
+      waitingHuman:false,
+      priority:false,
+      callUntil:0,
+      callAnsweredAt:Date.now(),
+      updatedAt:Date.now()
+    }).catch(()=>{});
+  }
+
+  toast(activarHUM ? '👤 Modo HUM activado' : '🤖 Modo AUTO activado', true);
+
   const fab=document.getElementById('chat-fab');
   if(fab) fab.classList.toggle('auto-on', nuevo === 'automatico');
-  if (isAdminNotifier() && currentOpenChatId) setTimeout(()=>abrirChatAdmin(currentOpenChatId, true), 80);
+
+  if (isAdminNotifier() && chatId) setTimeout(()=>abrirChatAdmin(chatId, true), 80);
   else if (isAdminNotifier()) setTimeout(()=>abrirPanelChatsAdmin(), 80);
 };
 
@@ -2970,6 +4293,11 @@ function buscarRespuestaAsistente(text){
     return '💬 **Contacto Tomauno**\nWhatsApp: 3764354522\nLink directo: https://wa.me/5493764354522?text=Hola%20vengo%20de%20la%20web%20Tomauno%20Cursos%20y%20Capacitaciones%2C%20quisiera%20hacer%20una%20consulta.';
   }
   if(/(instagram|ig|redes)/.test(q)) return '📸 **Instagram Tomauno**\n@tomaunomodels\n@tomaunoestudio\n@tomaunocapacitaciones';
+  if(/(info|informacion|información|sobre|que es|qué es|conocer).{0,35}(academia|tomauno)|\bacademia tomauno\b|\bacademia de tomauno\b/.test(q) && !/(profesor|profesora|profe|docente|quien dicta|quién dicta|materias)/.test(q)){
+    const b = topBrainAnswer(['academia|institucional|tomauno|estudio'], 6);
+    if(b) return b;
+    return '🏛️ **Tomauno** es un espacio de formación y producción visual en Posadas, Misiones. Desde el estudio se coordinan capacitaciones, actividades, servicios fotográficos y propuestas vinculadas a imagen, fotografía y desarrollo artístico.\n\nSi querés, puedo contarte sobre cursos activos, servicios, eventos o pasarte el contacto directo.';
+  }
   if(/(javier|mottola|dueño|dueno|fundador|quien es javier|quién es javier|quien es el dueño|quién es el dueño)/.test(q)){
     const b = topBrainAnswer(['javier|mottola|dueño|dueno|fundador|quien soy'], 6);
     if(b) return b;
@@ -3102,13 +4430,13 @@ function extraerNombreAI(text){
   if(/^(si|sí|ok|dale|bueno|perfecto|claro|gracias|quiero|consulta|web|whatsapp|telefono|javier)$/i.test(n)) return '';
   return n;
 }
-function chatEsperandoDatosHumanos(chat){
+function chatEsperandoDatosHUMs(chat){
   if(!chat) return false;
   if(chat.humanRequested && (!tieneNombreRealChat(chat) || !tieneWhatsAppChat(chat) || !chat.temaPrincipal)) return true;
   const last = chatMsgs(chat).slice().reverse().find(([,m]) => m && m.from === 'admin' && m.auto);
   return !!(last && /(dejame|dejam[eé]|whatsapp|nombre|tema|consulta).*Javier|Para que pueda contactarte|Sobre qu[eé] tema/i.test(String(last.text||'')));
 }
-async function manejarDatosHumanosPendientes(chatId, chat, userText){
+async function manejarDatosHUMsPendientes(chatId, chat, userText){
   const updates = {updatedAt:Date.now(), humanRequested:true, prioridad:true, unreadAdmin:true};
   const wp = extraerWhatsappAI(userText);
   const name = extraerNombreAI(userText);
@@ -3187,8 +4515,8 @@ async function responderAutomaticoChat(chatId, userText){
 
     // Si el usuario ya pidió atención humana y está dejando nombre/WhatsApp/tema,
     // no lo tratamos como una pregunta normal del asistente.
-    if(chatEsperandoDatosHumanos(chat)){
-      const respPend = await manejarDatosHumanosPendientes(chatId, chat, userText);
+    if(chatEsperandoDatosHUMs(chat)){
+      const respPend = await manejarDatosHUMsPendientes(chatId, chat, userText);
       if(respPend){
         const typingRefP = await push(ref(db,'tomauno/chats/'+chatId+'/messages'), {from:'system', text:'Tomauno está escribiendo', time:chatTime(), createdAt:Date.now(), typing:true});
         await update(ref(db,'tomauno/chats/'+chatId), {updatedAt:Date.now(), lastMsg:'Datos para Javier', status:'abierto'});
@@ -3243,8 +4571,14 @@ async function responderAutomaticoChat(chatId, userText){
 
     const lastAuto = chatMsgs(chat).slice().reverse().find(([,m]) => m && m.from === 'admin' && m.auto);
     if(lastAuto && normAI(lastAuto[1].text||'') === normAI(respuesta)){
-      respuesta = 'Creo que mi respuesta anterior no fue lo suficientemente precisa. ¿Querés que te muestre opciones relacionadas o preferís que Javier te responda personalmente?';
-      pendingTopics = pendingTopics && pendingTopics.length ? pendingTopics : [];
+      const alt = (pendingTopics || []).find(p => p && p.respuesta && normAI(p.respuesta) !== normAI(respuesta));
+      if(alt){
+        respuesta = alt.respuesta;
+        pendingTopics = (pendingTopics || []).filter(p => p !== alt);
+      }else{
+        respuesta = 'Creo que mi respuesta anterior no fue lo suficientemente precisa. ¿Querés que te muestre opciones relacionadas o preferís que Javier te responda personalmente?';
+        pendingTopics = pendingTopics && pendingTopics.length ? pendingTopics : [];
+      }
     }
 
     const typingRef = await push(ref(db,'tomauno/chats/'+chatId+'/messages'), {from:'system', text:'Tomauno está escribiendo', time:chatTime(), createdAt:Date.now(), typing:true});
@@ -3298,11 +4632,14 @@ window.closeModal = () => {
   ov.style.display = 'none';
   const box=ov.querySelector('.mbox');
   if(box && box.dataset.compactPin){ box.style.maxWidth=''; box.style.padding=''; delete box.dataset.compactPin; }
+  if(box && box.dataset.wideEvent){ box.style.maxWidth=''; box.style.width=''; delete box.dataset.wideEvent; }
 };
 document.addEventListener('keydown', e => { if (e.key === 'Escape') closeModal(); });
 
 window.toast = (msg, autohide = true) => {
   const t = document.getElementById('toast');
+  t.style.zIndex = '100003';
+  t.style.position = t.style.position || 'fixed';
   t.onclick = () => t.classList.remove('show');
   t.textContent = msg + '  ✕';
   t.classList.add('show');
@@ -3316,22 +4653,35 @@ function showNotif() {
   if (d) { d.style.display = 'inline-block'; setTimeout(() => d.style.display = 'none', 10000); }
 }
 
-function showNotifBanner(titulo, detalle, icono='🔴', onClick=null) {
-  let banner = document.getElementById('notif-banner');
-  if (!banner) {
-    banner = document.createElement('div');
-    banner.id = 'notif-banner';
-    banner.style.cssText = 'position:fixed;top:72px;right:16px;z-index:800;background:#111;border:1.5px solid var(--red);border-radius:14px;padding:14px 18px;max-width:320px;box-shadow:0 8px 30px rgba(0,0,0,.6);transform:translateX(340px);transition:transform .4s cubic-bezier(.4,0,.2,1);cursor:pointer;';
-    banner.onclick = () => { if (typeof banner._action === 'function') { banner.style.transform='translateX(340px)'; banner._action(); } else banner.style.transform = 'translateX(340px)'; };
-    document.body.appendChild(banner);
+function showNotifBanner(titulo, detalle, icono='CHAT', onClick=null) {
+  let stack = document.getElementById('notif-stack');
+  if (!stack) {
+    stack = document.createElement('div');
+    stack.id = 'notif-stack';
+    stack.style.cssText = 'position:fixed;top:72px;right:16px;z-index:99999;display:flex;flex-direction:column;gap:10px;max-width:340px;max-height:calc(100vh - 95px);overflow-y:auto;overscroll-behavior:contain;padding-right:4px;';
+    document.body.appendChild(stack);
   }
-  banner._action = onClick;
+  const banner = document.createElement('div');
+  banner.className = 'notif-banner-item';
+  banner.id = 'notif-banner';
+  banner.style.cssText = 'position:relative;background:#111;border:1.5px solid var(--red);border-radius:14px;padding:14px 18px;box-shadow:0 8px 30px rgba(0,0,0,.6);cursor:pointer;';
   banner.innerHTML =
-    '<div style="font-size:10px;color:var(--red);font-weight:800;letter-spacing:.1em;text-transform:uppercase;margin-bottom:6px;">' + icono + ' ' + escHtml(titulo || 'Notificación') + '</div>' +
+    '<button class="notif-banner-close" type="button" title="Cerrar" style="position:absolute;right:8px;top:8px;width:24px;height:24px;border:0;border-radius:50%;background:rgba(255,255,255,.12);color:#fff;font-weight:900;cursor:pointer;line-height:24px;">x</button>' +
+    '<div style="font-size:10px;color:var(--red);font-weight:800;letter-spacing:.1em;text-transform:uppercase;margin-bottom:6px;">' + icono + ' ' + escHtml(titulo || 'Notificacion') + '</div>' +
     '<div style="font-size:14px;font-weight:700;color:#fff;margin-bottom:3px;line-height:1.35;">' + escHtml(detalle || '') + '</div>' +
-    '<div style="font-size:10px;color:var(--text3);margin-top:6px;">' + new Date().toLocaleTimeString('es-AR', {hour:'2-digit', minute:'2-digit'}) + ' · Clic para cerrar</div>';
-  setTimeout(() => banner.style.transform = 'translateX(0)', 50);
-  clearTimeout(banner._timer);
+    '<div style="font-size:10px;color:var(--text3);margin-top:6px;">' + new Date().toLocaleTimeString('es-AR', {hour:'2-digit', minute:'2-digit'}) + ' - Clic para abrir</div>';
+  const closeBtn = banner.querySelector('.notif-banner-close');
+  if(closeBtn) closeBtn.onclick = (ev) => {
+    ev.preventDefault();
+    ev.stopPropagation();
+    banner.remove();
+  };
+  banner.onclick = () => {
+    banner.remove();
+    if (typeof onClick === 'function') onClick();
+  };
+  stack.prepend(banner);
+  Array.from(stack.children).slice(8).forEach(n => n.remove());
 }
 
 function showConfirm(msg, onOk) {
@@ -3451,6 +4801,7 @@ onValue(ref(db, 'tomauno/eventos'), s => {
   renderAdminEventos();
   updateStats();
   renderStatsVistas();
+  updateActivityIndicator();
 });
 
 onValue(ref(db, 'tomauno/evRegs'), s => {
@@ -3465,6 +4816,7 @@ onValue(ref(db, 'tomauno/evRegs'), s => {
   renderEventos();
   renderAdminEventos();
   renderStatsVistas();
+  updateActivityIndicator();
 });
 
 function renderEventos() {
@@ -3536,6 +4888,7 @@ function renderAdminEventos() {
       '<button class="bsm bl" onclick="window.exportarExcelEvento(\'' + k + '\')">Excel</button>' +
       '<button class="bsm bl" onclick="window.exportarPDFEvento(\'' + k + '\')">PDF</button>' +
       '<button class="bsm wa" onclick="window.verPlanillaEventoAdmin(\'' + k + '\')">📋 Planilla vivo</button>' +
+      '<button class="bsm bl" onclick="window.copiarLinkEvento(\'' + k + '\')">🔗 Link</button>' +
       '<button class="bsm ' + (e.oculto?'gr':'bl') + '" onclick="window.togEvOc(\'' + k + '\',' + !e.oculto + ')">' + (e.oculto?'Mostrar':'Ocultar') + '</button>' +
       '<button class="bsm re" onclick="window.delEvento(\'' + k + '\')">Borrar</button>' +
       '</div></div>';
@@ -3556,8 +4909,9 @@ window.abrirDetalleEvento = (id) => {
     (e.lugar?'<span class="chip">📍 '+e.lugar+'</span>':'') +
     (e.costo?'<span class="chip accent">💰 $ '+Number(e.costo).toLocaleString('es-AR')+'</span>':'<span class="chip" style="color:#00d25a;">GRATIS</span>') +
     '</div>' +
-    '<div style="font-size:14px;color:var(--text2);line-height:1.7;white-space:pre-line;margin-bottom:16px;">' + (e.desc||'') + '</div>' +
+    '<div style="font-size:14px;color:var(--text2);line-height:1.7;white-space:pre-line;margin-bottom:16px;">' + renderInfoText(e.desc||'') + '</div>' +
     '<div style="font-size:11px;color:var(--text3);margin-bottom:14px;padding:6px 12px;background:rgba(255,255,255,.03);border-radius:8px;display:inline-block;">Plataforma Tomauno</div>' +
+    (e.extraUrl ? '<a rel="noopener noreferrer" href="' + safeUrl(e.extraUrl) + '" target="_blank" class="extra-link-btn" style="margin-bottom:12px;">Link: ' + escHtml(e.extraText || 'Ver mas informacion') + '</a>' : '') +
     (e.ig?'<br><a rel="noopener noreferrer" href="https://instagram.com/'+e.ig+'" target="_blank" class="det-link ig" style="margin-top:8px;display:inline-flex;">📸 @'+e.ig+'</a>':'') +
     (!full?'<button class="btn-main" style="margin-top:14px;" onclick="' + (e.tipo==='sesiones' ? 'window.abrirTurnosEvento(\'' + id + '\')' : 'window.abrirInscEvento(\'' + id + '\')') + '">' + (e.tipo==='sesiones'?'📅 Elegir turno':'Inscribirme') + '</button>':'') +
     '<div style="display:flex;gap:10px;margin-top:8px;">' +
@@ -3571,6 +4925,34 @@ window.compartirEvento = (id) => {
   const url = window.location.origin + window.location.pathname + '#evento-' + id;
   navigator.clipboard.writeText(url).then(() => toast('Link copiado'));
 };
+
+window.copiarLinkEvento = window.compartirEvento;
+window.compartirServicio = (id) => {
+  const url = window.location.origin + window.location.pathname + '#servicio-' + id;
+  navigator.clipboard.writeText(url).then(() => toast('Link copiado'));
+};
+window.copiarLinkServicio = window.compartirServicio;
+
+function abrirLinkDirectoTomauno(){
+  const hash = String(location.hash || '');
+  if(hash.indexOf('#evento-') === 0){
+    const id = hash.replace('#evento-', '');
+    setTimeout(() => {
+      if(eventosDB && eventosDB[id] && window.abrirDetalleEvento) window.abrirDetalleEvento(id);
+      else document.getElementById('sec-eventos')?.scrollIntoView({behavior:'smooth', block:'start'});
+    }, 450);
+  }
+  if(hash.indexOf('#servicio-') === 0){
+    const id = hash.replace('#servicio-', '');
+    setTimeout(() => {
+      if(serviciosDB && serviciosDB[id] && window.abrirServicioDB) window.abrirServicioDB(id);
+      else document.getElementById('sec-servicios')?.scrollIntoView({behavior:'smooth', block:'start'});
+    }, 450);
+  }
+}
+window.addEventListener('hashchange', abrirLinkDirectoTomauno);
+window.addEventListener('load', abrirLinkDirectoTomauno);
+setTimeout(abrirLinkDirectoTomauno, 900);
 
 
 function genSlotsEvento(e) {
@@ -3634,8 +5016,8 @@ window.abrirInscEvento = (id, turnoElegido='') => {
     '<div class="mlbl">Tus datos</div>' +
     '<input class="finput" id="fev-nom" placeholder="Nombre y apellido *"/>' +
     '<input class="finput" id="fev-wp" placeholder="WhatsApp * ej: 3764123456" type="tel"/>' +
-    '<input class="finput" id="fev-dni" placeholder="DNI *" type="number"/>' +
-    '<input class="finput" id="fev-edad" placeholder="Edad *" type="number" oninput="window.chkMenor()"/>' +
+    '<input class="finput" id="fev-dni" placeholder="DNI *" type="text" inputmode="numeric" autocomplete="off"/>' +
+    '<input class="finput" id="fev-edad" placeholder="Edad *" type="text" inputmode="numeric" autocomplete="off" oninput="window.chkMenor()"/>' +
     '<input class="finput" id="fev-localidad" placeholder="Localidad (opcional)"/>' +
     '<input class="finput" id="fev-ig" placeholder="Instagram (sin @)"/>' +
     '<div id="tutor-box" style="display:none;">' +
@@ -3704,7 +5086,7 @@ window.abrirFormEvento = () => {
     '<label class="flbl">Nombre del organizador *</label>' +
     '<input class="finput" id="nev-org-nombre" placeholder="Tu nombre y apellido"/>' +
     '<label class="flbl">DNI del organizador * (será tu clave de acceso)</label>' +
-    '<input class="finput" id="nev-org-dni" placeholder="Tu DNI" type="number"/>' +
+    '<input class="finput" id="nev-org-dni" placeholder="Tu DNI" type="text" inputmode="numeric" autocomplete="off"/>' +
     '<label class="flbl">WhatsApp del organizador *</label>' +
     '<input class="finput" id="nev-org-wp" placeholder="3764123456" type="tel"/>' +
     '<label class="flbl">Instagram del evento (sin @)</label>' +
@@ -3870,7 +5252,7 @@ window.updPagoOrg = async (inscId, estado) => {
 window.exportarExcelOrg = (evId) => {
   const lista = Object.values(evInscDB).filter(i => i.evId===evId);
   const e = eventosDB[evId];
-  const cols = ['Nombre','DNI','WhatsApp','Instagram','Fecha','Pago','Monto'];
+  const cols = ['Nombre','DNI','WhatsApp','Instagram','Email','Localidad','Edad','Turno','Fecha','Pago','Monto'];
   const sep = ';';
   const q = v => '"' + String(v||'').replace(/"/g,'""') + '"';
   const rows = [
@@ -3883,7 +5265,7 @@ window.exportarExcelOrg = (evId) => {
   lista.forEach(i => {
     const est = (i.pagos&&i.pagos[0])?i.pagos[0].estado:'pendiente';
     const monto = pagoEventoInfo(i, e).monto;
-    rows.push([i.nombre,i.dni,i.wp,i.ig||'',i.fecha,est,monto].map(q).join(sep));
+    rows.push([i.nombre,i.dni,i.wp,i.ig||'',i.email||'',i.localidad||'',i.edad||'',i.turno||'',i.fecha,est,monto].map(q).join(sep));
   });
   const csv = '\ufeff' + rows.join('\r\n');
   const a = document.createElement('a');
@@ -3898,7 +5280,7 @@ window.exportarPDFOrg = (evId) => {
   const rows = lista.map(i => {
     const est = (i.pagos&&i.pagos[0])?i.pagos[0].estado:'pendiente';
     const monto = pagoEventoInfo(i, e).monto;
-    return '<tr><td>'+(i.nombre||'')+'</td><td>'+(i.dni||'')+'</td><td>'+(i.wp||'')+'</td><td>'+est+'</td><td>$ '+Number(monto).toLocaleString('es-AR')+'</td></tr>';
+    return '<tr><td>'+(i.nombre||'')+'</td><td>'+(i.dni||'')+'</td><td>'+(i.wp||'')+'</td><td>'+(i.ig||'')+'</td><td>'+(i.email||'')+'</td><td>'+(i.localidad||'')+'</td><td>'+(i.turno||'')+'</td><td>'+est+'</td><td>$ '+Number(monto).toLocaleString('es-AR')+'</td></tr>';
   }).join('');
   const win = window.open('','_blank');
   if (win) {
@@ -3943,7 +5325,7 @@ window.exportarPDFEvento = (evId) => {
   }).join('');
   const win = window.open('','_blank');
   if (win) {
-    win.document.write('<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Inscriptos</title><link rel="stylesheet" href="css/05-style-05.css"/></head><body><div style="background:#111;color:#fff;padding:16px 18px;border-radius:10px;margin-bottom:14px;"><h1 style="margin:0;font-size:22px;">TOMA<span style="color:#e8000a;">UNO</span></h1><div style="font-size:13px;margin-top:5px;">Planilla de evento: <strong>'+(e?e.titulo:'Evento')+'</strong>'+(e&&e.fecha?' · '+e.fecha:'')+'</div></div><p><strong>'+lista.length+'</strong> inscriptos · Generado: '+new Date().toLocaleDateString('es-AR')+'</p><table><thead><tr><th>Nombre</th><th>DNI</th><th>WP</th><th>Pago</th><th>Monto</th></tr></thead><tbody>'+rows+'</tbody></table></body></html>');
+    win.document.write('<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Inscriptos</title><link rel="stylesheet" href="css/05-style-05.css"/></head><body><div style="background:#111;color:#fff;padding:16px 18px;border-radius:10px;margin-bottom:14px;"><h1 style="margin:0;font-size:22px;">TOMA<span style="color:#e8000a;">UNO</span></h1><div style="font-size:13px;margin-top:5px;">Planilla de evento: <strong>'+(e?e.titulo:'Evento')+'</strong>'+(e&&e.fecha?' · '+e.fecha:'')+'</div></div><p><strong>'+lista.length+'</strong> inscriptos · Generado: '+new Date().toLocaleDateString('es-AR')+'</p><table><thead><tr><th>Nombre</th><th>DNI</th><th>WP</th><th>IG</th><th>Email</th><th>Localidad</th><th>Turno</th><th>Pago</th><th>Monto</th></tr></thead><tbody>'+rows+'</tbody></table></body></html>');
     win.document.close();
     setTimeout(()=>win.print(),400);
   }
@@ -3989,6 +5371,42 @@ window.guardarPagosEvento = (evId) => {
   setTimeout(()=>{ if(evId && window.verPlanillaEventoAdmin) window.verPlanillaEventoAdmin(evId); }, 250);
 };
 
+window.editarInscEvento = (inscId) => {
+  const i = evInscDB[inscId]; if(!i) return;
+  document.getElementById('mcontent').innerHTML =
+    '<div class="mtitle" style="margin-bottom:14px;">EDITAR INSCRIPTO</div>' +
+    '<div class="frow2"><div><label class="flbl">Nombre</label><input class="finput" id="eei-nombre" value="'+escAttr(i.nombre||'')+'"/></div><div><label class="flbl">DNI</label><input class="finput" id="eei-dni" value="'+escAttr(i.dni||'')+'"/></div></div>' +
+    '<div class="frow2"><div><label class="flbl">WhatsApp</label><input class="finput" id="eei-wp" value="'+escAttr(i.wp||'')+'"/></div><div><label class="flbl">Instagram</label><input class="finput" id="eei-ig" value="'+escAttr(i.ig||'')+'"/></div></div>' +
+    '<div class="frow2"><div><label class="flbl">Email</label><input class="finput" id="eei-email" value="'+escAttr(i.email||'')+'"/></div><div><label class="flbl">Localidad</label><input class="finput" id="eei-localidad" value="'+escAttr(i.localidad||'')+'"/></div></div>' +
+    '<div class="frow2"><div><label class="flbl">Edad</label><input class="finput" id="eei-edad" value="'+escAttr(i.edad||'')+'"/></div><div><label class="flbl">Turno</label><input class="finput" id="eei-turno" value="'+escAttr(i.turno||'')+'"/></div></div>' +
+    '<button class="btn-main" onclick="window.guardarInscEventoEdit(\''+inscId+'\')">Guardar cambios</button>' +
+    '<button class="btn-out" onclick="window.verPlanillaEventoAdmin(\''+(i.evId||'')+'\')" style="margin-top:8px;">Cancelar</button>';
+};
+window.guardarInscEventoEdit = async (inscId) => {
+  const prev = evInscDB[inscId] || {};
+  const data = {
+    nombre:document.getElementById('eei-nombre')?.value || '',
+    dni:document.getElementById('eei-dni')?.value || '',
+    wp:document.getElementById('eei-wp')?.value || '',
+    ig:document.getElementById('eei-ig')?.value || '',
+    email:document.getElementById('eei-email')?.value || '',
+    localidad:document.getElementById('eei-localidad')?.value || '',
+    edad:document.getElementById('eei-edad')?.value || '',
+    turno:document.getElementById('eei-turno')?.value || ''
+  };
+  await update(ref(db,'tomauno/evRegs/'+inscId), data);
+  toast('Inscripto actualizado', true);
+  setTimeout(()=>window.verPlanillaEventoAdmin(prev.evId),180);
+};
+window.eliminarInscEvento = (inscId) => {
+  const evId = evInscDB[inscId]?.evId || '';
+  showConfirm('¿Eliminar este inscripto del evento?', async () => {
+    await remove(ref(db,'tomauno/evRegs/'+inscId));
+    toast('Inscripto eliminado', true);
+    setTimeout(()=>window.verPlanillaEventoAdmin(evId),180);
+  });
+};
+
 window.verPlanillaEventoAdmin = (id) => {
   const e = eventosDB[id];
   const lista = Object.entries(evInscDB).filter(([,i])=>i.evId===id).sort((a,b)=>(b[1].creado||0)-(a[1].creado||0));
@@ -4014,8 +5432,8 @@ window.verPlanillaEventoAdmin = (id) => {
   if (!lista.length) {
     html += '<div style="color:var(--text3);padding:18px 0;">Sin inscriptos aún</div>';
   } else {
-    html += '<div style="overflow-x:hidden;"><table style="width:100%;border-collapse:collapse;font-size:12px;table-layout:fixed;">' +
-      '<thead><tr><th style="padding:7px;text-align:left;color:var(--text3);width:24%;">Nombre</th><th style="padding:7px;text-align:left;color:var(--text3);width:12%;">DNI</th><th style="padding:7px;text-align:left;color:var(--text3);width:15%;">WP</th><th style="padding:7px;text-align:left;color:var(--text3);width:18%;">IG</th><th style="padding:7px;text-align:left;color:var(--text3);width:16%;">Pago</th><th style="padding:7px;text-align:left;color:var(--text3);width:15%;">Monto</th></tr></thead><tbody>';
+    html += '<div style="overflow-x:auto;padding-bottom:6px;"><table style="width:100%;min-width:1120px;border-collapse:collapse;font-size:12px;table-layout:fixed;">' +
+      '<thead><tr><th style="padding:7px;text-align:left;color:var(--text3);width:20%;">Nombre</th><th style="padding:7px;text-align:left;color:var(--text3);width:10%;">DNI</th><th style="padding:7px;text-align:left;color:var(--text3);width:14%;">WP</th><th style="padding:7px;text-align:left;color:var(--text3);width:14%;">IG</th><th style="padding:7px;text-align:left;color:var(--text3);width:12%;">Turno</th><th style="padding:7px;text-align:left;color:var(--text3);width:12%;">Pago</th><th style="padding:7px;text-align:left;color:var(--text3);width:9%;">Monto</th><th style="padding:7px;text-align:left;color:var(--text3);width:9%;">Acc.</th></tr></thead><tbody>';
     lista.forEach(([ik,i]) => {
       const p = pagoEventoInfo(i,e);
       const clr = p.estado==='pagado'?'#4caf7d':p.estado==='parcial'?'#f5c842':'#e05252';
@@ -4023,15 +5441,19 @@ window.verPlanillaEventoAdmin = (id) => {
       html += '<tr style="border-bottom:1px solid #181818;"><td style="padding:7px;">'+(i.nombre||'')+'</td>' +
         '<td style="padding:7px;">'+(i.dni||'')+'</td>' +
         '<td style="padding:7px;"><a rel="noopener noreferrer" href="https://wa.me/549'+(i.wp||'').replace(/[^0-9]/g,'')+'" target="_blank" style="color:#25d366;">'+(i.wp||'')+'</a></td>' +
-        '<td style="padding:7px;">'+(i.ig?'<a rel="noopener noreferrer" href="https://instagram.com/'+i.ig.replace('@','')+'" target="_blank" class="ig-link">@'+i.ig.replace('@','')+'</a>':'-')+'</td>' +
+        '<td style="padding:7px;">'+(i.ig?'<a rel="noopener noreferrer" href="https://instagram.com/'+i.ig.replace('@','')+'" target="_blank" class="ig-link">@'+i.ig.replace('@','')+'</a>':'-')+(i.email?'<div style="color:var(--text3);font-size:10px;">'+escHtml(i.email)+'</div>':'')+(i.localidad?'<div style="color:var(--text3);font-size:10px;">'+escHtml(i.localidad)+'</div>':'')+'</td>' +
+        '<td style="padding:7px;">'+escHtml(i.turno||'-')+'</td>' +
         '<td style="padding:7px;"><select style="background:transparent;border:none;color:'+clr+';font-size:11px;font-weight:700;cursor:pointer;font-family:var(--font);outline:none;" onchange="window.updPagoOrg(\'' + ik + '\',this.value)"><option value="pendiente" '+(p.estado==='pendiente'?'selected':'')+' style="background:#111;">Pendiente</option><option value="parcial" '+(p.estado==='parcial'?'selected':'')+' style="background:#111;">Parcial</option><option value="pagado" '+(p.estado==='pagado'?'selected':'')+' style="background:#111;">Pagado</option></select></td>' +
-        '<td style="padding:7px;"><input type="number" value="'+montoActual+'" placeholder="0" onchange="window.updMontoPagoEvento(\'' + ik + '\',this.value)" style="width:95px;background:#0d0d0d;border:1px solid var(--border);color:#fff;border-radius:8px;padding:6px;font-family:var(--font);"/></td></tr>';
+        '<td style="padding:7px;"><input type="number" value="'+montoActual+'" placeholder="0" onchange="window.updMontoPagoEvento(\'' + ik + '\',this.value)" style="width:80px;background:#0d0d0d;border:1px solid var(--border);color:#fff;border-radius:8px;padding:6px;font-family:var(--font);"/></td>' +
+        '<td style="padding:7px;display:flex;gap:5px;"><button class="bsm bl" title="Editar" onclick="window.editarInscEvento(\''+ik+'\')">✎</button><button class="bsm re" title="Eliminar" onclick="window.eliminarInscEvento(\''+ik+'\')">×</button></td></tr>';
     });
     html += '</tbody></table></div>';
   }
   html += '<button class="btn-out" onclick="window.closeModal()" style="margin-top:16px;">Cerrar</button>';
   document.getElementById('mcontent').innerHTML = html;
   openModal();
+  const box = document.querySelector('#moverlay .mbox');
+  if(box){ box.style.maxWidth = '1280px'; box.style.width = 'min(1280px, calc(100vw - 36px))'; box.dataset.wideEvent = '1'; }
 };
 
 window.verInscEventoAdmin = (id) => {
@@ -4082,6 +5504,7 @@ window.editarEvento = (id) => {
     '<div class="frow2"><div><label class="flbl">Hora inicio turnos</label><input class="finput" id="ee-hini" type="time" value="' + (e.horaInicio||'09:00') + '" style="color-scheme:dark"/></div><div><label class="flbl">Hora fin turnos</label><input class="finput" id="ee-hfin" type="time" value="' + (e.horaFin||'22:00') + '" style="color-scheme:dark"/></div></div>' +
     '<div class="frow2"><div><label class="flbl">Duración turno</label><input class="finput" id="ee-dur" type="number" value="' + (e.duracion||30) + '"/></div><div><label class="flbl">Descansos</label><input class="finput" id="ee-descansos" value="' + (e.descansos||'').replace(/"/g,'&quot;') + '"/></div></div>' +
     '<label class="flbl">URL Flyer (Imgur)</label><input class="finput" id="ee-img" value="' + (e.img||'') + '" placeholder="https://i.imgur.com/..."/>' +
+    '<div class="frow2"><div><label class="flbl">Texto link extra</label><input class="finput" id="ee-extra-text" value="' + escAttr(e.extraText||'') + '" placeholder="Ver bases / programa"/></div><div><label class="flbl">URL link extra</label><input class="finput" id="ee-extra-url" value="' + escAttr(e.extraUrl||'') + '" placeholder="https://..."/></div></div>' +
     '<label class="flbl">Instagram (sin @)</label><input class="finput" id="ee-ig" value="' + (e.ig||'') + '"/>' +
     '<label class="flbl">WhatsApp organizador</label><input class="finput" id="ee-wp" value="' + (e.wpOrg||'') + '"/>' +
     '<label class="flbl">Link grupo WhatsApp del evento</label><input class="finput" id="ee-gwa" value="' + (e.grupoWA||'') + '" placeholder="https://chat.whatsapp.com/..."/>' +
@@ -4113,6 +5536,8 @@ window.guardarEditEvento = async () => {
     montoInscripcion: parseInt(document.getElementById('ee-monto-insc')?.value)||0,
     montoCuota: parseInt(document.getElementById('ee-monto-cuota')?.value)||0,
     img:    document.getElementById('ee-img')?.value.trim()||'',
+    extraText: document.getElementById('ee-extra-text')?.value.trim()||'',
+    extraUrl: document.getElementById('ee-extra-url')?.value.trim()||'',
     ig:     document.getElementById('ee-ig')?.value.trim()||'',
     wpOrg:  document.getElementById('ee-wp')?.value.trim()||'',
     grupoWA: document.getElementById('ee-gwa')?.value.trim()||'',
@@ -4340,7 +5765,7 @@ function drawAgendaCanvas(canvas, mode = 'story', scalePreview = false) {
   ctx.fillText('UNO', 158 + tomaW + 8, logoY+4);
   ctx.font = '800 ' + (mode === 'post' ? 18 : 23) + 'px Outfit, Arial, sans-serif';
   ctx.fillStyle = 'rgba(255,255,255,.50)';
-  ctx.fillText('CURSOS & CAPACITACIONES', 160, logoY+42);
+  ctx.fillText('CURSOS & SERVICIOS', 160, logoY+42);
   ctx.font = '900 ' + (mode === 'post' ? 22 : 28) + 'px Outfit, Arial, sans-serif';
   ctx.fillStyle = '#ff0712';
   ctx.fillText('Tomauno está con vos!!', 160, logoY + (mode === 'post' ? 72 : 82));
@@ -4576,7 +6001,7 @@ setTimeout(() => { if (document.getElementById('agenda-preview-canvas')) window.
 // ── FLYER PANTALLA COMPLETA ───────────────────────────────────────────────────
 window.verFlyerFull = (src) => {
   const ov = document.createElement('div');
-  ov.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.95);z-index:999;display:flex;align-items:center;justify-content:center;cursor:zoom-out;padding:20px;';
+  ov.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.95);z-index:100002;display:flex;align-items:center;justify-content:center;cursor:zoom-out;padding:20px;';
   ov.onclick = () => document.body.removeChild(ov);
   const img = document.createElement('img');
   img.src = src;
@@ -4762,7 +6187,7 @@ function bestPublishedTitleMatchAI(q){
   const terms = importantTermsAI(nq).filter(w=>w.length>2);
   if(!terms.length) return null;
   const items = [];
-  Object.entries(cursos||{}).forEach(([id,c])=>{ if(!c.oculto) items.push({type:'curso', id, obj:c, title:c.titulo||'', extra:[c.desc,c.ig,c.disertante,c.profesor,c.organizador,c.docente,c.wp].join(' ')}); });
+  Object.entries(cursos||{}).forEach(([id,c])=>{ if(!c.oculto && !c.finalizado) items.push({type:'curso', id, obj:c, title:c.titulo||'', extra:[c.desc,c.ig,c.disertante,c.profesor,c.organizador,c.docente,c.wp].join(' ')}); });
   Object.entries(serviciosDB||{}).forEach(([id,s])=>{ if(!s.oculto) items.push({type:'servicio', id, obj:s, title:s.titulo||'', extra:[s.desc,s.ig,s.wp,s.dir].join(' ')}); });
   Object.entries(eventosDB||{}).forEach(([id,e])=>{ if(e.estado==='activo' && !e.oculto) items.push({type:'evento', id, obj:e, title:e.titulo||'', extra:[e.desc,e.ig,e.nombreOrg,e.wpOrg,e.lugar].join(' ')}); });
   let best=null;
@@ -5114,14 +6539,27 @@ window.abrirChatAdminHome = function(){
 window.abrirChatTomauno = function(){
   unlockAudio();
   const popToggle = document.getElementById('chat-popover');
+
+  if (isAdminNotifier()) {
+    const abiertos = Object.entries(chatsDB || {})
+      .filter(([,c]) => isValidChat(c) && c.status !== 'cerrado')
+      .sort((a,b)=>sortChatsForInbox([a,b])[0]===a?-1:1);
+
+    const unread = abiertos.find(([,c]) => c && c.unreadAdmin);
+    const preferred = unread ? unread[0] : (currentOpenChatId && chatsDB[currentOpenChatId] && chatsDB[currentOpenChatId].status !== 'cerrado' ? currentOpenChatId : (abiertos[0] && abiertos[0][0]));
+
+    if(preferred) return abrirChatAdmin(preferred, true);
+    return abrirPanelChatsAdmin();
+  }
+
   if (popToggle && popToggle.classList.contains('open')) { window.cerrarChatPopover && window.cerrarChatPopover(); return; }
-  if (isAdminNotifier()) return window.abrirPanelChatsAdmin();
   document.getElementById('chat-fab')?.classList.remove('has-new');
+  if(currentCtrlMInvite && Number(currentCtrlMInvite.expiresAt || 0) > Date.now()) return window.abrirCtrlMInvite();
   if (currentVisitorChatId && chatsDB[currentVisitorChatId] && chatsDB[currentVisitorChatId].status !== 'cerrado') return abrirChatVisitante(currentVisitorChatId);
   setChatPopover(
     '<div class="chat-head"><div class="chat-avatar">💬</div><div><div class="chat-title">CHAT TOMAUNO</div><div class="chat-subline">Consulta directa desde la web</div></div></div>' +
     '<div class="chat-panel"><div class="chat-msgs" id="chat-msgs">' +
-    '<div class="chat-bubble admin"><div>Hola 😊<br/><b>¿Cómo es tu nombre?</b></div><div class="chat-meta">Ahora</div></div>' +
+    '<div class="chat-bubble admin"><div>Soy el asistente de Tomauno 😊<br/><b>¿Cómo es tu nombre?</b></div><div class="chat-meta">Ahora</div></div>' +
     '</div>' +
     '<div class="chat-name-row"><input class="finput" id="chat-name" placeholder="Tu nombre" onkeydown="if(event.key===\'Enter\')window.iniciarChatConNombre()"/><button class="chat-send" onclick="window.iniciarChatConNombre()">➜</button></div></div>'
   );
@@ -5134,7 +6572,15 @@ window.abrirChatTomauno = function(){
 window.cerrarConversacionChat = async function(id){
   await update(ref(db,'tomauno/chats/'+id), {status:'cerrado', unreadAdmin:false, updatedAt:Date.now()});
   toast('📭 Conversación cerrada');
+
+  const abiertos = Object.entries(chatsDB || {})
+    .filter(([cid,c]) => cid !== id && isValidChat(c) && c.status !== 'cerrado')
+    .sort((a,b)=>(b[1].updatedAt||0)-(a[1].updatedAt||0));
+
   if(currentOpenChatId && currentOpenChatId !== id && chatsDB[currentOpenChatId] && chatsDB[currentOpenChatId].status !== 'cerrado'){
+    abrirChatAdmin(currentOpenChatId, true);
+  }else if(abiertos.length){
+    currentOpenChatId = abiertos[0][0];
     abrirChatAdmin(currentOpenChatId, true);
   }else{
     currentOpenChatId = '';
@@ -5246,6 +6692,7 @@ function chatInferCategoryFromHistory(chat){
 // El basurero de la bandeja elimina directo, sin confirmación.
 window.eliminarChatDefinitivo = async function(id){
   await remove(ref(db,'tomauno/chats/'+id));
+  try{ if(window.__tomaunoClearChatNotifyFinal) window.__tomaunoClearChatNotifyFinal(id); }catch(e){}
   try{ notifiedChatIds.delete(id); localStorage.setItem('tomauno-chat-notified', JSON.stringify([...notifiedChatIds])); }catch(e){}
   if(currentOpenChatId === id) currentOpenChatId = '';
   toast('🗑️ Chat eliminado');
@@ -5269,11 +6716,33 @@ window.cerrarTodosChatsAbiertos = function(){
   if(hora && !document.getElementById('nc-profesor')){
     const wrap = document.createElement('div');
     wrap.className = 'fgroup';
-    wrap.innerHTML = '<label class="flbl">Profesor / disertante / responsable</label><input class="finput" id="nc-profesor" placeholder="Ej: Javier Móttola"/>';
+    wrap.innerHTML = '<label class="flbl">Profesor / disertante / responsable</label><input class="finput" id="nc-profesor" placeholder="Ej: Javier Mottola"/><label style="display:flex;align-items:center;gap:8px;margin:8px 0 2px;font-size:12px;color:#fff;font-weight:800;"><input type="checkbox" id="nc-grupo-wa-auto" style="accent-color:var(--red);"> Enviar link del grupo al registrarse</label><div style="font-size:10px;color:var(--text3);margin-bottom:6px;">Solo se agrega al WhatsApp si cargaste link de grupo.</div><label class="flbl" style="margin-top:8px;">Campo especial del formulario</label><input class="finput" id="nc-campo-especial-label" placeholder="Nombre del campo adicional"/><div style="font-size:10px;color:var(--text3);margin-top:-4px;">Si queda vacio, no aparece en el formulario publico.</div><label class="flbl" style="margin-top:8px;">Días habilitados para turnos</label><textarea class="finput" id="nc-dias-turnos" rows="2" placeholder="19/06/2026&#10;20/06/2026"></textarea><div style="font-size:10px;color:var(--text3);margin-top:-4px;">Opcional. Uno por linea o separados por coma. Si queda vacio usa la fecha principal.</div><label class="flbl" style="margin-top:8px;">Opciones / servicios seleccionables</label><textarea class="finput" id="nc-opciones-texto" rows="4" placeholder="Mini sesion, 14000&#10;1 impresion, 6000&#10;Video backstage, 18000"></textarea><div style="font-size:10px;color:var(--text3);margin-top:-4px;">Un item por linea. Tambien acepta: nombre, precio; nombre, precio</div>';
     const row = hora.closest('.frow2');
     if(row) row.insertAdjacentElement('afterend', wrap);
   }
 })();
+
+(function injectRedirectCursoField(){
+  const grupoAuto = document.getElementById('nc-grupo-wa-auto');
+  if(!grupoAuto || document.getElementById('nc-redirect-url')) return;
+  const box = document.createElement('div');
+  box.innerHTML =
+    '<label class="flbl" style="margin-top:8px;">Link de redireccion al finalizar registro</label>' +
+    '<input class="finput" id="nc-redirect-url" placeholder="https://..."/>' +
+    '<label style="display:flex;align-items:center;gap:8px;margin:6px 0 8px;font-size:12px;color:#fff;font-weight:800;"><input type="checkbox" id="nc-redirect-auto" style="accent-color:var(--red);"> Redireccionar al alumno al finalizar</label>' +
+    '<textarea class="finput" id="nc-redirect-msg" rows="3" placeholder="Ej: El sistema te llevara a la web Tomaunomodels para continuar con el registro y la carga de fotografias correspondiente."></textarea>';
+  grupoAuto.closest('label')?.insertAdjacentElement('afterend', box);
+})();
+
+function cerrarBandejaChatSiSeAbrioPorGuardarCurso(){
+  setTimeout(() => {
+    try{
+      const pop = document.getElementById('chat-popover');
+      if(!pop || !pop.classList.contains('open') || !isAdminNotifier()) return;
+      if(pop.querySelector('.chat-inbox-side,.chat-empty-state') && typeof window.cerrarChatPopover === 'function') window.cerrarChatPopover();
+    }catch(e){}
+  }, 120);
+}
 
 // Reemplazo controlado para guardar curso nuevo con profesor.
 window.agregarCurso = async function(){
@@ -5305,6 +6774,13 @@ window.agregarCurso = async function(){
     descansos: document.getElementById('nc-descansos')?.value.trim() || '',
     duracion: parseInt(document.getElementById('nc-dur')?.value) || 30,
     grupoWA: document.getElementById('nc-grupo-wa')?.value.trim() || '',
+    grupoWAAuto: !!document.getElementById('nc-grupo-wa-auto')?.checked,
+    redirectUrl: document.getElementById('nc-redirect-url')?.value.trim() || '',
+    redirectAuto: !!document.getElementById('nc-redirect-auto')?.checked,
+    redirectMsg: document.getElementById('nc-redirect-msg')?.value.trim() || '',
+    campoEspecialLabel: document.getElementById('nc-campo-especial-label')?.value.trim() || '',
+    diasTurnos: document.getElementById('nc-dias-turnos')?.value.trim() || '',
+    opcionesTexto: document.getElementById('nc-opciones-texto')?.value.trim() || '',
     camposReq: {
       dni: document.getElementById('nc-req-dni')?.checked ?? true,
       edad: document.getElementById('nc-req-edad')?.checked ?? true,
@@ -5315,11 +6791,12 @@ window.agregarCurso = async function(){
     },
     finalizado: false, oculto: false, creado: Date.now()
   });
-  ['nc-titulo','nc-desc','nc-costo','nc-cupos','nc-fecha','nc-hora','nc-profesor','nc-lugar','nc-ig','nc-wp','nc-img','nc-extra-text','nc-extra-url','nc-meses','nc-grupo-wa','nc-icon','nc-descansos'].forEach(id => {
+  ['nc-titulo','nc-desc','nc-costo','nc-cupos','nc-fecha','nc-hora','nc-profesor','nc-campo-especial-label','nc-dias-turnos','nc-opciones-texto','nc-lugar','nc-ig','nc-wp','nc-img','nc-extra-text','nc-extra-url','nc-meses','nc-grupo-wa','nc-redirect-url','nc-redirect-msg','nc-icon','nc-descansos'].forEach(id => {
     const el = document.getElementById(id); if (el) el.value = '';
   });
   toast('✅ Curso publicado');
   setAtab('cursos');
+  cerrarBandejaChatSiSeAbrioPorGuardarCurso();
 };
 
 const __editCurso_v339 = window.editCurso;
@@ -5329,15 +6806,27 @@ window.editCurso = function(id){
     const desc = document.getElementById('ec-desc');
     const c = cursos[id] || {};
     if(desc && !document.getElementById('ec-profesor')){
-      desc.insertAdjacentHTML('afterend','<label class="flbl">Profesor / disertante / responsable</label><input class="finput" id="ec-profesor" value="'+escAttr(c.profesor || c.disertante || c.organizador || c.docente || '')+'" placeholder="Ej: Javier Móttola"/>');
+      desc.insertAdjacentHTML('afterend','<label class="flbl">Modalidad</label><select class="finput" id="ec-tipo"><option value="curso" '+((c.tipo||'curso')==='curso'?'selected':'')+'>Curso normal</option><option value="sesiones" '+(c.tipo==='sesiones'?'selected':'')+'>Con turnos / horarios</option></select><label class="flbl">Profesor / disertante / responsable</label><input class="finput" id="ec-profesor" value="'+escAttr(c.profesor || c.disertante || c.organizador || c.docente || '')+'" placeholder="Ej: Javier Mottola"/><label class="flbl" style="margin-top:8px;">Días habilitados para turnos</label><textarea class="finput" id="ec-dias-turnos" rows="2" placeholder="19/06/2026&#10;20/06/2026">'+escHtml(c.diasTurnos || c.fechasTurnos || '')+'</textarea><div style="font-size:10px;color:var(--text3);margin-top:-4px;">Opcional. Uno por linea o separados por coma. Si queda vacio usa la fecha principal.</div><div id="ec-turnos-config" style="background:#1a0000;border:1px solid #3a0000;border-radius:var(--radius-sm);padding:14px;margin:10px 0;"><div style="font-size:12px;color:var(--red);font-weight:800;margin-bottom:10px;">Configuración de turnos</div><div class="frow2"><div><label class="flbl">Hora inicio</label><input class="finput" id="ec-h-ini" type="time" value="'+escAttr(c.horaInicio || '09:00')+'" style="color-scheme:dark"/></div><div><label class="flbl">Hora fin</label><input class="finput" id="ec-h-fin" type="time" value="'+escAttr(c.horaFin || '22:00')+'" style="color-scheme:dark"/></div></div><div class="frow2"><div><label class="flbl">Duración turno</label><input class="finput" id="ec-dur" type="number" value="'+escAttr(c.duracion || 30)+'"/></div><div><label class="flbl">Descansos</label><input class="finput" id="ec-descansos" value="'+escAttr(c.descansos || '')+'" placeholder="13:00-14:00, 17:30-18:00"/></div></div></div><label class="flbl" style="margin-top:8px;">Opciones / servicios seleccionables</label><textarea class="finput" id="ec-opciones-texto" rows="4" placeholder="Nombre, precio">'+escHtml(c.opcionesTexto || c.serviciosTexto || '')+'</textarea><div style="font-size:10px;color:var(--text3);margin-top:-4px;">Un item por linea. Tambien acepta: nombre, precio; nombre, precio</div>');
     }
   },30);
 };
 const __guardarEdit_v339 = window.guardarEdit;
 window.guardarEdit = async function(id){
+  const tipoEdit = document.getElementById('ec-tipo')?.value || 'curso';
   const prof = document.getElementById('ec-profesor')?.value.trim() || '';
+  const campoEspecialLabel = document.getElementById('ec-campo-especial-label')?.value.trim() || '';
+  const diasTurnos = document.getElementById('ec-dias-turnos')?.value.trim() || '';
+  const opcionesTexto = document.getElementById('ec-opciones-texto')?.value.trim() || '';
+  const horaInicio = document.getElementById('ec-h-ini')?.value || '';
+  const horaFin = document.getElementById('ec-h-fin')?.value || '';
+  const duracion = parseInt(document.getElementById('ec-dur')?.value) || 0;
+  const descansos = document.getElementById('ec-descansos')?.value.trim() || '';
+  const redirectUrl = document.getElementById('ec-redirect-url')?.value.trim() || '';
+  const redirectAuto = !!document.getElementById('ec-redirect-auto')?.checked;
+  const redirectMsg = document.getElementById('ec-redirect-msg')?.value.trim() || '';
   await __guardarEdit_v339(id);
-  await update(ref(db,'tomauno/cursos/'+id), {profesor:prof, disertante:prof});
+  await update(ref(db,'tomauno/cursos/'+id), {tipo:tipoEdit, grupoWAAuto: !!document.getElementById('ec-grupo-wa-auto')?.checked, redirectUrl, redirectAuto, redirectMsg, profesor:prof, disertante:prof, campoEspecialLabel, diasTurnos, opcionesTexto, horaInicio:horaInicio || '09:00', horaFin:horaFin || '22:00', duracion:duracion || 30, descansos});
+  cerrarBandejaChatSiSeAbrioPorGuardarCurso();
 };
 
 function isAckAI(q){ return /^(si|sí|dale|ok|oki|bueno|perfecto|genial|gracias|muchas gracias|de acuerdo|listo)$/i.test(String(q||'').trim()); }
@@ -5365,7 +6854,7 @@ function bestEntityAcrossPublishedAI(q){
   const terms = queryTermsForEntity(q);
   if(!terms.length) return null;
   const items = [];
-  Object.entries(cursos||{}).forEach(([id,c])=>{ if(!c.oculto) items.push({type:'curso', id, obj:c, title:c.titulo||'', extra:[c.desc,c.ig,c.profesor,c.disertante,c.organizador,c.docente,c.wp].join(' ')}); });
+  Object.entries(cursos||{}).forEach(([id,c])=>{ if(!c.oculto && !c.finalizado) items.push({type:'curso', id, obj:c, title:c.titulo||'', extra:[c.desc,c.ig,c.profesor,c.disertante,c.organizador,c.docente,c.wp].join(' ')}); });
   Object.entries(serviciosDB||{}).forEach(([id,s])=>{ if(!s.oculto) items.push({type:'servicio', id, obj:s, title:s.titulo||'', extra:[s.desc,s.ig,s.dir,s.wp].join(' ')}); });
   Object.entries(eventosDB||{}).forEach(([id,e])=>{ if(e.estado==='activo' && !e.oculto) items.push({type:'evento', id, obj:e, title:e.titulo||'', extra:[e.desc,e.nombreOrg,e.ig,e.lugar,e.wpOrg].join(' ')}); });
   let best = null;
@@ -5757,7 +7246,7 @@ window.filterCursos = function(){
 function aiItemsV3311(types){
   const allow = new Set(types || ['curso','servicio','evento']);
   const arr = [];
-  if(allow.has('curso')) Object.entries(cursos || {}).forEach(([id,c])=>{ if(!c.oculto) arr.push({type:'curso', id, obj:c, title:c.titulo||'', extra:[c.desc,c.ig,c.profesor,c.disertante,c.organizador,c.docente,c.responsable,c.wp].join(' ')}); });
+  if(allow.has('curso')) Object.entries(cursos || {}).forEach(([id,c])=>{ if(!c.oculto && !c.finalizado) arr.push({type:'curso', id, obj:c, title:c.titulo||'', extra:[c.desc,c.ig,c.profesor,c.disertante,c.organizador,c.docente,c.responsable,c.wp].join(' ')}); });
   if(allow.has('servicio')) Object.entries(serviciosDB || {}).forEach(([id,s])=>{ if(!s.oculto) arr.push({type:'servicio', id, obj:s, title:s.titulo||'', extra:[s.desc,s.ig,s.wp,s.dir,s.responsable].join(' ')}); });
   if(allow.has('evento')) Object.entries(eventosDB || {}).forEach(([id,e])=>{ if(e.estado==='activo' && !e.oculto) arr.push({type:'evento', id, obj:e, title:e.titulo||'', extra:[e.desc,e.nombreOrg,e.organizador,e.ig,e.lugar,e.wpOrg].join(' ')}); });
   return arr;
@@ -5910,7 +7399,7 @@ function aiIsGeneralListV3312(q,type){
 }
 function aiItemsV3312(types){
   const allow=new Set(types||['curso','servicio','evento']); const arr=[];
-  if(allow.has('curso')) Object.entries(cursos||{}).forEach(([id,c])=>{ if(!c.oculto) arr.push({type:'curso',id,obj:c,title:c.titulo||'',extra:[c.desc,c.ig,c.profesor,c.disertante,c.organizador,c.docente,c.responsable,c.wp].join(' ')}); });
+  if(allow.has('curso')) Object.entries(cursos||{}).forEach(([id,c])=>{ if(!c.oculto && !c.finalizado) arr.push({type:'curso',id,obj:c,title:c.titulo||'',extra:[c.desc,c.ig,c.profesor,c.disertante,c.organizador,c.docente,c.responsable,c.wp].join(' ')}); });
   if(allow.has('servicio')) Object.entries(serviciosDB||{}).forEach(([id,s])=>{ if(!s.oculto) arr.push({type:'servicio',id,obj:s,title:s.titulo||'',extra:[s.desc,s.ig,s.wp,s.dir,s.responsable].join(' ')}); });
   if(allow.has('evento')) Object.entries(eventosDB||{}).forEach(([id,e])=>{ if(e.estado==='activo'&&!e.oculto) arr.push({type:'evento',id,obj:e,title:e.titulo||'',extra:[e.desc,e.nombreOrg,e.organizador,e.ig,e.lugar,e.wpOrg].join(' ')}); });
   return arr;
@@ -6220,9 +7709,9 @@ window.filterCursos = function(){
   let chatNotifySeen = (()=>{ try{return JSON.parse(localStorage.getItem('tomauno-chat-activity-seen')||'{}');}catch(e){return {};}})();
   function lastUserMessageInfo(c){
     const users = chatMsgs(c).filter(([,m]) => m && m.from === 'user' && !m.typing);
-    if(!users.length) return {ts:Number(c?.updatedAt||0), text:String(c?.lastMsg||'')};
+    if(!users.length) return {ts:0, text:''};
     const [,m] = users[users.length-1];
-    return {ts:Number(m.createdAt || c?.updatedAt || 0), text:String(m.text || c?.lastMsg || '')};
+    return {ts:Number(m.createdAt || 0), text:String(m.text || '')};
   }
   onValue(ref(db,'tomauno/chats'), snap => {
     const data = snap.exists() ? snap.val() : {};
@@ -6248,10 +7737,10 @@ window.filterCursos = function(){
     changed.forEach(x => { chatNotifySeen[x.id] = x.info.ts; });
     try{ localStorage.setItem('tomauno-chat-activity-seen', JSON.stringify(chatNotifySeen)); }catch(e){}
 
-    notifyAdminChat('Nuevo mensaje web', chatVisibleName(item.c,item.id) + ': ' + (item.info.text || 'Escribió desde la web'), item.id);
+    // final6h: desactivado. No notificar por cada mensaje del usuario; solo chat nuevo o llamada humana.
     try{
       const pop = document.getElementById('chat-popover');
-      if(!pop || !pop.classList.contains('open')) setTimeout(()=>window.abrirChatAdmin && window.abrirChatAdmin(item.id), 120);
+      /* final6h: no autoabrir por mensaje nuevo */
     }catch(e){}
   });
 
@@ -6293,8 +7782,8 @@ window.filterCursos = function(){
   };
 
   // 4) Si el usuario pidió Javier, pero luego pregunta por servicios/cursos/etc., no insistir con datos.
-  const __manejarDatosHumanosPendientes_v3319 = manejarDatosHumanosPendientes;
-  manejarDatosHumanosPendientes = async function(chatId, chat, userText){
+  const __manejarDatosHUMsPendientes_v3319 = manejarDatosHUMsPendientes;
+  manejarDatosHUMsPendientes = async function(chatId, chat, userText){
     const q = normAI(userText||'');
     if(/\b(no|no gracias|despues|más tarde|mas tarde)\b/.test(q)){
       await update(ref(db,'tomauno/chats/'+chatId), {humanRequested:false, prioridad:false, updatedAt:Date.now()});
@@ -6309,7 +7798,7 @@ window.filterCursos = function(){
     if(/(ubicacion|ubicación|direccion|dirección|donde queda|mapa)/.test(q)){
       return '📍 Estamos en Pedro Méndez 2069, Posadas, Misiones. #ubicacion#';
     }
-    return __manejarDatosHumanosPendientes_v3319.apply(this, arguments);
+    return __manejarDatosHUMsPendientes_v3319.apply(this, arguments);
   };
 
   // 5) Resumen WA realmente breve: no copia toda la charla.
@@ -6479,7 +7968,13 @@ window.filterCursos = function(){
 
       const lastAuto2 = chatMsgs(chat).slice().reverse().find(([,m]) => m && m.from === 'admin' && m.auto);
       if(lastAuto2 && qnorm(lastAuto2[1].text||'') === qnorm(respuesta)){
-        respuesta = 'Claro 😊 Te lo vuelvo a orientar mejor. ¿Querés que te muestre cursos, servicios, ubicación o contacto? También podés contarme puntualmente qué necesitás y te ayudo.';
+        const alt = (pendingTopics || []).find(p => p && p.respuesta && qnorm(p.respuesta) !== qnorm(respuesta));
+        if(alt){
+          respuesta = alt.respuesta;
+          pendingTopics = (pendingTopics || []).filter(p => p !== alt);
+        }else{
+          respuesta = 'Claro 😊 Te lo vuelvo a orientar mejor. ¿Querés que te muestre cursos, servicios, ubicación o contacto? También podés contarme puntualmente qué necesitás y te ayudo.';
+        }
       }
       if(qnorm(chat.lastAutoUserText || '') === q && (nowTs() - Number(chat.lastAutoAt || 0)) < 10000) return;
 
@@ -6555,11 +8050,12 @@ window.filterCursos = function(){
   const __notifyAdminChat_v3320 = notifyAdminChat;
   const lastNotifyByChat = {};
   notifyAdminChat = function(title, body, chatId){
+    const humanNotice = /humana|Javier|llamada|atenci/i.test(String(title||'') + ' ' + String(body||''));
     const pop = document.getElementById('chat-popover');
     const isOpen = !!(pop && pop.classList.contains('open'));
     const sameActive = isOpen && chatId && currentOpenChatId === chatId;
     const last = Number(lastNotifyByChat[chatId || '_global'] || 0);
-    const quiet = sameActive || (chatId && (nowTs() - last < TEN_MIN));
+    const quiet = !humanNotice && (sameActive || (chatId && (nowTs() - last < TEN_MIN)));
     if(quiet) return;
     lastNotifyByChat[chatId || '_global'] = nowTs();
     return __notifyAdminChat_v3320.apply(this, arguments);
@@ -6587,7 +8083,10 @@ window.filterCursos = function(){
     if(closed){ setTimeout(()=>window.abrirChatAdmin && window.abrirChatAdmin(top.id), 120); }
     // Si el mensaje viene de otro chat, avisar aunque estés en una conversación.
     if(closed || currentOpenChatId !== top.id || (nowTs()-Number(lastNotifyByChat[top.id]||0) > TEN_MIN)){
-      notifyAdminChat('Nuevo mensaje web', chatVisibleName(top.c,top.id)+': '+(top.c.lastMsg||'Escribió desde la web'), top.id);
+      {
+        const u = tomaunoUltimoMensajeUsuarioChat(top.c);
+        if(u && u.text) notifyAdminChat('Nuevo mensaje web', chatVisibleName(top.c,top.id)+': '+u.text, top.id);
+      }
     }
   });
 
@@ -7138,7 +8637,7 @@ window.filterCursos = function(){
   }
   function humanFallbackText52(){
     const url = 'https://wa.me/5493764354522?text=' + encodeURIComponent('Hola Javier, vengo de la web Tomauno y quiero continuar mi consulta.');
-    return 'En este momento Javier puede estar ocupado.\n\nTe dejo el WhatsApp directo para que puedas escribirle: ' + url + '\n\nTambién podés dejarme tu consulta por acá y Javier la revisa apenas pueda.';
+    return 'En este momento Javier puede estar ocupado.\n\nTe dejo el WhatsApp directo para que puedas escribirle: ' + url + '\n\n📱 Dejame tu número de WhatsApp y el mensaje para Javier. Muy pronto se comunicará con vos.';
   }
   async function pushBot52(chatId, text, extra){
     await push(ref(db,'tomauno/chats/'+chatId+'/messages'), Object.assign({from:'admin', text, time:chatTime(), createdAt:Date.now(), auto:true}, extra||{}));
@@ -7158,6 +8657,7 @@ window.filterCursos = function(){
         const c = snap.val() || {};
         if(!c.humanRequested || !c.humanWaitStartedAt) return;
         if(c.humanFallbackSent) return;
+        if(window.__tomaunoClaimHumanFallback && !(await window.__tomaunoClaimHumanFallback(chatId))) return;
         if(manualAdminAfter52(c, c.humanWaitStartedAt)) return;
         try{ window.tomaunoHumanAlarm && window.tomaunoHumanAlarm(chatId, (chatVisibleName(c,chatId)||'Visitante')+': sigue esperando a Javier después de 60 segundos'); }catch(e){}
         try{ notifyAdminChat && notifyAdminChat('Atención humana pendiente', (chatVisibleName(c,chatId)||'Visitante')+': sigue esperando a Javier', chatId); }catch(e){}
@@ -7310,12 +8810,7 @@ window.filterCursos = function(){
   function mobile89(){ return !!(window.matchMedia && window.matchMedia('(max-width:700px)').matches); }
   function ensureVersion89(){
     try{
-      let tag=document.getElementById('tomauno-version-tag');
-      if(!tag){
-        const f=document.querySelector('footer .fcred')||document.querySelector('footer')||document.body;
-        tag=document.createElement('span'); tag.id='tomauno-version-tag'; tag.className='tomauno-version-tag'; f.appendChild(tag);
-      }
-      tag.textContent='Tomauno '+VERSION_89;
+      document.querySelectorAll('#tomauno-version-tag,.tomauno-version-tag').forEach(tag=>tag.remove());
     }catch(e){}
   }
   function setViewportVar89(){
@@ -7357,7 +8852,7 @@ window.filterCursos = function(){
   function visitorStartHtml89(){
     return '<div class="chat-head"><div class="chat-avatar">💬</div><div><div class="chat-title">CHAT TOMAUNO</div><div class="chat-subline">Consulta directa desde la web</div></div></div>'+
       '<div class="chat-panel"><div class="chat-msgs" id="chat-msgs">'+
-      '<div class="chat-bubble admin"><div>Hola 😊<br/><b>¿Cómo es tu nombre?</b></div><div class="chat-meta">Ahora</div></div>'+
+      '<div class="chat-bubble admin"><div>Soy el asistente de Tomauno 😊<br/><b>¿Cómo es tu nombre?</b></div><div class="chat-meta">Ahora</div></div>'+
       '</div><div class="chat-name-row"><input class="finput" id="chat-name" placeholder="Tu nombre" onkeydown="if(event.key===\'Enter\')window.iniciarChatConNombre()"/><button class="chat-send" onclick="window.iniciarChatConNombre()">➜</button></div></div>';
   }
   function visitorChatHtml89(id){
@@ -7514,7 +9009,7 @@ window.filterCursos = function(){
     if(!btn || !chat) return;
     const human = chatIsHumanFinal(chat);
     btn.classList.toggle('on', !human);
-    btn.textContent = human ? '👤 HUMANO' : '🤖 AUTO';
+    btn.textContent = human ? '👤 HUM' : '🤖 AUTO';
     btn.title = human ? 'Este chat está en atención humana. Clic para volver a automático.' : 'Este chat está en automático. Clic para tomarlo manualmente.';
   }
   function adminViewingChatFinal(chatId){
@@ -7567,7 +9062,7 @@ window.filterCursos = function(){
   }
   function looksLikeRealNameFinal(text){
     const raw = String(text || '').trim();
-    const clean = limpiarNombreChat(raw.replace(/^(me llamo|mi nombre es|soy)\s+/i,'').trim());
+    const clean = limpiarNombreChat(raw.replace(/^(me llamo|mi nombre es|nombre es|soy)\s+/i,'').trim());
     if(clean && clean !== raw) return looksLikeRealNameFinal(clean);
     if(!raw || raw.length < 2 || raw.length > 36) return false;
     if(/[?¿!¡@#:/\\0-9]/.test(raw)) return false;
@@ -7583,17 +9078,18 @@ window.filterCursos = function(){
   }
   function safeDetectedNameFinal(text, chat){
     const raw = String(text || '').trim();
-    if(!raw || /[?Â¿!Â¡@#:/\\0-9]/.test(raw)) return '';
-    if(/\b(info|curso|cursos|precio|precios|manualidades|quiero|consulta|consultar|contacto|javier|servicio|servicios|ubicacion|telefono|whatsapp|donde|cuando|cuanto|pasas|tenes|hola|buenas)\b/i.test(raw)) return '';
-    const explicit = /^(soy|me llamo|mi nombre es|nombre es)\s+/i.test(raw);
+    if(!raw || /[?!@#:/\\0-9]/.test(raw)) return '';
     const asked = lastAdminAskedName(chat);
+    if(/^soy\s+/i.test(raw) && !asked) return '';
+    if(/\b(info|curso|cursos|precio|precios|manualidades|quiero|consulta|consultar|contacto|javier|servicio|servicios|ubicacion|telefono|whatsapp|donde|cuando|cuanto|pasas|tenes|hola|buenas)\b/i.test(raw)) return '';
+    const explicit = /^(me llamo|mi nombre es|nombre es)\s+/i.test(raw) || (asked && /^soy\s+/i.test(raw));
     if(!explicit && !asked) return '';
     const n = isJustNameReply(text, chat);
     return looksLikeRealNameFinal(n) ? limpiarNombreChat(n) : '';
   }
   function activityItemsFinal(){
     const arr = [];
-    try{ Object.entries(cursos || {}).forEach(([id,c]) => { if(!c.oculto) arr.push({type:'curso', id, obj:c, title:c.titulo||'', extra:[c.desc,c.profesor,c.disertante,c.organizador,c.docente,c.responsable,c.nombreOrg,c.ig,c.wp].join(' ')}); }); }catch(e){}
+    try{ Object.entries(cursos || {}).forEach(([id,c]) => { if(!c.oculto && !c.finalizado) arr.push({type:'curso', id, obj:c, title:c.titulo||'', extra:[c.desc,c.profesor,c.disertante,c.organizador,c.docente,c.responsable,c.nombreOrg,c.ig,c.wp].join(' ')}); }); }catch(e){}
     try{ Object.entries(eventosDB || {}).forEach(([id,e]) => { if(e.estado === 'activo' && !e.oculto) arr.push({type:'evento', id, obj:e, title:e.titulo||'', extra:[e.desc,e.nombreOrg,e.organizador,e.ig,e.wpOrg,e.lugar].join(' ')}); }); }catch(e){}
     try{ Object.entries(serviciosDB || {}).forEach(([id,s]) => { if(!s.oculto) arr.push({type:'servicio', id, obj:s, title:s.titulo||'', extra:[s.desc,s.profesor,s.disertante,s.organizador,s.responsable,s.ig,s.wp].join(' ')}); }); }catch(e){}
     return arr;
@@ -7689,6 +9185,12 @@ window.filterCursos = function(){
       html body #chat-popover.open .chat-list-item.priority{
         border-color:rgba(255,214,80,.55)!important;
         box-shadow:inset 3px 0 0 rgba(255,214,80,.95)!important;
+      }
+      html body #chat-popover.open .chat-inbox-list{
+        max-height:calc(100vh - 190px)!important;
+        overflow-y:auto!important;
+        overscroll-behavior:contain!important;
+        padding-right:4px!important;
       }
       html body #chat-popover.open.tu-human-chat,
       html body #chat-popover.open.tu-human-chat .chat-popover-inner{
@@ -7893,7 +9395,10 @@ window.filterCursos = function(){
     [40, 160, 420].forEach(ms => setTimeout(() => {
       const txt = document.getElementById('chat-text');
       const nam = document.getElementById('chat-name');
-      if(txt) txt.value = '';
+      if(txt){
+        txt.value = '';
+        try{ txt.focus({preventScroll:true}); txt.setSelectionRange(0,0); }catch(e){ try{ txt.focus(); }catch(_e){} }
+      }
       if(nam) nam.value = '';
     }, ms));
   };
@@ -7925,36 +9430,35 @@ window.filterCursos = function(){
 
   const prevNotifyFinal = notifyAdminChat;
   const notifySeenFinal = new Map();
+  const notifiedConversationFinal = (() => { try{ return new Set(JSON.parse(localStorage.getItem('tomauno-chat-notified-open') || '[]')); }catch(e){ return new Set(); } })();
+  window.__tomaunoClearChatNotifyFinal = function(id){ try{ if(id){ notifiedConversationFinal.delete(id); notifiedChatIds.delete(id); localStorage.setItem('tomauno-chat-notified-open', JSON.stringify([...notifiedConversationFinal])); localStorage.setItem('tomauno-chat-notified', JSON.stringify([...notifiedChatIds])); } }catch(e){} };
   const prevShowNotifBannerFinal = showNotifBanner;
   showNotifBanner = function(titulo, detalle, icono='CHAT', onClick=null){
     prevShowNotifBannerFinal.call(this, titulo, detalle, icono, onClick);
-    setTimeout(() => {
-      const banner = document.getElementById('notif-banner');
-      if(!banner || banner.querySelector('.notif-close-x')) return;
-      const x = document.createElement('button');
-      x.className = 'notif-close-x';
-      x.type = 'button';
-      x.textContent = '×';
-      x.title = 'Cerrar notificación';
-      x.style.cssText = 'position:absolute;top:7px;right:8px;width:24px;height:24px;border:0;border-radius:50%;background:rgba(255,255,255,.16);color:#fff;font-size:17px;font-weight:900;cursor:pointer;line-height:22px;';
-      x.onclick = ev => {
-        ev.preventDefault();
-        ev.stopPropagation();
-        if(ev.stopImmediatePropagation) ev.stopImmediatePropagation();
-        banner.style.transform = 'translateX(340px)';
-      };
-      banner.style.position = 'fixed';
-      banner.appendChild(x);
-    }, 0);
   };
   window.showNotifBanner = showNotifBanner;
   notifyAdminChat = function(title, body, chatId){
+    const c = chatId && chatsDB ? chatsDB[chatId] : null;
+    const lastUser = c ? tomaunoUltimoMensajeUsuarioChat(c) : null;
+    let isHumanNotice = /humana|Javier|LLAMADA/i.test(String(title||'') + ' ' + String(body||''));
+    try{
+      if(!isHumanNotice && lastUser && typeof window.tuEsPedidoHumano === 'function' && window.tuEsPedidoHumano(lastUser.text)){
+        isHumanNotice = true;
+        title = 'LLAMADA ENTRANTE';
+        body = (c ? chatVisibleName(c, chatId) : 'Visitante') + ' pide atención de Javier';
+      }
+    }catch(e){}
+    if(!isHumanNotice && (!lastUser || !lastUser.text)) return;
+    if(!isHumanNotice && c) body = chatVisibleName(c, chatId) + ': ' + lastUser.text;
+
     if(!adminActiveFinal()) return;
-    if(adminViewingChatFinal(chatId)) return;
+    if(!isHumanNotice && adminViewingChatFinal(chatId)) return;
+    if(!isHumanNotice && chatId && (notifiedConversationFinal.has(chatId) || (typeof notifiedChatIds !== 'undefined' && notifiedChatIds.has(chatId)))) return;
     const sig = String(chatId || '') + '|' + String(title || '') + '|' + String(body || '').slice(0,90);
     const last = notifySeenFinal.get(sig) || 0;
     if(Date.now() - last < 6000) return;
     notifySeenFinal.set(sig, Date.now());
+    if(!isHumanNotice && chatId){ notifiedConversationFinal.add(chatId); try{ localStorage.setItem('tomauno-chat-notified-open', JSON.stringify([...notifiedConversationFinal])); }catch(e){} }
     try{ beepStrongFinal(); }catch(e){ try{ beep(); }catch(_e){} }
     try{
       showNotif();
@@ -7997,7 +9501,14 @@ window.filterCursos = function(){
     if(!adminActiveFinal()) return;
     beepStrongFinal();
     if(adminViewingChatFinal(chatId)) return;
-    try{ notifyAdminChat('Atención humana solicitada', body || 'Hay una persona esperando a Javier', chatId); }catch(e){}
+    try{
+      showNotif();
+      const c = chatId && chatsDB ? (chatsDB[chatId] || {}) : {};
+      const name = typeof chatVisibleName === 'function' ? chatVisibleName(c, chatId) : (c.name || 'Visitante');
+      showNotifBanner('LLAMADA ENTRANTE', name + ' pide atención de Javier', '📣', () => {
+        if(chatId && typeof window.abrirChatAdmin === 'function') window.abrirChatAdmin(chatId, true);
+      });
+    }catch(e){}
   };
 
   window.tomaunoToggleModoChatActual = async function(id){
@@ -8011,6 +9522,10 @@ window.filterCursos = function(){
         manualUntil:0,
         waitingHuman:false,
         humanRequested:false,
+        pendingHuman:false,
+        waitingWhatsapp:false,
+        waitingHumanContact:false,
+        pendingHumanContact:false,
         unreadAdmin:false
       }).catch(()=>{});
       await update(ref(db,'tomauno/asistente'), {modo:'automatico'}).catch(()=>{});
@@ -8070,13 +9585,14 @@ window.filterCursos = function(){
   const prevAutoResponderFinal = responderAutomaticoChat || window.responderAutomaticoChat;
   if(typeof prevAutoResponderFinal === 'function'){
     const guardedAutoResponderFinal = async function(chatId, text){
+      const quickBypass = Number(window.__tomaunoQuickReplyBypassUntil || 0) > Date.now();
       const c = chatsDB && chatsDB[chatId];
-      if(c && (c.humanMode || Number(c.manualUntil || 0) > Date.now())) return;
+      if(!quickBypass && c && (c.humanMode || Number(c.manualUntil || 0) > Date.now())) return;
       try{
         const snap = await get(ref(db,'tomauno/chats/'+chatId));
         if(snap.exists()){
           const fresh = snap.val() || {};
-          if(fresh.humanMode || Number(fresh.manualUntil || 0) > Date.now()) return;
+          if(!quickBypass && (fresh.humanMode || Number(fresh.manualUntil || 0) > Date.now())) return;
         }
       }catch(e){}
       return prevAutoResponderFinal.apply(this, arguments);
@@ -8125,65 +9641,126 @@ window.filterCursos = function(){
 
   let lastDirectVisitorSendFinal = {id:'', text:'', at:0};
   const prevVisitorSendFinal = window.enviarChatVisitante;
+
+  async function ensureVisitorChatIdV24(){
+    let id = '';
+    try{ id = currentVisitorChatId || sessionStorage.getItem('tomauno-chat-id') || ''; }catch(e){ id = currentVisitorChatId || ''; }
+    if(id) return id;
+
+    const now = Date.now();
+    let name = '';
+    try{ name = sessionStorage.getItem('tomauno-chat-name') || ''; }catch(e){}
+    name = limpiarNombreChat(name || 'Visitante');
+
+    const chatRef = await push(ref(db,'tomauno/chats'), {
+      name,
+      wp:'',
+      status:'abierto',
+      createdAt:now,
+      updatedAt:now,
+      lastMsg:'',
+      lastUserMsg:'',
+      lastUserAt:0,
+      unreadAdmin:false,
+      unreadVisitor:false,
+      userOnline:true,
+      userLastSeen:now
+    });
+
+    id = chatRef.key;
+    currentVisitorChatId = id;
+    window.currentVisitorChatId = id;
+    try{ sessionStorage.setItem('tomauno-chat-id', id); }catch(e){}
+    return id;
+  }
+
   async function sendVisitorDirectFinal(id){
-    id = id || visitorChatIdFinal();
-    if(!id) return;
+    id = id || visitorChatIdFinal() || currentVisitorChatId;
+    if(!id) id = await ensureVisitorChatIdV24();
+
     const inp = document.getElementById('chat-text');
     const text = String(inp?.value || '').trim();
     if(!text) return;
+
     if(lastDirectVisitorSendFinal.id === id && lastDirectVisitorSendFinal.text === text && Date.now() - lastDirectVisitorSendFinal.at < 1200) return;
     lastDirectVisitorSendFinal = {id, text, at:Date.now()};
+
     window.__tomaunoVisitorSendingUntil = Date.now() + 1800;
-    if(inp){ inp.value = ''; try{ inp.focus({preventScroll:true}); }catch(e){ inp.focus(); } }
-    [30, 140, 360, 800].forEach(ms => setTimeout(() => {
-      const next = document.getElementById('chat-text');
-      if(next) next.value = '';
-    }, ms));
+
+    if(inp){
+      inp.value = '';
+      try{ inp.focus({preventScroll:true}); }catch(e){ try{ inp.focus(); }catch(_e){} }
+    }
+
     await update(ref(db,'tomauno/chats/'+id+'/liveTyping'), {text:'', at:Date.now()}).catch(()=>{});
     lastTypingSentFinal = '';
+
     let existingChat = chatsDB?.[id] || {};
     try{
       const snap = await get(ref(db,'tomauno/chats/'+id));
       if(snap.exists()) existingChat = snap.val() || existingChat;
     }catch(e){}
+
     let fallbackName = '';
     try{ fallbackName = sessionStorage.getItem('tomauno-chat-name') || ''; }catch(e){}
+
     const detectedName = safeDetectedNameFinal(text, existingChat);
     const keepName = hasRealVisitorNameFinal(existingChat) ? limpiarNombreChat(existingChat.name || '') : '';
-    const repairedName = limpiarNombreChat(keepName || detectedName || fallbackName || chatAnonName(id, existingChat));
+    const askedNameNow = lastAdminAskedName(existingChat);
+    const repairedName = limpiarNombreChat((askedNameNow && detectedName) ? detectedName : (keepName || detectedName || fallbackName || chatAnonName(id, existingChat)));
     const now = Date.now();
+
     try{
-      await push(ref(db,'tomauno/chats/'+id+'/messages'), {from:'user', text, time:chatTime(), createdAt:Date.now()});
+      await push(ref(db,'tomauno/chats/'+id+'/messages'), {
+        from:'user',
+        text,
+        time:chatTime(),
+        createdAt:now
+      });
     }catch(saveErr){
       await new Promise(resolve => setTimeout(resolve, 260));
       try{
-        await push(ref(db,'tomauno/chats/'+id+'/messages'), {from:'user', text, time:chatTime(), createdAt:Date.now()});
+        await push(ref(db,'tomauno/chats/'+id+'/messages'), {
+          from:'user',
+          text,
+          time:chatTime(),
+          createdAt:Date.now()
+        });
       }catch(saveErr2){
         const retryInput = document.getElementById('chat-text');
         if(retryInput) retryInput.value = text;
         throw saveErr2;
       }
     }
-    await update(ref(db,'tomauno/chats/'+id), {
+
+    const upd = {
       name:repairedName,
       status:'abierto',
       updatedAt:now,
       lastMsg:text,
+      lastUserMsg:text,
+      lastUserAt:now,
       unreadAdmin:true,
       userOnline:true,
       userLastSeen:now
-    });
-    await update(ref(db,'tomauno/chats/'+id), {updatedAt:Date.now(), lastMsg:text, status:'abierto', unreadAdmin:true, userOnline:true, userLastSeen:Date.now(), name:repairedName});
-    try{ if(detectedName && !keepName) sessionStorage.setItem('tomauno-chat-name', detectedName); }catch(e){}
+    };
+
+    await update(ref(db,'tomauno/chats/'+id), upd);
+    try{ chatsDB[id] = Object.assign({}, chatsDB[id] || existingChat || {}, upd); }catch(e){}
+
+    try{ if(detectedName && (!keepName || askedNameNow)) sessionStorage.setItem('tomauno-chat-name', detectedName); }catch(e){}
+
     try{ updateChatMessagesOnly(id, false); }catch(e){}
+    setTimeout(()=>{ try{ updateChatMessagesOnly(id, false); }catch(e){} }, 120);
+
     window.__tomaunoVisitorSendingUntil = Date.now() + 900;
-    [20, 180].forEach(ms => setTimeout(() => {
-      const next = document.getElementById('chat-text');
-      if(next) next.value = '';
-    }, ms));
-    if(detectedName && lastAdminAskedName(existingChat)) return;
-    responderAutomaticoChat(id, text);
+
+    // Si el texto fue solo el nombre, no responder como si fuera consulta.
+    if(detectedName && askedNameNow) return;
+
+    setTimeout(() => responderAutomaticoChat(id, text), 280);
   }
+
   window.enviarChatVisitante = sendVisitorDirectFinal;
   window.tomaunoEnviarVisitanteDirecto = sendVisitorDirectFinal;
 
@@ -8316,7 +9893,21 @@ window.filterCursos = function(){
       pop.classList.contains('open') &&
       !adminActiveFinal()
     );
-    if(visitorInputActive) return;
+    if(visitorInputActive){
+      const oldId = active.id;
+      const oldVal = active.value || '';
+      const oldStart = active.selectionStart || 0;
+      const oldEnd = active.selectionEnd || oldStart;
+      const out = prevSetChatPopoverFinal.apply(this, arguments);
+      setTimeout(() => {
+        const next = document.getElementById(oldId);
+        if(next && oldVal && !(next.value || '').trim()){
+          next.value = oldVal;
+          try{ next.focus({preventScroll:true}); next.setSelectionRange(oldStart, oldEnd); }catch(e){ try{ next.focus(); }catch(_e){} }
+        }
+      }, 0);
+      return out;
+    }
     return prevSetChatPopoverFinal.apply(this, arguments);
   };
   window.setChatPopover = setChatPopover;
@@ -8327,553 +9918,2174 @@ window.filterCursos = function(){
 })();
 
 
-// ─────────────────────────────────────────────────────────────────────────────
-// TOMAUNO CLEAN CHAT CORE v31
-// Reescritura limpia del control del chat. Una sola fuente para:
-// envío visitante, Enter, lectura admin, estados, scroll y render de mensajes.
-// ─────────────────────────────────────────────────────────────────────────────
+// ── TOMAUNO v24 HOTFIX FINAL ────────────────────────────────────────────────
+// Objetivo: primer envío estable, maximizar sin temblores, limpiar duplicados
+// de "Escribiendo", y evitar notificaciones por mensajes del asistente.
 (function(){
   'use strict';
 
-  const CFG = {
-    visitorHDesktop: 'min(74vh, 680px)',
-    visitorWDesktop: 'min(390px, calc(100vw - 24px))',
-    mobileFull: true
+  function safe(fn){ try{return fn();}catch(e){ try{console.warn('tomauno v24:', e);}catch(_){} } }
+
+  function isAdminView(){
+    return safe(function(){
+      return localStorage.getItem('tomauno-admin-ok') === '1' ||
+             localStorage.getItem('tomauno-admin-notify') === '1' ||
+             !!document.querySelector('#chat-popover.open #chat-admin-text,#chat-popover.open .chat-inbox-side,#chat-popover.open .chat-admin-tools');
+    }) || false;
+  }
+
+  function stableChatBox(){
+    return document.querySelector('#chat-popover.open .chat-msgs');
+  }
+
+  // Maximizar visitante: no debe disparar scroll loops.
+  window.tomaunoToggleChatMaxV24 = function(){
+    safe(function(){
+      const pop = document.getElementById('chat-popover');
+      if(!pop) return;
+      pop.classList.toggle('expanded');
+      pop.classList.toggle('tomauno-expanded');
+      document.body.classList.toggle('chat-open-mobile', pop.classList.contains('expanded'));
+      setTimeout(function(){
+        const box = stableChatBox();
+        if(box) box.scrollTop = box.scrollHeight;
+      }, 60);
+    });
   };
 
-  const S = (fn, fb=null) => { try { return fn(); } catch(e){ try{console.warn('TU clean:', e);}catch(_){} return fb; } };
-  const q = (sel, root=document) => root.querySelector(sel);
-  const qa = (sel, root=document) => Array.from(root.querySelectorAll(sel));
-  const nrm = s => String(s||'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^a-z0-9ñ\s]/g,' ').replace(/\s+/g,' ').trim();
-  const now = () => Date.now();
+  // Captura clicks de botones de maximizar si existen con clases/títulos comunes.
+  document.addEventListener('click', function(ev){
+    const btn = ev.target && ev.target.closest && ev.target.closest(
+      '#chat-popover.open .chat-max,#chat-popover.open .chat-expand,#chat-popover.open [data-chat-max],#chat-popover.open [title*="Max"],#chat-popover.open [title*="max"]'
+    );
+    if(!btn) return;
+    ev.preventDefault();
+    ev.stopPropagation();
+    if(ev.stopImmediatePropagation) ev.stopImmediatePropagation();
+    window.tomaunoToggleChatMaxV24();
+  }, true);
 
-  function adminActive(){
-    return S(() =>
-      localStorage.getItem('tomauno-admin-ok') === '1' ||
-      localStorage.getItem('tomauno-admin-notify') === '1' ||
-      !!q('#chat-popover.open #chat-admin-text,#chat-popover.open .chat-inbox-side,#chat-popover.open .chat-admin-tools')
-    , false);
-  }
-
-  function dbChats(){ return S(() => window.chatsDB || chatsDB || {}, {}); }
-  function setLocalChat(id, patch){
-    S(() => {
-      if(window.chatsDB && window.chatsDB[id]) Object.assign(window.chatsDB[id], patch);
-      if(typeof chatsDB !== 'undefined' && chatsDB[id]) Object.assign(chatsDB[id], patch);
-    });
-  }
-  function visitorId(){ return S(() => window.currentVisitorChatId || currentVisitorChatId || sessionStorage.getItem('tomauno-chat-id') || '', ''); }
-  function adminId(){ return S(() => window.currentOpenChatId || currentOpenChatId || '', ''); }
-
-  function chatTimeClean(){
-    return S(() => chatTime(), new Date().toLocaleTimeString('es-AR',{hour:'2-digit',minute:'2-digit'}));
-  }
-
-  function updateChat(id, patch){
-    if(!id || typeof db==='undefined' || typeof ref==='undefined' || typeof update==='undefined') return Promise.resolve();
-    setLocalChat(id, patch);
-    return update(ref(db, 'tomauno/chats/' + id), patch).catch(()=>{});
-  }
-
-  function pushMessage(id, msg){
-    if(!id || typeof db==='undefined' || typeof ref==='undefined' || typeof push==='undefined') return Promise.resolve();
-    return push(ref(db, 'tomauno/chats/' + id + '/messages'), msg).catch(()=>{});
-  }
-
-  function orderedMessages(chat){
-    const ms = chat && chat.messages ? chat.messages : {};
-    return Object.entries(ms).sort((a,b)=>Number((a[1]||{}).createdAt||0)-Number((b[1]||{}).createdAt||0));
-  }
-
-  function esc(v){
-    return S(() => escHtml(v), String(v ?? '').replace(/[&<>"]/g, ch => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[ch])));
-  }
-  function attr(v){
-    return S(() => escAttr(v), esc(v).replace(/'/g,'&#39;'));
-  }
-
-  function visibleName(chat,id){
-    return S(() => chatVisibleName(chat,id), String((chat && chat.name) || 'Visitante'));
-  }
-
-  function isOnline(chat){
-    const t = Number((chat && (chat.userLastSeen || chat.lastSeen || chat.updatedAt)) || 0);
-    return !!(chat && (chat.userOnline || (t && now()-t < 70000)));
-  }
-
-  function renderMsgsClean(chat, adminView, id){
-    const arr = orderedMessages(chat);
-    if(!arr.length) return '';
-    return arr.map(([key,m]) => {
-      m = m || {};
-      if(m.typing) return '';
-      const from = m.from === 'user' ? 'user' : 'admin';
-      const cls = from === 'user' ? 'chat-bubble user' : 'chat-bubble admin';
-      const text = esc(m.text || '');
-      const meta = esc(m.time || '');
-      const del = adminView && from === 'admin'
-        ? '<button class="tu-clean-del" title="Eliminar mensaje" data-msg-key="'+attr(key)+'">🗑️</button>'
-        : '';
-      return '<div class="'+cls+'" data-msg-key="'+attr(key)+'">'+text.replace(/\n/g,'<br>')+del+'<div class="chat-meta">'+meta+'</div></div>';
-    }).join('');
-  }
-
-  // Reemplaza renderMsgs para todo el sistema.
-  try { renderMsgs = renderMsgsClean; } catch(e) {}
-  window.renderMsgs = renderMsgsClean;
-
-  function setPopoverClean(html){
-    const pop = document.getElementById('chat-popover');
-    if(!pop) return;
-    pop.innerHTML = html;
-    pop.classList.add('open');
-  }
-
-  function scrollToFirstUnreadAdmin(){
-    if(adminActive()) return;
-    const box = q('#chat-popover.open .chat-msgs');
-    if(!box) return;
-    const admins = qa('.chat-bubble.admin', box);
-    if(!admins.length) return;
-    const last = admins[admins.length-1];
-    requestAnimationFrame(() => {
-      box.scrollTop = Math.max(0, last.offsetTop - 18);
+  // Limpia el "Escribiendo:" duplicado en la lista izquierda.
+  function cleanTypingList(){
+    safe(function(){
+      document.querySelectorAll('.tu-live-list-preview').forEach(n => n.remove());
+      document.querySelectorAll('.chat-tab.typing-live,.chat-list-item.typing-live').forEach(el => el.classList.remove('typing-live'));
+      document.querySelectorAll('.chat-tab-preview').forEach(el => {
+        if(/^Escribiendo\s*:/i.test(el.textContent || '')) el.textContent = '';
+      });
     });
   }
 
-  function scrollAdminBottom(){
-    const box = q('#chat-popover.open .chat-msgs');
-    if(box) requestAnimationFrame(() => box.scrollTop = box.scrollHeight);
-  }
-
-  // Evita que el chat visitante se vuelva a abrir solo luego de minimizar.
-  let visitorClosedUntil = 0;
-  function closePopoverClean(){
-    const pop = document.getElementById('chat-popover');
-    if(pop) pop.classList.remove('open','expanded','tomauno-expanded','tu-mobile-full');
-    document.body.classList.remove('tu-mobile-chat-open');
-    document.documentElement.classList.remove('tu-mobile-chat-open');
-    if(!adminActive()){
-      visitorClosedUntil = now() + 10*60*1000;
-      S(() => sessionStorage.setItem('tu-chat-closed-until', String(visitorClosedUntil)));
-    }
-  }
-  window.cerrarChatPopover = closePopoverClean;
-
-  function visitorSuppressed(){
-    const v = Math.max(visitorClosedUntil, Number(S(() => sessionStorage.getItem('tu-chat-closed-until'), 0) || 0));
-    return now() < v;
-  }
-
-  function visitorHeader(chat,id){
-    return '<div class="chat-head"><div class="chat-avatar">💬</div><div><div class="chat-title">CHAT TOMAUNO</div><div class="chat-subline">Consulta directa desde la web</div></div></div>';
-  }
-
-  function quickButtons(){
-    return '<div class="tu-clean-quick">' +
-      '<button type="button" data-msg="Cursos activos" title="Cursos activos">🎓 Cursos</button>' +
-      '<button type="button" data-msg="Eventos activos" title="Eventos activos">📅 Eventos</button>' +
-      '<button type="button" data-msg="Servicios disponibles" title="Servicios disponibles">🛠️ Servicios</button>' +
-      '<button type="button" data-msg="Ubicación" title="Ver ubicación">📍</button>' +
-      '<button type="button" data-msg="Quiero hablar con Javier" title="Llamar a Javier si se encuentra cerca">👤 Humano</button>' +
-    '</div>';
-  }
-
-  function abrirChatVisitanteClean(id, silent=false){
-    if(!id) id = visitorId();
-    if(!id) return;
-    if(silent && visitorSuppressed()) return;
-
-    try{ currentVisitorChatId = id; window.currentVisitorChatId = id; sessionStorage.setItem('tomauno-chat-id', id); }catch(e){}
-    try{ currentOpenChatId = id; window.currentOpenChatId = id; }catch(e){}
-
-    const chat = dbChats()[id] || {};
-    const active = document.activeElement;
-    const inputVal = active && active.id === 'chat-text' ? active.value : (q('#chat-text')?.value || '');
-    const msgs = renderMsgsClean(chat,false,id) || '<div class="chat-bubble admin">Hola, soy el asistente de Tomauno 😊<br><strong>¿Cómo es tu nombre?</strong><div class="chat-meta">Ahora</div></div>';
-
-    setPopoverClean(
-      visitorHeader(chat,id) +
-      '<div class="chat-panel"><div class="chat-msgs" id="chat-msgs">'+msgs+'</div>' +
-      quickButtons() +
-      '<div class="chat-row"><input class="finput" id="chat-text" placeholder="Escribí tu mensaje..." value="'+attr(inputVal)+'"/><button type="button" class="chat-send" id="tu-visitor-send">➜</button></div></div>'
-    );
-
-    document.body.classList.toggle('tu-mobile-chat-open', matchMedia('(max-width:700px)').matches);
-    document.documentElement.classList.toggle('tu-mobile-chat-open', matchMedia('(max-width:700px)').matches);
-    if(matchMedia('(max-width:700px)').matches) q('#chat-popover')?.classList.add('tu-mobile-full');
-
-    updateChat(id,{unreadVisitor:false,userOnline:true,userLastSeen:now()});
-    setTimeout(() => {
-      scrollToFirstUnreadAdmin();
-      const inp = q('#chat-text');
-      if(inp && !silent){ inp.focus({preventScroll:true}); inp.setSelectionRange(inp.value.length, inp.value.length); }
-    },80);
-  }
-
-  try { abrirChatVisitante = abrirChatVisitanteClean; } catch(e) {}
-  window.abrirChatVisitante = abrirChatVisitanteClean;
-
-  function inferName(text, existing){
-    return S(() => isJustNameReply(text, existing), '') || '';
-  }
-
-  async function sendVisitorClean(id){
-    if(sendVisitorClean.busy) return;
-    id = id || visitorId();
-    const inp = q('#chat-text');
-    const text = String((inp && inp.value) || '').trim();
-    if(!id || !text) return;
-
-    sendVisitorClean.busy = true;
-    if(inp){ inp.value=''; if(matchMedia('(max-width:700px)').matches) inp.blur(); }
-
-    const existing = dbChats()[id] || {};
-    const detected = inferName(text, existing);
-    const fallback = S(() => sessionStorage.getItem('tomauno-chat-name') || '', '');
-    const repaired = S(() => limpiarNombreChat(detected || existing.name || fallback || visibleName(existing,id)), detected || existing.name || fallback || 'Visitante');
-    const t = now();
-
-    await pushMessage(id,{from:'user',text,time:chatTimeClean(),createdAt:t});
-    await updateChat(id,{
-      name: repaired,
-      status:'abierto',
-      updatedAt:t,
-      lastMsg:text,
-      lastUserMsg:text,
-      lastUserAt:t,
-      unreadAdmin:true,
-      userOnline:true,
-      userLastSeen:t
+  // Evita que mensajes "typing" viejos queden como burbuja duplicada.
+  function cleanOldTypingBubbles(){
+    safe(function(){
+      document.querySelectorAll('#chat-popover.open .chat-bubble.typing').forEach(b => {
+        if(!/Escribiendo ahora/i.test(b.textContent || '')) b.remove();
+      });
     });
-    if(detected) S(() => sessionStorage.setItem('tomauno-chat-name', detected));
-
-    abrirChatVisitanteClean(id,true);
-
-    let justName = false;
-    try { justName = !!(detected && lastAdminAskedName(existing)); } catch(e) {}
-    if(!justName && typeof window.responderAutomaticoChat === 'function'){
-      setTimeout(() => window.responderAutomaticoChat(id,text), 220);
-    }
-
-    setTimeout(scrollToFirstUnreadAdmin,420);
-    sendVisitorClean.busy = false;
   }
-  window.enviarChatVisitante = sendVisitorClean;
 
-  document.addEventListener('keydown', e => {
-    if(e.key !== 'Enter') return;
-    if(e.target && e.target.id === 'chat-text'){
-      e.preventDefault(); e.stopPropagation(); e.stopImmediatePropagation?.();
-      sendVisitorClean(visitorId());
-    }
-    if(e.target && e.target.id === 'chat-admin-text'){
-      e.preventDefault(); e.stopPropagation(); e.stopImmediatePropagation?.();
-      window.enviarChatAdmin?.(adminId());
+  // Si el usuario está escribiendo, nadie debe forzar scroll arriba/abajo.
+  let userWritingUntil = 0;
+  document.addEventListener('input', function(ev){
+    if(ev.target && (ev.target.id === 'chat-text' || ev.target.id === 'chat-name')){
+      userWritingUntil = Date.now() + 1800;
     }
   }, true);
 
-  document.addEventListener('click', e => {
-    const vs = e.target.closest?.('#tu-visitor-send,#chat-popover.open .chat-row .chat-send');
-    if(vs && !adminActive()){
-      e.preventDefault(); e.stopPropagation(); e.stopImmediatePropagation?.();
-      sendVisitorClean(visitorId());
-      return;
-    }
-    const qb = e.target.closest?.('.tu-clean-quick button');
-    if(qb){
-      e.preventDefault(); e.stopPropagation();
-      const inp = q('#chat-text');
-      if(inp){ inp.value = qb.dataset.msg || ''; sendVisitorClean(visitorId()); }
-    }
-  }, true);
-
-  // Panel admin limpio.
-  function statusText(c){
-    if(c.humanRequested || c.priority || c.waitingHuman) return 'HUMANO';
-    if(c.unreadAdmin) return 'NUEVO';
-    if(isOnline(c)) return 'ONLINE';
-    return 'OFF';
-  }
-
-  function abrirPanelChatsAdminClean(){
-    try{ currentOpenChatId=''; window.currentOpenChatId=''; }catch(e){}
-    let lista = Object.entries(dbChats()).filter(([,c]) => S(() => isValidChat(c), !!c));
-    lista.sort((a,b)=>Number((b[1]||{}).updatedAt||0)-Number((a[1]||{}).updatedAt||0));
-    if(typeof chatListFilter !== 'undefined'){
-      if(chatListFilter === 'abiertos') lista = lista.filter(([,c]) => c.status !== 'cerrado');
-      if(chatListFilter === 'cerrados') lista = lista.filter(([,c]) => c.status === 'cerrado');
-    }
-
-    const total = Object.entries(dbChats()).filter(([,c])=>S(()=>isValidChat(c),!!c)).length;
-    setPopoverClean(
-      '<div class="chat-head"><div class="chat-avatar">📥</div><div><div class="chat-title">BANDEJA DE CHATS</div><div class="chat-subline">'+total+' conversaciones desde la web</div></div></div>' +
-      '<div class="tu-clean-list">' +
-      (lista.length ? lista.map(([id,c]) => {
-        const st = statusText(c);
-        const cls = st === 'HUMANO' ? 'human' : st === 'NUEVO' ? 'new' : st === 'ONLINE' ? 'online' : 'off';
-        const preview = esc((c.humanRequested?'Atención Javier · ':'') + (c.lastUserMsg || c.lastMsg || ''));
-        return '<button type="button" class="tu-clean-item '+cls+'" data-chat-id="'+attr(id)+'">' +
-          '<span class="dot"></span><span class="body"><strong>'+esc(visibleName(c,id))+'</strong><em>'+preview+'</em></span><span class="badge">'+st+'</span>' +
-          '<span class="trash" data-trash="'+attr(id)+'">🗑️</span></button>';
-      }).join('') : '<div class="tu-empty">Sin chats</div>') +
-      '</div>'
-    );
-  }
-  window.abrirPanelChatsAdmin = abrirPanelChatsAdminClean;
-  try { abrirPanelChatsAdmin = abrirPanelChatsAdminClean; } catch(e) {}
-
-  document.addEventListener('click', e => {
-    const trash = e.target.closest?.('[data-trash]');
-    if(trash){
-      e.preventDefault(); e.stopPropagation();
-      const id = trash.dataset.trash;
-      if(id && typeof remove !== 'undefined') remove(ref(db,'tomauno/chats/'+id)).catch(()=>{});
-      trash.closest('.tu-clean-item')?.remove();
-      return;
-    }
-    const item = e.target.closest?.('.tu-clean-item[data-chat-id]');
-    if(item){
-      e.preventDefault();
-      abrirChatAdminClean(item.dataset.chatId);
-    }
-  }, true);
-
-  function adminTabs(active){
-    const open = Object.entries(dbChats()).filter(([,c])=>S(()=>isValidChat(c),!!c) && c.status !== 'cerrado')
-      .sort((a,b)=>Number((b[1]||{}).updatedAt||0)-Number((a[1]||{}).updatedAt||0)).slice(0,14);
-    if(!open.length) return '';
-    return '<div class="chat-tabs chat-inbox-side tu-clean-tabs">' + open.map(([id,c]) => {
-      const st=statusText(c);
-      const cls = [id===active?'active':'', st.toLowerCase()].filter(Boolean).join(' ');
-      return '<button type="button" class="chat-tab '+cls+'" data-chat-id="'+attr(id)+'"><span class="chat-tab-light"></span><span class="chat-tab-body"><span class="chat-tab-name">'+esc(visibleName(c,id))+'</span><span class="chat-tab-preview">'+esc(c.lastUserMsg||c.lastMsg||st)+'</span></span><span class="chat-tab-close" data-close="'+attr(id)+'">×</span></button>';
-    }).join('') + '</div>';
-  }
-
-  function abrirChatAdminClean(id, silent=false){
-    if(!id) return;
-    try{ currentOpenChatId=id; window.currentOpenChatId=id; }catch(e){}
-    setLocalChat(id,{unreadAdmin:false,waitingHuman:false});
-    updateChat(id,{unreadAdmin:false,waitingHuman:false,readByAdminAt:now()});
-
-    const chat = dbChats()[id] || {};
-    const inputVal = q('#chat-admin-text')?.value || '';
-    const msgs = renderMsgsClean(chat,true,id);
-
-    setPopoverClean(
-      adminTabs(id) +
-      '<div class="chat-head"><div class="chat-avatar">👤</div><div><div class="chat-title"><span class="chat-online-dot '+(isOnline(chat)?'on':'')+'"></span>'+esc(visibleName(chat,id))+'</div><div class="chat-subline">'+(isOnline(chat)?'En línea ahora':'Fuera de línea')+'</div></div></div>' +
-      '<div class="chat-panel"><div class="chat-msgs" id="chat-msgs">'+msgs+'</div>' +
-      '<div class="chat-row"><input class="finput" id="chat-admin-text" placeholder="Responder..." value="'+attr(inputVal)+'"/><button type="button" class="chat-send" id="tu-admin-send">➜</button></div>' +
-      '<div class="chat-admin-tools"><button class="chat-filter auto '+(S(()=>asistenteModo()==='automatico',false)?'on':'')+'" onclick="window.toggleModoAsistenteChat()">🤖 '+(S(()=>asistenteModo()==='automatico',false)?'ON':'OFF')+'</button><button class="chat-filter" onclick="window.mostrarAyudaAsistente && window.mostrarAyudaAsistente()">/?</button><button class="chat-filter" onclick="window.mostrarSelectorCerebroChat && window.mostrarSelectorCerebroChat(\''+attr(id)+'\')">//</button><button class="chat-filter" onclick="window.mostrarAccionesChatAdmin && window.mostrarAccionesChatAdmin(\''+attr(id)+'\')">⚡</button><button class="btn-out" onclick="window.abrirPanelChatsAdmin()">←</button></div></div>'
-    );
-
-    setTimeout(() => {
-      scrollAdminBottom();
-      const inp = q('#chat-admin-text');
-      if(inp && !silent){ inp.focus({preventScroll:true}); inp.setSelectionRange(inp.value.length, inp.value.length); }
-    },80);
-  }
-  window.abrirChatAdmin = abrirChatAdminClean;
-  try { abrirChatAdmin = abrirChatAdminClean; } catch(e) {}
-
-  document.addEventListener('click', e => {
-    const tab = e.target.closest?.('.tu-clean-tabs .chat-tab[data-chat-id]');
-    if(tab && !e.target.closest('[data-close]')) abrirChatAdminClean(tab.dataset.chatId);
-    const close = e.target.closest?.('[data-close]');
-    if(close){
-      e.stopPropagation();
-      updateChat(close.dataset.close,{status:'cerrado',unreadAdmin:false,updatedAt:now()});
-      close.closest('.chat-tab')?.remove();
-    }
-    const del = e.target.closest?.('.tu-clean-del');
-    if(del){
-      e.preventDefault(); e.stopPropagation();
-      const id = adminId();
-      const key = del.dataset.key;
-      if(id && key && typeof remove !== 'undefined') remove(ref(db,'tomauno/chats/'+id+'/messages/'+key)).catch(()=>{});
-      del.closest('.chat-bubble')?.remove();
-    }
-    const send = e.target.closest?.('#tu-admin-send');
-    if(send) window.enviarChatAdmin?.(adminId());
-  }, true);
-
-  const oldSendAdmin = window.enviarChatAdmin;
-  window.enviarChatAdmin = async function(id, preset=''){
-    id = id || adminId();
-    const inp = q('#chat-admin-text');
-    const text = String(preset || (inp && inp.value) || '').trim();
-    if(!id || !text) return;
-    if(inp) inp.value='';
-    await pushMessage(id,{from:'admin',text,time:chatTimeClean(),createdAt:now()});
-    await updateChat(id,{updatedAt:now(),lastMsg:text,unreadVisitor:true,humanRequested:false,waitingHuman:false,priority:false,humanMode:true,manualUntil:now()+3600000});
-    abrirChatAdminClean(id,true);
-  };
-
-  // Respuesta humano simple con contador visual.
-  function isHuman(text){
-    const x=nrm(text);
-    return ['pasame con javier','quiero hablar con javier','quiero hablar con el dueno','quiero hablar con el dueño','pasame con el dueño','quiero consultar a javier','javier se encuentra','me puedo comunicar con javier','con el dueño','con el dueno','puedo hablar con el fotografo','puedo hablar con el fotógrafo','me pasas con el fotografo','me pasas con el fotógrafo','puedes llamar a javier','podes llamar a javier','llama a javier','llamar a javier','atencion humana','atención humana','humano'].map(nrm).some(p=>x.includes(p));
-  }
-  function humanText(sec){
-    return '📞 Llamando a Javier... '+String(Math.max(0,sec||0)).padStart(2,'0')+'s\n\nPara dejarle tu consulta necesito que me pases tu WhatsApp y el mensaje para Javier.\n\nMuchas gracias.';
-  }
-  const oldResponder = window.responderAutomaticoChat;
-  window.responderAutomaticoChat = async function(id,text){
-    if(isHuman(text)){
-      const t=now();
-      await updateChat(id,{humanRequested:true,waitingHuman:true,priority:true,unreadAdmin:true,callUntil:t+60000,updatedAt:t,lastUserMsg:text,lastUserAt:t});
-      await pushMessage(id,{from:'admin',auto:true,text:humanText(60),time:chatTimeClean(),createdAt:now(),systemCall:true});
-      setTimeout(()=>abrirChatVisitanteClean(id,true),150);
-      return;
-    }
-    return oldResponder ? oldResponder.apply(this,arguments) : undefined;
-  };
-
-  function updateCountdown(){
-    const id = adminActive()?adminId():visitorId();
-    const chat = dbChats()[id];
-    if(!chat || !chat.callUntil || !(chat.humanRequested||chat.waitingHuman||chat.priority)) return;
-    const left=Math.max(0,Math.ceil((Number(chat.callUntil)-now())/1000));
-    qa('#chat-popover.open .chat-bubble.admin').forEach(b=>{
-      if(/Llamando a Javier/i.test(b.innerText||'')){
-        b.innerHTML = humanText(left).replace(/\n/g,'<br>') + '<div class="chat-meta">Ahora</div>';
+  document.addEventListener('scroll', function(ev){
+    const box = ev.target;
+    if(box && box.classList && box.classList.contains('chat-msgs')){
+      if(Date.now() < userWritingUntil){
+        ev.stopPropagation();
       }
-    });
-  }
-
-  // onValue existente llama updateChatMessagesOnly: lo convertimos en actualización sin parpadeos.
-  window.updateChatMessagesOnly = function(id, adminView){
-    const box = q('#chat-msgs');
-    if(!box) return;
-    const html = renderMsgsClean(dbChats()[id]||{}, !!adminView, id);
-    if(box.dataset.cleanHtml !== html){
-      box.innerHTML = html;
-      box.dataset.cleanHtml = html;
-      if(adminView) scrollAdminBottom(); else scrollToFirstUnreadAdmin();
     }
-  };
-  try { updateChatMessagesOnly = window.updateChatMessagesOnly; } catch(e) {}
+  }, true);
 
-  // Presencia offline más rápida.
-  setInterval(() => {
-    const id = visitorId();
-    if(id && !adminActive()) updateChat(id,{userOnline:true,userLastSeen:now()});
-  }, 15000);
-
+  // CSS final de estabilidad.
   function css(){
-    if(document.getElementById('tu-clean-core-css')) return;
-    const st=document.createElement('style');
-    st.id='tu-clean-core-css';
+    if(document.getElementById('tomauno-v24-final-css')) return;
+    const st = document.createElement('style');
+    st.id = 'tomauno-v24-final-css';
     st.textContent = `
-      #chat-popover.open .chat-msgs{scroll-behavior:auto!important;overscroll-behavior:contain!important;}
-      @media(min-width:701px){
-        body:not(.tomauno-admin-active) #chat-popover.open{height:${CFG.visitorHDesktop}!important;max-height:${CFG.visitorHDesktop}!important;width:${CFG.visitorWDesktop}!important;max-width:${CFG.visitorWDesktop}!important;}
+      html body #chat-popover.open .chat-msgs{
+        scroll-behavior:auto!important;
+        overscroll-behavior:contain!important;
+      }
+      html body #chat-popover.open.tomauno-expanded,
+      html body #chat-popover.open.expanded{
+        width:min(760px,calc(100vw - 28px))!important;
+        height:min(78vh,760px)!important;
+        max-height:min(78vh,760px)!important;
       }
       @media(max-width:700px){
-        html.tu-mobile-chat-open,body.tu-mobile-chat-open{overflow:hidden!important;height:100%!important;}
-        #chat-popover.open.tu-mobile-full{position:fixed!important;left:0!important;right:0!important;top:0!important;bottom:0!important;width:100vw!important;max-width:100vw!important;height:100dvh!important;max-height:100dvh!important;border-radius:0!important;z-index:99998!important;padding:12px 12px calc(var(--tomauno-keyboard,0px) + 10px)!important;}
-        #chat-popover.open.tu-mobile-full .chat-popover-inner,#chat-popover.open.tu-mobile-full .chat-panel{height:100%!important;min-height:0!important;display:flex!important;flex-direction:column!important;overflow:hidden!important;}
-        #chat-popover.open.tu-mobile-full .chat-msgs{flex:1 1 auto!important;min-height:0!important;max-height:none!important;height:auto!important;overflow-y:auto!important;padding-bottom:36px!important;}
-        #chat-popover.open.tu-mobile-full .chat-row{display:grid!important;grid-template-columns:1fr 58px!important;gap:8px!important;flex:0 0 auto!important;}
-        #chat-popover.open.tu-mobile-full #chat-text{height:56px!important;min-height:56px!important;font-size:16px!important;padding:0 16px!important;}
-        #chat-popover.open.tu-mobile-full .chat-send{width:56px!important;height:56px!important;min-width:56px!important;border-radius:50%!important;}
-        body.tu-mobile-chat-open #chat-fab{display:none!important;}
+        html body #chat-popover.open.tomauno-expanded,
+        html body #chat-popover.open.expanded{
+          left:8px!important;
+          right:8px!important;
+          bottom:8px!important;
+          width:auto!important;
+          height:calc(100dvh - 18px)!important;
+          max-height:calc(100dvh - 18px)!important;
+        }
       }
-      .tu-clean-quick{display:flex!important;gap:6px!important;flex-wrap:nowrap!important;overflow-x:auto!important;padding:4px 0 7px!important;scrollbar-width:none!important;}
-      .tu-clean-quick::-webkit-scrollbar{display:none!important;}
-      .tu-clean-quick button{height:32px!important;border-radius:999px!important;border:1px solid rgba(255,255,255,.14)!important;background:rgba(255,255,255,.045)!important;color:#fff!important;padding:6px 10px!important;font-size:11px!important;font-weight:900!important;white-space:nowrap!important;flex:0 0 auto!important;cursor:pointer!important;}
-      .tu-clean-list{display:flex;flex-direction:column;gap:7px;max-height:68vh;overflow:auto;padding-right:4px;}
-      .tu-clean-item{width:100%;display:flex;align-items:center;gap:8px;text-align:left;background:rgba(255,255,255,.025);border:1px solid rgba(255,255,255,.09);border-radius:14px;color:#fff;padding:9px;cursor:pointer;}
-      .tu-clean-item .dot{width:11px;height:11px;border-radius:50%;background:#777;flex:0 0 auto;}
-      .tu-clean-item.online .dot{background:#4caf7d}.tu-clean-item.off .dot{background:#555}.tu-clean-item.new{border-color:#f5c842}.tu-clean-item.new .dot{background:#f5c842}.tu-clean-item.human{border-color:#e8000a;box-shadow:0 0 0 1px rgba(232,0,10,.28)}.tu-clean-item.human .dot{background:#e8000a}
-      .tu-clean-item .body{min-width:0;flex:1;display:flex;flex-direction:column}.tu-clean-item strong{font-size:14px}.tu-clean-item em{font-style:normal;font-size:11px;color:var(--text3);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.tu-clean-item .badge{font-size:9px;font-weight:900;background:rgba(255,255,255,.08);border-radius:999px;padding:4px 6px}.tu-clean-item .trash{opacity:.8}
-      .tu-clean-tabs .chat-tab.new,.tu-clean-tabs .chat-tab.nuevo{border-color:#f5c842!important}.tu-clean-tabs .chat-tab.humano,.tu-clean-tabs .chat-tab.human{border-color:#e8000a!important}
-      .chat-bubble.admin{position:relative!important;white-space:pre-line!important;border-radius:18px!important;}
-      .tu-clean-del{position:absolute!important;top:6px!important;right:6px!important;width:22px!important;height:22px!important;border-radius:50%!important;border:1px solid rgba(255,255,255,.22)!important;background:rgba(0,0,0,.28)!important;color:#fff!important;font-size:11px!important;display:none!important;cursor:pointer!important;z-index:5!important}
-      .chat-bubble.admin:hover .tu-clean-del{display:flex!important;align-items:center!important;justify-content:center!important;}
+      html body .chat-list-item .tu-live-list-preview{display:none!important;}
     `;
     document.head.appendChild(st);
   }
+
   css();
-
-  // refresco liviano
-  setInterval(() => {
-    updateCountdown();
-    if(!adminActive()){
-      const id=visitorId();
-      const p=q('#chat-popover.open');
-      if(id && p) window.updateChatMessagesOnly(id,false);
-    }
-  }, 1000);
-
+  cleanTypingList();
+  cleanOldTypingBubbles();
+  setInterval(cleanTypingList, 500);
+  setInterval(cleanOldTypingBubbles, 900);
 })();
 
 
-// ─────────────────────────────────────────────────────────────────────────────
-// TOMAUNO CLEAN MOBILE v32
-// Ajustes exclusivos de móvil: teclado, foco, scroll y fullscreen.
-// ─────────────────────────────────────────────────────────────────────────────
+// ── TOMAUNO v25 HOTFIX FINAL ────────────────────────────────────────────────
+// Sonido primer mensaje, estados visuales, typing visible, fullscreen admin centrado,
+// y botones rápidos visitante. No reemplaza funciones core: actúa como capa segura.
 (function(){
   'use strict';
-  const S=(fn)=>{try{return fn()}catch(e){}};
-  const isMob=()=>matchMedia('(max-width:700px)').matches;
-  function isAdmin(){return S(()=>localStorage.getItem('tomauno-admin-ok')==='1'||localStorage.getItem('tomauno-admin-notify')==='1'||!!document.querySelector('#chat-popover.open #chat-admin-text,#chat-popover.open .chat-inbox-side,#chat-popover.open .chat-admin-tools'))||false}
-  function apply(){
-    const pop=document.getElementById('chat-popover');
-    if(!pop||!pop.classList.contains('open')) return;
-    const on=isMob()&&!isAdmin();
-    pop.classList.toggle('tu-mobile-full',on);
-    document.body.classList.toggle('tu-mobile-chat-open',on);
-    document.documentElement.classList.toggle('tu-mobile-chat-open',on);
-  }
-  function focusInput(){
-    if(isAdmin()) return;
-    const inp=document.getElementById('chat-text');
-    if(inp && !isMob()) setTimeout(()=>inp.focus({preventScroll:true}),80);
-  }
-  document.addEventListener('focusin',e=>{if(e.target&&e.target.id==='chat-text')setTimeout(apply,120)},true);
-  document.addEventListener('click',e=>{if(e.target&&e.target.closest&&e.target.closest('#chat-fab,#chat-popover'))setTimeout(()=>{apply();focusInput()},120)},true);
-  document.addEventListener('keydown',e=>{if(isMob()&&e.key==='Enter'&&e.target&&e.target.id==='chat-text')setTimeout(()=>e.target.blur(),120)},true);
-  document.addEventListener('click',e=>{if(isMob()&&e.target&&e.target.closest&&e.target.closest('#tu-visitor-send,.tu-clean-quick button')){const a=document.activeElement;if(a&&a.id==='chat-text')setTimeout(()=>a.blur(),120)}},true);
-  setInterval(apply,700);
-})();
 
+  function safe(fn){ try{return fn();}catch(e){ try{console.warn('tomauno v25:', e);}catch(_){} } }
+  function now(){ return Date.now(); }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// TOMAUNO CLEAN FULL v33
-// Detalles finales: sonido simple primer mensaje y aviso humano discreto.
-// ─────────────────────────────────────────────────────────────────────────────
-(function(){
-  'use strict';
-  const S=(fn)=>{try{return fn()}catch(e){}};
-  function isAdmin(){return S(()=>localStorage.getItem('tomauno-admin-ok')==='1'||localStorage.getItem('tomauno-admin-notify')==='1'||!!document.querySelector('#chat-popover.open #chat-admin-text,#chat-popover.open .chat-inbox-side,#chat-popover.open .chat-admin-tools'))||false}
-  function chats(){return S(()=>window.chatsDB||chatsDB||{})||{}}
-  let seen={};
-  function latest(c){
-    let best=null,ms=c&&c.messages?c.messages:{};
-    Object.keys(ms).forEach(k=>{let m=ms[k]||{};if(m.from==='user'&&!m.typing&&String(m.text||'').trim()){if(!best||Number(m.createdAt||0)>Number(best.createdAt||0))best=m}});
+  function isAdmin(){
+    return safe(function(){
+      return localStorage.getItem('tomauno-admin-ok') === '1' ||
+             localStorage.getItem('tomauno-admin-notify') === '1' ||
+             !!document.querySelector('#chat-popover.open #chat-admin-text,#chat-popover.open .chat-inbox-side,#chat-popover.open .chat-admin-tools');
+    }) || false;
+  }
+
+  function currentOpenId(){
+    return safe(function(){
+      return window.currentOpenChatId || window.currentVisitorChatId || sessionStorage.getItem('tomauno-chat-id') || '';
+    }) || '';
+  }
+
+  function chats(){
+    return safe(function(){ return window.chatsDB || {}; }) || {};
+  }
+
+  function lastUserMsg(c){
+    let best = null;
+    const ms = c && c.messages ? c.messages : {};
+    Object.keys(ms || {}).forEach(k => {
+      const m = ms[k] || {};
+      if(m.from === 'user' && !m.typing && String(m.text || '').trim()){
+        if(!best || Number(m.createdAt || 0) > Number(best.createdAt || 0)) best = m;
+      }
+    });
     return best;
   }
-  function beep(kind){
-    S(()=>{
-      const AC=window.AudioContext||window.webkitAudioContext;if(!AC)return;
-      const ctx=new AC(),t=ctx.currentTime;
-      const arr=kind==='human'?[720,920,1160]:[880,1120];
-      arr.forEach((f,i)=>{let o=ctx.createOscillator(),g=ctx.createGain();o.frequency.value=f;g.gain.value=kind==='human'?0.18:0.11;o.connect(g);g.connect(ctx.destination);o.start(t+i*.14);o.stop(t+i*.14+.11)});
-      setTimeout(()=>ctx.close&&ctx.close(),700);
+
+  // Sonido propio, no depende de beep() viejo.
+  function tuBeep(level){
+    safe(function(){
+      const AC = window.AudioContext || window.webkitAudioContext;
+      if(!AC) return;
+      const ctx = new AC();
+      const t = ctx.currentTime;
+      const pattern = level === 'human' ? [760, 980, 1180] : [860, 1040];
+      pattern.forEach((freq, i) => {
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(freq, t + i * .18);
+        gain.gain.setValueAtTime(.0001, t + i * .18);
+        gain.gain.exponentialRampToValueAtTime(level === 'human' ? .22 : .14, t + i * .18 + .025);
+        gain.gain.exponentialRampToValueAtTime(.0001, t + i * .18 + .15);
+        osc.connect(gain);
+        gain.connect(ctx.destination);
+        osc.start(t + i * .18);
+        osc.stop(t + i * .18 + .17);
+      });
+      setTimeout(() => safe(() => ctx.close()), 900);
     });
   }
-  function scan(){
-    if(!isAdmin())return;
-    Object.entries(chats()).forEach(([id,c])=>{
-      const m=latest(c); if(!m) return;
-      if(Date.now()-Number(m.createdAt||0)>240000) return;
-      const key=id+'|'+m.createdAt+'|'+String(m.text||'').slice(0,60);
-      if(seen[key])return;
-      seen[key]=1;
-      beep(c.humanRequested||c.waitingHuman||c.priority?'human':'normal');
+
+  const seenUserSound = Object.create(null);
+  const seenHumanSound = Object.create(null);
+
+  // Sonar por mensaje real del usuario, incluyendo el nombre inicial.
+  function soundForRealUserMessages(){
+    safe(function(){
+      if(!isAdmin()) return;
+      const dbs = chats();
+      Object.keys(dbs || {}).forEach(id => {
+        const c = dbs[id] || {};
+        if(c.status === 'cerrado') return;
+
+        const m = lastUserMsg(c);
+        if(!m) return;
+
+        const stamp = id + '|' + String(m.createdAt || '') + '|' + String(m.text || '').slice(0,60);
+        if(seenUserSound[stamp]) return;
+
+        // Evita sonar por historial viejo al abrir la página.
+        const age = now() - Number(m.createdAt || 0);
+        if(age > 1000 * 60 * 3){
+          seenUserSound[stamp] = 1;
+          return;
+        }
+
+        seenUserSound[stamp] = 1;
+        tuBeep(c.humanRequested || c.waitingHuman || c.priority ? 'human' : 'normal');
+      });
     });
   }
-  setInterval(scan,900);
+
+  // Sonido fuerte cuando el usuario pidió humano.
+  function soundForHumanRequest(){
+    safe(function(){
+      if(!isAdmin()) return;
+      const dbs = chats();
+      Object.keys(dbs || {}).forEach(id => {
+        const c = dbs[id] || {};
+        if(!(c.humanRequested || c.waitingHuman || c.priority)) return;
+
+        const stamp = id + '|' + String(c.updatedAt || c.lastUserAt || '');
+        if(seenHumanSound[stamp]) return;
+
+        const age = now() - Number(c.updatedAt || c.lastUserAt || 0);
+        if(age > 1000 * 60 * 5){
+          seenHumanSound[stamp] = 1;
+          return;
+        }
+
+        seenHumanSound[stamp] = 1;
+        tuBeep('human');
+        setTimeout(() => tuBeep('human'), 480);
+      });
+    });
+  }
+
+  // Al abrir un chat admin se marca leído y apaga amarillo.
+  const oldAbrir = window.abrirChatAdmin;
+  if(typeof oldAbrir === 'function' && !oldAbrir.__tuV25ReadWrap){
+    const wrapped = function(chatId){
+      const r = oldAbrir.apply(this, arguments);
+      safe(function(){
+        if(chatId && typeof db !== 'undefined' && typeof ref !== 'undefined' && typeof update !== 'undefined'){
+          update(ref(db, 'tomauno/chats/' + chatId), {
+            unreadAdmin:false,
+            waitingHuman:false,
+            readByAdminAt:Date.now()
+          }).catch(()=>{});
+        }
+        setTimeout(applyAdminStates, 120);
+      });
+      return r;
+    };
+    wrapped.__tuV25ReadWrap = 1;
+    window.abrirChatAdmin = wrapped;
+    try{ abrirChatAdmin = wrapped; }catch(e){}
+  }
+
+  // Si Javier responde manualmente, deja de ser rojo HUM pendiente.
+  const oldSendAdmin = window.enviarChatAdmin;
+  if(typeof oldSendAdmin === 'function' && !oldSendAdmin.__tuV25HumanClear){
+    const wrappedAdminSend = async function(){
+      const id = window.currentOpenChatId || currentOpenId();
+      const r = await oldSendAdmin.apply(this, arguments);
+      safe(function(){
+        if(id && typeof db !== 'undefined' && typeof ref !== 'undefined' && typeof update !== 'undefined'){
+          update(ref(db, 'tomauno/chats/' + id), {
+            humanRequested:false,
+            waitingHuman:false,
+            pendingHuman:false,
+            waitingWhatsapp:false,
+            waitingHumanContact:false,
+            pendingHumanContact:false,
+            priority:false,
+            unreadAdmin:false,
+            readByAdminAt:Date.now(),
+            humanMode:true,
+            manualUntil:Date.now() + 1000*60*60
+          }).catch(()=>{});
+        }
+      });
+      setTimeout(applyAdminStates, 120);
+      return r;
+    };
+    wrappedAdminSend.__tuV25HumanClear = 1;
+    window.enviarChatAdmin = wrappedAdminSend;
+    try{ enviarChatAdmin = wrappedAdminSend; }catch(e){}
+  }
+
+  function visitorOnline(c){
+    const t = Number(c && (c.userLastSeen || c.lastSeen || c.updatedAt) || 0);
+    return !!(c && (c.userOnline || (t && now() - t < 90000)));
+  }
+
+  function applyAdminStates(){
+    // Estado visual resuelto desde abrirPanelChatsAdmin/adminChatTabsHtml.
+  }
+
+  // Typing en admin: que se vea abajo y no quede tapado por la burbuja anterior.
+  function keepTypingVisible(){
+    safe(function(){
+      if(!isAdmin()) return;
+      const pop = document.getElementById('chat-popover');
+      if(!pop || !pop.classList.contains('open')) return;
+
+      const box = pop.querySelector('.chat-msgs');
+      if(!box) return;
+
+      const typing = pop.querySelector('.tu-live-typing,.chat-typing-live,.typing-live,.chat-bubble.typing');
+      if(!typing) return;
+
+      // Solo bajamos si el admin está en el fondo o casi en el fondo.
+      const nearBottom = (box.scrollHeight - box.scrollTop - box.clientHeight) < 180;
+      if(nearBottom) box.scrollTop = box.scrollHeight;
+    });
+  }
+
+  // Botones rápidos en visitante.
+  function quickButton(label, value, icon){
+    return '<button type="button" class="tu-quick-btn tu-quick-compact" title="'+value+'" aria-label="'+value+'" data-tu-msg="'+label+'"><span>'+icon+'</span><em>'+value+'</em></button>';
+  }
+
+  function ensureVisitorQuickButtons(){
+    safe(function(){
+      if(isAdmin()) return;
+      const pop = document.getElementById('chat-popover');
+      if(!pop || !pop.classList.contains('open')) return;
+      if(pop.querySelector('.tu-quick-actions')) return;
+
+      const row = pop.querySelector('.chat-row');
+      if(!row) return;
+
+      const bar = document.createElement('div');
+      bar.className = 'tu-quick-actions';
+      bar.innerHTML =
+        quickButton('Cursos activos','Cursos','&#127891;') +
+        quickButton('Eventos activos','Eventos','&#128197;') +
+        quickButton('Servicios disponibles','Servicios','&#128736;') +
+        quickButton('Ubicacion','Ubicacion','&#128205;') +
+        quickButton('Quiero hablar con Javier','Javier','&#128100;');
+
+      row.parentNode.insertBefore(bar, row);
+    });
+  }
+
+  document.addEventListener('click', function(ev){
+    const btn = ev.target && ev.target.closest && ev.target.closest('.tu-quick-btn');
+    if(!btn) return;
+
+    ev.preventDefault();
+    ev.stopPropagation();
+
+    const text = btn.getAttribute('data-tu-msg') || btn.textContent || '';
+    const inp = document.getElementById('chat-text');
+    if(inp){
+      const id = (typeof visitorChatIdFinal === 'function' ? visitorChatIdFinal() : '') || currentVisitorChatId || '';
+      inp.value = text;
+      inp.dispatchEvent(new Event('input', {bubbles:true}));
+      setTimeout(() => {
+        window.__tomaunoQuickReplyBypassUntil = Date.now() + 2500;
+        if(typeof window.enviarChatVisitante === 'function') window.enviarChatVisitante(id);
+      }, 40);
+    }
+  }, true);
+
+  // Fullscreen admin centrado.
+  function centerAdminFullscreen(){
+    safe(function(){
+      const pop = document.getElementById('chat-popover');
+      if(!pop || !pop.classList.contains('open')) return;
+      const isExpanded = pop.classList.contains('expanded') || pop.classList.contains('tomauno-expanded');
+      const adminUi = !!pop.querySelector('#chat-admin-text,.chat-inbox-side,.chat-admin-tools');
+      if(isExpanded && adminUi) pop.classList.add('tu-admin-centered');
+      else pop.classList.remove('tu-admin-centered');
+    });
+  }
+
+  function css(){
+    if(document.getElementById('tomauno-v25-css')) return;
+    const st = document.createElement('style');
+    st.id = 'tomauno-v25-css';
+    st.textContent = `
+      .tu-state-badge{
+        margin-left:6px;
+        font-size:10px;
+        font-weight:900;
+        letter-spacing:.04em;
+      }
+      .tu-state-human{
+        border-color:rgba(255,54,54,.95)!important;
+        box-shadow:0 0 0 1px rgba(255,54,54,.35),0 0 18px rgba(255,54,54,.18)!important;
+      }
+      .tu-state-human .tu-state-badge{color:#ff3b3b!important;}
+      .tu-state-unread{
+        border-color:rgba(245,198,66,.95)!important;
+        box-shadow:0 0 0 1px rgba(245,198,66,.35),0 0 18px rgba(245,198,66,.13)!important;
+      }
+      .tu-state-unread .tu-state-badge{color:#f5c842!important;}
+      .tu-state-online .tu-state-badge{color:#4caf7d!important;}
+      .tu-state-offline{opacity:.72;}
+      .tu-state-offline .tu-state-badge{color:#858585!important;}
+
+      #chat-popover.open .tu-quick-actions{
+        display:flex;
+        flex-wrap:wrap;
+        gap:6px;
+        padding:6px 4px 8px;
+      }
+      #chat-popover.open .tu-quick-btn{
+        border:1px solid rgba(255,255,255,.12);
+        background:rgba(255,255,255,.045);
+        color:#fff;
+        border-radius:999px;
+        padding:7px 10px;
+        font-size:11px;
+        font-weight:800;
+        cursor:pointer;
+      }
+      #chat-popover.open .tu-quick-btn:hover{
+        border-color:rgba(232,0,10,.5);
+        background:rgba(232,0,10,.13);
+      }
+
+      #chat-popover.open.tu-admin-centered,
+      #chat-popover.open.expanded.tu-admin-centered,
+      #chat-popover.open.tomauno-expanded.tu-admin-centered{
+        position:fixed!important;
+        left:50%!important;
+        right:auto!important;
+        top:50%!important;
+        bottom:auto!important;
+        transform:translate(-50%,-50%)!important;
+        width:min(1120px,calc(100vw - 42px))!important;
+        height:min(82vh,780px)!important;
+        max-height:min(82vh,780px)!important;
+        z-index:99998!important;
+      }
+
+      #chat-popover.open .chat-msgs{
+        scroll-behavior:auto!important;
+        padding-bottom:22px!important;
+      }
+    `;
+    document.head.appendChild(st);
+  }
+
+  css();
+  setInterval(soundForRealUserMessages, 900);
+  setInterval(soundForHumanRequest, 1300);
+  setInterval(applyAdminStates, 900);
+  setInterval(keepTypingVisible, 250);
+  setInterval(ensureVisitorQuickButtons, 120);
+  setInterval(centerAdminFullscreen, 500);
+  setTimeout(function(){ applyAdminStates(); ensureVisitorQuickButtons(); centerAdminFullscreen(); }, 80);
+})();
+
+
+// ── TOMAUNO v26 HOTFIX FINAL ────────────────────────────────────────────────
+// Ajustes: scroll visitante al recibir respuesta, chat más alto, botones compactos,
+// búsqueda profesor en cursos/eventos/servicios, sonido desbloqueable y más confiable.
+(function(){
+  'use strict';
+
+  function safe(fn){ try{return fn();}catch(e){ try{console.warn('tomauno v26:', e);}catch(_){} } }
+  function ts(){ return Date.now(); }
+
+  function isAdmin(){
+    return safe(function(){
+      return localStorage.getItem('tomauno-admin-ok') === '1' ||
+             localStorage.getItem('tomauno-admin-notify') === '1' ||
+             !!document.querySelector('#chat-popover.open #chat-admin-text,#chat-popover.open .chat-inbox-side,#chat-popover.open .chat-admin-tools');
+    }) || false;
+  }
+
+  function pop(){ return document.getElementById('chat-popover'); }
+  function msgBox(){ return document.querySelector('#chat-popover.open .chat-msgs'); }
+
+  function currentChatIdAny(){
+    return safe(function(){
+      return window.currentOpenChatId || window.currentVisitorChatId || sessionStorage.getItem('tomauno-chat-id') || '';
+    }) || '';
+  }
+
+  // ── 1) SCROLL VISITANTE CUANDO RESPONDE ADM / IA ─────────────────────────
+  let lastVisitorScrollKey = '';
+  function scrollVisitorBottom(force){
+    safe(function(){
+      if(isAdmin()) return;
+      const box = msgBox();
+      if(!box) return;
+      const active = document.activeElement;
+      const writing = active && (active.id === 'chat-text' || active.id === 'chat-name');
+      // Si está escribiendo, solo bajamos si force=true o si ya estaba cerca del fondo.
+      const nearBottom = (box.scrollHeight - box.scrollTop - box.clientHeight) < 210;
+      if(!nearBottom && Date.now() < Number(box.dataset.tuVisitorReadingUntil || 0)) return;
+      if(force || !writing || nearBottom){
+        requestAnimationFrame(function(){
+          box.scrollTop = box.scrollHeight;
+          setTimeout(function(){ box.scrollTop = box.scrollHeight; }, 80);
+        });
+      }
+    });
+  }
+
+  function lastVisibleMessageKey(){
+    return safe(function(){
+      const bubbles = Array.from(document.querySelectorAll('#chat-popover.open .chat-bubble'));
+      if(!bubbles.length) return '';
+      const b = bubbles[bubbles.length - 1];
+      return (b.className || '') + '|' + (b.textContent || '').slice(-160);
+    }) || '';
+  }
+
+  function watchVisitorMessages(){
+    if(isAdmin()) return;
+    const key = lastVisibleMessageKey();
+    if(key && key !== lastVisitorScrollKey){
+      lastVisitorScrollKey = key;
+      // Si aparece una respuesta admin/auto o cambia el contenido, bajamos.
+      scrollVisitorBottom(true);
+    }
+  }
+
+  // Al tocar botones rápidos, bajar también.
+  document.addEventListener('click', function(ev){
+    if(ev.target && ev.target.closest && ev.target.closest('.tu-quick-btn')){
+      setTimeout(function(){ scrollVisitorBottom(true); }, 120);
+      setTimeout(function(){ scrollVisitorBottom(true); }, 700);
+    }
+  }, true);
+
+  // ── 2) BOTONES VISITANTE MÁS COMPACTOS ───────────────────────────────────
+  function compactQuickButtons(){
+    return;
+    safe(function(){
+      if(isAdmin()) return;
+      const wrap = document.querySelector('#chat-popover.open .tu-quick-actions');
+      if(!wrap) return;
+      const map = [
+        ['Cursos activos', '🎓', 'Cursos'],
+        ['Eventos activos', '📅', 'Eventos'],
+        ['Servicios disponibles', '🛠️', 'Servicios'],
+        ['Ubicación', '📍', ''],
+        ['Quiero hablar con Javier', '👤', '']
+      ];
+      wrap.innerHTML = map.map(function(x){
+        return '<button type="button" class="tu-quick-btn tu-quick-compact" title="'+x[2]+'" data-tu-msg="'+x[0]+'"><span>'+x[1]+'</span>'+(x[2] ? '<em>'+x[2]+'</em>' : '')+'</button>';
+      }).join('');
+    });
+  }
+
+  // ── 3) CHAT PC MÁS ALTO ──────────────────────────────────────────────────
+  function css(){
+    if(document.getElementById('tomauno-v26-css')) return;
+    const st = document.createElement('style');
+    st.id = 'tomauno-v26-css';
+    st.textContent = `
+      @media(min-width:701px){
+        html body.tomauno-visitor-active #chat-popover.open,
+        html body:not(.tomauno-admin-active) #chat-popover.open:not(:has(.chat-inbox-side)){
+          height:min(72vh,660px)!important;
+          max-height:min(72vh,660px)!important;
+          width:min(360px,calc(100vw - 22px))!important;
+          max-width:min(360px,calc(100vw - 22px))!important;
+        }
+        html body.tomauno-visitor-active #chat-popover.open.expanded,
+        html body.tomauno-visitor-active #chat-popover.open.tomauno-expanded{
+          width:min(720px,calc(100vw - 28px))!important;
+          height:min(82vh,760px)!important;
+          max-height:min(82vh,760px)!important;
+        }
+      }
+
+      #chat-popover.open .tu-quick-actions{
+        display:flex!important;
+        flex-wrap:nowrap!important;
+        gap:5px!important;
+        padding:4px 2px 7px!important;
+        overflow-x:auto!important;
+        scrollbar-width:none!important;
+      }
+      #chat-popover.open .tu-quick-actions::-webkit-scrollbar{display:none!important;}
+      #chat-popover.open .tu-quick-btn.tu-quick-compact{
+        min-width:auto!important;
+        height:31px!important;
+        display:inline-flex!important;
+        align-items:center!important;
+        justify-content:center!important;
+        gap:4px!important;
+        padding:6px 8px!important;
+        border-radius:999px!important;
+        white-space:nowrap!important;
+        flex:0 0 auto!important;
+      }
+      #chat-popover.open .tu-quick-btn.tu-quick-compact span{font-size:14px!important;line-height:1!important;}
+      #chat-popover.open .tu-quick-btn.tu-quick-compact em{
+        font-style:normal!important;
+        font-size:10px!important;
+        font-weight:900!important;
+      }
+      #chat-popover.open .chat-msgs{
+        scroll-behavior:auto!important;
+        padding-bottom:26px!important;
+      }
+      #chat-popover.open .chat-row{
+        flex-shrink:0!important;
+      }
+      .tu-sound-unlock{
+        position:fixed;
+        right:18px;
+        bottom:18px;
+        z-index:100000;
+        border:1px solid rgba(255,255,255,.18);
+        background:rgba(20,20,20,.94);
+        color:#fff;
+        border-radius:999px;
+        padding:9px 12px;
+        font-size:12px;
+        font-weight:900;
+        box-shadow:0 12px 30px rgba(0,0,0,.32);
+        cursor:pointer;
+      }
+    `;
+    document.head.appendChild(st);
+  }
+
+  // ── 4) BUSCAR PROFESOR / ORGANIZADOR EN EVENTOS Y SERVICIOS SIN DECIR "CURSO" ──
+  function normalize(s){
+    try{ if(typeof normAI === 'function') return normAI(s); }catch(e){}
+    return String(s||'').toLowerCase()
+      .normalize('NFD').replace(/[\u0300-\u036f]/g,'')
+      .replace(/[^a-z0-9ñ\s]/g,' ')
+      .replace(/\s+/g,' ')
+      .trim();
+  }
+
+  function impTerms(q){
+    const stop = new Set('quien quien es cual cual es como donde curso cursos evento eventos servicio servicios profe profesor profesora docente disertante organizador organiza la el de del en un una para por con y o a los las me podes puedes decir contar informar sobre'.split(' '));
+    return normalize(q).split(/\s+/).filter(w => w.length > 2 && !stop.has(w));
+  }
+
+  const oldBestPublishedTitleMatchAI = (typeof bestPublishedTitleMatchAI === 'function') ? bestPublishedTitleMatchAI : null;
+  bestPublishedTitleMatchAI = function(q){
+    const old = oldBestPublishedTitleMatchAI ? oldBestPublishedTitleMatchAI(q) : null;
+    if(old) return old;
+
+    const nq = normalize(q);
+    const terms = impTerms(q);
+    if(!terms.length) return null;
+
+    const items = [];
+    try{
+      Object.entries(cursos || {}).forEach(([id,c]) => {
+        if(!c || c.oculto || c.finalizado) return;
+        items.push({type:'curso', id, obj:c, title:c.titulo||'', extra:[c.desc,c.ig,c.disertante,c.profesor,c.organizador,c.docente,c.wp].join(' ')});
+      });
+      Object.entries(serviciosDB || {}).forEach(([id,s]) => {
+        if(!s || s.oculto) return;
+        items.push({type:'servicio', id, obj:s, title:s.titulo||'', extra:[s.desc,s.ig,s.wp,s.dir,s.profesor,s.docente,s.organizador].join(' ')});
+      });
+      Object.entries(eventosDB || {}).forEach(([id,e]) => {
+        if(!e || e.oculto) return;
+        // No exigimos estado activo porque algunos eventos cargados usan otros estados.
+        items.push({type:'evento', id, obj:e, title:e.titulo||'', extra:[e.desc,e.ig,e.nombreOrg,e.wpOrg,e.lugar,e.profesor,e.docente,e.disertante,e.organizador].join(' ')});
+      });
+    }catch(e){}
+
+    let best = null;
+    items.forEach(it => {
+      const hay = normalize([it.title, it.extra].join(' '));
+      let hits = 0;
+      terms.forEach(t => {
+        if(hay.includes(t)) hits += 1;
+      });
+      if(!hits) return;
+      let score = hits * 10;
+      if(normalize(it.title).includes(terms.join(' '))) score += 20;
+      if(/profesor|profesora|profe|docente|disertante|organizador|quien|quién/.test(nq)) score += 6;
+      if(/evento|casting|beauty|ciudad/.test(nq) && it.type === 'evento') score += 6;
+      if(/servicio|book|portfolio|sesion|sesiones/.test(nq) && it.type === 'servicio') score += 5;
+      if(!best || score > best.sc) best = Object.assign({}, it, {sc:score, titleHits:hits, extraHits:0});
+    });
+
+    return best && best.sc >= 10 ? best : null;
+  };
+
+  // Override puntual: si pregunta "quién/profe/docente/organizador" intenta match global primero.
+  const oldBuscarRespuestaAsistenteV26 = (typeof buscarRespuestaAsistente === 'function') ? buscarRespuestaAsistente : null;
+  buscarRespuestaAsistente = function(text){
+    const q = normalize(text);
+    if(/(quien|qui.n).{0,45}(dueno|due.o|javier|fundador|director|propietario)|((dueno|due.o|javier|fundador|director|propietario).{0,70}(tomauno|academia|estudio))|((tomauno|academia|estudio).{0,70}(dueno|due.o|javier|fundador|director|propietario))/.test(q)){
+      try{
+        const matches = knowledgeMatchesAI(q);
+        const good = matches.find(m => /javier|duen|fundador|director|propietario|tomauno/i.test([m.k.titulo||'',m.k.keys||'',m.k.command||''].join(' ')));
+        if(good && good.k && good.k.respuesta) return good.k.respuesta;
+      }catch(e){}
+      return 'Tomauno esta dirigido por Javier. Si queres, tambien puedo pasarte su contacto directo.';
+    }
+    if(/(quien|quién|profe|profesor|profesora|docente|disertante|organizador|organiza|quien da|quien dicta)/.test(q)){
+      const m = bestPublishedTitleMatchAI(text);
+      if(m && typeof contactoEntidadAI === 'function'){
+        if(m.type === 'curso') window._lastAiSection = 'sec-cursos';
+        if(m.type === 'servicio') window._lastAiSection = 'sec-servicios';
+        if(m.type === 'evento') window._lastAiSection = 'sec-eventos';
+        return contactoEntidadAI(m);
+      }
+    }
+    return oldBuscarRespuestaAsistenteV26 ? oldBuscarRespuestaAsistenteV26(text) : '';
+  };
+
+  // ── 5) SONIDO: DESBLOQUEO + FALLBACK MÁS FUERTE ─────────────────────────
+  let audioUnlocked = false;
+  let audioCtx = null;
+
+  function unlockAudio(showButton){
+    safe(function(){
+      const AC = window.AudioContext || window.webkitAudioContext;
+      if(!AC) return;
+      if(!audioCtx) audioCtx = new AC();
+      if(audioCtx.state === 'suspended') audioCtx.resume();
+      const osc = audioCtx.createOscillator();
+      const gain = audioCtx.createGain();
+      gain.gain.value = 0.00001;
+      osc.connect(gain); gain.connect(audioCtx.destination);
+      osc.start();
+      osc.stop(audioCtx.currentTime + 0.03);
+      audioUnlocked = true;
+      const btn = document.querySelector('.tu-sound-unlock');
+      if(btn) btn.remove();
+    });
+  }
+
+  function showSoundUnlock(){
+    safe(function(){ document.querySelectorAll('.tu-sound-unlock,.tu-v28d-sound-unlock,.tu-call-sound-unlock,.tu-v34-sound-unlock').forEach(n=>n.remove()); });
+  }
+
+  function tuBeepV26(kind){
+    safe(function(){
+      const AC = window.AudioContext || window.webkitAudioContext;
+      if(!AC) return;
+      if(!audioCtx) audioCtx = new AC();
+      if(audioCtx.state === 'suspended'){
+        showSoundUnlock();
+        audioCtx.resume().catch(()=>{});
+      }
+
+      const start = audioCtx.currentTime + 0.02;
+      const freqs = kind === 'human' ? [720, 920, 1160, 920] : [880, 1120, 880];
+      freqs.forEach(function(freq, i){
+        const osc = audioCtx.createOscillator();
+        const gain = audioCtx.createGain();
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(freq, start + i * .16);
+        gain.gain.setValueAtTime(.0001, start + i * .16);
+        gain.gain.exponentialRampToValueAtTime(kind === 'human' ? .28 : .20, start + i * .16 + .025);
+        gain.gain.exponentialRampToValueAtTime(.0001, start + i * .16 + .13);
+        osc.connect(gain);
+        gain.connect(audioCtx.destination);
+        osc.start(start + i * .16);
+        osc.stop(start + i * .16 + .15);
+      });
+    });
+  }
+
+  document.addEventListener('click', function(){ unlockAudio(false); }, true);
+  document.addEventListener('keydown', function(){ unlockAudio(false); }, true);
+
+  // Refuerzo: cuando entra notificación propia, sonar también por función vieja.
+  const oldNotifyV26 = window.notifyAdminChat;
+  if(typeof oldNotifyV26 === 'function' && !oldNotifyV26.__tuV26Sound){
+    const wrappedNotify = function(title, body, chatId){
+      let skipSound = false;
+      try{
+        const human = /humano|humana|atencion|atención|javier|llamada/i.test(String(title||'') + ' ' + String(body||''));
+        const muted = new Set(JSON.parse(localStorage.getItem('tomauno-chat-notified-open') || '[]'));
+        skipSound = !human && chatId && (muted.has(chatId) || window.currentOpenChatId === chatId);
+      }catch(e){}
+      const r = oldNotifyV26.apply(this, arguments);
+      safe(function(){
+        if(isAdmin() && !skipSound) tuBeepV26(/humano|atencion|atención/i.test(String(title||'') + ' ' + String(body||'')) ? 'human' : 'normal');
+      });
+      return r;
+    };
+    wrappedNotify.__tuV26Sound = 1;
+    window.notifyAdminChat = wrappedNotify;
+    try{ notifyAdminChat = wrappedNotify; }catch(e){}
+  }
+
+  // Refuerzo por Firebase: suena ante último mensaje real de usuario reciente.
+  const heard = Object.create(null);
+  function soundRecentUserMessage(){
+    safe(function(){
+      if(!isAdmin()) return;
+      const dbs = window.chatsDB || {};
+      Object.keys(dbs).forEach(function(id){
+        const c = dbs[id] || {};
+        const ms = c.messages || {};
+        let best = null;
+        Object.keys(ms).forEach(function(k){
+          const m = ms[k] || {};
+          if(m.from === 'user' && !m.typing && String(m.text||'').trim()){
+            if(!best || Number(m.createdAt||0) > Number(best.createdAt||0)) best = m;
+          }
+        });
+        if(!best) return;
+        const age = ts() - Number(best.createdAt || 0);
+        if(age > 1000 * 60 * 4) return;
+        try{
+          const muted = new Set(JSON.parse(localStorage.getItem('tomauno-chat-notified-open') || '[]'));
+          if(muted.has(id)) return;
+          if(window.currentOpenChatId === id) return;
+        }catch(e){}
+        const key = id + '|' + String(best.createdAt||'') + '|' + String(best.text||'').slice(0,80);
+        if(heard[key]) return;
+        heard[key] = 1;
+        tuBeepV26((c.humanRequested || c.waitingHuman || c.priority) ? 'human' : 'normal');
+      });
+    });
+  }
+
+  css();
+  compactQuickButtons();
+  scrollVisitorBottom(false);
+  setInterval(watchVisitorMessages, 350);
+  setInterval(compactQuickButtons, 1300);
+  setInterval(showSoundUnlock, 2500);
+  setInterval(soundRecentUserMessage, 900);
+})();
+
+
+// ── TOMAUNO v27 MOBILE UX + SCROLL FINAL ───────────────────────────────────
+// Móvil: chat tipo app fullscreen, input siempre visible, quick actions compactas/ocultables,
+// scroll al fondo para respuestas y typing, admin fullscreen centrado.
+(function(){
+  'use strict';
+
+  function safe(fn){ try{return fn();}catch(e){ try{console.warn('tomauno v27:', e);}catch(_){} } }
+
+  function isMobile(){
+    return window.matchMedia && window.matchMedia('(max-width: 700px)').matches;
+  }
+
+  function isAdmin(){
+    return safe(function(){
+      return localStorage.getItem('tomauno-admin-ok') === '1' ||
+             localStorage.getItem('tomauno-admin-notify') === '1' ||
+             !!document.querySelector('#chat-popover.open #chat-admin-text,#chat-popover.open .chat-inbox-side,#chat-popover.open .chat-admin-tools');
+    }) || false;
+  }
+
+  function pop(){ return document.getElementById('chat-popover'); }
+  function box(){ return document.querySelector('#chat-popover.open .chat-msgs'); }
+  let visitorReadingUntil = 0;
+  document.addEventListener('scroll', function(ev){
+    safe(function(){
+      const b = ev.target;
+      if(!b || !b.classList || !b.classList.contains('chat-msgs') || isAdmin()) return;
+      const distanceBottom = b.scrollHeight - b.scrollTop - b.clientHeight;
+      if(distanceBottom > 180){
+        visitorReadingUntil = Date.now() + 5000;
+        b.dataset.tuVisitorReadingUntil = String(visitorReadingUntil);
+      }
+    });
+  }, true);
+
+  function forceBottom(extra){
+    safe(function(){
+      const b = box();
+      if(!b) return;
+      const allowForce = b.dataset.tuForceBottomOnce === '1';
+      if(allowForce) delete b.dataset.tuForceBottomOnce;
+      if(!allowForce && !isAdmin() && Date.now() < visitorReadingUntil) return;
+      if(!allowForce && !isAdmin()){
+        const distanceBottom = b.scrollHeight - b.scrollTop - b.clientHeight;
+        if(distanceBottom > 180) return;
+      }
+      requestAnimationFrame(function(){
+        b.scrollTop = b.scrollHeight + (extra || 220);
+        setTimeout(function(){ b.scrollTop = b.scrollHeight + (extra || 220); }, 80);
+        setTimeout(function(){ b.scrollTop = b.scrollHeight + (extra || 220); }, 260);
+      });
+    });
+  }
+
+  // 1) En móvil, al abrir chat visitante queda fullscreen y no como popup flotante.
+  function applyMobileMode(){
+    safe(function(){
+      const p = pop();
+      if(!p) return;
+      const visitor = !isAdmin() && p.classList.contains('open');
+      document.body.classList.toggle('tu-mobile-chat-open', visitor && isMobile());
+      document.documentElement.classList.toggle('tu-mobile-chat-open', visitor && isMobile());
+      if(visitor && isMobile()){
+        p.classList.add('tu-mobile-fullscreen');
+        p.classList.remove('expanded');
+        if(!p.dataset.tuMobileOpened){
+          p.dataset.tuMobileOpened = '1';
+          const b = box();
+          if(b) b.dataset.tuForceBottomOnce = '1';
+          forceBottom(260);
+        }
+      }else{
+        p.classList.remove('tu-mobile-fullscreen');
+        delete p.dataset.tuMobileOpened;
+      }
+    });
+  }
+
+  // 2) Si aparece respuesta nueva o cambia el último mensaje, bajar.
+  let lastKey = '';
+  function watchMessages(){
+    safe(function(){
+      const p = pop();
+      if(!p || !p.classList.contains('open')) return;
+      const bubbles = Array.from(p.querySelectorAll('.chat-bubble'));
+      if(!bubbles.length) return;
+      const last = bubbles[bubbles.length - 1];
+      const key = (last.className || '') + '|' + (last.textContent || '').slice(-220);
+      if(key !== lastKey){
+        lastKey = key;
+        // En visitante siempre baja; en admin solo si está cerca del fondo.
+        if(!isAdmin()){
+          const b = box();
+          if(b && (b.scrollHeight - b.scrollTop - b.clientHeight) < 180) forceBottom(280);
+        }
+        else{
+          const b = box();
+          if(b && (b.scrollHeight - b.scrollTop - b.clientHeight) < 230) forceBottom(240);
+        }
+      }
+    });
+  }
+
+  // 3) Mientras escribe en admin: que no quede tapado por último mensaje.
+  function keepTypingVisible(){
+    safe(function(){
+      const p = pop();
+      const b = box();
+      if(!p || !b) return;
+
+      const typing = p.querySelector('.tu-live-typing,.chat-typing-live,.typing-live,.chat-bubble.typing,[data-typing-live]');
+      if(!typing) return;
+
+      const rect = typing.getBoundingClientRect();
+      const boxRect = b.getBoundingClientRect();
+
+      // Si está muy abajo/tapado por input, baja 2-3 renglones.
+      if(rect.bottom > boxRect.bottom - 90){
+        b.scrollTop += 140;
+      }else if((b.scrollHeight - b.scrollTop - b.clientHeight) < 260){
+        b.scrollTop = b.scrollHeight + 220;
+      }
+    });
+  }
+
+  // 4) Botones rápidos en móvil: primera fila chica. Si estorban, pueden esconderse.
+  function tuneQuickActions(){
+    return;
+    safe(function(){
+      const p = pop();
+      if(!p || !p.classList.contains('open') || isAdmin()) return;
+      const qa = p.querySelector('.tu-quick-actions');
+      if(!qa) return;
+
+      if(isMobile()){
+        qa.classList.add('tu-mobile-quick');
+        // Íconos + texto mínimo
+        const btns = qa.querySelectorAll('.tu-quick-btn');
+        const labels = [
+          ['🎓','Cursos'],
+          ['📅','Eventos'],
+          ['🛠️','Servicios'],
+          ['📍',''],
+          ['👤','']
+        ];
+        btns.forEach((btn, i) => {
+          const x = labels[i];
+          if(!x) return;
+          btn.innerHTML = '<span>'+x[0]+'</span>' + (x[1] ? '<em>'+x[1]+'</em>' : '');
+        });
+      }
+    });
+  }
+
+  // 5) Enter/Enviar móvil: después del envío, foco y scroll abajo.
+  document.addEventListener('click', function(ev){
+    const send = ev.target && ev.target.closest && ev.target.closest('#chat-popover.open .chat-send,#chat-popover.open [data-chat-send]');
+    const quick = ev.target && ev.target.closest && ev.target.closest('.tu-quick-btn');
+    if(send || quick){
+      setTimeout(function(){ forceBottom(320); }, 180);
+      setTimeout(function(){ forceBottom(320); }, 720);
+    }
+  }, true);
+
+  document.addEventListener('keydown', function(ev){
+    if(ev.key === 'Enter' && ev.target && ev.target.id === 'chat-text'){
+      setTimeout(function(){ forceBottom(320); }, 180);
+      setTimeout(function(){ forceBottom(320); }, 720);
+    }
+  }, true);
+
+  document.addEventListener('focusin', function(ev){
+    if(ev.target && (ev.target.id === 'chat-text' || ev.target.id === 'chat-name')){
+      setTimeout(function(){ applyMobileMode(); forceBottom(340); }, 250);
+      setTimeout(function(){ forceBottom(340); }, 700);
+    }
+  }, true);
+
+  // 6) Fullscreen admin centrado, también si la clase es distinta.
+  function centerAdminExpanded(){
+    safe(function(){
+      const p = pop();
+      if(!p || !p.classList.contains('open')) return;
+      const adminUi = !!p.querySelector('#chat-admin-text,.chat-inbox-side,.chat-admin-tools');
+      const expanded = p.classList.contains('expanded') || p.classList.contains('tomauno-expanded') || p.classList.contains('tu-admin-fullscreen');
+      if(adminUi && expanded){
+        p.classList.add('tu-admin-centered-v27');
+      }else{
+        p.classList.remove('tu-admin-centered-v27');
+      }
+    });
+  }
+
+  // 7) Sonido: si navegador bloquea, mostrar activador más visible en admin.
+  function showSoundHint(){
+    safe(function(){ document.querySelectorAll('.tu-sound-unlock,.tu-v28d-sound-unlock,.tu-call-sound-unlock,.tu-v34-sound-unlock').forEach(n=>n.remove()); });
+  }
+
+  function css(){
+    if(document.getElementById('tomauno-v27-css')) return;
+    const st = document.createElement('style');
+    st.id = 'tomauno-v27-css';
+    st.textContent = `
+      html.tu-mobile-chat-open,
+      body.tu-mobile-chat-open{
+        overflow:hidden!important;
+        height:100%!important;
+      }
+
+      @media(max-width:700px){
+        html body #chat-popover.open.tu-mobile-fullscreen,
+        html body.tomauno-visitor-active #chat-popover.open.tu-mobile-fullscreen,
+        html body:not(.tomauno-admin-active) #chat-popover.open.tu-mobile-fullscreen{
+          position:fixed!important;
+          left:0!important;
+          right:0!important;
+          top:0!important;
+          bottom:0!important;
+          width:100vw!important;
+          max-width:100vw!important;
+          min-width:0!important;
+          height:100dvh!important;
+          max-height:100dvh!important;
+          min-height:100dvh!important;
+          transform:none!important;
+          border-radius:0!important;
+          z-index:99998!important;
+          padding:14px 12px calc(var(--tomauno-keyboard,0px) + 10px)!important;
+        }
+
+        html body #chat-popover.open.tu-mobile-fullscreen .chat-popover-inner,
+        html body #chat-popover.open.tu-mobile-fullscreen .chat-panel{
+          height:100%!important;
+          min-height:0!important;
+          display:flex!important;
+          flex-direction:column!important;
+          overflow:hidden!important;
+        }
+
+        html body #chat-popover.open.tu-mobile-fullscreen .chat-head{
+          flex:0 0 auto!important;
+          min-height:74px!important;
+          padding-right:58px!important;
+        }
+
+        html body #chat-popover.open.tu-mobile-fullscreen .chat-msgs{
+          flex:1 1 auto!important;
+          min-height:0!important;
+          max-height:none!important;
+          height:auto!important;
+          overflow-y:auto!important;
+          scroll-behavior:auto!important;
+          padding-bottom:36px!important;
+        }
+
+        html body #chat-popover.open.tu-mobile-fullscreen .tu-quick-actions{
+          flex:0 0 auto!important;
+          display:flex!important;
+          flex-wrap:nowrap!important;
+          overflow-x:auto!important;
+          gap:5px!important;
+          padding:4px 0 6px!important;
+          scrollbar-width:none!important;
+        }
+
+        html body #chat-popover.open.tu-mobile-fullscreen .tu-quick-actions::-webkit-scrollbar{
+          display:none!important;
+        }
+
+        html body #chat-popover.open.tu-mobile-fullscreen .tu-quick-btn{
+          height:34px!important;
+          min-width:42px!important;
+          padding:6px 9px!important;
+          flex:0 0 auto!important;
+          border-radius:999px!important;
+        }
+
+        html body #chat-popover.open.tu-mobile-fullscreen .tu-quick-btn span{
+          font-size:15px!important;
+          line-height:1!important;
+        }
+
+        html body #chat-popover.open.tu-mobile-fullscreen .tu-quick-btn em{
+          font-size:10px!important;
+          font-style:normal!important;
+          font-weight:900!important;
+        }
+
+        html body #chat-popover.open.tu-mobile-fullscreen .chat-row{
+          flex:0 0 auto!important;
+          display:grid!important;
+          grid-template-columns:1fr 58px!important;
+          gap:8px!important;
+          align-items:center!important;
+          margin:6px 0 0!important;
+        }
+
+        html body #chat-popover.open.tu-mobile-fullscreen #chat-text,
+        html body #chat-popover.open.tu-mobile-fullscreen #chat-name{
+          min-height:56px!important;
+          height:56px!important;
+          font-size:16px!important;
+          padding:0 16px!important;
+        }
+
+        html body #chat-popover.open.tu-mobile-fullscreen .chat-send{
+          width:56px!important;
+          height:56px!important;
+          min-width:56px!important;
+          border-radius:50%!important;
+          display:flex!important;
+          align-items:center!important;
+          justify-content:center!important;
+        }
+
+        html body #chat-popover.open.tu-mobile-fullscreen .chat-fab{
+          display:none!important;
+        }
+
+        html body #chat-popover.open.tu-mobile-fullscreen + #chat-fab,
+        html body.tu-mobile-chat-open #chat-fab{
+          display:none!important;
+          pointer-events:none!important;
+        }
+      }
+
+      html body #chat-popover.open.tu-admin-centered-v27,
+      html body #chat-popover.open.expanded.tu-admin-centered-v27,
+      html body #chat-popover.open.tomauno-expanded.tu-admin-centered-v27{
+        position:fixed!important;
+        left:50%!important;
+        right:auto!important;
+        top:50%!important;
+        bottom:auto!important;
+        transform:translate(-50%,-50%)!important;
+        width:min(1140px,calc(100vw - 40px))!important;
+        height:min(84vh,800px)!important;
+        max-height:min(84vh,800px)!important;
+        z-index:99998!important;
+      }
+
+      .tu-sound-unlock{
+        position:fixed!important;
+        right:18px!important;
+        bottom:18px!important;
+        z-index:100001!important;
+        border:1px solid rgba(255,255,255,.18)!important;
+        background:rgba(232,0,10,.95)!important;
+        color:#fff!important;
+        border-radius:999px!important;
+        padding:10px 14px!important;
+        font-size:12px!important;
+        font-weight:900!important;
+        box-shadow:0 12px 34px rgba(0,0,0,.35)!important;
+      }
+    `;
+    document.head.appendChild(st);
+  }
+
+  css();
+  applyMobileMode();
+  tuneQuickActions();
+  centerAdminExpanded();
+
+  setInterval(applyMobileMode, 600);
+  setInterval(watchMessages, 300);
+  setInterval(keepTypingVisible, 250);
+  setInterval(tuneQuickActions, 1200);
+  setInterval(centerAdminExpanded, 500);
+  setTimeout(showSoundHint, 2200);
+})();
+
+
+// TOMAUNO LIMPIO FASE 3 — CHAT CORE SIN BLOQUES FINAL
+(function(){
+'use strict';
+
+function q(s,r){return (r||document).querySelector(s)}
+function qa(s,r){return Array.from((r||document).querySelectorAll(s))}
+function chatsSafe(){try{return window.chatsDB||chatsDB||{}}catch(e){return {}}}
+function adminIdSafe(){try{return window.currentOpenChatId||currentOpenChatId||''}catch(e){return ''}}
+function isAdminView(){return !!q('#chat-popover.open #chat-admin-text,#chat-popover.open .chat-inbox-side,#chat-popover.open .chat-admin-tools')}
+function updateChatSafe(id,data){
+  try{
+    if(window.chatsDB&&window.chatsDB[id]) Object.assign(window.chatsDB[id],data);
+    if(typeof chatsDB!=='undefined'&&chatsDB[id]) Object.assign(chatsDB[id],data);
+    if(typeof db!=='undefined'&&typeof ref!=='undefined'&&typeof update!=='undefined'){
+      return update(ref(db,'tomauno/chats/'+id),data).catch(()=>{});
+    }
+  }catch(e){}
+  return Promise.resolve();
+}
+function pushMessageSafe(id,msg){
+  try{
+    if(typeof db!=='undefined'&&typeof ref!=='undefined'&&typeof push!=='undefined'){
+      return push(ref(db,'tomauno/chats/'+id+'/messages'),msg).catch(()=>{});
+    }
+  }catch(e){}
+  return Promise.resolve();
+}
+function chatTimeSafe(){
+  try{return chatTime()}catch(e){return new Date().toLocaleTimeString('es-AR',{hour:'2-digit',minute:'2-digit'})}
+}
+function normClean(s){
+  return String(s||'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/\s+/g,' ').trim();
+}
+function isHumanRequestClean(text){
+  var x=normClean(text);
+  return [
+    'quiero hablar con javier','pasame con javier','llama a javier','llamar a javier',
+    'podes llamar a javier','puedes llamar a javier','quiero hablar con el dueno',
+    'quiero hablar con el dueño','atencion humana','atención humana','humano',
+    'whatsapp de javier','cel de javier','telefono de javier','teléfono de javier'
+  ].map(normClean).some(function(p){return x.includes(p)});
+}
+
+var callTimers = {};
+window.detenerLlamadaJavier = function(id){
+  if(!id) return;
+  if(callTimers[id]){
+    clearInterval(callTimers[id]);
+    delete callTimers[id];
+  }
+  updateChatSafe(id,{
+    humanRequested:false,
+    waitingHuman:false,
+    priority:false,
+    prioridad:false,
+    callUntil:0,
+    callAnsweredAt:Date.now(),
+    updatedAt:Date.now()
+  });
+};
+
+function playCallSound(){
+  try{
+    var AC=window.AudioContext||window.webkitAudioContext;
+    if(!AC) return;
+    var ctx=new AC();
+    var t=ctx.currentTime;
+    [740,980,740,980].forEach(function(f,i){
+      var o=ctx.createOscillator(), g=ctx.createGain();
+      o.type='square'; o.frequency.value=f;
+      o.connect(g); g.connect(ctx.destination);
+      var tt=t+i*.16;
+      g.gain.setValueAtTime(0.0001,tt);
+      g.gain.exponentialRampToValueAtTime(.16,tt+.025);
+      g.gain.exponentialRampToValueAtTime(0.0001,tt+.13);
+      o.start(tt); o.stop(tt+.15);
+    });
+    setTimeout(function(){try{ctx.close()}catch(e){}},900);
+  }catch(e){}
+}
+function iniciarLlamadaJavier(id){
+  if(!id || callTimers[id]) return;
+  playCallSound();
+  callTimers[id]=setInterval(function(){
+    var c=chatsSafe()[id]||{};
+    if(!(c.humanRequested && c.callUntil && Number(c.callUntil)>Date.now() && !c.callAnsweredAt)){
+      if(callTimers[id]){
+        clearInterval(callTimers[id]);
+        delete callTimers[id];
+      }
+      return;
+    }
+    playCallSound();
+  },10000);
+}
+
+// Interceptar pedido humano antes del cerebro normal.
+var oldResponderClean = window.responderAutomaticoChat;
+if(typeof oldResponderClean === 'function' && !oldResponderClean.__cleanF3){
+  var responderClean = async function(id,text){
+    if(false && isHumanRequestClean(text)){
+      var t=Date.now();
+      await updateChatSafe(id,{
+        humanRequested:true,
+        waitingHuman:true,
+        priority:true,
+        prioridad:true,
+        unreadAdmin:true,
+        callUntil:t+60000,
+        callAnsweredAt:0,
+        updatedAt:t,
+        lastMsg:'📣 Llamada a Javier'
+      });
+      await pushMessageSafe(id,{
+        from:'admin',
+        auto:true,
+        text:'📣 Voy a intentar comunicarme con Javier. Aguardá un momento por favor.',
+        time:chatTimeSafe(),
+        createdAt:Date.now(),
+        systemCall:true
+      });
+      if(isAdminView()) iniciarLlamadaJavier(id);
+      return;
+    }
+    return oldResponderClean.apply(this,arguments);
+  };
+  responderClean.__cleanF3=1;
+  window.responderAutomaticoChat=responderClean;
+  try{responderAutomaticoChat=responderClean}catch(e){}
+}
+
+// Si la llamada aparece mientras ADM está abierto, sonar.
+var seenCalls = {};
+setInterval(function(){
+  if(!isAdminView()) return;
+  Object.entries(chatsSafe()).forEach(function(pair){
+    var id=pair[0], c=pair[1]||{};
+    if(c.humanRequested && c.callUntil && Number(c.callUntil)>Date.now() && !c.callAnsweredAt){
+      if(!seenCalls[id]){
+        seenCalls[id]=1;
+        iniciarLlamadaJavier(id);
+      }
+    }else{
+      delete seenCalls[id];
+    }
+  });
+},800);
+
+// Cortar llamada al escribir/responder en ADM.
+var oldSendClean = window.enviarChatAdmin;
+if(typeof oldSendClean === 'function' && !oldSendClean.__cleanF3){
+  var sendClean = async function(){
+    var id=adminIdSafe();
+    if(id) window.detenerLlamadaJavier(id);
+    return oldSendClean.apply(this,arguments);
+  };
+  sendClean.__cleanF3=1;
+  window.enviarChatAdmin=sendClean;
+  try{enviarChatAdmin=sendClean}catch(e){}
+}
+document.addEventListener('input',function(e){
+  if(isAdminView() && e.target && e.target.closest && e.target.closest('#chat-popover.open')){
+    var id=adminIdSafe();
+    if(id) window.detenerLlamadaJavier(id);
+  }
+},true);
+
+// Basurero real.
+window.borrarMensajeChatParaVisitante = async function(chatId,msgId){
+  if(!chatId || !msgId) return;
+  try{
+    if(typeof db !== 'undefined' && typeof ref !== 'undefined' && typeof update !== 'undefined'){
+      await update(ref(db,'tomauno/chats/'+chatId+'/messages/'+msgId), {
+        hidden:true,
+        deletedForVisitor:true,
+        deleted:true,
+        deletedAt:Date.now()
+      });
+    }
+  }catch(e){ console.warn('No pude marcar mensaje oculto:', e); }
+  try{ if(typeof updateChatMessagesOnly === 'function') updateChatMessagesOnly(chatId, true); }catch(e){}
+};
+
+// Header visitante consistente.
+function fixVisitorHeader(){
+  return;
+  var pop=document.getElementById('chat-popover');
+  if(!pop || !pop.classList.contains('open') || isAdminView()) return;
+  var id='';
+  try{id=window.currentVisitorChatId||currentVisitorChatId||sessionStorage.getItem('tomauno-chat-id')||''}catch(e){}
+  var c=chatsSafe()[id]||{};
+  var human=!!(c.humanMode || Number(c.manualUntil||0)>Date.now());
+  var title=q('#chat-popover.open .chat-title');
+  var sub=q('#chat-popover.open .chat-subline');
+  if(human){
+    if(title) title.textContent='JAVIER ONLINE';
+    if(sub) sub.textContent='🟢 Javier está en línea';
+  }else{
+    if(title) title.textContent='ASISTENTE TOMAUNO';
+    if(sub) sub.textContent='Asistente Tomauno';
+  }
+}
+setInterval(fixVisitorHeader,700);
+
+})();
+
+// TOMAUNO LIMPIO FASE 8 — 📣 llamadas / ⭐ pendientes
+// Solo estados, notificaciones y llamada. No toca scroll, maximizado, cursos ni duplicados.
+(function(){
+'use strict';
+
+function q(s,r){return (r||document).querySelector(s)}
+function qa(s,r){return Array.from((r||document).querySelectorAll(s))}
+function chats(){try{return window.chatsDB||chatsDB||{}}catch(e){return {}}}
+function admId(){try{return window.currentOpenChatId||currentOpenChatId||''}catch(e){return ''}}
+function isAdm(){
+  try{
+    if(typeof isAdminNotifier==='function' && isAdminNotifier()) return true;
+    if(localStorage.getItem('tomauno-admin-notify')==='1') return true;
+  }catch(e){}
+  return !!q('#chat-popover.open #chat-admin-text,#chat-popover.open .chat-inbox-side,#chat-popover.open .chat-admin-tools');
+}
+function cname(id,c){c=c||{};return String(c.name||c.nombre||('Visitante '+String(id||'').slice(-4))).trim()}
+function ctime(){try{return typeof chatTimeSafe==='function'?chatTimeSafe():new Date().toLocaleTimeString('es-AR',{hour:'2-digit',minute:'2-digit'})}catch(e){return ''}}
+function upd(id,data){
+  try{
+    if(window.chatsDB&&window.chatsDB[id]) Object.assign(window.chatsDB[id],data);
+    if(typeof chatsDB!=='undefined'&&chatsDB[id]) Object.assign(chatsDB[id],data);
+    if(typeof db!=='undefined'&&typeof ref!=='undefined'&&typeof update!=='undefined') return update(ref(db,'tomauno/chats/'+id),data).catch(()=>{});
+  }catch(e){}
+  return Promise.resolve();
+}
+async function msg(id,data){
+  try{if(id&&typeof push==='function'&&typeof ref==='function'&&typeof db!=='undefined') return await push(ref(db,'tomauno/chats/'+id+'/messages'),data)}catch(e){}
+}
+
+function cleanSoundBtns(){
+  qa('.tu-v28d-sound-unlock,.tu-call-sound-unlock,.tu-sound-unlock,.tu-v34-sound-unlock').forEach(n=>n.remove());
+  qa('button').forEach(b=>{if(/activar alertas|activar llamada|activar llamadas|activar sonido|desactivar sonido/i.test(b.innerText||'')) b.remove()});
+}
+setInterval(cleanSoundBtns,800); cleanSoundBtns();
+
+// Bandeja al primer clic
+function isInboxBtn(el){
+  const t=(el.innerText||el.textContent||el.title||el.getAttribute('aria-label')||'').toLowerCase().trim();
+  return t.includes('bandeja')||t==='←'||t.includes('volver');
+}
+['pointerdown','click'].forEach(ev=>document.addEventListener(ev,e=>{
+  const b=e.target&&e.target.closest&&e.target.closest('button,a');
+  if(!b||!isInboxBtn(b))return;
+  window.__tomaunoForceInboxOnce=true;
+  window.__tomaunoManualInboxUntil=Date.now()+3000;
+  if(ev==='click'&&typeof window.abrirPanelChatsAdmin==='function') setTimeout(()=>window.abrirPanelChatsAdmin(true),0);
+},true));
+
+// Detector humano estricto
+function norm(s){return String(s||'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/\s+/g,' ').trim()}
+window.tuEsPedidoHumano=function(text){
+  const raw=String(text||'').trim().toLowerCase(), x=norm(text);
+  if(!x)return false;
+  if(/^(quien|quién|como se llama|cómo se llama|cual es|cuál es)\b/.test(raw))return false;
+  if(/\bquien es\b|\bquién es\b|\bcomo se llama\b|\bcómo se llama\b/.test(raw))return false;
+  return /\bquiero hablar con\b|\bquiero llamar a\b|\bquiero contactar a\b|\bquiero contactar con\b|\bquiero comunicarme con\b|\bpuedo hablar con\b|\bpodria hablar con\b|\bpodria comunicarme con\b|\bpuedo comunicarme con\b|\bcomunicarme con\b|\bcontactarme con\b|\bcontactar a\b|\bcontactar con\b|\bme pasas con\b|\bme pasas a\b|\bpasame con\b|\bpasame a\b|\bllama a\b|\bllamar a\b|\batencion humana\b|\batencion personalizada\b|\bhablar con una persona\b|\bhablar con alguien\b/.test(x);
+};
+
+// Sonido llamada
+window.__tuCallTimers=window.__tuCallTimers||{};
+function beepCall(){
+  try{
+    const Ctx=window.AudioContext||window.webkitAudioContext, ctx=new Ctx();
+    [740,980,740,980].forEach((f,i)=>{
+      const o=ctx.createOscillator(), g=ctx.createGain(), t=ctx.currentTime+i*.16;
+      o.type='square'; o.frequency.value=f; o.connect(g); g.connect(ctx.destination);
+      g.gain.setValueAtTime(.0001,t); g.gain.exponentialRampToValueAtTime(.18,t+.025); g.gain.exponentialRampToValueAtTime(.0001,t+.13);
+      o.start(t); o.stop(t+.15);
+    });
+  }catch(e){try{if(typeof beep==='function')beep()}catch(_){}}
+}
+function stopCall(id){
+  if(!id)return;
+  try{if(window.__tuCallTimers[id]){clearInterval(window.__tuCallTimers[id]);delete window.__tuCallTimers[id]}}catch(e){}
+  try{if(typeof stopRing==='function')stopRing(id)}catch(e){}
+  try{if(typeof stopHumanRing==='function')stopHumanRing(id)}catch(e){}
+}
+function startCall(id){
+  if(!id||window.__tuCallTimers[id])return;
+  if(isAdm())beepCall();
+  window.__tuCallTimers[id]=setInterval(()=>{
+    const c=chats()[id];
+    if(!c||!c.humanRequested||!c.callUntil||c.callAnsweredAt){stopCall(id);return}
+    if(isAdm())beepCall();
+  },10000);
+}
+
+// Solicitud humana = 📣 activa + ⭐ pendiente
+window.tuSolicitarJavier=async function(id){
+  if(!id)return;
+  const t=Date.now();
+  await upd(id,{humanRequested:true,waitingHuman:true,pendingHuman:true,pendingAt:t,priority:true,prioridad:true,callUntil:t+60000,callAnsweredAt:0,humanWaitStartedAt:t,updatedAt:t,unreadAdmin:true,lastMsg:'📣 Llamada humana'});
+  await msg(id,{from:'admin',auto:true,humanWait:true,text:'📣 Voy a intentar comunicarme con Javier. Aguardá un momento por favor.',time:ctime(),createdAt:t});
+  startCall(id);
+  try{ if(typeof window.tomaunoHumanAlarm==='function') window.tomaunoHumanAlarm(id, cname(id,chats()[id]||{})+' está llamando a Javier'); }catch(e){}
+};
+const oldResp=window.responderAutomaticoChat||(typeof responderAutomaticoChat!=='undefined'?responderAutomaticoChat:null);
+if(typeof oldResp==='function'&&!oldResp.__fase8){
+  const r=async function(id,text){try{if(window.tuEsPedidoHumano(text)){await window.tuSolicitarJavier(id);return null}}catch(e){}return oldResp.apply(this,arguments)};
+  r.__fase8=1; window.responderAutomaticoChat=r; try{responderAutomaticoChat=r}catch(e){}
+}
+
+// ATENDIENDO = HUM + ⭐ pendiente
+window.atenderLlamadaJavier=async function(id){
+  id=id||admId(); if(!id)return;
+  stopCall(id);
+  await upd(id,{humanRequested:false,waitingHuman:false,pendingHuman:false,pendingAt:0,priority:false,prioridad:false,callUntil:0,callAnsweredAt:Date.now(),humanMode:true,manualUntil:Date.now()+30*60*1000,javierOnline:true,javierOnlineAt:Date.now(),updatedAt:Date.now(),unreadAdmin:false});
+  await msg(id,{from:'admin',auto:true,humanAttend:true,text:'🟢 JAVIER ATENDIÓ LA LLAMADA.',time:ctime(),createdAt:Date.now()});
+  try{if(typeof updateChatMessagesOnly==='function')updateChatMessagesOnly(id,true)}catch(e){}
+  try{if(typeof applyChatModeButtonFinal==='function')applyChatModeButtonFinal(id)}catch(e){}
+  setTimeout(()=>{try{if(typeof applyChatModeButtonFinal==='function')applyChatModeButtonFinal(id)}catch(e){}},140);
+  try{if(typeof toast==='function')toast('👤 HUM activado · llamada atendida')}catch(e){}
+};
+const oldSend=window.enviarChatAdmin;
+if(typeof oldSend==='function'&&!oldSend.__fase8){
+  const s=function(){const id=admId(), c=chats()[id]||{}; if(id&&c.humanRequested)window.atenderLlamadaJavier(id); return oldSend.apply(this,arguments)};
+  s.__fase8=1; window.enviarChatAdmin=s; try{enviarChatAdmin=s}catch(e){}
+}
+
+// ⭐ resolver
+window.marcarChatAtendido=async function(id){
+  if(!id)return;
+  await upd(id,{pendingHuman:false,pendingAt:0,waitingWhatsapp:false,waitingHumanContact:false,awaitingHumanContact:false,pendingHumanContact:false,humanFallbackSent:false,humanContactReceived:true,priority:false,prioridad:false,resolvedAt:Date.now(),updatedAt:Date.now()});
+  try{if(typeof toast==='function')toast('✓ Pendiente marcado como atendido')}catch(e){}
+  try{ if(typeof abrirPanelChatsAdmin === 'function' && !admId()) abrirPanelChatsAdmin(); }catch(e){}
+};
+const oldClose=window.cerrarConversacionChat;
+if(typeof oldClose==='function'&&!oldClose.__fase8){
+  const cfn=function(id){
+    const c=chats()[id]||{};
+    if(chatIsPendingHuman(c)){try{if(typeof toast==='function')toast('⭐ Tiene pendientes. Tocá la estrella para marcarlo atendido antes de cerrar.')}catch(e){}; return;}
+    try{ if(window.__tomaunoClearChatNotifyFinal) window.__tomaunoClearChatNotifyFinal(id); }catch(e){}
+    return oldClose.apply(this,arguments);
+  };
+  cfn.__fase8=1; window.cerrarConversacionChat=cfn; try{cerrarConversacionChat=cfn}catch(e){}
+}
+
+// Ctrl+Espacio
+document.addEventListener('keydown',e=>{
+  if(!(e.ctrlKey&&e.code==='Space'))return;
+  const id=admId(); if(!id)return;
+  e.preventDefault(); e.stopPropagation();
+  const c=chats()[id]||{}, hum=!!(c.humanMode||Number(c.manualUntil||0)>Date.now());
+  if(hum){upd(id,{humanMode:false,manualUntil:0,javierOnline:false,javierOnlineAt:0,updatedAt:Date.now()});try{if(typeof toast==='function')toast('🤖 AUTO activado')}catch(_){}}
+  else{upd(id,{humanMode:true,manualUntil:Date.now()+30*60*1000,javierOnline:true,javierOnlineAt:Date.now(),updatedAt:Date.now()});try{if(typeof toast==='function')toast('👤 HUM activado')}catch(_){}}
+  setTimeout(()=>{try{if(typeof window.abrirChatAdmin==='function')window.abrirChatAdmin(id,true)}catch(e){}},120);
+},true);
+
+// Notificaciones: solo ADM, filtrar admin/asistente
+const oldBanner=window.showNotifBanner;
+if(typeof oldBanner==='function'&&!oldBanner.__fase8){
+  const b=function(title,msg,icon,onClick){
+    if(!isAdm())return;
+    let t=String(title||''), m=String(msg||''), joined=(t+' '+m).toLowerCase();
+    if(joined.includes('asistente')||joined.includes('javier responder')||joined.includes('voy a intentar comunicarme')||joined.includes('atendiendo esta consulta')||joined.includes('dejame tu número de whatsapp')||joined.includes('dejame tu numero de whatsapp'))return;
+    const p=m.split(':').map(x=>x.trim()).filter(Boolean);
+    if(p.length===2&&p[0].toLowerCase()===p[1].toLowerCase()){t='Nuevo visitante';m=p[0];icon='👋'}
+    return oldBanner.call(this,t,m,icon,onClick);
+  };
+  b.__fase8=1; window.showNotifBanner=b; try{showNotifBanner=b}catch(e){}
+}
+
+// Foco visitante luego del saludo
+let lastCount=0;
+setInterval(()=>{
+  const pop=q('#chat-popover.open'); if(!pop||q('#chat-admin-text',pop))return;
+  const ms=qa('.chat-bubble',pop); if(ms.length===lastCount)return; lastCount=ms.length;
+  const txt=(ms[ms.length-1]?.innerText||'').toLowerCase();
+  if(txt.includes('en qué puedo ayudarte')||txt.includes('en que puedo ayudarte'))setTimeout(()=>{const inp=q('#chat-text',pop);if(inp)try{inp.focus({preventScroll:true})}catch(e){inp.focus()}},120);
+},500);
+
+// Indicadores y orden
+function rid(row){let id=row.getAttribute('data-chat-id')||row.dataset.chatId||''; if(id)return id; const m=(row.getAttribute('onclick')||'').match(/abrirChatAdmin\('([^']+)'\)/); return m?m[1]:''}
+function markRows(){
+  const db=chats();
+  qa('.chat-tab,[data-chat-id]').forEach(row=>{
+    const id=rid(row); if(!id)return;
+    const c=db[id]||{}, calling=!!(c.humanRequested&&c.callUntil&&!c.callAnsweredAt&&Number(c.callUntil)>Date.now()), pending=!!c.pendingHuman&&!calling;
+    row.classList.toggle('tu-f8-calling',calling); row.classList.toggle('tu-f8-pending',pending);
+    qa('.tu-f7-mega,.tu-f8-icon',row).forEach(x=>x.remove());
+    const name=row.querySelector('.chat-tab-name,.chat-name,strong,b')||row;
+    if(calling){const s=document.createElement('span');s.className='tu-f8-icon tu-f8-mega';s.textContent='📣 ';s.title='Llamada activa';name.prepend(s)}
+    else if(pending){const bt=document.createElement('button');bt.type='button';bt.className='tu-f8-icon tu-f8-star';bt.textContent='⭐';bt.title='Marcar pendiente como atendido';bt.onclick=ev=>{ev.preventDefault();ev.stopPropagation();window.marcarChatAtendido(id)};name.prepend(bt)}
+  });
+}
+function sortRows(){
+  const db=chats();
+  qa('.chat-tabs,.chat-inbox-side,.chat-list,.chat-inbox-list').forEach(cont=>{
+    const rows=qa('.chat-tab,[data-chat-id]',cont); if(rows.length<2)return;
+    rows.map((row,i)=>{const id=rid(row),c=db[id]||{},call=!!(c.humanRequested&&c.callUntil&&!c.callAnsweredAt&&Number(c.callUntil)>Date.now()),pend=!!c.pendingHuman&&!call;return{row,i,score:(call?1e12:0)+(pend?5e11:0)+Number(c.updatedAt||0)}}).sort((a,b)=>b.score-a.score||a.i-b.i).forEach(x=>cont.appendChild(x.row));
+  });
+}
+setInterval(()=>{Object.entries(chats()).forEach(([id,c])=>{c=c||{};if(c.humanRequested&&c.callUntil&&!c.callAnsweredAt&&Number(c.callUntil)>Date.now())startCall(id);else stopCall(id)})},1200);
+
+function css(){
+  if(q('#tu-fase8-css'))return;
+  const st=document.createElement('style');st.id='tu-fase8-css';
+  st.textContent=[
+    '.chat-bubble.tu-human-wait{background:#fff!important;color:#111!important;border:1px solid rgba(232,0,10,.25)!important;}',
+    '.chat-bubble.tu-human-wait .chat-meta{color:#555!important;}',
+    '.chat-human-countdown{margin-top:8px;font-size:12px;font-weight:900;color:#e8000a!important;}',
+    '.chat-bubble.tu-human-attend{background:#e9fff1!important;color:#111!important;border:1px solid rgba(0,160,80,.25)!important;}',
+    '.chat-attend-call{margin-top:10px;border:0!important;border-radius:999px!important;background:#e8000a!important;color:#fff!important;padding:8px 12px!important;font-weight:900!important;cursor:pointer!important;}',
+    '.tu-f8-calling,.chat-tab.calling,.chat-list-item.calling{border-color:#ff2020!important;box-shadow:inset 3px 0 0 #ff2020!important;animation:tuF8Pulse 1.15s infinite!important;}',
+    '.tu-f8-pending,.chat-tab.priority,.chat-list-item.priority{border-color:#ffd54a!important;box-shadow:inset 3px 0 0 #ffd54a!important;}',
+    '.chat-status.call{background:rgba(232,0,10,.18)!important;color:#ff7a7a!important;border-color:rgba(232,0,10,.5)!important;}',
+    '.chat-status.priority{background:rgba(255,213,74,.12)!important;color:#ffe070!important;border-color:rgba(255,213,74,.45)!important;}',
+    '.tu-f8-icon{display:inline-flex!important;align-items:center!important;justify-content:center!important;margin-right:5px!important;vertical-align:middle!important;}',
+    '.tu-f8-star{border:0!important;background:transparent!important;color:#ffd54a!important;padding:0!important;cursor:pointer!important;font-size:14px!important;filter:drop-shadow(0 0 5px rgba(255,213,74,.7))!important;}',
+    '.tu-f8-mega{color:#ff3636!important;filter:drop-shadow(0 0 6px rgba(255,30,30,.75))!important;}',
+    '@keyframes tuF8Pulse{0%,100%{box-shadow:inset 3px 0 0 #ff2020,0 0 0 rgba(255,32,32,0)}50%{box-shadow:inset 3px 0 0 #ff2020,0 0 14px rgba(255,32,32,.55)}}'
+  ].join('\n');
+  document.head.appendChild(st);
+}
+css();
+
+setInterval(()=>qa('.chat-human-countdown').forEach(el=>{const st=Number(el.getAttribute('data-human-wait-start')||0);if(!st)return;const n=el.querySelector('.chat-human-countdown-num');if(n)n.textContent=Math.max(0,60-Math.floor((Date.now()-st)/1000))}),500);
+})();
+
+
+// TOMAUNO LIMPIO FASE 9B — NOTIFICACIONES DESDE ORIGEN
+// Las notificaciones de chat web ahora salen únicamente del último mensaje real from:"user".
+// No se notifican respuestas del asistente/ADM usando lastMsg.
+
+
+// TOMAUNO LIMPIO FASE 10 — NOMBRES DUPLICADOS VISIBLES
+// Base 9B. Solo agrega alias visual: Sofía, Sofía (2), Sofía (3).
+// No toca llamadas, notificaciones, sonido, HUM/AUTO ni scroll.
+(function(){
+'use strict';
+
+function q(s,r){return (r||document).querySelector(s)}
+function qa(s,r){return Array.from((r||document).querySelectorAll(s))}
+function chats(){try{return window.chatsDB||chatsDB||{}}catch(e){return {}}}
+
+function normName(s){
+  return String(s||'')
+    .toLowerCase()
+    .normalize('NFD').replace(/[\u0300-\u036f]/g,'')
+    .replace(/\s+/g,' ')
+    .trim();
+}
+function cleanDisplayName(s){
+  return String(s||'')
+    .replace(/^\s*[📣⭐]\s*/g,'')
+    .replace(/\s+\(\d+\)\s*$/,'')
+    .replace(/\s+/g,' ')
+    .trim();
+}
+function rowId(row){
+  let id = row.getAttribute('data-chat-id') || row.dataset.chatId || '';
+  if(id) return id;
+  const on = row.getAttribute('onclick') || '';
+  const m = on.match(/abrirChatAdmin\('([^']+)'\)/);
+  return m ? m[1] : '';
+}
+function nameNode(row){
+  return row.querySelector('.chat-tab-name,.chat-name,strong,b,.name') || null;
+}
+function baseNameFor(id,row){
+  const db = chats();
+  const c = db[id] || {};
+  const n = String(c.name || c.nombre || '').trim();
+  if(n) return cleanDisplayName(n);
+
+  const node = nameNode(row);
+  if(node){
+    // Clonar texto visible sin iconos/botones agregados
+    let text = '';
+    node.childNodes.forEach(ch => {
+      if(ch.nodeType === Node.TEXT_NODE) text += ch.textContent || '';
+    });
+    text = cleanDisplayName(text || node.textContent || '');
+    if(text) return text;
+  }
+  return 'Visitante';
+}
+
+function visibleRows(){
+  return qa('.chat-tab,[data-chat-id]').filter(row => {
+    const id = rowId(row);
+    if(!id) return false;
+    const style = window.getComputedStyle ? getComputedStyle(row) : null;
+    if(style && style.display === 'none') return false;
+    if(row.offsetParent === null && !(row.getClientRects && row.getClientRects().length)) return false;
+    return true;
+  });
+}
+
+function applyDuplicateNames(){
+  const rows = visibleRows();
+  if(!rows.length) return;
+
+  // Agrupar por nombre base solo entre filas visibles.
+  const groups = {};
+  rows.forEach(row => {
+    const id = rowId(row);
+    const base = baseNameFor(id,row);
+    const key = normName(base);
+    if(!key) return;
+    (groups[key] ||= []).push({row,id,base});
+  });
+
+  Object.values(groups).forEach(group => {
+    if(group.length <= 1){
+      group.forEach(item => setAlias(item.row,item.base,''));
+      return;
+    }
+
+    // Orden estable por fecha de creación/updatedAt si existe; si no, orden actual visible.
+    const db = chats();
+    group.sort((a,b)=>{
+      const ca = db[a.id] || {}, cb = db[b.id] || {};
+      const ta = Number(ca.createdAt || ca.firstSeenAt || ca.updatedAt || 0);
+      const tb = Number(cb.createdAt || cb.firstSeenAt || cb.updatedAt || 0);
+      if(ta && tb && ta !== tb) return ta - tb;
+      return 0;
+    });
+
+    group.forEach((item,idx)=>{
+      const suffix = idx === 0 ? '' : ' ('+(idx+1)+')';
+      setAlias(item.row,item.base,suffix);
+    });
+  });
+}
+
+function setAlias(row,base,suffix){
+  const node = nameNode(row);
+  if(!node) return;
+
+  // Guardar nombre base para no acumular (2) (2)
+  if(!node.dataset.tuBaseName) node.dataset.tuBaseName = cleanDisplayName(base || node.textContent || '');
+  const finalName = (base || node.dataset.tuBaseName || 'Visitante') + (suffix || '');
+
+  // Mantener iconos previos 📣/⭐ si existen y solo reemplazar texto principal.
+  let textNode = null;
+  node.childNodes.forEach(ch => {
+    if(ch.nodeType === Node.TEXT_NODE && String(ch.textContent||'').trim()) {
+      if(!textNode) textNode = ch;
+    }
+  });
+
+  if(textNode){
+    if(cleanDisplayName(textNode.textContent) !== finalName){
+      textNode.textContent = finalName;
+    }
+  }else{
+    // Si el nodo tiene iconos/botones al inicio, insertar texto después del último icono.
+    const txt = document.createTextNode(finalName);
+    if(node.firstChild) node.appendChild(txt);
+    else node.textContent = finalName;
+  }
+
+  node.dataset.tuAliasName = finalName;
+}
+
+// Usar MutationObserver para aplicar luego de renders, sin recrear DOM.
+let scheduled = false;
+function schedule(){
+  if(scheduled) return;
+  scheduled = true;
+  requestAnimationFrame(()=>{
+    scheduled = false;
+    applyDuplicateNames();
+  });
+}
+
+const obs = new MutationObserver(schedule);
+function bind(){/* duplicados resueltos desde chatVisibleName/render original */}
+if(document.readyState === 'loading') document.addEventListener('DOMContentLoaded',bind,{once:true});
+else bind();
+
+setInterval(schedule,1500);
+})();
+
+
+// TOMAUNO FASE 12E — FLUJO HUMANO MÍNIMO DESDE FASE 10
+// No toca bandeja, títulos, orden, nombres, scroll ni maximizado.
+// Corrige SOLO:
+// 1) fallback único al vencer llamada;
+// 2) primer mensaje post-fallback queda agendado;
+// 3) mensajes posteriores vuelven al asistente normal;
+// 4) AUTO limpia estado humano real.
+(function(){
+'use strict';
+
+function q(s,r){return (r||document).querySelector(s)}
+function chats(){try{return window.chatsDB||chatsDB||{}}catch(e){return {}}}
+function admId(){try{return window.currentOpenChatId||currentOpenChatId||''}catch(e){return ''}}
+function ctime(){try{return typeof chatTimeSafe==='function'?chatTimeSafe():new Date().toLocaleTimeString('es-AR',{hour:'2-digit',minute:'2-digit'})}catch(e){return ''}}
+
+function upd(id,data){
+  try{
+    if(window.chatsDB&&window.chatsDB[id]) Object.assign(window.chatsDB[id],data);
+    if(typeof chatsDB!=='undefined'&&chatsDB[id]) Object.assign(chatsDB[id],data);
+    if(typeof db!=='undefined'&&typeof ref!=='undefined'&&typeof update!=='undefined') {
+      return update(ref(db,'tomauno/chats/'+id),data).catch(()=>{});
+    }
+  }catch(e){}
+  return Promise.resolve();
+}
+
+async function pushMsg(id,data){
+  try{
+    if(id&&typeof push==='function'&&typeof ref==='function'&&typeof db!=='undefined'){
+      return await push(ref(db,'tomauno/chats/'+id+'/messages'),data);
+    }
+  }catch(e){}
+}
+
+function stopAudio(id){
+  try{if(typeof stopRing==='function')stopRing(id)}catch(e){}
+  try{if(typeof stopHumanRing==='function')stopHumanRing(id)}catch(e){}
+  try{
+    [window.__tuCallTimers,window.__tomaunoHumanRingTimers,window.__tomaunoRingTimers,window.humanRingTimers,window.ringTimers]
+      .filter(Boolean)
+      .forEach(b=>{if(b[id]){try{clearInterval(b[id])}catch(e){};try{clearTimeout(b[id])}catch(e){};delete b[id];}});
+  }catch(e){}
+}
+
+function msgs(c){
+  return Object.entries(c&&c.messages||{}).map(([mid,m])=>({mid,...m})).sort((a,b)=>Number(a.createdAt||0)-Number(b.createdAt||0));
+}
+
+function hasFallback(c){
+  return msgs(c).some(m => m.humanFallback || String(m.text||'').includes('Dejame tu número de WhatsApp'));
+}
+
+function hasContactReceived(c){
+  return !!(c && (c.humanContactReceived || c.humanContactAt || msgs(c).some(m => m.humanContactReceived)));
+}
+
+function hasFallback12e(c){
+  return msgs(c).some(m => m.humanFallback || /dejame tu n[uúÃº]mero de whatsapp|dejame tu numero de whatsapp|consulta pendiente para javier/i.test(String(m.text||'')));
+}
+
+async function finishCallOnce(id,c){
+  if(!id || !c) return;
+  if(!c.humanRequested || !c.callUntil || c.callAnsweredAt) return;
+  if(Date.now() < Number(c.callUntil)) return;
+
+  stopAudio(id);
+  if(window.__tomaunoClaimHumanFallback && !(await window.__tomaunoClaimHumanFallback(id))) return;
+
+  // Si algún código base ya generó fallback, no duplicar. Solo normalizar flags.
+  if(c.humanFallbackSent || hasFallback(c) || hasFallback12e(c)){
+    await upd(id,{
+      humanRequested:false,
+      waitingHuman:false,
+      priority:false,
+      prioridad:false,
+      callUntil:0,
+      callAnsweredAt:Date.now(),
+      humanFallbackSent:true,
+      humanMode:false,
+      manualUntil:0,
+      javierOnline:false,
+      javierOnlineAt:0,
+      waitingWhatsapp:true,
+      waitingHumanContact:true,
+      pendingHuman:true,
+      pendingAt:Number(c.pendingAt||Date.now()),
+      updatedAt:Date.now()
+    });
+    return;
+  }
+
+  await upd(id,{
+    humanRequested:false,
+    waitingHuman:false,
+    priority:false,
+    prioridad:false,
+    callUntil:0,
+    callAnsweredAt:Date.now(),
+    humanFallbackSent:true,
+    humanMode:false,
+    manualUntil:0,
+    javierOnline:false,
+    javierOnlineAt:0,
+    waitingWhatsapp:true,
+    waitingHumanContact:true,
+    pendingHuman:true,
+    pendingAt:Number(c.pendingAt||Date.now()),
+    updatedAt:Date.now(),
+    lastMsg:'⭐ Consulta pendiente para Javier'
+  });
+
+  await pushMsg(id,{
+    from:'admin',
+    auto:true,
+    humanFallback:true,
+    text:'En este momento Javier puede estar ocupado.\n\n📱 Dejame tu número de WhatsApp y tu consulta para Javier. Muy pronto se comunicará con vos.',
+    time:ctime(),
+    createdAt:Date.now()
+  });
+
+  setTimeout(()=>{try{if(typeof updateChatMessagesOnly==='function')updateChatMessagesOnly(id,!!q('#chat-popover.open #chat-admin-text'))}catch(e){}},140);
+}
+
+async function captureContactOnce(id,text){
+  const c = chats()[id] || {};
+  const waiting = !!(c.waitingWhatsapp || c.waitingHumanContact || c.pendingHumanContact);
+  if(!waiting) return false;
+  if(hasContactReceived(c)) {
+    // Ya se recibió; limpiar cualquier flag viejo para no capturar de nuevo.
+    await upd(id,{waitingWhatsapp:false,waitingHumanContact:false,pendingHumanContact:false,updatedAt:Date.now()});
+    return false;
+  }
+
+  await upd(id,{
+    waitingWhatsapp:false,
+    waitingHumanContact:false,
+    pendingHumanContact:false,
+    humanMode:false,
+    manualUntil:0,
+    javierOnline:false,
+    javierOnlineAt:0,
+    humanContactReceived:true,
+    humanContactText:String(text||'').trim(),
+    humanContactAt:Date.now(),
+    pendingHuman:true,
+    pendingAt:Number(c.pendingAt||Date.now()),
+    updatedAt:Date.now(),
+    lastMsg:'✅ Consulta agendada para Javier'
+  });
+
+  await pushMsg(id,{
+    from:'admin',
+    auto:true,
+    humanContactReceived:true,
+    text:'✅ Consulta agendada. Gracias, ya le dejo tu mensaje a Javier para que pueda responderte apenas esté disponible.',
+    time:ctime(),
+    createdAt:Date.now()
+  });
+
+  try{
+    await window.registrarActividadTomauno('consulta_pendiente', {
+      id:'consulta_javier_' + id,
+      ts:Date.now(),
+      title:'Consulta pendiente para Javier',
+      name:(typeof chatVisibleName === 'function' ? chatVisibleName(c,id) : (c.name || 'Visitante')),
+      detail:String(text || '').trim(),
+      targetType:'chat',
+      targetId:id
+    });
+  }catch(e){}
+  try{if(typeof updateChatMessagesOnly==='function')updateChatMessagesOnly(id,!!q('#chat-popover.open #chat-admin-text'))}catch(e){}
+  return true;
+}
+
+const oldResponder = window.responderAutomaticoChat || (typeof responderAutomaticoChat !== 'undefined' ? responderAutomaticoChat : null);
+if(typeof oldResponder === 'function' && !oldResponder.__fase12e){
+  const responder12e = async function(id,text){
+    try{ if(await captureContactOnce(id,text)) return null; }catch(e){}
+    return oldResponder.apply(this,arguments);
+  };
+  responder12e.__fase12e = 1;
+  window.responderAutomaticoChat = responder12e;
+  try{responderAutomaticoChat = responder12e}catch(e){}
+}
+
+function cleanAuto(id){
+  if(!id) return;
+  return upd(id,{
+    humanMode:false,
+    manualUntil:0,
+    waitingHuman:false,
+    humanRequested:false,
+    pendingHuman:false,
+    waitingWhatsapp:false,
+    waitingHumanContact:false,
+    pendingHumanContact:false,
+    callUntil:0,
+    javierOnline:false,
+    javierOnlineAt:0,
+    updatedAt:Date.now()
+  });
+}
+
+const oldToggle = window.toggleModoAsistenteChat || (typeof toggleModoAsistenteChat !== 'undefined' ? toggleModoAsistenteChat : null);
+if(typeof oldToggle === 'function' && !oldToggle.__fase12e){
+  const toggle12e = function(){
+    const id = admId();
+    if(id && typeof window.tomaunoToggleModoChatActual === 'function'){
+      return window.tomaunoToggleModoChatActual(id);
+    }
+    return oldToggle.apply(this,arguments);
+  };
+  toggle12e.__fase12e = 1;
+  window.toggleModoAsistenteChat = toggle12e;
+  try{toggleModoAsistenteChat = toggle12e}catch(e){}
+}
+
+function refreshActiveChatHeader(id){
+  try{
+    const pop = q('#chat-popover.open');
+    const c = chats()[id || admId()] || {};
+    if(!pop || !id || !c) return;
+    if(q('#chat-admin-text', pop)){
+      const title = q('.chat-title', pop);
+      const sub = q('.chat-subline', pop);
+      if(title && typeof chatVisibleName === 'function'){
+        title.innerHTML = '<span class="chat-online-dot '+(typeof isChatUserOnline === 'function' && isChatUserOnline(c) ? 'on' : '')+'"></span>' + escHtml(chatVisibleName(c,id));
+      }
+      if(sub && typeof lastSeenText === 'function'){
+        sub.textContent = (c.wp ? 'WhatsApp: '+c.wp+' · ' : '') + lastSeenText(c);
+      }
+    }
+  }catch(e){}
+}
+
+function cleanupLegacyHumanAlert12e(){
+  try{
+    document.querySelectorAll('body > div').forEach(el => {
+      if(el.id === 'notif-stack' || el.closest('#notif-stack') || el.id === 'chat-popover') return;
+      const txt = String(el.innerText || el.textContent || '');
+      if(/ATENCI[ÓO]N/i.test(txt) && /Abrir chat/i.test(txt)){
+        el.remove();
+      }
+    });
+  }catch(e){}
+}
+setInterval(cleanupLegacyHumanAlert12e, 500);
+
+function forceChatModeButton12e(id){
+  try{
+    id = id || admId();
+    const c = chats()[id] || {};
+    const btn = q('#chat-popover.open .chat-admin-tools .chat-filter.auto');
+    if(!btn || !id) return;
+    const human = !!(c.humanMode || Number(c.manualUntil || 0) > Date.now());
+    btn.classList.toggle('on', !human);
+    btn.textContent = human ? '👤 HUM' : '🤖 AUTO';
+    btn.title = human ? 'Este chat está en atención humana. Clic para volver a automático.' : 'Este chat está en automático. Clic para tomarlo manualmente.';
+  }catch(e){}
+}
+
+function ensureAdminEventsButton12e(){
+  try{
+    document.querySelectorAll('[data-tu-admin-events]').forEach(btn => btn.remove());
+  }catch(e){}
+}
+setInterval(() => { forceChatModeButton12e(admId()); ensureAdminEventsButton12e(); }, 700);
+
+const oldAttend12e = window.atenderLlamadaJavier;
+if(typeof oldAttend12e === 'function' && !oldAttend12e.__forceMode12e){
+  const attend12e = async function(id){
+    const r = await oldAttend12e.apply(this, arguments);
+    const chatId = id || admId();
+    [40, 180, 520].forEach(ms => setTimeout(() => forceChatModeButton12e(chatId), ms));
+    return r;
+  };
+  attend12e.__forceMode12e = 1;
+  window.atenderLlamadaJavier = attend12e;
+}
+
+function latestAdminMessage12e(c){
+  try{
+    return Object.values(c && c.messages || {})
+      .filter(m => m && m.from === 'admin' && !m.typing && String(m.text||'').trim())
+      .sort((a,b) => Number(b.createdAt||0) - Number(a.createdAt||0))[0] || null;
+  }catch(e){ return null; }
+}
+
+try{
+  const visitorSoundSeen12e = {};
+  onValue(ref(db,'tomauno/chats'), snap => {
+    try{
+      if(isAdminNotifier()) return;
+      const id = currentVisitorChatId || sessionStorage.getItem('tomauno-chat-id') || '';
+      if(!id || !snap.exists()) return;
+      const c = (snap.val() || {})[id] || {};
+      const m = latestAdminMessage12e(c);
+      if(!m || !m.createdAt) return;
+      const key = id + '|' + m.createdAt + '|' + String(m.text||'').slice(0,40);
+      if(visitorSoundSeen12e[key]) return;
+      visitorSoundSeen12e[key] = 1;
+      if(Date.now() - Number(m.createdAt || 0) > 1000 * 60 * 4) return;
+      if(!c.unreadVisitor && !m.humanInvite) return;
+      try{ if(typeof beepStrongFinal === 'function') beepStrongFinal(); else if(typeof beep === 'function') beep(); }catch(e){}
+      try{ if(navigator.vibrate) navigator.vibrate(120); }catch(e){}
+    }catch(e){}
+  });
+}catch(e){}
+
+const oldBannerDedupe12e = window.showNotifBanner || (typeof showNotifBanner !== 'undefined' ? showNotifBanner : null);
+if(typeof oldBannerDedupe12e === 'function' && !oldBannerDedupe12e.__dedupe12e){
+  const seenBanner12e = new Map();
+  const banner12e = function(title, detail, icon, onClick){
+    const isChat = /chat|mensaje|llamada/i.test(String(title||'') + ' ' + String(icon||''));
+    const sig = String(detail || '').replace(/\s+/g,' ').trim().toLowerCase();
+    if(isChat && sig){
+      const last = seenBanner12e.get(sig) || 0;
+      if(Date.now() - last < 7000) return;
+      seenBanner12e.set(sig, Date.now());
+    }
+    return oldBannerDedupe12e.apply(this, arguments);
+  };
+  banner12e.__dedupe12e = 1;
+  window.showNotifBanner = banner12e;
+  try{ showNotifBanner = banner12e; }catch(e){}
+}
+
+const oldUpdateHeader12e = typeof updateChatMessagesOnly === 'function' ? updateChatMessagesOnly : null;
+if(oldUpdateHeader12e && !oldUpdateHeader12e.__header12e){
+  const updateHeader12e = function(id, adminView){
+    const r = oldUpdateHeader12e.apply(this, arguments);
+    refreshActiveChatHeader(id);
+    return r;
+  };
+  updateHeader12e.__header12e = 1;
+  updateChatMessagesOnly = updateHeader12e;
+  try{window.updateChatMessagesOnly = updateHeader12e}catch(e){}
+}
+
+// Watcher mínimo: solo vencimiento de llamada, sin tocar bandeja.
+setInterval(()=>{
+  Object.entries(chats()).forEach(([id,c])=>finishCallOnce(id,c||{}));
+},1000);
+
+document.addEventListener('click', function(ev){
+  const fab = ev.target && ev.target.closest && ev.target.closest('#chat-fab');
+  if(!fab || !isAdminNotifier()) return;
+  ev.preventDefault();
+  ev.stopPropagation();
+  if(ev.stopImmediatePropagation) ev.stopImmediatePropagation();
+  try{
+    const pop = q('#chat-popover');
+    if(pop && pop.classList.contains('open')){
+      if(typeof window.cerrarChatPopover === 'function') window.cerrarChatPopover();
+      return;
+    }
+    if(pop){
+      pop.classList.remove('expanded','dragged','resizable','tu-mobile-fullscreen');
+      pop.style.display = '';
+    }
+    const list = Object.entries(chats())
+      .filter(([,c]) => c && (typeof isValidChat !== 'function' || isValidChat(c)) && c.status !== 'cerrado')
+      .sort((a,b) => {
+        try{ return (typeof sortChatsForInbox === 'function' ? sortChatsForInbox([a,b])[0] === a : Number(b[1].updatedAt||0) <= Number(a[1].updatedAt||0)) ? -1 : 1; }
+        catch(e){ return Number(b[1].updatedAt||0) - Number(a[1].updatedAt||0); }
+      });
+    const active = admId();
+    const unread = list.find(([,c]) => c && c.unreadAdmin);
+    const preferred = (active && chats()[active] && chats()[active].status !== 'cerrado') ? active : (unread ? unread[0] : (list[0] && list[0][0]));
+    if(preferred && typeof window.abrirChatAdmin === 'function') window.abrirChatAdmin(preferred, true);
+    else if(typeof abrirPanelChatsAdmin === 'function') abrirPanelChatsAdmin();
+  }catch(e){
+    try{ if(typeof window.abrirChatAdminHome === 'function') window.abrirChatAdminHome(); }catch(_e){}
+  }
+}, true);
+
 })();
