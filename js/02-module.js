@@ -1866,7 +1866,12 @@ window.enviarTicketPagoAlumno = (id) => {
   const ops = Array.isArray(i.opcionesElegidas) ? i.opcionesElegidas : [];
   const conceptos = conceptosContratadosAlumno(i, cur);
   const detalleOps = conceptos.map(o => '- ' + (o.nombre || '') + ': ' + dineroOpt(o.precio)).join('\n');
-  const detalle = pagos.map((p, idx) => {
+  const pagosVisiblesTicket = pagos.filter(p => {
+    const estado = p.estado || 'pendiente';
+    const monto = parseFloat(String(p.monto || '').replace(',','.')) || 0;
+    return estado === 'pagado' || estado === 'parcial' || (estado !== 'pendiente' && monto > 0);
+  });
+  const detalle = pagosVisiblesTicket.map((p, idx) => {
     const icon = p.estado === 'pagado' ? '✅' : p.estado === 'parcial' ? '⚡' : '⏳';
     const monto = p.monto ? ('$ ' + Number(String(p.monto).replace(',','.')).toLocaleString('es-AR')) : '$ 0';
     const fecha = p.fechaPago ? (' · ' + p.fechaPago) : '';
@@ -1891,7 +1896,7 @@ window.enviarTicketPagoAlumno = (id) => {
     monto: dineroOpt(o.precio),
     fecha: '-'
   }));
-  const rows = optionRows.concat(pagos.map((p, idx) => ({
+  const rows = optionRows.concat(pagosVisiblesTicket.map((p, idx) => ({
     label: p.label || ('Pago ' + (idx+1)),
     estado: estadoPagoTxt(p.estado),
     monto: p.monto ? ('$ ' + Number(String(p.monto).replace(',','.')).toLocaleString('es-AR')) : '$ 0',
@@ -2015,18 +2020,29 @@ window.abrirGrupoWA = () => {
 
 // ── EXPORTAR ──────────────────────────────────────────────────────────────────
 function descargarExcelCsv(nombreArchivo, titulo, columnas, filas) {
-  const sep = ';';
-  const limpiar = (v) => String(v ?? '').replace(/\r?\n/g, ' ').replace(/;/g, ',').trim();
-  const lines = [];
-  lines.push(limpiar(titulo));
-  lines.push('Generado;' + new Date().toLocaleDateString('es-AR'));
-  lines.push('');
-  lines.push(columnas.map(limpiar).join(sep));
-  filas.forEach(r => lines.push(r.map(limpiar).join(sep)));
-  const blob = new Blob(['\ufeff' + lines.join('\r\n')], {type:'text/csv;charset=utf-8;'});
+  const clean = (v) => escHtml(String(v ?? '').replace(/\r?\n/g, ' ').trim());
+  const moneyLike = (v) => /^-?\d+([,.]\d+)?$/.test(String(v ?? '').trim());
+  const body = filas.map((r, idx) => {
+    const isTotal = String(r[0] || '').toUpperCase().includes('TOTAL');
+    return '<tr class="' + (isTotal ? 'total' : '') + '">' + columnas.map((c, i) => {
+      const val = r[i] ?? '';
+      const cls = moneyLike(val) ? 'num' : '';
+      return '<td class="' + cls + '">' + clean(val) + '</td>';
+    }).join('') + '</tr>';
+  }).join('');
+  const html = '<!DOCTYPE html><html><head><meta charset="UTF-8">' +
+    '<style>body{font-family:Arial,sans-serif;color:#111}.title{font-size:22px;font-weight:900;margin:0 0 4px}.brand span{color:#e8000a}.meta{font-size:12px;color:#666;margin-bottom:14px}table{border-collapse:collapse;width:100%;font-size:12px}th{background:#e8000a;color:#fff;font-weight:900;text-align:left;border:1px solid #b90008;padding:8px}td{border:1px solid #d7d7d7;padding:7px;vertical-align:top;mso-number-format:"\\@";}tr:nth-child(even) td{background:#f5f5f5}.total td{background:#111!important;color:#fff;font-weight:900}.num{text-align:right;mso-number-format:"#,##0"}</style>' +
+    '</head><body>' +
+    '<div class="title brand">TOMA<span>UNO</span></div>' +
+    '<div class="title">' + clean(titulo) + '</div>' +
+    '<div class="meta">Generado: ' + clean(new Date().toLocaleDateString('es-AR')) + '</div>' +
+    '<table><thead><tr>' + columnas.map(c => '<th>' + clean(c) + '</th>').join('') + '</tr></thead><tbody>' + body + '</tbody></table>' +
+    '</body></html>';
+  const blob = new Blob(['\ufeff' + html], {type:'application/vnd.ms-excel;charset=utf-8;'});
   const a = document.createElement('a');
   a.href = URL.createObjectURL(blob);
-  a.download = nombreArchivo.endsWith('.csv') ? nombreArchivo : nombreArchivo + '.csv';
+  a.download = String(nombreArchivo || 'tomauno_planilla').replace(/\.csv$/i,'.xls').replace(/\.xlsx$/i,'.xls');
+  if(!/\.xls$/i.test(a.download)) a.download += '.xls';
   document.body.appendChild(a);
   a.click();
   setTimeout(() => {
@@ -2138,12 +2154,17 @@ window.exportarExcel = () => {
   const hasOpciones = lista.some(([,i]) => resumenConceptosContratados(i, cursos[i.cursoId]));
   const hasTutor = lista.some(([,i]) => i.tutorNombre || i.tutorWp);
   const hasMarca = lista.some(([,i]) => i.marca);
+  const hasMoney = lista.some(([,i]) => {
+    const cur = cursos[i.cursoId] || {};
+    const pinfo = getPagoAlumnoInfo(i, cur);
+    return Number(cur.costo || 0) > 0 || Number(i.opcionesTotal || 0) > 0 || Number(i.totalManual || 0) > 0 || Number(pinfo.monto || 0) > 0 || saldoAlumno(i, cur) > 0;
+  });
   const includeAll = !selectedCourse;
   const cols = ['Nro','Nombre'];
   if(hasMarca) cols.push('M');
   if(includeAll || cr.dni !== false) cols.push('DNI');
   if(includeAll || cr.edad !== false) cols.push('Edad');
-  cols.push('Curso');
+  if(includeAll) cols.push('Curso');
   if(hasEspecial) cols.push(especialHeader);
   if(hasDetalle) cols.push('Detalle pedido');
   cols.push('Localidad');
@@ -2155,7 +2176,7 @@ window.exportarExcel = () => {
   if(includeAll || cr.medidas) cols.push('Medidas');
   cols.push('Fecha');
   if(hasOpciones) cols.push('Conceptos pactados');
-  cols.push('Total contratado','Total abonado','Saldo');
+  if(hasMoney) cols.push('Total contratado','Total abonado','Saldo');
   const rows = lista.map(([,i], idx) => {
     const cur = cursos[i.cursoId];
     const pinfo = getPagoAlumnoInfo(i, cur);
@@ -2163,7 +2184,7 @@ window.exportarExcel = () => {
     if(hasMarca) row.push(i.marca ? 'M' : '');
     if(includeAll || cr.dni !== false) row.push(i.dni||'');
     if(includeAll || cr.edad !== false) row.push(i.edad||'');
-    row.push(i.cursoTitulo || cur?.titulo || '');
+    if(includeAll) row.push(i.cursoTitulo || cur?.titulo || '');
     if(hasEspecial) row.push(i.campoEspecialValor || '');
     if(hasDetalle) row.push(i.detallePedido || '');
     row.push(i.localidad || '');
@@ -2175,18 +2196,20 @@ window.exportarExcel = () => {
     if(includeAll || cr.medidas) row.push(i.medidas||'');
     row.push(i.fecha||'');
     if(hasOpciones) row.push(resumenConceptosContratados(i, cur));
-    row.push(totalContratadoAlumno(i, cur), pinfo.monto, saldoAlumno(i, cur));
+    if(hasMoney) row.push(totalContratadoAlumno(i, cur), pinfo.monto, saldoAlumno(i, cur));
     return row;
   });
-  const totalIdx = cols.indexOf('Total contratado');
-  const abonadoIdx = cols.indexOf('Total abonado');
-  const saldoIdx = cols.indexOf('Saldo');
-  const totalRow = Array(cols.length).fill('');
-  totalRow[0] = 'TOTAL';
-  totalRow[totalIdx] = rows.reduce((a,r)=>a+(Number(r[totalIdx])||0),0);
-  totalRow[abonadoIdx] = rows.reduce((a,r)=>a+(Number(r[abonadoIdx])||0),0);
-  totalRow[saldoIdx] = rows.reduce((a,r)=>a+(Number(r[saldoIdx])||0),0);
-  rows.push(totalRow);
+  if(hasMoney){
+    const totalIdx = cols.indexOf('Total contratado');
+    const abonadoIdx = cols.indexOf('Total abonado');
+    const saldoIdx = cols.indexOf('Saldo');
+    const totalRow = Array(cols.length).fill('');
+    totalRow[0] = 'TOTAL';
+    totalRow[totalIdx] = rows.reduce((a,r)=>a+(Number(r[totalIdx])||0),0);
+    totalRow[abonadoIdx] = rows.reduce((a,r)=>a+(Number(r[abonadoIdx])||0),0);
+    totalRow[saldoIdx] = rows.reduce((a,r)=>a+(Number(r[saldoIdx])||0),0);
+    rows.push(totalRow);
+  }
   descargarExcelCsv('tomauno_inscripciones_' + String(cn).replace(/[^a-zA-Z0-9]/g,'_') + '.csv', 'Tomauno - Inscripciones - ' + cn, cols, rows);
 };
 
@@ -2205,6 +2228,11 @@ window.exportarPDF = () => {
   const hasOpciones = lista.some(([,i]) => resumenConceptosContratados(i, cursos[i.cursoId]));
   const hasTutor = lista.some(([,i]) => i.tutorNombre || i.tutorWp);
   const hasTurno = lista.some(([,i]) => i.turno || i.fechaTurno || i.fechaTurnoLabel);
+  const hasMoney = lista.some(([,i]) => {
+    const cur = cursos[i.cursoId] || {};
+    const pinfo = getPagoAlumnoInfo(i, cur);
+    return Number(cur.costo || 0) > 0 || Number(i.opcionesTotal || 0) > 0 || Number(i.totalManual || 0) > 0 || Number(pinfo.monto || 0) > 0 || saldoAlumno(i, cur) > 0;
+  });
   const cols = ['#'];
   if(hasMarca) cols.push('M');
   cols.push('Nombre');
@@ -2223,7 +2251,7 @@ window.exportarPDF = () => {
   cols.push('Fecha');
   if(hasTurno) cols.push('Dia turno','Turno');
   if(hasOpciones) cols.push('Conceptos pactados');
-  cols.push('Total','Abonado','Saldo');
+  if(hasMoney) cols.push('Total','Abonado','Saldo');
   const bodyRows = lista.map(([id,i], idx) => {
     const cur = cursos[i.cursoId];
     const pinfo = getPagoAlumnoInfo(i, cur);
@@ -2245,14 +2273,15 @@ window.exportarPDF = () => {
     row.push(i.fecha || '');
     if(hasTurno) row.push(labelFechaTurnoAlumno(i, cur) || '', i.turno || '');
     if(hasOpciones) row.push(resumenConceptosContratados(i, cur) || '');
-    row.push('$ ' + totalContratadoAlumno(i, cur).toLocaleString('es-AR'), '$ ' + pinfo.monto.toLocaleString('es-AR'), '$ ' + saldoAlumno(i, cur).toLocaleString('es-AR'));
+    if(hasMoney) row.push('$ ' + totalContratadoAlumno(i, cur).toLocaleString('es-AR'), '$ ' + pinfo.monto.toLocaleString('es-AR'), '$ ' + saldoAlumno(i, cur).toLocaleString('es-AR'));
     return row;
   });
   const rows = bodyRows.map(r => '<tr>' + r.map(v => '<td>' + escHtml(v || '-') + '</td>').join('') + '</tr>').join('');
   const head = '<tr>' + cols.map(c => '<th>' + escHtml(c) + '</th>').join('') + '</tr>';
   const win = window.open('', '_blank');
   if(!win) return;
-  win.document.write('<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Tomauno</title><link rel="stylesheet" href="css/03-style-03.css"/><style>@media print{@page{size:landscape;margin:8mm}}table{font-size:10px;width:100%;border-collapse:collapse}th{background:#e8000a!important;color:#fff!important}th,td{padding:5px 6px;border:1px solid #d8d8d8;vertical-align:top}td{word-break:break-word}.course-title{max-width:100%;white-space:normal}</style></head><body><div class="head"><div class="brand">TOMA<span>UNO</span></div><div class="course-title">'+escHtml(cn)+'</div><div class="meta">Planilla de alumnos - '+new Date().toLocaleDateString('es-AR')+'</div></div><div class="summary"><div class="box">Inscriptos: '+lista.length+'</div><div class="box">Abonado: $ '+totalAbonado.toLocaleString('es-AR')+'</div><div class="box">Saldo: $ '+totalSaldo.toLocaleString('es-AR')+'</div></div><table><thead>'+head+'</thead><tbody>'+rows+'</tbody></table></body></html>');
+  const summary = '<div class="summary"><div class="box">Inscriptos: '+lista.length+'</div>' + (hasMoney ? '<div class="box">Abonado: $ '+totalAbonado.toLocaleString('es-AR')+'</div><div class="box">Saldo: $ '+totalSaldo.toLocaleString('es-AR')+'</div>' : '') + '</div>';
+  win.document.write('<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Tomauno</title><link rel="stylesheet" href="css/03-style-03.css"/><style>@media print{@page{size:landscape;margin:8mm}}table{font-size:10px;width:100%;border-collapse:collapse}th{background:#e8000a!important;color:#fff!important}th,td{padding:5px 6px;border:1px solid #d8d8d8;vertical-align:top}td{word-break:break-word}.course-title{max-width:100%;white-space:normal}</style></head><body><div class="head"><div class="brand">TOMA<span>UNO</span></div><div class="course-title">'+escHtml(cn)+'</div><div class="meta">Planilla de alumnos - '+new Date().toLocaleDateString('es-AR')+'</div></div>'+summary+'<table><thead>'+head+'</thead><tbody>'+rows+'</tbody></table></body></html>');
   win.document.close();
   setTimeout(() => win.print(), 400);
 };
