@@ -1692,7 +1692,9 @@ window.renderAlumnos = () => {
       '<div class="admin-metric"><div class="admin-metric-n" style="color:#4caf7d;">$ ' + totalMonto.toLocaleString('es-AR') + '</div><div class="admin-metric-l">Total registrado</div></div>' +
       '<div class="admin-metric"><div class="admin-metric-n" style="color:#f5c842;">$ ' + totalSaldo.toLocaleString('es-AR') + '</div><div class="admin-metric-l">Saldo</div></div>' +
     '</div>' +
-    '<div style="display:flex;gap:8px;flex-wrap:wrap;margin:12px 0 0;"><button class="bsm bl" onclick="window.copiarListaAlumnosWhatsApp()">📋 Copiar nombres + WhatsApp</button></div>';
+    '<div style="display:flex;gap:8px;flex-wrap:wrap;margin:12px 0 0;"><button class="bsm bl" onclick="window.copiarListaAlumnosWhatsApp()">📋 Copiar nombres + WhatsApp</button>' +
+    (cursoSeleccionado && cursoSeleccionado.tipo === 'sesiones' ? '<button class="bsm bl" onclick="window.verPlanillaTurnos(\'' + filtro + '\')">📋 Turnos</button>' : '') +
+    '</div>';
 
   if (!lista.length) {
     tb.innerHTML = '<tr><td colspan="' + (mostrarCurso ? 10 : 9) + '" style="text-align:center;padding:40px;color:var(--text3);">Sin inscripciones para este filtro</td></tr>';
@@ -2022,21 +2024,37 @@ window.abrirGrupoWA = () => {
 function descargarExcelCsv(nombreArchivo, titulo, columnas, filas) {
   const clean = (v) => escHtml(String(v ?? '').replace(/\r?\n/g, ' ').trim());
   const moneyLike = (v) => /^-?\d+([,.]\d+)?$/.test(String(v ?? '').trim());
+  const colClass = (name) => {
+    const n = String(name || '').toLowerCase();
+    if(n === 'm') return 'mark';
+    if(/nombre|curso|conceptos|detalle/.test(n)) return 'wide';
+    if(/whatsapp|instagram|email|localidad/.test(n)) return 'mid';
+    if(/total|abonado|saldo|monto|pago/.test(n)) return 'money';
+    return 'normal';
+  };
+  const colgroup = '<colgroup>' + columnas.map(c => '<col class="col-' + colClass(c) + '"/>').join('') + '</colgroup>';
   const body = filas.map((r, idx) => {
     const isTotal = String(r[0] || '').toUpperCase().includes('TOTAL');
     return '<tr class="' + (isTotal ? 'total' : '') + '">' + columnas.map((c, i) => {
       const val = r[i] ?? '';
-      const cls = moneyLike(val) ? 'num' : '';
+      const name = String(c || '').toLowerCase();
+      const cls = [
+        moneyLike(val) ? 'num' : '',
+        name === 'm' && String(val).trim() ? 'mark-cell' : '',
+        /saldo/.test(name) && Number(String(val).replace(',','.')) > 0 ? 'saldo-cell' : '',
+        /abonado|registrado/.test(name) && Number(String(val).replace(',','.')) > 0 ? 'ok-cell' : ''
+      ].filter(Boolean).join(' ');
       return '<td class="' + cls + '">' + clean(val) + '</td>';
     }).join('') + '</tr>';
   }).join('');
   const html = '<!DOCTYPE html><html><head><meta charset="UTF-8">' +
-    '<style>body{font-family:Arial,sans-serif;color:#111}.title{font-size:22px;font-weight:900;margin:0 0 4px}.brand span{color:#e8000a}.meta{font-size:12px;color:#666;margin-bottom:14px}table{border-collapse:collapse;width:100%;font-size:12px}th{background:#e8000a;color:#fff;font-weight:900;text-align:left;border:1px solid #b90008;padding:8px}td{border:1px solid #d7d7d7;padding:7px;vertical-align:top;mso-number-format:"\\@";}tr:nth-child(even) td{background:#f5f5f5}.total td{background:#111!important;color:#fff;font-weight:900}.num{text-align:right;mso-number-format:"#,##0"}</style>' +
+    '<style>body{font-family:Arial,sans-serif;color:#111}.brand{font-size:28px;font-weight:900;margin:0 0 2px;letter-spacing:.02em}.brand span{color:#e8000a}.title{font-size:18px;font-weight:900;margin:0 0 5px}.meta{font-size:12px;color:#666;margin-bottom:14px}.note{font-size:11px;color:#777;margin-bottom:10px}table{border-collapse:collapse;width:100%;font-size:12px}col.col-mark{width:38px}col.col-wide{width:230px}col.col-mid{width:140px}col.col-money{width:105px}col.col-normal{width:90px}th{background:#e8000a;color:#fff;font-weight:900;text-align:left;border:1px solid #b90008;padding:8px;text-transform:uppercase}td{border:1px solid #d7d7d7;padding:7px;vertical-align:top;mso-number-format:"\\@";}tr:nth-child(even) td{background:#f5f5f5}.total td{background:#111!important;color:#fff;font-weight:900}.num{text-align:right;mso-number-format:"#,##0"}.mark-cell{background:#fff1a8!important;color:#111!important;font-weight:900;text-align:center}.saldo-cell{color:#c00000!important;font-weight:900}.ok-cell{color:#078b42!important;font-weight:900}</style>' +
     '</head><body>' +
-    '<div class="title brand">TOMA<span>UNO</span></div>' +
+    '<div class="brand">TOMA<span>UNO</span></div>' +
     '<div class="title">' + clean(titulo) + '</div>' +
     '<div class="meta">Generado: ' + clean(new Date().toLocaleDateString('es-AR')) + '</div>' +
-    '<table><thead><tr>' + columnas.map(c => '<th>' + clean(c) + '</th>').join('') + '</tr></thead><tbody>' + body + '</tbody></table>' +
+    '<div class="note">Planilla exportada desde Tomauno. Si queres conservar cambios y formulas, usa Guardar como .xlsx.</div>' +
+    '<table>' + colgroup + '<thead><tr>' + columnas.map(c => '<th>' + clean(c) + '</th>').join('') + '</tr></thead><tbody>' + body + '</tbody></table>' +
     '</body></html>';
   const blob = new Blob(['\ufeff' + html], {type:'application/vnd.ms-excel;charset=utf-8;'});
   const a = document.createElement('a');
